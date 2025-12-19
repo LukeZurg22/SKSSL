@@ -1,4 +1,3 @@
-using System;
 using SKSSL.YAML;
 
 #pragma warning disable CS8618, CS9264

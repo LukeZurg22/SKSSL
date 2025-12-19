@@ -1,4 +1,3 @@
-using System;
 using Gum.DataTypes;
 using Gum.Forms.Controls;
 using Microsoft.Xna.Framework;
@@ -10,16 +9,16 @@ using MonoGameGum;
 
 namespace SKSSL.Scenes;
 
-public abstract class ISceneManager
+public class BaseSceneManager
 {
     protected SpriteBatch _spriteBatch;
     protected GraphicsDeviceManager _graphicsManager;
-    protected GumProjectSave _gumProjectSave;
+    protected GumProjectSave? _gumProjectSave;
     
     protected BaseGameScene _currentScene;
-    protected readonly Microsoft.Xna.Framework.Game _game;
+    protected readonly Game _game;
 
-    protected ISceneManager(Microsoft.Xna.Framework.Game game) => _game = game;
+    public BaseSceneManager(Game game) => _game = game;
 
     /// <summary>
     /// Checks if "GumService.Default.Root.Children" is not Null, and if not, clears them.
@@ -33,7 +32,7 @@ public abstract class ISceneManager
     public void Initialize(
         GraphicsDeviceManager graphicsManager,
         SpriteBatch spriteBatch,
-        GumProjectSave gumProjectSave)
+        GumProjectSave? gumProjectSave)
     {
         _graphicsManager = graphicsManager;
         _spriteBatch = spriteBatch;

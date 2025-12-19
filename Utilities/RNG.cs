@@ -1,7 +1,6 @@
 ﻿
 // ReSharper disable InconsistentNaming
 
-using System;
 using RandN;
 using RandN.Distributions;
 

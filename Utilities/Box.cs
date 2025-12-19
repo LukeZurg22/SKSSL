@@ -1,6 +1,7 @@
-using System;
 
-namespace SKSSL.Dynamacy;
+// ReSharper disable UnusedType.Global
+
+namespace SKSSL.Utilities;
 
 public class Box<T> where T : struct
 {
