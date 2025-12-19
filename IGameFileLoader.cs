@@ -1,7 +1,7 @@
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedMemberInSuper.Global
-namespace SKSSL.Scenes
+namespace SKSSL
 {
     /// <summary>
     /// For generic parsers or loaders, typically with YAML files that permit the programme's expansion into loading
