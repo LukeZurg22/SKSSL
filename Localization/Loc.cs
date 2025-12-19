@@ -18,7 +18,6 @@ public static class Loc
     public static readonly string SystemCulture;
 
     internal static ConcurrentDictionary<string, string> Localizations { get; }
-    private static string _languageFolder = Environment.CurrentDirectory;
 
     static Loc()
     {
@@ -99,9 +98,7 @@ public static class Loc
             folder = Path.Combine(localizationFolder, defaultLanguage);
         }
 
-        _languageFolder = folder;
-
-        var files = Directory.GetFiles(_languageFolder, "*.ftl*", SearchOption.AllDirectories);
+        var files = Directory.GetFiles(folder, "*.ftl*", SearchOption.AllDirectories);
         Parallel.ForEach(files, file =>
         {
             string[] contents = File.ReadAllLines(file);
