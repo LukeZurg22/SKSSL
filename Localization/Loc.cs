@@ -25,7 +25,7 @@ public static class Loc
         Localizations = new ConcurrentDictionary<string, string>();
         switch (SystemCulture)
         {
-            case "en-US":
+            case "en-US": // TODO: Add dynamically-supported languages rather than statically-defined.
             case "de-DE":
             case "fr-FR":
                 Thread.CurrentThread.CurrentCulture = new CultureInfo(SystemCulture);
