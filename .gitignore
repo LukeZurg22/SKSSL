@@ -1,0 +1,39 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+# Rider ignored files
+/.idea.SKSSL.iml
+/projectSettingsUpdater.xml
+/modules.xml
+/contentModel.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+
+# Build Folders
+bin/
+obj/
+
+# Rider
+.idea/
+*.sln.iml
+
+# User-specific
+*.user
+*.userprefs
+*.suo
+*.vscode/
+
+# NuGet
+*.nupkg
+packages/
+*.snupkg
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
