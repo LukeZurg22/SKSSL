@@ -42,7 +42,8 @@ public abstract class SSLGame : Game
             GumFile = gumFile;
     }
 
-    public bool IsNetworkSupported { get; set; }
+    // WARN: I have no idea how to do networking. This needs work. Set False as Default, for now.
+    public bool IsNetworkSupported { get; set; } = false;
     public string Title { get; set; }
 
     /// <summary>
