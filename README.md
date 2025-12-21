@@ -8,7 +8,7 @@ This is a shared library. "SKSSL" stands for "SolKom Shared Standard Library" Th
 - Framework: Monogame DesktopGL 3.4.2+
 - Language(s): C#, YAML, YML
 
-## Project Goal
+## Program Goal
 There is no defined goal for this Library. I develop it as I progress my skills as a game developer, sharing what I know and my active understanding of code as I progress.
 
 ## Limitations
