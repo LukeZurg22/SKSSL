@@ -2,13 +2,15 @@ using System.Drawing;
 using RenderingLibrary.Graphics;
 using YamlDotNet.Serialization;
 using Color = Microsoft.Xna.Framework.Color;
+// ReSharper disable MemberCanBePrivate.Global
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
 namespace SKSSL.YAML;
 
 /// <summary>
-/// (De)Serializable data type read from YAML files.
+/// (De)Serializable data type read from YAML files. Further entries that inherit this may have optional parameters
+/// implemented either through Nullable&lt;T&gt; variables, or variables with default provided values.
 /// <code>
 /// Yaml Entry Example:
 /// - type: (string)
