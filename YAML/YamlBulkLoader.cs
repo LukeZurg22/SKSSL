@@ -151,13 +151,11 @@ public static partial class YamlBulkLoader
 
         foreach (var line in lines)
         {
-            string trimmed = line.Trim();
-            if (trimmed.StartsWith('-') && current.Count > 0 && trimmed.Length > 1)
+            if (IsTopLevelEntryStart(line) && current.Count > 0)
             {
                 entries.Add(current.ToArray());
                 current.Clear();
             }
-
             current.Add(line);
         }
 
@@ -165,6 +163,24 @@ public static partial class YamlBulkLoader
             entries.Add(current.ToArray());
 
         return entries;
+    }
+
+    private static bool IsTopLevelEntryStart(string line)
+    {
+        // The line must start with '-' at column 0 (only whitespace before is OK, but typically none)
+        // Skip leading whitespace
+        int i = 0;
+        while (i < line.Length && char.IsWhiteSpace(line[i]))
+            i++;
+
+        // Must be exactly at the start (i == 0) and begin with '-', followed by space or end
+        if (i >= line.Length || i != 0) return false;  // Ensures that any indentation = not top-level
+
+        if (line[i] != '-') return false;
+
+        // Optional: require space after '-' (most common style)
+        // Remove this check if you want to allow "-type: recipe" (no space)
+        return i >= line.Length || char.IsWhiteSpace(line[i]);
     }
 
     /// <summary>
