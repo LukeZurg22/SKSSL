@@ -183,20 +183,18 @@ public static partial class YamlBulkLoader
             if (Path.IsPathRooted(pattern))
             {
                 dir = Path.GetDirectoryName(pattern) ?? baseDirectory;
-                searchPattern = Path.GetFileName(pattern) ?? "*";
+                searchPattern = Path.GetFileName(pattern);
             }
             else
             {
                 // Relative pattern: resolve against baseDirectory
                 dir = Path.Combine(baseDirectory, Path.GetDirectoryName(pattern) ?? "");
-                searchPattern = Path.GetFileName(pattern) ?? "*";
+                searchPattern = Path.GetFileName(pattern);
             }
 
             // Ensure the directory is normalized and exists
             if (Directory.Exists(dir))
-            {
-                files.UnionWith(Directory.GetFiles(dir, searchPattern));
-            }
+                files.UnionWith(Directory.GetFiles(dir, searchPattern, SearchOption.AllDirectories));
         }
 
         return files;
