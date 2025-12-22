@@ -73,9 +73,13 @@ public static partial class YamlBulkLoader
                 string yamlBlock = string.Join("\n", entryLines);
                 try
                 {
-                    object? obj = _deserializer.Deserialize(yamlBlock, targetType);
-                    if (obj != null)
-                        results[targetType].Add(obj);
+                    // Always deserialize as a list – handles single or multiple entries, with or without '-'
+                    Type listType = typeof(List<>).MakeGenericType(targetType);
+                    var list = _deserializer.Deserialize(yamlBlock, listType);
+
+                    if (list is IEnumerable<object> items)
+                        foreach (var item in items)
+                            results[targetType].Add(item);
                 }
                 catch (Exception ex)
                 {
