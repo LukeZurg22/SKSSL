@@ -24,7 +24,7 @@ namespace SKSSL.YAML;
 public static partial class YamlBulkLoader
 {
     private static readonly IDeserializer _deserializer = new DeserializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
         .Build();
 
