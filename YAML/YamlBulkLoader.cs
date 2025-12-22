@@ -46,13 +46,12 @@ public static partial class YamlBulkLoader
     /// Reads files once and dispatches entries to correct types.
     /// </summary>
     public static Dictionary<Type, List<object>> LoadAllTypes(
-        IEnumerable<Type> knownTypes,
-        params string[] filePatterns)
+        IEnumerable<Type> knownTypes, string? specificPath = null, params string[] filePatterns)
     {
         var types = knownTypes as Type[] ?? knownTypes.ToArray();
         var results = types.ToDictionary(t => t, _ => new List<object>());
 
-        var files = GetFiles(filePatterns);
+        var files = GetFiles(filePatterns, specificPath);
 
         foreach (var file in files)
         {
@@ -164,15 +163,40 @@ public static partial class YamlBulkLoader
         return entries;
     }
 
-    private static IEnumerable<string> GetFiles(string[] patterns)
+    /// <summary>
+    /// Returns a distinct set of file paths matching the given patterns, optionally restricted to a base directory.
+    /// </summary>
+    /// <param name="patterns">File patterns (e.g., "*.cs", "src/**/*.txt", "logs/error.log")</param>
+    /// <param name="baseDirectory">Optional base directory to resolve relative patterns against. If null, uses current directory.</param>
+    /// <returns>Distinct file paths (case-insensitive comparison on Windows)</returns>
+    private static IEnumerable<string> GetFiles(IEnumerable<string> patterns, string? baseDirectory = null)
     {
         var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        baseDirectory ??= Directory.GetCurrentDirectory();
+
         foreach (var pattern in patterns)
         {
-            string dir = Path.GetDirectoryName(pattern) ?? ".";
-            string search = Path.GetFileName(pattern);
+            // If the pattern is an absolute path, use it directly
+            string dir;
+            string searchPattern;
+
+            if (Path.IsPathRooted(pattern))
+            {
+                dir = Path.GetDirectoryName(pattern) ?? baseDirectory;
+                searchPattern = Path.GetFileName(pattern) ?? "*";
+            }
+            else
+            {
+                // Relative pattern: resolve against baseDirectory
+                dir = Path.Combine(baseDirectory, Path.GetDirectoryName(pattern) ?? "");
+                searchPattern = Path.GetFileName(pattern) ?? "*";
+            }
+
+            // Ensure the directory is normalized and exists
             if (Directory.Exists(dir))
-                files.UnionWith(Directory.GetFiles(dir, search));
+            {
+                files.UnionWith(Directory.GetFiles(dir, searchPattern));
+            }
         }
 
         return files;
