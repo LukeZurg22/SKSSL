@@ -58,6 +58,10 @@ public static partial class DustLogger
         logger = loggerFactory.CreateLogger<Program>();
     }
 
+    /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
+    /// Overload using enum, which is cast to byte.
+    public static void Log(string message, LOG log = LOG.INFORMATIONAL_PRINT, bool outputToFile = false) => Log(message, (byte)log, outputToFile);
+
     /// <summary>
     /// <seealso cref="LOG"/>
     /// </summary>
