@@ -11,11 +11,17 @@ public class DefaultTextureLoader : TextureLoader
 {
     protected override Texture2D GetTextureImplement<T>(string fullFilePath, bool isModded = false) =>
         LoadFromFile(fullFilePath);
+
+    protected override void CustomInitializeRegistries() =>
+        throw new NotImplementedException(
+            "Developer(s) MUST implement custom Registries Initialization, as registries may vary between projects.");
 }
 
 /// <summary>
 /// Generic texture loader for all game asset categories (blocks, items, UI, etc.).
 /// Supports multi-texture maps (diffuse + normal + etc.) and automatic error texture fallback.
+///
+/// A call to <see cref="CustomInitializeRegistries"/> must be made per-implementation.
 /// </summary>
 public abstract class TextureLoader
 {
@@ -46,9 +52,13 @@ public abstract class TextureLoader
         //  then that override is the one that shall be used and whatever is needed has already been initialized.
         if (IsInitialized)
             return;
+        
         if (alternativeLoader != null)
             _instance = alternativeLoader;
 
+        // Load Custom Registries.
+        _instance.CustomInitializeRegistries();
+        
         _graphicsDevice = graphicsDevice ?? throw new ArgumentNullException(nameof(graphicsDevice));
         IsInitialized = true;
     }
@@ -118,6 +128,11 @@ public abstract class TextureLoader
     /// Overridable Texture acquisition.
     /// </summary>
     protected abstract Texture2D GetTextureImplement<T>(string fullFilePath, bool isModded = false) where T : class;
+
+    /// <summary>
+    /// Custom method for initializing dedicated registries. Absolutely required per-project.
+    /// </summary>
+    protected abstract void CustomInitializeRegistries();
 
     // Generic storage: category → texture name → texture object
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, object>>
