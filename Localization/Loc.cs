@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using SKSSL.Registry;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
@@ -94,11 +95,11 @@ public static class Loc
         {
             // If null, then use default localization.
             case null:
-                localePath = GamePathing.FOLDER_LOCALIZATION;
+                localePath = GameLoader.FOLDER_LOCALIZATION;
                 break;
             // Override default localization folder in case a new one was provided. 
             default:
-                GamePathing.FOLDER_LOCALIZATION = localePath;
+                GameLoader.FOLDER_LOCALIZATION = localePath;
                 break;
         }
 
