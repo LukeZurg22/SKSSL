@@ -1,9 +1,8 @@
-using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Textures;
 
-public struct TextureMaps
+public record TextureMaps
 {
     public enum TextureType
     {
@@ -14,23 +13,22 @@ public struct TextureMaps
         DISPLACEMENT,
         GLOSSY,
     }
-    
-    public Texture2D Diffuse;
-    public Texture2D Normal;
 
-    // public Texture2D Specular;
-    // public Texture2D Shaded;
+    public Texture2D? Diffuse { get; set; }
+    public Texture2D? Normal { get; set; }
+    public Texture2D? Displacement { get; set; }
+    public Texture2D? Metallic { get; set; }
+    public Texture2D? Roughness { get; set; }
+    public Texture2D? Emissive { get; set; }
 
-    /// <summary>
-    /// This constructor's explicit use is to use the content pipeline to create an error texture to replace a bad
-    /// reference in any one of the prototypes.
-    /// </summary>
-    public TextureMaps(ContentManager contentManager)
+    public TextureMaps()
     {
-        // TODO: Make this a static reference. No need to call load on every error-ed texture. 
-        var errorTexture =
-            contentManager.Load<Texture2D>(Path.Combine(contentManager.RootDirectory, "textures", "error"));
-        Diffuse = errorTexture;
-        Normal = errorTexture;
+    }
+
+    // Positional constructor for normal use
+    public TextureMaps(Texture2D? diffuse, Texture2D? normal = null)
+    {
+        Diffuse = diffuse;
+        Normal = normal;
     }
 }
