@@ -7,15 +7,25 @@ public static class GameLoader
     private static readonly Dictionary<string, string> GAME_PATHS = new();
     public static readonly string GAME_ENVIRONMENT_FOLDER = AppContext.BaseDirectory;
     public static readonly string PROJECT_DIRECTORY = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "..", "..", ".."));
-    public static readonly string FOLDER_GAME = Path.Combine(GAME_ENVIRONMENT_FOLDER, "game");
-    public static readonly string FOLDER_MODS = Path.Combine(GAME_ENVIRONMENT_FOLDER, "mods");
+    public static readonly string DEFAULT_FOLDER_GAME = Path.Combine(GAME_ENVIRONMENT_FOLDER, "game");
+    public static readonly string DEFAULT_FOLDER_MODS = Path.Combine(GAME_ENVIRONMENT_FOLDER, "mods");
     
     /// <summary>
-    /// Default Localization path.
+    /// Default Localization path for the game.
     /// <example>GameName/game/localization/...</example>
     /// </summary>
-    public static string FOLDER_LOCALIZATION = Path.Combine(FOLDER_GAME, "localization");
-    
+    public static string FOLDER_LOCALIZATION = Path.Combine(DEFAULT_FOLDER_GAME, "localization");
+
+    /// <summary>
+    /// Returns the default localization folder path, and can also do so for modded localization.
+    /// This is a helper method to make getting the path less cumbersome for projects that share
+    /// the exact same folder layout.
+    /// </summary>
+    /// <param name="isMod"></param>
+    /// <returns></returns>
+    public static string GetDefaultLocalizationFolder(bool isMod = false)
+        => !isMod ? FOLDER_LOCALIZATION : Path.Combine(DEFAULT_FOLDER_MODS, "localization");
+
     /// <summary>
     /// Returns enumerated files from a specific folder path respectful to the program's executable.
     /// Will attempt to use the Application Context's Base Directory as its root if a directory is not provided.
@@ -44,7 +54,7 @@ public static class GameLoader
     {
         var dynamicPath = GetPath("FOLDER_GAME");
         return string.IsNullOrEmpty(dynamicPath)
-            ? Path.Combine(new[] { FOLDER_GAME }.Concat(path).ToArray())
+            ? Path.Combine(new[] { DEFAULT_FOLDER_GAME }.Concat(path).ToArray())
             : dynamicPath;
     }
 
@@ -54,7 +64,7 @@ public static class GameLoader
     {
         var dynamicPath = GetPath("FOLDER_MODS");
         return string.IsNullOrEmpty(dynamicPath)
-            ? Path.Combine(new[] { FOLDER_MODS }.Concat(path).ToArray())
+            ? Path.Combine(new[] { DEFAULT_FOLDER_MODS }.Concat(path).ToArray())
             : dynamicPath;
     }
 
