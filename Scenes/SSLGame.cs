@@ -86,6 +86,10 @@ public abstract class SSLGame : Game
         return graphicsDeviceManager;
     }
 
+    /// <summary>
+    /// For custom <see cref="GameLoader"/>s, you MUST initialize them before the base.Initialize() an inheritance
+    /// level above this class.
+    /// </summary>
     protected override void Initialize()
     {
         // Initialize Gum UI Handling (Some projects may choose not to utilize Gum)
