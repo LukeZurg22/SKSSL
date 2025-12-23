@@ -91,6 +91,8 @@ public static partial class YamlBulkLoader
         return results;
     }
 
+    #region YAML Data Parsing Helpers
+    
     // Helper used by LoadAll<T> for efficiency when calling multiple times
     private static IEnumerable<T> GetAllMatching<T>(string[] filePatterns) where T : class
     {
@@ -182,6 +184,8 @@ public static partial class YamlBulkLoader
         // Remove this check if you want to allow "-type: recipe" (no space)
         return i >= line.Length || char.IsWhiteSpace(line[i]);
     }
+
+    #endregion
 
     /// <summary>
     /// Returns a distinct set of file paths matching the given patterns, optionally restricted to a base directory.
