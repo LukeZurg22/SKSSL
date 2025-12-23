@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using SKSSL.Registry;
+// ReSharper disable UnusedType.Global
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
@@ -11,12 +11,10 @@ namespace SKSSL.Localization;
 /// <summary>
 /// A public class used in acquiring the localization of any object defined in the .loc files of the Localization folder.
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedMember.Global")]
 public static class Loc
 {
-    const string defaultLanguage = "en-US";
+    private const string defaultLanguage = "en-US";
     public static string CurrentLanguage = defaultLanguage; // TODO: Load this from settings
-    public static readonly string SystemCulture;
 
     /// <summary>
     /// The localization entries as stored in the game's per-language-culture folder.
@@ -26,16 +24,16 @@ public static class Loc
 
     static Loc()
     {
-        SystemCulture = CultureInfo.CurrentCulture.Name;
+        string systemCulture = CultureInfo.CurrentCulture.Name;
         Localizations = new ConcurrentDictionary<string, string>();
-        switch (SystemCulture)
+        switch (systemCulture)
         {
             case "en-US": // TODO: Add dynamically-supported languages rather than statically-defined.
             case "de-DE":
             case "fr-FR":
-                Thread.CurrentThread.CurrentCulture = new CultureInfo(SystemCulture);
-                Thread.CurrentThread.CurrentUICulture = new CultureInfo(SystemCulture);
-                CurrentLanguage = SystemCulture;
+                Thread.CurrentThread.CurrentCulture = new CultureInfo(systemCulture);
+                Thread.CurrentThread.CurrentUICulture = new CultureInfo(systemCulture);
+                CurrentLanguage = systemCulture;
                 break;
             default: // English is the default if the culture isn't found, as well as being an option.
                 CurrentLanguage = defaultLanguage;
@@ -86,7 +84,7 @@ public static class Loc
     /// Localization folder path is optional, which is assigned the default path or vice versa depending on nullability.
     /// </summary>
     /// <param name="localePath">Directory Path of the localization folder, which contains sub-folders based on language culture.</param>
-    public static void Initialize(string? localePath = null)
+    public static void Load(string? localePath = null)
     {
         Localizations.Clear();
 
