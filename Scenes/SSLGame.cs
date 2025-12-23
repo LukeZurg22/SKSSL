@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoGameGum;
 using SKSSL.Localization;
 using SKSSL.Registry;
+using SKSSL.Utilities;
 
 namespace SKSSL.Scenes;
 
@@ -93,6 +94,9 @@ public abstract class SSLGame : Game
         
         // Initialize all static paths, which the developer must have defined!
         GameLoader.Initialize(StaticPaths);
+        
+        // Initialize hard-coded textures and assets.
+        HardcodedAssets.Initialize(GraphicsDevice);
         
         // Continue
         base.Initialize();

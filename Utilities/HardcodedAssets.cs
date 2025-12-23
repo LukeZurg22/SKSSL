@@ -4,17 +4,20 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Utilities;
 
-public static class HardcodedTextures
+public static class HardcodedAssets
 {
+    private static GraphicsDevice _graphicsDevice = null!;
+    public static void Initialize(GraphicsDevice graphicsDevice) => _graphicsDevice = graphicsDevice;
+
     private static Texture2D? DefaultError;
     
     /// <returns>Cached Default Error Texture, or creates a new one if one is not present. Defaults to 128x128.</returns>
-    public static Texture2D GetErrorTexture(GraphicsDevice graphicsDevice, int width = 128, int height = 128)
+    public static Texture2D GetErrorTexture(int width = 128, int height = 128)
     {
         if (DefaultError != null)
             return DefaultError;
         
-        var tex = new Texture2D(graphicsDevice, width, height);
+        var tex = new Texture2D(_graphicsDevice, width, height);
 
         var pixels = new Color[128 * 128];
 
