@@ -99,7 +99,7 @@ public static class GameLoader
         if (string.IsNullOrWhiteSpace(pathConstant)) throw new ArgumentException("Path constant required", nameof(pathConstant));
         ArgumentNullException.ThrowIfNull(loader);
 
-        // Optional: override if same name registered again (good for mods)
+        // override if same name registered again (good for mods)
         _loaders.RemoveAll(l => l.Name == name);
         _loaders.Add((name, pathConstant, loader));
     }
