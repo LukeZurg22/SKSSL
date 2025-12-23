@@ -60,7 +60,7 @@ public static partial class DustLogger
 
     /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
     /// Overload using enum, which is cast to byte.
-    public static void Log(string message, LOG log = LOG.INFORMATIONAL_PRINT, bool outputToFile = false) => Log(message, (byte)log, outputToFile);
+    public static void Log(string message, LOG log, bool outputToFile = false) => Log(message, (byte)log, outputToFile);
 
     /// <summary>
     /// <seealso cref="LOG"/>
