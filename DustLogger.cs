@@ -24,7 +24,7 @@ public static partial class DustLogger
     /// SYSTEM_ERROR        = 0x4,
     /// </code>
     /// </summary>
-    internal enum LOG : byte
+    public enum LOG : byte
     {
         INFORMATIONAL_PRINT = 0x0,
         GENERAL_ERROR = 0x1,
