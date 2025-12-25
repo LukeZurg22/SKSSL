@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities;
+// ReSharper disable UnusedMethodReturnValue.Global
+// ReSharper disable MemberCanBeProtected.Global
 
 // ReSharper disable ClassNeverInstantiated.Global
 
@@ -9,8 +11,11 @@ namespace SKSSL.Textures;
 // Default implementation
 public class DefaultTextureLoader : TextureLoader
 {
-    protected override Texture2D GetTextureImplement<T>(string fullFilePath) =>
-        LoadFromFile(fullFilePath);
+    protected override Texture2D GetTextureImplement<T>(string fullFilePath)
+    {
+        TryGetTextureFromFile(fullFilePath, out Texture2D texture);
+        return texture;
+    }
 
     protected override void CustomInitializeRegistries() =>
         throw new NotImplementedException(
@@ -78,30 +83,33 @@ public abstract class TextureLoader
 
     /// <summary>
     /// Loads a Texture2D directly from a file path (PNG, JPG, BMP, etc.).
-    /// Returns <see cref="HardcodedAssets"/> error texture on failure.
+    /// Returns boolean and outputs <see cref="HardcodedAssets"/> error texture on failure.
     /// </summary>
-    public static Texture2D LoadFromFile(string filePath)
+    public static bool TryGetTextureFromFile(string filePath, out Texture2D texture)
     {
         if (!File.Exists(filePath))
         {
             DustLogger.Log($"Texture file not found: {filePath}", 3);
-            return HardcodedAssets.GetErrorTexture();
+            
+            texture = HardcodedAssets.GetErrorTexture();
+            return false;
         }
 
         try
         {
             using FileStream stream = File.OpenRead(filePath);
-            Texture2D texture = Texture2D.FromStream(_graphicsDevice, stream);
+            texture = Texture2D.FromStream(_graphicsDevice, stream);
 
             // Optional: Set sensible defaults
             texture.Name = Path.GetFileNameWithoutExtension(filePath);
 
-            return texture;
+            return true;
         }
         catch (Exception ex)
         {
             DustLogger.Log($"Failed to load texture from {filePath}: {ex.Message}", 3);
-            return HardcodedAssets.GetErrorTexture();
+            texture = HardcodedAssets.GetErrorTexture();
+            return false;
         }
     }
 
