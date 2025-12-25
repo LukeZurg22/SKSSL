@@ -122,7 +122,7 @@ public static class GameLoader
         GlobalClean();
 
         if (_loaders.Count == 0)
-            DustLogger.Log("There are no loaders available for the Game Loader!", DustLogger.LOG.GENERAL_ERROR);
+            DustLogger.Log("There are no loaders available for the Game Loader!", DustLogger.LOG.GENERAL_WARNING);
         
         foreach ((string name, string pathConstant, GameLoadAction loader) in _loaders)
         {
