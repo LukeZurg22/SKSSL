@@ -36,7 +36,7 @@ public abstract class SSLGame : Game
     /// NEVER change. General examples include game texture and yaml prototypes folders.
     /// </summary>
     protected abstract (string id, string path)[] StaticPaths { get; }
-    
+
     /// <summary>
     /// The Project Gum UI file that will dictate how UI is loaded.
     /// <code>
@@ -96,16 +96,20 @@ public abstract class SSLGame : Game
         GumProjectSave? gumSave = null;
         if (!string.IsNullOrEmpty(GumFile)) gumSave = Gum.Initialize(this, GumFile);
         SceneManager.Initialize(_graphicsManager, _spriteBatch, gumSave); // Initialize Scene Manager
-        
+
         // Initialize all static paths, which the developer must have defined!
         GameLoader.Initialize(StaticPaths);
-        
+
         // Initialize hard-coded textures and assets.
         HardcodedAssets.Initialize(GraphicsDevice);
-        
+
         // Must be after Hard-coded assets, or there will be problems.
-        TextureLoader.Initialize(GraphicsDevice);
-        
+        TextureLoader.Initialize(
+            Content,
+            GraphicsDevice,
+            // Get game mod directory, get all folders within it, and feed as list. These are mods!
+            Directory.GetDirectories(GameLoader.MPath()).ToList());
+
         // Continue
         base.Initialize();
     }
@@ -120,7 +124,7 @@ public abstract class SSLGame : Game
         Gum.Draw();
         base.Draw(gameTime);
     }
-    
+
     protected override void Update(GameTime gameTime)
     {
         SceneManager.Update(gameTime);

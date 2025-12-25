@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
+using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities;
+// ReSharper disable UnusedMember.Global
+
 // ReSharper disable UnusedMethodReturnValue.Global
 // ReSharper disable MemberCanBeProtected.Global
 
@@ -13,8 +16,7 @@ public class DefaultTextureLoader : TextureLoader
 {
     protected override Texture2D GetTextureImplement<T>(string fullFilePath)
     {
-        TryGetTextureFromFile(fullFilePath, out Texture2D texture);
-        return texture;
+        throw new NotImplementedException();
     }
 
     protected override void CustomInitializeRegistries() =>
@@ -45,9 +47,28 @@ public abstract class TextureLoader
         set => _instance = value ?? throw new ArgumentNullException(nameof(value));
     }
 
-    public static GraphicsDevice _graphicsDevice { get; private set; } = null!;
+    private static GraphicsDevice _graphicsDevice { get; set; } = null!;
+
+    /// <summary>
+    /// Reference to Monogame's content manager for "base game" content.
+    /// </summary>
+    private static ContentManager _vanillaContent = null!;
+
+    /// <summary>
+    /// Mod Root folders. Operated upon with priority to recent "lower" mods over "older" ones. 
+    /// </summary>
+    private static IEnumerable<string> _modFolders = null!;
+
+    private static readonly Dictionary<string, Texture2D> _cache = new();
 
     private static bool IsInitialized { get; set; } = false;
+
+    /// <summary>
+    /// Allows the developer to pre-initialize a custom loader for the game, assuming it is on the surface-level of
+    /// game initialization and before base.Initialize() is called in the game's Initialize() method.
+    /// </summary>
+    /// <param name="alternativeLoader"></param>
+    public static void PreInitializeLoader(TextureLoader? alternativeLoader = null) => _instance = alternativeLoader ?? new DefaultTextureLoader();
 
     /// <summary>
     /// Initializes texture loaded. An alternative version of the loaded with a custom implement for
@@ -55,86 +76,63 @@ public abstract class TextureLoader
     /// <br/><br/>
     /// It is IMPERATIVE that this be loaded before the base.Initialize() of the game's Initialize() method.
     /// </summary>
-    /// <param name="graphicsDevice"></param>
-    /// <param name="alternativeLoader"></param>
+    /// <param name="vanillaContent">Monogame content manager for "Vanilla' game content.</param>
+    /// <param name="graphicsDevice">Game's graphic device for rendering.</param>
+    /// <param name="modFolders">All the root-level mod directory paths.</param>
     /// <exception cref="ArgumentNullException"></exception>
-    public static void Initialize(GraphicsDevice graphicsDevice, TextureLoader? alternativeLoader = null)
+    public static void Initialize(ContentManager vanillaContent, GraphicsDevice graphicsDevice, List<string> modFolders)
     {
         // If the texture loader has already been initialized by a "surface-level" class override,
         //  then that override is the one that shall be used and whatever is needed has already been initialized.
         if (IsInitialized)
             return;
 
-        if (alternativeLoader != null)
-            _instance = alternativeLoader;
-
         // Load Custom Registries.
         _instance.CustomInitializeRegistries();
 
+        _modFolders = modFolders;
+        _vanillaContent = vanillaContent ?? throw new ArgumentNullException(nameof(vanillaContent));
         _graphicsDevice = graphicsDevice ?? throw new ArgumentNullException(nameof(graphicsDevice));
         IsInitialized = true;
     }
 
     // The "static" method — but delegates to instance
-    public static Texture2D GetTexture<T>(string fullFilePath, bool isModded = false) where T : class
-        => Instance.GetTextureImplement<T>(fullFilePath);
 
     #region Get Raw Images
 
-    /// <summary>
-    /// Loads a Texture2D directly from a file path (PNG, JPG, BMP, etc.).
-    /// Returns boolean and outputs <see cref="HardcodedAssets"/> error texture on failure.
-    /// </summary>
-    public static bool TryGetTextureFromFile(string filePath, out Texture2D texture)
+    public static Texture2D Load(string assetName) // assetName like "Textures/PlayerSprite" (no extension)
     {
-        if (!File.Exists(filePath))
+        // Check cache first.
+        if (_cache.TryGetValue(assetName, out Texture2D? cached))
+            return cached;
+
+        // Check mods for raw override
+        // This makes sure that mod assets are loaded -before- vanilla assets.
+        foreach (var modFolder in _modFolders.Reverse()) // Reverse() last-mod-wins priority
         {
-            DustLogger.Log($"Texture file not found: {filePath}", 3);
-            
-            texture = HardcodedAssets.GetErrorTexture();
-            return false;
+            string modPath = Path.Combine(modFolder, assetName + ".png");
+            if (!File.Exists(modPath))
+                continue; // Short-circuit.
+            using FileStream stream = File.OpenRead(modPath);
+            Texture2D? texture = Texture2D.FromStream(_graphicsDevice, stream);
+            _cache[assetName] = texture;
+            return texture;
         }
 
+        // Try vanilla pipeline load (falls back if no .xnb exists)
         try
         {
-            using FileStream stream = File.OpenRead(filePath);
-            texture = Texture2D.FromStream(_graphicsDevice, stream);
-
-            // Optional: Set sensible defaults
-            texture.Name = Path.GetFileNameWithoutExtension(filePath);
-
-            return true;
+            var texture = _vanillaContent.Load<Texture2D>(assetName);
+            _cache[assetName] = texture;
+            return texture;
         }
-        catch (Exception ex)
+        catch (ContentLoadException)
         {
-            DustLogger.Log($"Failed to load texture from {filePath}: {ex.Message}", 3);
-            texture = HardcodedAssets.GetErrorTexture();
-            return false;
-        }
-    }
+        } // Expected if no vanilla asset
 
-    /// <summary>
-    /// Async version (for large files or many loads)
-    /// </summary>
-    public static async Task<Texture2D> LoadFromFileAsync(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            Console.WriteLine($"Texture file not found: {filePath}");
-            return HardcodedAssets.GetErrorTexture();
-        }
-
-        try
-        {
-            await using FileStream stream = File.OpenRead(filePath);
-            // FromStream is synchronous — wrap in Task.Run for async I/O
-            return await Task.Run(() => Texture2D.FromStream(_graphicsDevice, stream));
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Failed to load texture from {filePath}: {ex.Message}");
-            return HardcodedAssets.GetErrorTexture();
-        }
+        DustLogger.Log($"Image texture not found: {assetName}. Defaulting to error texture instead.",
+            DustLogger.LOG.FILE_WARNING);
+        return HardcodedAssets.GetErrorTexture();
     }
 
     #endregion

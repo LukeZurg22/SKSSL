@@ -2,14 +2,24 @@ using System.Reflection;
 using Microsoft.Xna.Framework.Content;
 
 namespace SKSSL;
+
 public static class GameLoader
 {
     private static readonly Dictionary<string, string> GAME_PATHS = new();
+
+    /// Root directory of the game's folder that includes the executable.
     public static readonly string GAME_ENVIRONMENT_FOLDER = AppContext.BaseDirectory;
-    public static readonly string PROJECT_DIRECTORY = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "..", "..", ".."));
+
+    /// Root directory of the Game in its development. NOT the final published application!
+    public static readonly string PROJECT_DIRECTORY =
+        Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "..", "..", ".."));
+
+    /// GameFolder/game/...
     public static readonly string DEFAULT_FOLDER_GAME = Path.Combine(GAME_ENVIRONMENT_FOLDER, "game");
+
+    /// GameFolder/mods/...
     public static readonly string DEFAULT_FOLDER_MODS = Path.Combine(GAME_ENVIRONMENT_FOLDER, "mods");
-    
+
     /// <summary>
     /// Default Localization path for the game.
     /// <example>GameName/game/localization/...</example>
@@ -35,7 +45,7 @@ public static class GameLoader
         string fullPath = Path.Combine(directory ?? AppContext.BaseDirectory, Path.Combine(path_s));
         return Directory.EnumerateFiles(fullPath, "*", SearchOption.AllDirectories);
     }
-    
+
     /// <summary>
     /// Retrieves an asset from the content pipeline manually using a provided filepath.
     /// </summary>
@@ -48,7 +58,7 @@ public static class GameLoader
         string assetPath = Path.Combine(path);
         return contentManager.Load<T>(assetPath);
     }
-    
+
     /// <returns>Dedicated path to game files.</returns>
     public static string GPath(params string[] path)
     {
@@ -75,7 +85,7 @@ public static class GameLoader
             ? Path.Combine(new[] { PROJECT_DIRECTORY }.Concat(path).ToArray())
             : dynamicPath;
     }
-    
+
     private static string? GetPath(string id)
     {
         GAME_PATHS.TryGetValue(id, out var result);
@@ -90,14 +100,15 @@ public static class GameLoader
         // Loop over every tuple and add the provided path to GAME_PATHS. Invalid paths are the programmer's problem.
         foreach ((string id, string path) path in paths) GAME_PATHS[path.id] = path.path;
     }
-    
+
     public delegate void GameLoadAction(string basePath);
 
     // Store: name (for logging), pathConstant (e.g. FOLDER_RACES), and the loader
     private static readonly List<(string Name, string PathConstant, GameLoadAction Loader)> _loaders = [];
-    
+
     // Public read-only view (optional, for debugging)
-    public static IReadOnlyList<(string Name, string PathConstant, GameLoadAction Loader)> Loaders => _loaders.AsReadOnly();
+    public static IReadOnlyList<(string Name, string PathConstant, GameLoadAction Loader)> Loaders =>
+        _loaders.AsReadOnly();
 
     /// <summary>
     /// Register a loader with its own path constant.
@@ -106,7 +117,8 @@ public static class GameLoader
     public static void Register(string name, string pathConstant, GameLoadAction loader)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name required", nameof(name));
-        if (string.IsNullOrWhiteSpace(pathConstant)) throw new ArgumentException("Path constant required", nameof(pathConstant));
+        if (string.IsNullOrWhiteSpace(pathConstant))
+            throw new ArgumentException("Path constant required", nameof(pathConstant));
         ArgumentNullException.ThrowIfNull(loader);
 
         // override if same name registered again (good for mods)
@@ -123,7 +135,7 @@ public static class GameLoader
 
         if (_loaders.Count == 0)
             DustLogger.Log("There are no loaders available for the Game Loader!", DustLogger.LOG.GENERAL_WARNING);
-        
+
         foreach ((string name, string pathConstant, GameLoadAction loader) in _loaders)
         {
             try
@@ -139,19 +151,19 @@ public static class GameLoader
         }
 
         //IMPL: Implement dynamic localization loading for mods. Overwrite existing localization entries!
-            // TODO: Load mod localization as if it were game content. Using Loc.Initialize() again may be handy.
+        // TODO: Load mod localization as if it were game content. Using Loc.Initialize() again may be handy.
         //LoadModLocalization(pather(FOLDER_LOCALIZATION));
     }
-    
+
     private static void GlobalClean()
     {
         Type loaderType = typeof(IGameFileLoader);
 
         var staticLoaders = Assembly.GetExecutingAssembly()
             .GetTypes()
-            .Where(t => t.IsClass 
-                        && t.IsAbstract 
-                        && t.IsSealed   // static class
+            .Where(t => t.IsClass
+                        && t.IsAbstract
+                        && t.IsSealed // static class
                         && loaderType.IsAssignableFrom(t))
             .ToArray();
 
@@ -161,7 +173,7 @@ public static class GameLoader
             MethodInfo? cleanMethod = loader.GetMethod("HandleClean", BindingFlags.Static & BindingFlags.Public);
             if (cleanMethod != null)
                 cleanMethod.Invoke(null, null); // Run it!
-            
+
             DustLogger.Log($"Triggering Cleanup method for class {loader.Name}");
         }
     }
