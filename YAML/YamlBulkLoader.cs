@@ -61,6 +61,9 @@ public static partial class YamlBulkLoader
 
             foreach (var entryLines in entries)
             {
+                // WARN: The ExtractTypeTag below limits the parser to only one type per file.
+                //  A file CANNOT have mixed types, despite that being the initial intention. This isn't super game-breaking,
+                //  But it IS an issue.
                 string? typeTag = ExtractTypeTag(entryLines);
                 if (typeTag == null) continue;
 
