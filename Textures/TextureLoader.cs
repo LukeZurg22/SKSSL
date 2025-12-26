@@ -114,6 +114,8 @@ public abstract class TextureLoader
         if (_cache.TryGetValue(assetName, out Texture2D? cached))
             return cached;
 
+        // TODO: Add <mod_name>:<asset_name> support.
+        
         // Check mods for raw override
         // This makes sure that mod assets are loaded -before- vanilla assets.
         foreach (var modFolder in _modFolders.Reverse()) // Reverse() last-mod-wins priority
