@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using static SKSSL.DustLogger;
 
 namespace SKSSL.YAML;
 
@@ -83,7 +84,7 @@ public static partial class YamlBulkLoader
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed to deserialize {typeTag} in {file}: {ex.Message}");
+                    Log($"Failed to deserialize {typeTag} in {file}: {ex.Message}", LOG.FILE_ERROR);
                 }
             }
         }
