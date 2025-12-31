@@ -1,6 +1,7 @@
-using SKSSL.Registry;
+using SKSSL.ECS;
 using SKSSL.Scenes;
 using SKSSL.YAML;
+using ComponentRegistry = SKSSL.ECS.ComponentRegistry;
 
 namespace SKSSL.Managers;
 
@@ -39,7 +40,7 @@ public class EntityManager
         // Get fresh ID.
         int id = _nextId++;
         
-        // Make the thing.
+        // Make the entity and feed it.
         var entity = new SKEntity(id, ComponentRegistry.Count)
         {
             ReferenceId = template.ReferenceId,

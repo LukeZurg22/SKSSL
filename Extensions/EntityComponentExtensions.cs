@@ -2,7 +2,7 @@
 
 using System.Reflection;
 
-namespace SKSSL.Registry;
+namespace SKSSL.ECS;
 
 /// <summary>
 /// Includes extension and overload methods for handling <see cref="SKEntity"/> objects and their components.

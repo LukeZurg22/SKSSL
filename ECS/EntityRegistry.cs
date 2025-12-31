@@ -2,7 +2,7 @@ using System.Reflection;
 using SKSSL.YAML;
 using static SKSSL.DustLogger;
 
-namespace SKSSL.Registry;
+namespace SKSSL.ECS;
 
 public static class EntityRegistry
 {

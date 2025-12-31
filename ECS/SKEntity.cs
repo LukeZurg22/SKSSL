@@ -5,7 +5,7 @@ using SKSSL.Scenes;
 
 // ReSharper disable ClassNeverInstantiated.Global
 
-namespace SKSSL.Registry;
+namespace SKSSL.ECS;
 
 public sealed record SKEntity
 {

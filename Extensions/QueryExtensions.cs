@@ -1,7 +1,9 @@
 // IMPL: Add query extensions for EntitySystem.
 
+using SKSSL.ECS;
 using SKSSL.Registry;
 using SKSSL.Scenes;
+using ComponentRegistry = SKSSL.ECS.ComponentRegistry;
 
 public static class EntitySystemQueryExtensions
 {

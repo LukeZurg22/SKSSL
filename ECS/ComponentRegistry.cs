@@ -1,12 +1,12 @@
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Type = System.Type;
-using System.Collections.Concurrent;
 
 // ReSharper disable InvalidXmlDocComment
 
-namespace SKSSL.Registry;
+namespace SKSSL.ECS;
 
 /// Central registry that creates, handles, gets, an deletes components.
 public static partial class ComponentRegistry
