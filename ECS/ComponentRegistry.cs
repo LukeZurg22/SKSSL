@@ -34,13 +34,12 @@ public static partial class ComponentRegistry
         else
         {
             // Slow but safe fallback: use Activator
-            // Cache this delegate too so we don't check again
             newCreator = () => Activator.CreateInstance(type)
                                ?? throw new InvalidOperationException(
                                    $"Cannot instantiate {type.Name}: no parameterless constructor and Activator failed.");
         }
 
-        // Cache for next time (thread-safe enough for startup)
+        // Cache for next time (thread-safe enough)
         _creators[type] = newCreator;
 
         return newCreator();
