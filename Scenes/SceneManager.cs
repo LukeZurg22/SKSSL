@@ -88,7 +88,7 @@ public class SceneManager
         _currentScene?.UnloadContent(); // UniqueUnloadContent the current scene
 
         _currentScene = newScene; // Switch to the new scene
-        _currentScene.Initialize(Game, _graphicsManager, _spriteBatch, _gumProjectSave); // Initialize the Scene
+        _currentScene.Initialize(Game, _graphicsManager, _spriteBatch, _gumProjectSave, world: null); // Initialize the Scene
 
         _currentScene.LoadContent(); // Load the new scene content
     }

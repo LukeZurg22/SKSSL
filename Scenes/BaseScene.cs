@@ -2,7 +2,11 @@ using Gum.DataTypes;
 using Gum.Forms.Controls;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using System.Collections.Generic;
+// ReSharper disable NotAccessedField.Local
+
+#pragma warning disable CS0169 // Field is never used
+
+// ReSharper disable CollectionNeverQueried.Local
 
 // ReSharper disable CollectionNeverQueried.Global
 // ReSharper disable VirtualMemberNeverOverridden.Global
@@ -18,17 +22,28 @@ public abstract class BaseScene
     internal GumProjectSave? _gumProjectSave;
 
     protected readonly List<FrameworkElement> _Menus = [];
+    
+    /// <summary>
+    /// World definition that should be initialized with a custom variant.
+    /// </summary>
+    private BaseWorld _world;
+    protected BaseScene(BaseWorld world) => _world = world;
 
     public void Initialize(
         Game game,
         GraphicsDeviceManager graphicsManager,
         SpriteBatch spriteBatch,
-        GumProjectSave? gumProjectSave)
+        GumProjectSave? gumProjectSave,
+        BaseWorld? world)
     {
         _game = game;
         _graphicsManager = graphicsManager;
         _spriteBatch = spriteBatch;
         _gumProjectSave = gumProjectSave;
+        
+        // This is such that the world isn't overwritten by initializing a new scene.
+        if (world != null)
+            _world = world;
     }
 
     protected abstract void LoadScreens();
