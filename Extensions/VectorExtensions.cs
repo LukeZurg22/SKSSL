@@ -1,6 +1,6 @@
 using Microsoft.Xna.Framework;
 
-namespace SKSSL.Utilities;
+namespace SKSSL.Extensions;
 
 public static class VectorExtensions
 {
