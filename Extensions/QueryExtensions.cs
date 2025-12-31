@@ -1,16 +1,29 @@
+// IMPL: Add query extensions for EntitySystem.
+
+using SKSSL.Registry;
 using SKSSL.Scenes;
 
-namespace SKSSL.Registry;
-
-/// <summary>
-/// Extensions to <see cref="BaseScene"/> that allow one to get entities within a scene definition.
-/// </summary>
-public static class QueryExtensions
+public static class EntitySystemQueryExtensions
 {
+//    public static Query<T1> Query<T1>(this EntitySystem system)
+//        where T1 : struct, ISKComponent
+//        => new Query<T1>(system.World);
+//
+//    public static Query<T1, T2> Query<T1, T2>(this EntitySystem system)
+//        where T1 : struct, ISKComponent
+//        where T2 : struct, ISKComponent
+//        => new Query<T1, T2>(system.World);
+//
+//    public static Query<T1, T2, T3> Query<T1, T2, T3>(this EntitySystem system)
+//        where T1 : struct, ISKComponent
+//        where T2 : struct, ISKComponent
+//        where T3 : struct, ISKComponent
+//        => new Query<T1, T2, T3>(system.World);
+
     /// <summary>
     /// Get all entities with a single component type.
     /// </summary>
-    public static IEnumerable<SKEntity> With<T>(this BaseWorld world) where T : struct, ISKComponent
+    public static IEnumerable<SKEntity> Query<T>(this BaseWorld world) where T : struct, ISKComponent
     {
         int typeId = ComponentRegistry.GetComponentTypeId<T>();
 
@@ -24,7 +37,7 @@ public static class QueryExtensions
     /// <summary>
     /// Get all entities with two component types
     /// </summary>
-    public static IEnumerable<SKEntity> With<T1, T2>(this BaseWorld world)
+    public static IEnumerable<SKEntity> Query<T1, T2>(this BaseWorld world)
         where T1 : struct, ISKComponent
         where T2 : struct, ISKComponent
     {
@@ -42,7 +55,7 @@ public static class QueryExtensions
     /// <summary>
     /// Get all entities with three component types.
     /// </summary>
-    public static IEnumerable<SKEntity> With<T1, T2, T3>(this BaseWorld world)
+    public static IEnumerable<SKEntity> Query<T1, T2, T3>(this BaseWorld world)
         where T1 : struct, ISKComponent
         where T2 : struct, ISKComponent
         where T3 : struct, ISKComponent
@@ -60,5 +73,5 @@ public static class QueryExtensions
         }
     }
 
-    // Add more overloads if needed (up to 5-6 is common)
+
 }
