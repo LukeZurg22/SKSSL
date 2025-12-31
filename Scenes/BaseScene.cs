@@ -22,28 +22,29 @@ public abstract class BaseScene
     internal GumProjectSave? _gumProjectSave;
 
     protected readonly List<FrameworkElement> _Menus = [];
-    
+
     /// <summary>
     /// World definition that should be initialized with a custom variant.
+    /// Allows developers to initialize world settings / data per-scene.
+    /// <remarks>May need improvement later.</remarks>
     /// </summary>
-    private BaseWorld _world;
-    protected BaseScene(BaseWorld world) => _world = world;
+    protected internal BaseWorld? SceneWorld;
 
+    
     public void Initialize(
         Game game,
         GraphicsDeviceManager graphicsManager,
         SpriteBatch spriteBatch,
         GumProjectSave? gumProjectSave,
-        BaseWorld? world)
+        ref BaseWorld? world)
     {
         _game = game;
         _graphicsManager = graphicsManager;
         _spriteBatch = spriteBatch;
         _gumProjectSave = gumProjectSave;
+        SceneWorld = world;
         
-        // This is such that the world isn't overwritten by initializing a new scene.
-        if (world != null)
-            _world = world;
+        SceneWorld?.Initialize();
     }
 
     protected abstract void LoadScreens();
@@ -57,6 +58,7 @@ public abstract class BaseScene
 
     public void UnloadContent()
     {
+        SceneWorld?.Destroy();
         SceneManager.ClearScreens();
         UniqueUnloadContent();
     }
