@@ -14,6 +14,9 @@ There is no defined goal for this Library. I develop it as I progress my skills 
 ## Limitations
 Given that this isn't necessarily a program, the limitations are from C# version 9+ and the frameworks involved. The classes are meant to be as ubiquitous as can be, but very-distant versions past the one this was developed-in will likely cause issues.
 
+## Maintainer's Remarks
+This is all a massive work-in-progress, but don't bother waiting for it to improve before using it. The moment I find a system in this library satisfactory enough to suit my purposes, I will stop adding and improving that system. Pull Requests are welcomed from those who intend to contribute to the system in places that I cannot be bothered to touch.
+
 ---
 
 ## Licensing and References
