@@ -22,6 +22,8 @@ public static class RecordExtensions
             if (prop.CanRead && prop.CanWrite)
                 prop.SetValue(clone, prop.GetValue(original));
 
+        // I know this acts like MemberwiseClone(), however it stays anyway because i'm just that unreasonable.
+        
         return clone;
     }
     
