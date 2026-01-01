@@ -9,39 +9,21 @@ using MonoGameGum;
 
 namespace SKSSL.Scenes;
 
-public static class GameManager
-{
-    public static SSLGame Game { get; private set; } = null!;
-    public static string Title => Game.Title;
-    public static float AspectRatio => Game.GraphicsDevice.Viewport.AspectRatio;
-    public static bool IsNetworkSupported => Game.IsNetworkSupported;
-
-    public static void Exit()
-    {
-        // Safely exit without suicidal tendencies.
-        SSLGame game = Game;
-        game.Quit();
-        game.Exit();
-    }
-    public static void ResetGame() => Game.ResetGame();
-
-    public static void Run<T>() where T : SSLGame, new()
-    {
-        // Safely run without running-the-gun.
-        using T type = new();
-        Game = type;
-        type.Run();
-    }
-}
-
 public class SceneManager
 {
     protected SpriteBatch _spriteBatch;
     protected GraphicsDeviceManager _graphicsManager;
     protected GumProjectSave? _gumProjectSave;
-    protected BaseScene? _currentScene;
-    public static SSLGame Game { get; private set; } = null!;
+    protected internal BaseScene? _currentScene;
+    public SSLGame Game { get; private set; }
 
+    /// <summary>
+    /// World definition that should be initialized with a custom variant.
+    /// Allows developers to initialize world settings / data per-scene.
+    /// <remarks>May need improvement later.</remarks>
+    /// </summary>
+    protected internal BaseWorld? CurrentWorld;
+    
     public SceneManager(SSLGame game)
     {
         Game = game;
@@ -88,11 +70,29 @@ public class SceneManager
         _currentScene?.UnloadContent(); // UniqueUnloadContent the current scene
 
         _currentScene = newScene; // Switch to the new scene
-        _currentScene.Initialize(Game, _graphicsManager, _spriteBatch, _gumProjectSave); // Initialize the Scene
+
+        // Allow scenes to override current world.
+        if (_currentScene.SceneWorld != null)
+        {
+            CurrentWorld?.Destroy();
+            CurrentWorld = _currentScene.SceneWorld;
+        }
+        
+        _currentScene.Initialize(Game, _graphicsManager, _spriteBatch, _gumProjectSave, world: ref CurrentWorld); // Initialize the Scene
 
         _currentScene.LoadContent(); // Load the new scene content
+
     }
 
-    public void Draw(GameTime gameTime) => _currentScene?.Draw(gameTime);
-    public void Update(GameTime gameTime) => _currentScene?.Update(gameTime);
+    public void Draw(GameTime gameTime)
+    {
+        CurrentWorld?.Draw(gameTime);
+        _currentScene?.Draw(gameTime);
+    }
+
+    public void Update(GameTime gameTime)
+    {
+        CurrentWorld?.Update(gameTime);
+        _currentScene?.Update(gameTime);
+    }
 }

@@ -4,7 +4,6 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGameGum;
 using SKSSL.Localization;
-using SKSSL.Registry;
 using SKSSL.Textures;
 using SKSSL.Utilities;
 
@@ -108,7 +107,7 @@ public abstract class SSLGame : Game
         // Get the mods in the game. This is a trick that will come in handy later~
         var mods = GameLoader.GetAllModDirectories();
         var validModTextures = GameLoader.GetDirectoriesWithSubPathAndAppend(mods, "textures");
-        
+
         // Must be after Hard-coded assets, or there will be problems.
         TextureLoader.Initialize(
             Content,

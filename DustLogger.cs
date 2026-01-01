@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.VisualStudio.TestPlatform.TestHost;
 
 namespace SKSSL;
@@ -102,13 +103,31 @@ public static partial class DustLogger
     static DustLogger()
     {
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder
-            => builder.SetMinimumLevel(LogLevel.Debug).AddConsole()); // Should work with console.
+            => builder.SetMinimumLevel(LogLevel.Debug).AddConsole(options =>
+            {
+                _ = new ConsoleFormatterOptions
+                {
+                    IncludeScopes = false,
+                    TimestampFormat = "HH:mm:ss"
+                };
+            }).AddSimpleConsole(options =>
+            {
+                options.IncludeScopes = false;
+                options.SingleLine = true;
+                options.TimestampFormat = "HH:mm:ss ";
+            })); // Should work with console.
+
         logger = loggerFactory.CreateLogger<Program>();
     }
 
     /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
     /// Overload using enum, which is cast to byte.
     public static void Log(string message, LOG log, bool outputToFile = false) => Log(message, (byte)log, outputToFile);
+
+    public static void WriteToFile(string message)
+    {
+        // IMPL: append message to dedicated log file. do not erase, nor override.
+    }
 
     /// <summary>
     /// <seealso cref="LOG"/>
@@ -153,6 +172,11 @@ public static partial class DustLogger
             default:
                 INFO_PRINT(logger, message, null);
                 break;
+        }
+
+        if (outputToFile)
+        {
+            WriteToFile(message);
         }
     }
 }

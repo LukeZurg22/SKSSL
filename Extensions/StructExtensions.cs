@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace SKSSL.Utilities;
+namespace SKSSL.Extensions;
 
 [SuppressMessage("ReSharper", "RedundantNameQualifier")]
 public static class StructExtensions
