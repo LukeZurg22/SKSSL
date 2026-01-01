@@ -54,7 +54,7 @@ public static class EntityRegistry
         {
             var cleanTypeId = yamlComponent.Type.Replace("Component", string.Empty);
 
-            if (!ComponentRegistry._registeredComponents.TryGetValue(cleanTypeId, out Type? componentType))
+            if (!ComponentRegistry.RegisteredComponentTypes.TryGetValue(cleanTypeId, out Type? componentType))
             {
                 Log($"Unknown component type: {yamlComponent.Type}", LOG.FILE_WARNING);
                 continue;

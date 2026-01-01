@@ -32,7 +32,7 @@ public static class EntitySystemQueryExtensions
         foreach (SKEntity entity in world._entityManager.AllEntities)
         {
             if (entity.ComponentIndices[typeId] != -1)
-                yield return entity;
+                yield return entity; // TODO: Make it return Entity and Component(?)
         }
     }
 

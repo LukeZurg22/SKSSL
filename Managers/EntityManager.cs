@@ -1,3 +1,4 @@
+using System.Reflection;
 using SKSSL.ECS;
 using SKSSL.Scenes;
 using SKSSL.YAML;
@@ -37,29 +38,35 @@ public class EntityManager
     /// </summary>
     private static SKEntity CreateEntity(EntityTemplate template, BaseWorld? world = null)
     {
-        // Get fresh ID.
         int id = _nextId++;
-        
-        // Make the entity and feed it.
-        var entity = new SKEntity(id, ComponentRegistry.Count)
-        {
-            ReferenceId = template.ReferenceId,
-            NameKey = template.NameKey,
-            DescriptionKey = template.DescriptionKey,
-            World = world
-        };
-        
-        // Add components to the entity.
+
+        // Use the template's desired entity type
+        var entity = (SKEntity)Activator.CreateInstance(
+            template.EntityType,
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+            null,
+            [id, ComponentRegistry.Count, template],
+            null)! ?? throw new InvalidOperationException($"Failed to create entity \"{template.ReferenceId}\" in {nameof(CreateEntity)}");
+
+        // Make a copy of the entity and force the reference ID. Funky, but it works.
+        entity.World = world;
+
         foreach ((Type type, object _) in template.DefaultComponents)
             entity.AddComponent(type);
 
         return entity;
     }
 
+    /// <summary>
+    /// Acquires an entity template using a provided reference id, and creates an entity instance using it.
+    /// </summary>
+    /// <param name="referenceId">Reference id to template stored in registry.</param>
+    /// <param name="world">Optional world parameter to define what world this entity is present in.</param>
+    /// <returns>Spawned entity for later use.</returns>
     public SKEntity Spawn(string referenceId, BaseWorld? world = null)
     {
         EntityTemplate template = EntityRegistry.GetTemplate(referenceId);
-        SKEntity entity = CreateEntity(template);
+        SKEntity entity = CreateEntity(template, world);
         _allEntities.Add(entity);
         return entity;
     }

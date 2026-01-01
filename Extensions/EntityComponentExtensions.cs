@@ -76,7 +76,8 @@ public static partial class ComponentRegistry
                                    .GetMethod("Add", Type.EmptyTypes)
                                ?? throw new InvalidOperationException($"Missing Add() on ComponentArray<{componentType.Name}>");
 
-        addMethod.Invoke(arrayObj, null); // Increments count and returns ref (discarded)
+        // Increments count and returns discarded [ref]erence.
+        addMethod.Invoke(arrayObj, null);
 
         // Get the new index
         int newIndex = (int)arrayObj.GetType().GetProperty("Count")!.GetValue(arrayObj)! - 1;
