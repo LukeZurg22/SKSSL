@@ -20,7 +20,7 @@ public static class EntityRegistry
         => RegisterTemplate<EntityYaml, T>(yaml);
 
     /// <summary>
-    /// Creates coypable entity template from a provided Yaml file, and Template type.
+    /// Creates copyable entity template from a provided Yaml file, and Template type.
     /// </summary>
     /// <param name="yaml"></param>
     /// <typeparam name="TYaml"></typeparam>
