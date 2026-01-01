@@ -7,7 +7,7 @@ using SKSSL.Scenes;
 
 namespace SKSSL.ECS;
 
-public sealed record SKEntity
+public record SKEntity
 {
     #region IDs
 
