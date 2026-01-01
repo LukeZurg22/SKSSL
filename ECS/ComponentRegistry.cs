@@ -49,8 +49,9 @@ public static partial class ComponentRegistry
 
     private static readonly Dictionary<Type, int> _typeToId = new();
     private static readonly Dictionary<int, Type> _idToType = new();
-    public static Dictionary<string, Type> _registeredComponents { get; } = new();
-
+    private static readonly Dictionary<string, Type> _registeredComponents = new();
+    public static IReadOnlyDictionary<string, Type> RegisteredComponentTypes => _registeredComponents;
+    
     /// <summary>
     /// Dictionary of all active components.
     /// </summary>
@@ -117,6 +118,7 @@ public static partial class ComponentRegistry
         return name.Contains("SKSSL") ||
                name.Contains("KBSL") ||
                name.Contains("Kuiperbilt");
+        // TODO: I should really add support for an additional user-defined assembly. Make a virtual call? A wrapper maybe?
     }
 
     private static Type[] GetTypesSafe(Assembly asm)

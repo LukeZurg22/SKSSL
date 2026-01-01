@@ -6,6 +6,7 @@ namespace SKSSL.YAML;
 #pragma warning disable CS8618
 public record EntityTemplate
 {
+    
     public string ReferenceId { get; init; }
     public string NameKey { get; init; }
     public string DescriptionKey { get; init; }
