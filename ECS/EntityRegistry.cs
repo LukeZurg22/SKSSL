@@ -1,5 +1,6 @@
 using System.Reflection;
 using SKSSL.YAML;
+using YamlDotNet.Core;
 using static SKSSL.DustLogger;
 
 namespace SKSSL.ECS;
@@ -9,31 +10,68 @@ public static class EntityRegistry
     private static readonly Dictionary<string, EntityTemplate> _definitions = new();
     public static IReadOnlyDictionary<string, EntityTemplate> Definitions => _definitions;
 
-    public static void RegisterTemplate(EntityYaml yaml)
+    /// <summary>
+    /// Calls <see cref="RegisterTemplate{TYaml, TTemplate}"/> with a default to the <see cref="EntityYaml"/> type.
+    /// </summary>
+    /// <param name="yaml">The yaml file of the template.</param>
+    /// <typeparam name="T">Type of template being registered. Forces inheritance.</typeparam>
+    /// <exception cref="ArgumentException"></exception>
+    public static void RegisterTemplate<T>(EntityYaml yaml) where T : EntityTemplate
+        => RegisterTemplate<EntityYaml, T>(yaml);
+
+    /// <summary>
+    /// Creates copyable entity template from a provided Yaml file, and Template type.
+    /// </summary>
+    /// <param name="yaml"></param>
+    /// <typeparam name="TYaml"></typeparam>
+    /// <typeparam name="TTemplate"></typeparam>
+    /// <exception cref="YamlException"></exception>
+    public static void RegisterTemplate<TYaml, TTemplate>(TYaml yaml)
+        where TYaml : EntityYaml
+        where TTemplate : EntityTemplate
     {
-        Dictionary<Type, object> components = new();
+        // Get components.
+        var components = BuildComponentsFromYaml(yaml);
+
+        // Call dynamic constructors instead.
+        var template = EntityTemplate.CreateFromYaml<TTemplate>(yaml, components);
+
+        if (string.IsNullOrEmpty(template.ReferenceId))
+            throw new YamlException("Template must have ReferenceId");
+
+        RegisterTemplate(template);
+    }
+
+    /// <summary>
+    /// Helper for extracting components from a yaml file. Should work with any kind that inherits <see cref="EntityYaml"/>.
+    /// Does NOT support other yaml types that implement this. This is for the ECS ONLY
+    /// </summary>
+    private static Dictionary<Type, object> BuildComponentsFromYaml(EntityYaml yaml)
+    {
+        var components = new Dictionary<Type, object>();
+
         foreach (ComponentYaml yamlComponent in yaml.Components)
         {
             var cleanTypeId = yamlComponent.Type.Replace("Component", string.Empty);
-            // Get component from registry.
+
             if (!ComponentRegistry._registeredComponents.TryGetValue(cleanTypeId, out Type? componentType))
             {
                 Log($"Unknown component type: {yamlComponent.Type}", LOG.FILE_WARNING);
                 continue;
             }
 
-            // Create default instance of the component.
             object component = Activator.CreateInstance(componentType)
-                               ?? throw new InvalidOperationException($"Cannot create {componentType.Name}");
+                               ?? throw new InvalidOperationException(
+                                   $"Cannot create {componentType.Name} in {nameof(BuildComponentsFromYaml)}");
 
-            // Apply fields from YAML using reflection (simple & flexible)
+            // Handle component variables.
             foreach (var field in yamlComponent.Fields)
             {
                 PropertyInfo? property = componentType.GetProperty(field.Key,
                     BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 
-                if (property == null || !property.CanWrite)
-                    continue; // If null or can't write, then short-circuit.
+                if (property?.CanWrite != true) continue;
+
                 try
                 {
                     var converted = Convert.ChangeType(field.Value, property.PropertyType);
@@ -45,21 +83,10 @@ public static class EntityRegistry
                 }
             }
 
-            // Logging because yknow, this is bad but i don't want to crash the program.
-            if (components.ContainsKey(componentType))
-                Log($"Entity definition {yaml.ReferenceId} contains more than one instance of {componentType.Name}! Overriding previous definition!",
-                    LOG.FILE_WARNING);
-
-            // Override, for safety.
-            components[componentType] = component;
+            components[componentType] = component; // Override.
         }
 
-        var template = new EntityTemplate(yaml, defaultComponents: components);
-
-        if (string.IsNullOrEmpty(template.ReferenceId))
-            throw new ArgumentException("Template must have ReferenceId");
-
-        RegisterTemplate(template);
+        return components;
     }
 
     /// <summary>
@@ -68,20 +95,23 @@ public static class EntityRegistry
     private static void RegisterTemplate(EntityTemplate template) => _definitions[template.ReferenceId] = template;
 
     /// <summary>
-    /// Retrieves a template from the defined templates list.
+    /// Retrieves a template from the defined templates list. Throws an exception.
+    /// <remarks>I suggest using <see cref="TryGetTemplate"/> instead and add additional handling for safety.</remarks>
     /// </summary>
     /// <exception cref="KeyNotFoundException">Thrown when template not found using provided reference id.</exception>
     public static EntityTemplate GetTemplate(string referenceId)
     {
-        if (!_definitions.TryGetValue(referenceId, out EntityTemplate template))
-            throw new KeyNotFoundException($"No template registered for '{referenceId}'");
+        if (!_definitions.TryGetValue(referenceId, out EntityTemplate? template))
+            throw new KeyNotFoundException(
+                $"Call on {nameof(GetTemplate)} found no template for reference id: {referenceId}");
 
         return template;
     }
 
     /// <summary>
-    /// Safe TryGet method to safely retrieve a template.
+    /// Safe[r] TryGet method to retrieve a template using a reference id.
     /// </summary>
-    public static bool TryGetTemplate(string referenceId, out EntityTemplate template)
-        => _definitions.TryGetValue(referenceId, out template!);
+    /// <returns>True if a template was found. False if one was not. The output is also Null if one was not found.</returns>
+    public static bool TryGetTemplate(string referenceId, out EntityTemplate? template)
+        => _definitions.TryGetValue(referenceId, out template);
 }

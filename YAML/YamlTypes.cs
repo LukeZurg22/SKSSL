@@ -1,7 +1,11 @@
 using System.Drawing;
+using System.Reflection;
 using RenderingLibrary.Graphics;
 using YamlDotNet.Serialization;
 using Color = Microsoft.Xna.Framework.Color;
+
+// ReSharper disable NullableWarningSuppressionIsUsed
+
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable ClassNeverInstantiated.Global
@@ -31,8 +35,6 @@ public record BaseYamlEntry
     /// </summary>
     [YamlMember(Alias = "id")]
     public string ReferenceId { get; set; }
-    
-
 }
 
 /// <summary>
@@ -88,8 +90,7 @@ public record BaseLocalizedColorableYamlEntry : BaseLocalizedYamlEntry
 
 public class ComponentYaml
 {
-    [YamlMember(Alias = "type")]
-    public string Type { get; set; }  // e.g., "RenderableComponent"
+    [YamlMember(Alias = "type")] public string Type { get; set; } // e.g., "RenderableComponent"
 
     // Dictionary for flexible fields (for varied components)
     public Dictionary<string, object> Fields { get; set; } = new();
@@ -116,20 +117,47 @@ public record EntityYaml : BaseLocalizedYamlEntry
     public List<ComponentYaml> Components { get; set; } = [];
 }
 
-public record struct EntityTemplate
+public record EntityTemplate
 {
-    public EntityTemplate(EntityYaml yaml, Dictionary<Type, object> defaultComponents)
+    public string ReferenceId { get; init; }
+    public string NameKey { get; init; }
+    public string DescriptionKey { get; init; }
+    public IReadOnlyDictionary<Type, object> DefaultComponents { get; init; }
+
+    protected EntityTemplate(EntityYaml yaml, IReadOnlyDictionary<Type, object> components)
     {
         ReferenceId = yaml.ReferenceId;
         NameKey = yaml.Name;
         DescriptionKey = yaml.Description;
-        DefaultComponents = defaultComponents;
+        DefaultComponents = components;
     }
 
-    public string ReferenceId { get; init; }
-    public string NameKey { get; init; }
-    public string DescriptionKey { get; init; }
+    /// <summary>
+    /// Dynamic constructor factory — works with any depth of inheritance
+    /// </summary>
+    /// <param name="yaml"></param>
+    /// <param name="components"></param>
+    /// <typeparam name="TTemplate"></typeparam>
+    /// <returns></returns>
+    public static TTemplate CreateFromYaml<TTemplate>(
+        EntityYaml yaml,
+        Dictionary<Type, object> components)
+        where TTemplate : EntityTemplate
+    {
 
-    // Generic default components
-    public IReadOnlyDictionary<Type, object> DefaultComponents { get; init; } = new Dictionary<Type, object>();
+        if (Activator.CreateInstance(
+                typeof(TTemplate),
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null,
+                [yaml, components],
+                null) is not TTemplate template)
+        {
+            throw new MissingMethodException(
+                $"No suitable constructor found on {typeof(TTemplate).Name} " +
+                $"for YAML type {yaml.GetType().Name}. " +
+                "Ensure there is a protected/internal constructor accepting a compatible YAML type.");
+        }
+
+        return template;
+    }
 }

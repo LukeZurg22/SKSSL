@@ -22,6 +22,8 @@ public static class RecordExtensions
             if (prop.CanRead && prop.CanWrite)
                 prop.SetValue(clone, prop.GetValue(original));
 
+        // I know this acts like MemberwiseClone(), however it stays anyway because i'm just that unreasonable.
+        
         return clone;
     }
     
@@ -35,7 +37,7 @@ public static class RecordExtensions
         Type type = original.GetType();
 
         if (Activator.CreateInstance(type) is not SKEntity clone)
-            throw new Exception($"Type-cast failed to create SKEntity in {nameof(CloneEntity)}");
+            throw new InvalidCastException($"Type-cast failed to create SKEntity in {nameof(CloneEntity)}");
         
         foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             if (prop.CanRead && prop.CanWrite)
