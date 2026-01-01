@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Localization;
 using SKSSL.Scenes;
+using SKSSL.YAML;
 
 // ReSharper disable ClassNeverInstantiated.Global
 
@@ -58,8 +59,19 @@ public record SKEntity
 
     #endregion
 
-    public SKEntity(int id, int count)
+    /// <summary>
+    /// Default required constructor. Inheritance-entities may use inherited template types to fill certain details in
+    /// their constructors and but always MUST call this base constructor. 
+    /// </summary>
+    /// <param name="id">Unique numerical of of the entity.</param>
+    /// <param name="count">Number of component indices in the game.</param>
+    /// <param name="template">Provided template. Uses base <see cref="EntityTemplate"/> by default.</param>
+    protected SKEntity(int id, int count, EntityTemplate template)
     {
+        ReferenceId = template.ReferenceId;
+        NameKey = template.NameKey;
+        DescriptionKey = template.DescriptionKey;
+        
         RuntimeId = id;
         ComponentIndices = new int[count];
         Array.Fill(ComponentIndices, -1); // ← All slots start as "missing"
