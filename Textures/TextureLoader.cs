@@ -2,13 +2,11 @@ using System.Collections.Concurrent;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using SKSSL.Utilities;
 
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable UnusedMember.Global
-
 // ReSharper disable UnusedMethodReturnValue.Global
 // ReSharper disable MemberCanBeProtected.Global
-
 // ReSharper disable ClassNeverInstantiated.Global
 
 namespace SKSSL.Textures;
@@ -311,7 +309,7 @@ public abstract class TextureLoader
         }
     }
 
-    private static TextureMaps FinalizeMap(TextureMaps map, string categoryName)
+    private static TextureMaps FinalizeMap(TextureMaps map, string _)
     {
         // Ensure all required textures exist (fallback to error)
         map.Diffuse ??= HardcodedTextures.GetErrorTexture();
@@ -342,12 +340,14 @@ public abstract class TextureLoader
         return (T)(object)HardcodedTextures.GetErrorTexture();
     }
 
+    private const int DEFAULT_WIDTH = 128; 
+    private const int DEFAULT_HEIGHT = 128; 
     private static class HardcodedTextures
     {
         private static Texture2D? DefaultError;
     
         /// <returns>Cached Default Error Texture, or creates a new one if one is not present. Defaults to 128x128.</returns>
-        public static Texture2D GetErrorTexture(int width = 128, int height = 128)
+        public static Texture2D GetErrorTexture(int width = DEFAULT_WIDTH, int height = DEFAULT_HEIGHT)
         {
             if (DefaultError != null)
                 return DefaultError;
