@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities;
@@ -13,7 +14,7 @@ using SKSSL.Utilities;
 namespace SKSSL.Textures;
 
 // Default implementation
-public class DefaultTextureLoader : TextureLoader
+public class BlankTextureLoader : TextureLoader
 {
     protected override void CustomInitializeRegistries() =>
         throw new NotImplementedException(
@@ -34,7 +35,7 @@ public class DefaultTextureLoader : TextureLoader
 public abstract class TextureLoader
 {
     // Default implementation
-    private static TextureLoader _instance = new DefaultTextureLoader();
+    private static TextureLoader _instance = new BlankTextureLoader();
 
     // Allow override (e.g., for mods or tests)
     public static TextureLoader Instance
@@ -64,12 +65,12 @@ public abstract class TextureLoader
     /// <summary>
     /// Allows the developer to pre-initialize a custom loader for the game, assuming it is on the surface-level of
     /// game initialization and before base.Initialize() is called in the game's Initialize() method.
-    /// <see cref="TextureLoader"/> instance may be provided to override the <see cref="DefaultTextureLoader"/>.
+    /// <see cref="TextureLoader"/> instance may be provided to override the <see cref="BlankTextureLoader"/>.
     /// </summary>
     /// <param name="alternativeLoader"></param>
     public static void PreInitializeLoader(TextureLoader? alternativeLoader = null)
     {
-        _instance = alternativeLoader ?? new DefaultTextureLoader();
+        _instance = alternativeLoader ?? new BlankTextureLoader();
     }
 
     /// <summary>
@@ -147,7 +148,7 @@ public abstract class TextureLoader
 
         DustLogger.Log($"Image texture not found: {assetName}. Defaulting to error texture instead.",
             DustLogger.LOG.FILE_WARNING);
-        return HardcodedAssets.GetErrorTexture();
+        return HardcodedTextures.GetErrorTexture();
     }
 
     #endregion
@@ -313,8 +314,8 @@ public abstract class TextureLoader
     private static TextureMaps FinalizeMap(TextureMaps map, string categoryName)
     {
         // Ensure all required textures exist (fallback to error)
-        map.Diffuse ??= HardcodedAssets.GetErrorTexture();
-        map.Normal ??= HardcodedAssets.GetErrorTexture();
+        map.Diffuse ??= HardcodedTextures.GetErrorTexture();
+        map.Normal ??= HardcodedTextures.GetErrorTexture();
         //map.Displacement ??= HardcodedTextures.GetErrorTexture2D();
         //map.Glossy ??= HardcodedTextures.GetErrorTexture2D();
 
@@ -338,8 +339,36 @@ public abstract class TextureLoader
             Console.WriteLine($"Missing texture: [{categoryName}] \"{key}\" — using error texture.");
         }
 
-        return (T)(object)HardcodedAssets.GetErrorTexture();
+        return (T)(object)HardcodedTextures.GetErrorTexture();
     }
+
+    private static class HardcodedTextures
+    {
+        private static Texture2D? DefaultError;
+    
+        /// <returns>Cached Default Error Texture, or creates a new one if one is not present. Defaults to 128x128.</returns>
+        public static Texture2D GetErrorTexture(int width = 128, int height = 128)
+        {
+            if (DefaultError != null)
+                return DefaultError;
+        
+            var tex = new Texture2D(_graphicsDevice, width, height);
+
+            var pixels = new Color[128 * 128];
+
+            for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                bool checker = (x / 32 + y / 32) % 2 == 0;
+                pixels[y * 128 + x] = checker ? new Color(1f, 0f, 1f, 1f) : Color.Black; // Magenta / Black
+            }
+
+            tex.SetData(pixels);
+            DefaultError = tex;
+            return tex;
+        }
+    }
+    
 }
 
 public class TextureCategoryConfig

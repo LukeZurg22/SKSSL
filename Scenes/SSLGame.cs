@@ -99,9 +99,6 @@ public abstract class SSLGame : Game
         // Initialize all static paths, which the developer must have defined!
         GameLoader.Initialize(StaticPaths);
 
-        // Initialize hard-coded textures and assets.
-        HardcodedAssets.Initialize(GraphicsDevice);
-
         #region Modding
 
         // Get the mods in the game. This is a trick that will come in handy later~
