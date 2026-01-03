@@ -2,6 +2,7 @@ using System.Drawing;
 using RenderingLibrary.Graphics;
 using YamlDotNet.Serialization;
 using Color = Microsoft.Xna.Framework.Color;
+// ReSharper disable PropertyCanBeMadeInitOnly.Global
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 
@@ -89,7 +90,8 @@ public record BaseLocalizedColorableYamlEntry : BaseLocalizedYamlEntry
 
 public class ComponentYaml
 {
-    [YamlMember(Alias = "type")] public string Type { get; set; } // e.g., "RenderableComponent"
+    // e.g., "RenderableComponent" but named "Renderable"; it's stripped of the "Component" suffix.
+    [YamlMember(Alias = "type")] public string Type { get; set; }
 
     // Dictionary for flexible fields (for varied components)
     public Dictionary<string, object> Fields { get; set; } = new();
