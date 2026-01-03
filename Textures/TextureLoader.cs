@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities;
+
 // ReSharper disable UnusedMember.Global
 
 // ReSharper disable UnusedMethodReturnValue.Global
@@ -115,18 +116,22 @@ public abstract class TextureLoader
             return cached;
 
         // TODO: Add <mod_name>:<asset_name> support.
-        
+
         // Check mods for raw override
         // This makes sure that mod assets are loaded -before- vanilla assets.
-        foreach (var modFolder in _modFolders.Reverse()) // Reverse() last-mod-wins priority
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (_modFolders is not null && _modFolders.Any())
         {
-            string modPath = Path.Combine(modFolder, assetName + ".png");
-            if (!File.Exists(modPath))
-                continue; // Short-circuit.
-            using FileStream stream = File.OpenRead(modPath);
-            Texture2D? texture = Texture2D.FromStream(_graphicsDevice, stream);
-            _cache[assetName] = texture;
-            return texture;
+            foreach (var modFolder in _modFolders.Reverse()) // Reverse() last-mod-wins priority
+            {
+                string modPath = Path.Combine(modFolder, assetName + ".png");
+                if (!File.Exists(modPath))
+                    continue; // Short-circuit.
+                using FileStream stream = File.OpenRead(modPath);
+                Texture2D? texture = Texture2D.FromStream(_graphicsDevice, stream);
+                _cache[assetName] = texture;
+                return texture;
+            }
         }
 
         // Try vanilla pipeline load (falls back if no .xnb exists)
@@ -203,7 +208,7 @@ public abstract class TextureLoader
         foreach ((string categoryName, TextureCategoryConfig config) in _categories)
             LoadCategory(categoryName, config);
     }
-    
+
     // ERR: The load methods below now call Load() instead of the instanced loader. They are fickle.
     //  It might cause some errors when testing.
 
