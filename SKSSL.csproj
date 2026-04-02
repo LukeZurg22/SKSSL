@@ -32,5 +32,11 @@
     <ItemGroup>
       <Folder Include="Networking\" />
     </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="Textures\TextureLoader.MaterialRegistry.cs">
+        <DependentUpon>TextureLoader.cs</DependentUpon>
+      </Compile>
+    </ItemGroup>
     
 </Project>
