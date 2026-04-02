@@ -11,6 +11,9 @@ public static partial class DustLogger
 {
     private static readonly ILogger logger;
 
+    /// Writer to file output.
+    private static readonly StreamWriter _writer;
+
     /// <summary>
     /// Enumerable containing available error codes which are used in the <see cref="DustLogger"/>.
     /// <code>
@@ -117,16 +120,19 @@ public static partial class DustLogger
             })); // Should work with console.
 
         logger = loggerFactory.CreateLogger("SKSSL");
+
+        // Establish writer for log output.
+        _writer = new StreamWriter("log.txt", append: true) { AutoFlush = true };
     }
+
+    public static void Dispose() => _writer.Dispose();
 
     /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
     /// Overload using enum, which is cast to byte.
     public static void Log(string message, LOG log, bool outputToFile = false) => Log(message, (byte)log, outputToFile);
 
-    public static void WriteToFile(string message)
-    {
-        // IMPL: append message to dedicated log file. do not erase, nor override.
-    }
+    /// Write logging message to file. 
+    public static void WriteToFile(string message) => _writer.WriteLine(message);
 
     /// <summary>
     /// <seealso cref="LOG"/>
