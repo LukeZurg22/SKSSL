@@ -28,8 +28,6 @@ namespace SKSSL.YAML;
 /// </summary>
 public static partial class YamlLoader
 {
-    private const string YamlFileExtension = "*.yml*";
-
     #region Serialization
 
     /// Serialize provided object and save to specific file path. Overrides existing file if present.
@@ -110,11 +108,13 @@ public static partial class YamlLoader
     [Obsolete("Use the alternative non-generic LoadDirectory() instead.")]
     public static IEnumerable<T> LoadDirectory<T>(GameContentDirectory directory)
     {
+        var extensions = new[] { ".yaml", ".yml" };
+
         // Loop over every YAML file.
-        var files = Directory.GetFiles(
-            path: directory.ContentDirectory,
-            searchPattern: YamlFileExtension,
-            SearchOption.AllDirectories);
+        var files = Directory
+            .GetFiles(path: directory.ContentDirectory, "*.*", SearchOption.AllDirectories)
+            .Where(f => extensions.Contains(Path.GetExtension(f)));
+
         foreach (var file in files)
         {
             string expectedTypeName = typeof(T).Name;
