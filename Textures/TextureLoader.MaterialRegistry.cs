@@ -41,7 +41,7 @@ public abstract partial class TextureLoader
             if (_contentIndexBuilt) return;
             _contentIndexBuilt = true;
 
-            Log("...building content index...", LOG.INFORMATIONAL_PRINT);
+            Log("Building content index.", LOG.INFORMATIONAL_PRINT);
 
             foreach (var contentManager in SSLGame.ContentManagers)
             {
@@ -62,7 +62,6 @@ public abstract partial class TextureLoader
 
             Log($"Content index built. Found {_handleToContentPath.Count} assets.", LOG.INFORMATIONAL_PRINT);
         }
-
 
         /// <summary>
         /// Recursively indexes .xnb files and maps the filename (without extension) to its relative asset path.
@@ -151,7 +150,7 @@ public abstract partial class TextureLoader
             Materials[newId] = material;
             NameToId[name] = newId;
 
-            Log($"Material & ID [{name} ({existingId})] overridden by mod.", LOG.INFORMATIONAL_PRINT);
+            Log($"...material id [{name} ({existingId})] overwritten by mod...", LOG.INFORMATIONAL_PRINT);
             return newId;
         }
 
