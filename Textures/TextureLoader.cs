@@ -234,7 +234,6 @@ public abstract partial class TextureLoader
         foreach (var pair in materialGroups)
         {
             RegisterMaterial(pair.Key, pair.Value); // This should internally support override
-            Log($"Loaded/Overridden material: {pair.Key}", LOG.FILE_WARNING);
         }
     }
 
@@ -253,7 +252,7 @@ public abstract partial class TextureLoader
                 using var stream = File.OpenRead(filePath);
                 var texture = Texture2D.FromStream(_graphicsDevice, stream);
 
-                if (isMulti || category == null)
+                if (isMulti || category.IsNullOrEmpty())
                     return texture;
 
                 if (!_textures.ContainsKey(category))
@@ -275,7 +274,7 @@ public abstract partial class TextureLoader
             try
             {
                 var tex = contentManager.Load<Texture2D>(cacheKey);
-                if (!isMulti && category != null)
+                if (!isMulti && category.IsNullOrEmpty())
                     _textures[category][cacheKey] = tex;
 
                 return tex;
@@ -304,6 +303,8 @@ public abstract partial class TextureLoader
     /// <returns>Texture asset or Default Error Texture, instead.</returns>
     public static Texture2D Load(string key, string? category = null, bool isMulti = false, string? path = null)
     {
+        // WARN: Loading an item / non-material texture from content repository may be a bit wonky.
+
         // Fast path: cached lookup
         if (category != null && _textures.TryGetValue(category, out var dict) &&
             dict.TryGetValue(key, out var cached))
