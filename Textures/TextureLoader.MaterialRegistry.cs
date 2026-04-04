@@ -185,7 +185,7 @@ public abstract partial class TextureLoader
                 BuildContentIndex();
 
             // === Fallback: Try to load from MonoGame Content pipeline ===
-            Log($"Material '{handle}' not registered. Attempting Content pipeline fallback...", LOG.FILE_WARNING);
+            //Log($"Material '{handle}' not registered. Attempting Content pipeline fallback...", LOG.FILE_WARNING);
 
             // Try exact match from scanned content
             if (_handleToContentPath.TryGetValue(handle, out string? assetPath))
@@ -219,8 +219,7 @@ public abstract partial class TextureLoader
             }
 
             // Final fallback
-            Log($"Material '{handle}' not found in registry or content pipeline. Using error material.",
-                LOG.FILE_WARNING);
+            //Log($"Material '{handle}' not found in registry or content pipeline. Using error material.", LOG.FILE_WARNING);
             return -1;
         }
 
