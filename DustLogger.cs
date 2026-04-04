@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 
@@ -12,8 +13,8 @@ public static partial class DustLogger
     private static readonly ILogger logger;
 
     /// Writer to file output.
-    private static readonly StreamWriter _writer;
-
+    private static readonly string m_exePath;
+    
     /// <summary>
     /// Enumerable containing available error codes which are used in the <see cref="DustLogger"/>.
     /// <code>
@@ -64,6 +65,8 @@ public static partial class DustLogger
         SYSTEM_ERROR = 0x8,
     }
 
+    #region Log Types
+
 #pragma warning disable CA2017
     internal static readonly Action<ILogger, string, Exception?> INFO_PRINT =
         LoggerMessage.Define<string>(LogLevel.Information,
@@ -102,6 +105,8 @@ public static partial class DustLogger
             "[SYSTEM ERROR]: {Message}");
 #pragma warning restore CA2017
 
+    #endregion
+
     static DustLogger()
     {
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder
@@ -122,17 +127,26 @@ public static partial class DustLogger
         logger = loggerFactory.CreateLogger("SKSSL");
 
         // Establish writer for log output.
-        _writer = new StreamWriter("log.txt", append: true) { AutoFlush = true };
+        m_exePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "log.txt");
     }
-
-    public static void Dispose() => _writer.Dispose();
 
     /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
     /// Overload using enum, which is cast to byte.
     public static void Log(string message, LOG log, bool outputToFile = false) => Log(message, (byte)log, outputToFile);
 
     /// Write logging message to file. 
-    public static void WriteToFile(string message) => _writer.WriteLine(message);
+    private static void WriteToFile(string message)
+    {
+        try
+        {
+            using StreamWriter w = File.AppendText(m_exePath);
+            w.WriteLine(message);
+        }
+        catch (Exception ex)
+        {
+            // ignored
+        }
+    }
 
     /// <summary>
     /// <seealso cref="LOG"/>
