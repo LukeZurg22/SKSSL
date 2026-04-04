@@ -37,6 +37,9 @@
       <Compile Update="Textures\TextureLoader.MaterialRegistry.cs">
         <DependentUpon>TextureLoader.cs</DependentUpon>
       </Compile>
+      <Compile Update="Textures\TextureLoader.HardcodedTextures.cs">
+        <DependentUpon>TextureLoader.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
     
 </Project>

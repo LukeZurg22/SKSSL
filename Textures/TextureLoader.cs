@@ -1,6 +1,4 @@
 using System.Collections.Concurrent;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Extensions;
 using static SKSSL.DustLogger;
@@ -39,20 +37,6 @@ public enum TextureType : byte
     //GLOSSY,
 }
 
-/// Default implementation
-public class BlankTextureLoader : TextureLoader
-{
-    /// <inheritdoc />
-    public BlankTextureLoader(GraphicsDevice graphicsDevice) : base(graphicsDevice)
-    {
-    }
-
-    /// <inheritdoc />
-    protected override void InitializeRegistries() =>
-        throw new NotImplementedException(
-            "Developer(s) MUST implement custom Registries Initialization, as registries may vary between projects.");
-}
-
 /// <summary>
 /// Generic texture loader for all game asset categories (objects, items, UI, etc.).
 /// Supports multi-texture maps (diffuse + normal + etc.) and automatic error texture fallback.
@@ -61,10 +45,11 @@ public class BlankTextureLoader : TextureLoader
 /// developer requirements / layout of the project.
 /// Allows the developer to pre-initialize a custom loader for the game, assuming it is on the surface-level of
 /// game initialization and before base.Initialize() is called in the game's Initialize() method.
-/// <see cref="TextureLoader"/> instance may be provided to override the <see cref="BlankTextureLoader"/>.
 /// </summary>
 public abstract partial class TextureLoader
 {
+    #region Fields & Constructors
+
     /// Initially default implementation. Permits one static instance per program.
     private static TextureLoader _instance = null!;
 
@@ -77,22 +62,24 @@ public abstract partial class TextureLoader
 
     private static GraphicsDevice _graphicsDevice { get; set; } = null!;
 
-    /// Generic storage: category → (texture name → texture object). These are textures actively being used in memory.
+    /// Generic storage: category -> (texture name -> texture object). These are textures actively being used in memory.
     private static readonly ConcurrentDictionary<string, Dictionary<string, Texture2D>> _textures = new();
 
+    /// Material registry is assumed to be in MaterialRegistry static class
     private static readonly Dictionary<string, TextureCategoryConfig> _categories = new();
-
-    #region Initialization
 
     private static bool IsInitialized { get; set; } = false;
 
     /// Default static assignation of instance of a texture loader.
     public TextureLoader(GraphicsDevice graphicsDevice)
     {
-        // Load Custom Registries.
         _instance = this;
         _graphicsDevice = graphicsDevice ?? throw new ArgumentNullException(nameof(graphicsDevice));
     }
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>
     /// Initializes texture loaded. An alternative version of the loaded with a custom implement for
@@ -105,8 +92,7 @@ public abstract partial class TextureLoader
     {
         // If the texture loader has already been initialized by a "surface-level" class override,
         //  then that override is the one that shall be used and whatever is needed has already been initialized.
-        if (IsInitialized)
-            return;
+        if (IsInitialized) return;
         IsInitialized = true;
         _instance.InitializeRegistries();
         CompleteTextureInit(gameContentDirectories);
@@ -141,39 +127,169 @@ public abstract partial class TextureLoader
             ProcessTextureSubfolder(subFolders);
         }
 
-        return;
+        // Builds Monogame Content.
+        BuildContentIndex();
+    }
 
-        // Process all folders inside textures folder. 
-        void ProcessTextureSubfolder(IEnumerable<string> subFolders)
+    /// Process all folders inside textures folder. 
+    private static void ProcessTextureSubfolder(IEnumerable<string> subFolders)
+    {
+        // Extract every texture folder contained in subfolders, and handle differently depending on categories.
+        foreach (var subFolder in subFolders)
         {
-            // Extract every texture folder contained in subfolders, and handle differently depending on categories.
-            foreach (var subFolder in subFolders)
-            {
-                // Ensure that this folder is a valid one.
-                var name = Path.GetFileName(subFolder);
+            // Ensure that this folder is a valid one.
+            var folderName = Path.GetFileName(subFolder).ToLowerInvariant();
 
-                // Obtain the first config file whose asset key matches this subfolder.
-                TextureCategoryConfig? config =
-                    _categories.Values.FirstOrDefault(d => subFolder.Contains(d.AssetPathKey));
-                if (config is null) continue;
+            // Obtain the first config file whose asset key matches this subfolder.
+            TextureCategoryConfig? config =
+                _categories.Values.FirstOrDefault(d => subFolder.Contains(d.AssetPathKey));
+            if (config is null) continue;
 
-                // Use registered asset paths to find dedicated folder, and load it.
-                if (!name.Contains(config.AssetPathKey))
-                    // TODO: Add handling for "rogue" texture folders, who aren't registered.
-                    continue;
+            // Use registered asset paths to find dedicated folder, and load it.
+            if (!folderName.Contains(config.AssetPathKey))
+                // TODO: Add handling for "rogue" texture folders, who aren't registered.
+                continue;
 
-                // Database for specific category, such as "Items" or "Entities", etc.
-                if (config.IsMultiTextureMap)
-                    LoadMaterialTextureCategory(subFolder, config);
-                else
-                    LoadSingleTextureCategory(subFolder, config);
-            }
+            // Database for specific category, such as "Items" or "Entities", etc.
+            if (config.IsMultiTextureMap)
+                LoadMaterialTextureCategory(subFolder, config);
+            else
+                LoadSingleTextureCategory(subFolder, config);
         }
     }
 
     #endregion
 
-    // The "static" method — but delegates to instance
+    #region Single Textures
+
+    private static void LoadSingleTextureCategory(string directory, TextureCategoryConfig config)
+    {
+        if (!_textures.ContainsKey(config.AssetPathKey))
+            _textures[config.AssetPathKey] = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+
+        var files = StaticGameLoader.GetGameFiles(directory);
+
+        foreach (var file in files)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(file);
+            string baseKey = config.KeyTransform?.Invoke(fileName, file)
+                             ?? fileName.ToLowerInvariant();
+
+            // Use category + key to avoid cross-category collisions, but still allow overrides within category
+            string fullKey = $"{config.AssetPathKey}/{baseKey}";
+
+            Texture2D texture = LoadFromFileOrContent(file, fullKey, config.AssetPathKey, false);
+
+            // This assignment automatically overrides any previous texture with the same key
+            _textures[config.AssetPathKey][fullKey] = texture;
+        }
+    }
+
+    #endregion
+
+    #region Material Loading (with overrides)
+
+    private static void LoadMaterialTextureCategory(string directory, TextureCategoryConfig config)
+    {
+        var materialGroups = new Dictionary<string, SKMaterial>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var subDir in Directory.GetDirectories(directory))
+        {
+            string folderPrefix = Path.GetFileName(subDir).ToLowerInvariant();
+            var files = StaticGameLoader.GetGameFiles(subDir);
+
+            foreach (var file in files)
+            {
+                string fileNameNoExt = Path.GetFileNameWithoutExtension(file);
+                string baseName = fileNameNoExt.RemoveUnderscoreEndingTag();
+                string suffix = fileNameNoExt.GetUnderscoreEndingTag();
+
+                if (!Enum.TryParse<TextureType>(suffix, true, out var textureType))
+                    textureType = TextureType.DIFFUSE;
+
+                // Unique material key (folderPrefix + baseName) -> allows overrides from mods
+                string materialKey = config.KeyTransform?.Invoke(folderPrefix, baseName)
+                                     ?? $"{folderPrefix}_{baseName}";
+
+                if (!materialGroups.TryGetValue(materialKey, out var material))
+                {
+                    material = new SKMaterial();
+                    materialGroups[materialKey] = material;
+                }
+
+                Texture2D texture = LoadFromFileOrContent(file, materialKey, config.AssetPathKey, true);
+
+                // Assign map (later files override earlier ones for the same material + type)
+                switch (textureType)
+                {
+                    case TextureType.DIFFUSE: material.Diffuse = texture; break;
+                    case TextureType.NORMAL: material.Normal = texture; break;
+                    case TextureType.DISPLACEMENT: material.Displacement = texture; break;
+                    case TextureType.EMISSIVE: material.Emissive = texture; break;
+                }
+            }
+        }
+
+        // Register / override materials in the MaterialRegistry
+        foreach (var pair in materialGroups)
+        {
+            RegisterMaterial(pair.Key, pair.Value); // This should internally support override
+            Log($"Loaded/Overridden material: {pair.Key}", LOG.FILE_WARNING);
+        }
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Core loading logic: tries direct file first, then Content pipeline, then error texture.
+    /// </summary>
+    private static Texture2D LoadFromFileOrContent(string filePath, string cacheKey, string category, bool isMulti)
+    {
+        // 1. Direct file load (for mod/override support)
+        if (File.Exists(filePath))
+        {
+            try
+            {
+                using var stream = File.OpenRead(filePath);
+                var texture = Texture2D.FromStream(_graphicsDevice, stream);
+
+                if (isMulti || category == null)
+                    return texture;
+
+                if (!_textures.ContainsKey(category))
+                    _textures[category] = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+
+                _textures[category][cacheKey] = texture; // override happens here
+
+                return texture;
+            }
+            catch (Exception ex)
+            {
+                Log($"Failed direct load: {filePath} - {ex.Message}", LOG.FILE_WARNING);
+            }
+        }
+
+        // 2. Fallback to MonoGame Content pipeline (.xnb)
+        foreach (var contentManager in SSLGame.ContentManagers)
+        {
+            try
+            {
+                var tex = contentManager.Load<Texture2D>(cacheKey);
+                if (!isMulti && category != null)
+                    _textures[category][cacheKey] = tex;
+
+                return tex;
+            }
+            catch
+            {
+                //
+            }
+        }
+
+        // 3. Error texture fallback
+        Log($"Texture load failed: {cacheKey} (category: {category}) → error texture", LOG.FILE_WARNING);
+        return HardcodedTextures.GetErrorTexture();
+    }
 
     #region Get Raw Images
 
@@ -188,92 +304,26 @@ public abstract partial class TextureLoader
     /// <returns>Texture asset or Default Error Texture, instead.</returns>
     public static Texture2D Load(string key, string? category = null, bool isMulti = false, string? path = null)
     {
-        // Attempting to retrieve a Texture2D.
-        // Using the key and category, check if texture already exists in memory.
-        // If the category provided is a valid (non-null) one, then it should be checked.
-        if (category is not null)
+        // Fast path: cached lookup
+        if (category != null && _textures.TryGetValue(category, out var dict) &&
+            dict.TryGetValue(key, out var cached))
+            return cached;
+
+        // Brute force if no category provided
+        if (category == null)
         {
-            // Textures :: (category -> [key, texture])
-            if (_textures.TryGetValue(category, out var dictionary) &&
-                dictionary.TryGetValue(key, out Texture2D? dictionaryTexture))
-                return dictionaryTexture;
-        }
-        // However if the category isn't valid, then one must brute-force search through textures. Not optimal!
-        else
-        {
-            // Get texture by brute force.
-            Texture2D? bruteDictionaryTexture = _textures.Values
-                .SelectMany(d => d)
-                .Where(kvp => kvp.Key == key)
-                .Select(kvp => kvp.Value)
-                .FirstOrDefault();
-            if (bruteDictionaryTexture is not null)
-                return bruteDictionaryTexture;
+            foreach (var catDict in _textures.Values)
+                if (catDict.TryGetValue(key, out var tex))
+                    return tex;
         }
 
-        // TODO: Add support for naming prototypes / textures with <asset_name>_<mod_name> support.
-        //  Use GameFolderDirectory type.
-
-        // If it gets to this point, then clearly the texture likely is not loaded inside. In such case, it must be
-        //  loaded by the filepath, and stored appropriately using the key.
-        // Assuming the file exists, attempting to load it directly with more brute force than ever before is the next
-        //  best option.
+        // Explicit path provided (useful for one-off loads)
         if (path != null && File.Exists(path))
-        {
-            // Read the path directly.
-            using FileStream stream = File.OpenRead(path);
-            Texture2D? streamTexture = Texture2D.FromStream(_graphicsDevice, stream);
+            return LoadFromFileOrContent(path, key, category ?? "unknown", isMulti);
 
-            // If the category is provided, then load this texture into memory as if it were cached.
-            if (category is not null && !isMulti)
-                _textures[category][key] = streamTexture;
-            // TODO: Add handling if category is null. Automatically add category based on folder parent.
-
-            stream.Close(); // Stop memory leaks with this one simple trick!
-            return streamTexture;
-        }
-
-        // At this point attempts to load with a provided key and category failed. Loading from a filepath also failed,
-        //  and the program inches towards an Error texture. To avoid this, a last-ditch attempt to use Monogame's
-        //  content builder is made. This is surrounded in a Try-Catch because the vanilla pipeline load fails if no
-        //  '.xnb' file exists in the system.
-
-        // Attempt to use all content managers to retrieve an asset, expecting an exception on every manager that
-        //  fails to contain the desired key.
-        foreach (ContentManager contentManager in SSLGame.ContentManagers)
-        {
-            try
-            {
-                var contentTexture = contentManager.Load<Texture2D>(key);
-
-                if (category is not null && !isMulti)
-                    _textures[category][key] = contentTexture;
-                // TODO: Add handling if category is null. Automatically add category based on folder parent.
-                return contentTexture;
-            }
-            catch (ContentLoadException)
-            {
-            }
-            catch (Exception)
-            {
-                // Expected if no vanilla asset  
-            }
-        }
-
-
-        // All hope as failed. Time to return the error texture instead.
-        Log($"Failed to find valid path for texture category-key pair: [{category}:{key}] — using error texture.",
-            LOG.FILE_WARNING);
+        Log($"Texture not found: [{category}:{key}]", LOG.FILE_WARNING);
         return HardcodedTextures.GetErrorTexture();
     }
-
-    #endregion
-
-    /// <summary>
-    /// Custom method for initializing dedicated registries. Overload required.
-    /// </summary>
-    /// <remarks>Registries are the dedicated names to the topmost folders containing textures.</remarks>
-    protected abstract void InitializeRegistries();
 
     /// <summary>
     /// Register a new texture category (e.g., objects, items).
@@ -287,153 +337,30 @@ public abstract partial class TextureLoader
             _textures[config.AssetPathKey] = new Dictionary<string, Texture2D>();
     }
 
+    #endregion
+
+    /// <summary>
+    /// Custom method for initializing dedicated registries. Overload required.
+    /// </summary>
+    /// <remarks>Registries are the dedicated names to the topmost folders containing textures.</remarks>
+    protected abstract void InitializeRegistries();
+
     /// <summary>
     /// Get read-only dictionary for a category.
     /// </summary>
     public static IReadOnlyDictionary<string, TTexture> GetCategory<TTexture>(string categoryName)
     {
         if (_textures.TryGetValue(categoryName, out var dict))
-        {
-            return (IReadOnlyDictionary<string, TTexture>)dict;
-        }
+            return dict.AsReadOnly() as IReadOnlyDictionary<string, TTexture>
+                   ?? new Dictionary<string, TTexture>().AsReadOnly();
 
         return new Dictionary<string, TTexture>().AsReadOnly();
-    }
-
-    private static void LoadSingleTextureCategory(string gameFolder, TextureCategoryConfig config)
-    {
-        // Get all files in the textures folder and process them.
-        var files = StaticGameLoader.GetGameFiles(gameFolder);
-        foreach (var file in files)
-        {
-            string fileName = Path.GetFileNameWithoutExtension(file);
-            string key = config.KeyTransform?.Invoke(fileName, file) ?? fileName.ToLower();
-
-            // Error Reporting & Texture is automatically handled in the Load() call.
-            Load(key, config.AssetPathKey, config.IsMultiTextureMap, file);
-        }
-    }
-
-    /// <summary>
-    /// Handles materials entirely differently using a material registry.
-    /// </summary>
-    /// <param name="directory"></param>
-    /// <param name="config"></param>
-    private static void LoadMaterialTextureCategory(string directory, TextureCategoryConfig config)
-    {
-        string[] directories = Directory.GetDirectories(directory);
-        var materialGroups = new Dictionary<string, SKMaterial>(); // baseName → material
-
-        // Every dedicated texture folder in a material directory dictates a prefix.
-        foreach (var folder in directories)
-        {
-            // E.g. "gneiss"
-            string folderPrefix = Path.GetFileName(folder).ToLower();
-
-            // Get every file contained in this folder.
-            var files = StaticGameLoader.GetGameFiles(folder);
-            foreach (var file in files)
-            {
-                // "object_normal" from "object_normal.png"
-                // "test_object" from "test_object_normal"
-                // "normal" from "test_object_normal"
-                // This will break for entries with no explicit subtype. Those default to diffuse textures.
-                string fileName = Path.GetFileNameWithoutExtension(file);
-                string baseName = fileName.RemoveUnderscoreEndingTag();
-                var subTypeName = fileName.GetUnderscoreEndingTag();
-
-                // If there is no subtype (it must be a diffuse map, OR an unsupported texture)
-                //  So, the assumption is that clearly this must be a new diffuse entry! :D
-                //  Hacky, yes. However, this supports "..._diffuse.png" as much as it supports "....png" 
-                if (!Enum.TryParse(subTypeName, true, out TextureType subType))
-                {
-                    // No need to log default behaviour.
-                    //Log($"Unknown sub-texture type for {fileName}. Defaulting to Diffuse.", 3);
-                    subType = TextureType.DIFFUSE;
-                }
-
-                // Could be diffuse, normal, displacement, or anything.
-                Texture2D texture = Load(fileName, config.AssetPathKey, true, file);
-
-                // Changes current key texture entry main key, such as "folder_test_object" without suffix.
-                //  Because it aligns to the folder, every key will (should) be unique.
-                string currentKey = config.KeyTransform?.Invoke(folderPrefix, baseName) ??
-                                    $"{folderPrefix}_{baseName}";
-
-                // If material groups doesn't contain a material with the base name.
-                //  Effectively creates a new material group using the base name as a diffuse.
-                //  Items with multiple '_' underscores are fine, as all it cares about is the final one.
-                if (!materialGroups.TryGetValue(currentKey, out SKMaterial? currentMap))
-                {
-                    // Override current map.
-                    currentMap = new SKMaterial();
-                    materialGroups[currentKey] = currentMap;
-                }
-
-                // Switch between supported subtypes.
-                switch (subType)
-                {
-                    // Finalize previous map
-                    case TextureType.DIFFUSE:
-                        currentMap.Diffuse = texture;
-                        break;
-                    case TextureType.NORMAL:
-                        currentMap.Normal = texture;
-                        break;
-                    case TextureType.DISPLACEMENT:
-                        currentMap.Displacement = texture;
-                        break;
-                    case TextureType.EMISSIVE:
-                        currentMap.Emissive = texture;
-                        break;
-                }
-            }
-        }
-
-        // Register all materials.
-        // I am aware this is a call to yet another static class. I am not going to add a wrapper or two and make an
-        //  entire registry a dictionary entry. Simple textures are bad as it is.
-        foreach (var group in materialGroups)
-            RegisterMaterial(group.Key, group.Value);
     }
 
     /// <summary>
     /// Slow calls to get material from Material Registry. Not recommended for common or repetitive use. 
     /// </summary>
     public static SKMaterial GetMaterialWithKey(string key) => GetMaterial(GetId(key));
-
-    private const int DEFAULT_WIDTH = 128;
-    private const int DEFAULT_HEIGHT = 128;
-
-    /// <summary>
-    /// Programmer-assigned textures for use elsewhere.
-    /// </summary>
-    private static class HardcodedTextures
-    {
-        private static Texture2D? DefaultError;
-
-        /// <returns>Cached Default Error Texture, or creates a new one if one is not present. Defaults to 128x128.</returns>
-        public static Texture2D GetErrorTexture(int width = DEFAULT_WIDTH, int height = DEFAULT_HEIGHT)
-        {
-            if (DefaultError != null)
-                return DefaultError;
-
-            var tex = new Texture2D(_graphicsDevice, width, height);
-
-            var pixels = new Color[128 * 128];
-
-            for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-            {
-                bool checker = (x / 32 + y / 32) % 2 == 0;
-                pixels[y * 128 + x] = checker ? new Color(1f, 0f, 1f, 1f) : Color.Black; // Magenta / Black
-            }
-
-            tex.SetData(pixels);
-            DefaultError = tex;
-            return tex;
-        }
-    }
 }
 
 /// <summary>
