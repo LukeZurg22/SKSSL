@@ -41,7 +41,7 @@ public abstract partial class TextureLoader
             if (_contentIndexBuilt) return;
             _contentIndexBuilt = true;
 
-            Log("Building content index.", LOG.INFORMATIONAL_PRINT);
+            Log("Building content index.");
 
             foreach (var contentManager in SSLGame.ContentManagers)
             {
@@ -60,7 +60,7 @@ public abstract partial class TextureLoader
                 }
             }
 
-            Log($"Content index built. Found {_handleToContentPath.Count} assets.", LOG.INFORMATIONAL_PRINT);
+            Log($"Content index built. Found {_handleToContentPath.Count} assets.", LOG.INFO_PRINT);
         }
 
         /// <summary>
@@ -150,7 +150,7 @@ public abstract partial class TextureLoader
             Materials[newId] = material;
             NameToId[name] = newId;
 
-            Log($"...material id [{name} ({existingId})] overwritten by mod...", LOG.INFORMATIONAL_PRINT);
+            Log($"...material id [{name} ({existingId})] overwritten by mod...");
             return newId;
         }
 
@@ -197,8 +197,7 @@ public abstract partial class TextureLoader
                     try
                     {
                         diffuse = contentManager.Load<Texture2D>(assetPath);
-                        Log($"Content fallback succeeded for '{handle}' using real path: {assetPath}",
-                            LOG.INFORMATIONAL_PRINT);
+                        Log($"Content fallback succeeded for '{handle}' using real path: {assetPath}");
                         break;
                     }
                     catch (ContentLoadException)

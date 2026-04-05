@@ -60,7 +60,7 @@ public class SystemManager
             }
         }
 
-        Log($"Completed registration of {_updateSystems.Count + _drawSystems.Count} Systems.", LOG.INFORMATIONAL_PRINT);
+        Log($"Completed registration of {_updateSystems.Count + _drawSystems.Count} Systems.");
     }
 
     /// <summary>

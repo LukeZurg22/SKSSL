@@ -13,7 +13,7 @@ public static partial class DustLogger
     private static readonly ILogger logger;
 
     /// Writer to file output.
-    private static readonly string m_exePath;
+    private static readonly string _logFilePath;
 
     /// <summary>
     /// Enumerable containing available error codes which are used in the <see cref="DustLogger"/>.
@@ -35,7 +35,7 @@ public static partial class DustLogger
     public enum LOG : byte
     {
         // Info
-        INFORMATIONAL_PRINT = 0x0,
+        INFO_PRINT = 0x0,
 
         // Warnings
         /// General warning. Not unimportant enough to be INFO.
@@ -70,7 +70,7 @@ public static partial class DustLogger
 #pragma warning disable CA2017
     internal static readonly Action<ILogger, string, Exception?> INFO_PRINT =
         LoggerMessage.Define<string>(LogLevel.Information,
-            new EventId((byte)LOG.INFORMATIONAL_PRINT, nameof(INFO_PRINT)), "[INFO]: {Message}");
+            new EventId((byte)LOG.INFO_PRINT, nameof(INFO_PRINT)), "[INFO]: {Message}");
 
     internal static readonly Action<ILogger, string, Exception?> GENERAL_WARNING =
         LoggerMessage.Define<string>(LogLevel.Warning, new EventId((byte)LOG.GENERAL_WARNING, nameof(GENERAL_WARNING)),
@@ -127,7 +127,9 @@ public static partial class DustLogger
         logger = loggerFactory.CreateLogger("SKSSL");
 
         // Establish writer for log output.
-        m_exePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "log.txt");
+        _logFilePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "log.txt");
+        File.CreateText(_logFilePath).Close(); // Wipe the old file.
+        // TODO: implement back-logging for antiquated logs. Also include splits.
     }
 
     /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
@@ -139,7 +141,7 @@ public static partial class DustLogger
     {
         try
         {
-            using StreamWriter w = File.AppendText(m_exePath);
+            using StreamWriter w = File.AppendText(_logFilePath);
             w.WriteLine($"[{log.ToString()}] {message}");
         }
         catch (Exception)
@@ -190,7 +192,7 @@ public static partial class DustLogger
                 SYSTEM_WARNING(logger, message, null);
                 break;
             // Info
-            case LOG.INFORMATIONAL_PRINT:
+            case LOG.INFO_PRINT:
             default:
                 INFO_PRINT(logger, message, null);
                 break;
