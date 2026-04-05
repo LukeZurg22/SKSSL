@@ -154,7 +154,7 @@ public static partial class DustLogger
     /// <param name="message">The message that is being output to console.</param>
     /// <param name="level">Logging level and type. Defaults to 0 (INFO).</param>
     /// <param name="outputToFile">Dictates if this message should be logged.</param> // TODO: File-logging is not implemented yet!
-    public static void Log(string message, int level = 0, bool outputToFile = false)
+    public static void Log(string message, int level = 0, bool outputToFile = true)
     {
         var e = (LOG)level; // cast to internal enum
         var exception = new Exception(message)
