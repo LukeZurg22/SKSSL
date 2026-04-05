@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Xna.Framework.Content;
+using static SKSSL.DustLogger;
 
 namespace SKSSL;
 
@@ -161,7 +162,7 @@ public static class StaticGameLoader
         GlobalClean();
 
         if (_loaders.Count == 0)
-            DustLogger.Log("There are no loaders available for the Game Loader!", DustLogger.LOG.GENERAL_WARNING);
+            Log("There are no loaders available for the Game Loader!", LOG.GENERAL_WARNING);
 
         foreach ((string name, string pathConstant, GameLoadAction loader) in _loaders)
         {
@@ -170,11 +171,11 @@ public static class StaticGameLoader
                 string fullPath = pather(pathConstant);
                 loader(fullPath);
                 // TODO: Replace this w. game content system. The pather is worthless now.
-                DustLogger.Log($"Loaded {name} from: {Path.GetFileName(fullPath)}");
+                Log($"Loaded {name} from: {Path.GetFileName(fullPath)}");
             }
             catch (Exception ex)
             {
-                DustLogger.Log($"Failed to load {name}: {ex.Message}\n{ex.StackTrace}", 3);
+                Log($"Failed to load {name}: {ex.Message}\n{ex.StackTrace}", 3);
             }
         }
 
@@ -202,7 +203,7 @@ public static class StaticGameLoader
             if (cleanMethod != null)
                 cleanMethod.Invoke(null, null); // Run it!
 
-            DustLogger.Log($"Triggering Cleanup method for class {loader.Name}");
+            Log($"Triggering Cleanup method for class {loader.Name}");
         }
     }
 }

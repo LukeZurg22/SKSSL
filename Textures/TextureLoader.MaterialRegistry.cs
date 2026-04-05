@@ -60,7 +60,7 @@ public abstract partial class TextureLoader
                 }
             }
 
-            Log($"Content index built. Found {_handleToContentPath.Count} assets.", LOG.INFO_PRINT);
+            Log($"Content index built. Found {_handleToContentPath.Count} assets.");
         }
 
         /// <summary>
@@ -197,7 +197,8 @@ public abstract partial class TextureLoader
                     try
                     {
                         diffuse = contentManager.Load<Texture2D>(assetPath);
-                        Log($"Content fallback succeeded for '{handle}' using real path: {assetPath}");
+                        //Log($"Content fallback succeeded for '{handle}' using real path: {assetPath}");
+                        // TODO: Include "unimportant" or "content override" log.
                         break;
                     }
                     catch (ContentLoadException)

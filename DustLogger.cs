@@ -15,6 +15,8 @@ public static partial class DustLogger
     /// Writer to file output.
     private static readonly string _logFilePath;
 
+    #region Log Types
+
     /// <summary>
     /// Enumerable containing available error codes which are used in the <see cref="DustLogger"/>.
     /// <code>
@@ -64,8 +66,6 @@ public static partial class DustLogger
         /// Error involving system failure.
         SYSTEM_ERROR = 0x8,
     }
-
-    #region Log Types
 
 #pragma warning disable CA2017
     internal static readonly Action<ILogger, string, Exception?> INFO_PRINT =
