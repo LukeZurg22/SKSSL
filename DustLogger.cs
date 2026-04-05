@@ -15,6 +15,9 @@ public static partial class DustLogger
     /// Writer to file output.
     private static readonly string _logFilePath;
 
+    /// General toggle for output logging to file.
+    private const bool DefaultOutputBoolean = true;
+    
     #region Log Types
 
     /// <summary>
@@ -134,7 +137,7 @@ public static partial class DustLogger
 
     /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
     /// Overload using enum, which is cast to byte.
-    public static void Log(string message, LOG log, bool outputToFile = false) => Log(message, (byte)log, outputToFile);
+    public static void Log(string message, LOG log, bool outputToFile = DefaultOutputBoolean) => Log(message, (byte)log, outputToFile);
 
     /// Write logging message to file. 
     private static void WriteToFile(LOG log, string message)
@@ -149,14 +152,14 @@ public static partial class DustLogger
             // ignored
         }
     }
-
+    
     /// <summary>
     /// <seealso cref="LOG"/>
     /// </summary>
     /// <param name="message">The message that is being output to console.</param>
     /// <param name="level">Logging level and type. Defaults to 0 (INFO).</param>
     /// <param name="outputToFile">Dictates if this message should be logged.</param> // TODO: File-logging is not implemented yet!
-    public static void Log(string message, int level = 0, bool outputToFile = true)
+    public static void Log(string message, int level = 0, bool outputToFile = DefaultOutputBoolean)
     {
         var exception = new Exception(message) { Source = "SKSSL" };
 
