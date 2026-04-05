@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+// ReSharper disable UnusedMember.Global
 
 namespace Sin3D._Camera3D;
 
@@ -8,49 +9,25 @@ namespace Sin3D._Camera3D;
 /// </summary>
 public class Camera3D
 {
-    private Vector3 position;
-
     /// <summary>
     /// The (x, y, z) position.
     /// </summary>
-    public Vector3 Position
-    {
-        get => position;
-        set => position = value;
-    }
-
-    private float yaw;
+    public Vector3 Position { get; set; }
 
     /// <summary>
     /// The yaw (in radians).
     /// </summary>
-    public float Yaw
-    {
-        get => yaw;
-        set => yaw = value;
-    }
-
-    private float pitch;
+    public float Yaw { get; set; }
 
     /// <summary>
     /// The pitch (in radians).
     /// </summary>
-    public float Pitch
-    {
-        get => pitch;
-        set => pitch = value;
-    }
-
-    private float roll;
+    public float Pitch { get; set; }
 
     /// <summary>
     /// The roll (in radians).
     /// </summary>
-    public float Roll
-    {
-        get => roll;
-        set => roll = value;
-    }
+    public float Roll { get; set; }
 
     private float fov;
 
@@ -69,86 +46,57 @@ public class Camera3D
         }
     }
 
-    private float nearPlaneDist;
-
     /// <summary>
     /// The near plane render distance (very small values could impact depth buffer precision).
     /// </summary>
-    public float NearPlaneDist
-    {
-        get => nearPlaneDist;
-        set => nearPlaneDist = value;
-    }
-
-    private float farPlaneDist;
+    public float NearPlaneDist { get; set; }
 
     /// <summary>
     /// The far plane render distance.
     /// </summary>
-    public float FarPlaneDist
-    {
-        get => farPlaneDist;
-        set => farPlaneDist = value;
-    }
-
-    private Matrix viewMatrix;
+    public float FarPlaneDist { get; set; }
 
     /// <summary>
     /// The view matrix.
     /// </summary>
-    public Matrix ViewMatrix => viewMatrix;
-
-    private Matrix projectionMatrix;
+    public Matrix ViewMatrix { get; private set; }
 
     /// <summary>
     /// The projection matrix.
     /// </summary>
-    public Matrix ProjectionMatrix => projectionMatrix;
-
-
-    /// <inheritdoc cref="Camera3D"/>
-    /// Defaults nearPlaneDistance to 1f, and converts integer FOV into radians.
-    public Camera3D(
-        Vector3 position,
-        Vector3 rotation,
-        int fov,
-        float farPlaneDist,
-        GraphicsDevice _graphicsDevice)
-        : this(position, rotation, MathHelper.ToRadians(fov), 1f, farPlaneDist, _graphicsDevice)
-    {
-    }
+    public Matrix ProjectionMatrix { get; private set; }
 
     /// <summary>
     /// Creates a new Camera3D object with position, rotation, fov and near/far plane render distance settings.
     /// </summary>
     /// <param name="position">The initial (x, y, z) position.</param>
     /// <param name="rotation">The initial (yaw, pitch, roll) rotation.</param>
-    /// <param name="fov">The initial field of view.</param>
+    /// <param name="fov">The initial field of view in degrees. (E.g. 45, 90, etc.)</param>
     /// <param name="nearPlaneDist">The initial near plane render distance.</param>
     /// <param name="farPlaneDist">The initial far plane render distance.</param>
     /// <param name="_graphicsDevice">The graphics device, used in creating the projection matrix.</param>
     public Camera3D(
         Vector3 position,
         Vector3 rotation,
-        float fov,
-        float nearPlaneDist,
-        float farPlaneDist,
-        GraphicsDevice _graphicsDevice)
+        GraphicsDevice _graphicsDevice,
+        float fov = 90f,
+        float nearPlaneDist = 0.01f,
+        float farPlaneDist = 100)
     {
-        this.position = position;
+        Position = position;
 
-        yaw = rotation.X;
-        pitch = rotation.Y;
-        roll = rotation.Z;
+        Yaw = rotation.X;
+        Pitch = rotation.Y;
+        Roll = rotation.Z;
 
-        this.fov = fov;
-        this.nearPlaneDist = nearPlaneDist;
-        this.farPlaneDist = farPlaneDist;
+        Fov = MathHelper.ToRadians(fov);
+        NearPlaneDist = nearPlaneDist;
+        FarPlaneDist = farPlaneDist;
 
         //setting up the view and projection matrices
         UpdateViewMatrix();
-        projectionMatrix =
-            Matrix.CreatePerspectiveFieldOfView(fov, _graphicsDevice.Viewport.AspectRatio, nearPlaneDist, farPlaneDist);
+        ProjectionMatrix =
+            Matrix.CreatePerspectiveFieldOfView(Fov, _graphicsDevice.Viewport.AspectRatio, nearPlaneDist, farPlaneDist);
     }
 
     /// <summary>
@@ -156,8 +104,7 @@ public class Camera3D
     /// </summary>
     /// <param name="graphicsDevice"></param>
     /// <returns>New Camera Instance</returns>
-    public static Camera3D Default(GraphicsDevice graphicsDevice)
-        => new(Vector3.Zero, Vector3.Zero, 0.9f, 0, 100, graphicsDevice);
+    public static Camera3D Default(GraphicsDevice graphicsDevice) => new(Vector3.Zero, Vector3.Zero, graphicsDevice);
 
     /// <summary>
     /// Resets camera's position to (0,0,0)
@@ -170,11 +117,11 @@ public class Camera3D
     public void UpdateViewMatrix()
     {
         //getting cam target
-        Matrix rotationMatrix = Matrix.CreateFromYawPitchRoll(yaw, pitch, roll);
+        Matrix rotationMatrix = Matrix.CreateFromYawPitchRoll(Yaw, Pitch, Roll);
         Vector3 direction = Vector3.Transform(Vector3.Forward, rotationMatrix);
-        Vector3 target = direction + position;
+        Vector3 target = direction + Position;
 
-        viewMatrix = Matrix.CreateLookAt(position, target, Vector3.Up);
+        ViewMatrix = Matrix.CreateLookAt(Position, target, Vector3.Up);
     }
 
     /// <summary>
@@ -183,7 +130,7 @@ public class Camera3D
     /// <param name="_graphicsDevice">The graphics device used in the creation of the projection matrix.</param>
     public void UpdateProjectionMatrix(GraphicsDevice _graphicsDevice)
     {
-        projectionMatrix =
-            Matrix.CreatePerspectiveFieldOfView(fov, _graphicsDevice.Viewport.AspectRatio, nearPlaneDist, farPlaneDist);
+        ProjectionMatrix =
+            Matrix.CreatePerspectiveFieldOfView(fov, _graphicsDevice.Viewport.AspectRatio, NearPlaneDist, FarPlaneDist);
     }
 }
