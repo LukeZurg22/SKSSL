@@ -150,7 +150,7 @@ public abstract partial class TextureLoader
             Materials[newId] = material;
             NameToId[name] = newId;
 
-            Log($"...material id [{name} ({existingId})] overwritten by mod...");
+            Log($"...material id [{name} ({newId})] overwritten by mod...");
             return newId;
         }
 
