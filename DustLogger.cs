@@ -14,7 +14,7 @@ public static partial class DustLogger
 
     /// Writer to file output.
     private static readonly string m_exePath;
-    
+
     /// <summary>
     /// Enumerable containing available error codes which are used in the <see cref="DustLogger"/>.
     /// <code>
@@ -135,14 +135,14 @@ public static partial class DustLogger
     public static void Log(string message, LOG log, bool outputToFile = false) => Log(message, (byte)log, outputToFile);
 
     /// Write logging message to file. 
-    private static void WriteToFile(string message)
+    private static void WriteToFile(LOG log, string message)
     {
         try
         {
             using StreamWriter w = File.AppendText(m_exePath);
-            w.WriteLine(message);
+            w.WriteLine($"[{log.ToString()}] {message}");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // ignored
         }
@@ -156,11 +156,11 @@ public static partial class DustLogger
     /// <param name="outputToFile">Dictates if this message should be logged.</param> // TODO: File-logging is not implemented yet!
     public static void Log(string message, int level = 0, bool outputToFile = true)
     {
+        var exception = new Exception(message) { Source = "SKSSL" };
+
         var e = (LOG)level; // cast to internal enum
-        var exception = new Exception(message)
-        {
-            Source = "SKSSL"
-        };
+        if (outputToFile) WriteToFile(e, message);
+
         switch (e)
         {
             // Errors
@@ -194,11 +194,6 @@ public static partial class DustLogger
             default:
                 INFO_PRINT(logger, message, null);
                 break;
-        }
-
-        if (outputToFile)
-        {
-            WriteToFile(message);
         }
     }
 }
