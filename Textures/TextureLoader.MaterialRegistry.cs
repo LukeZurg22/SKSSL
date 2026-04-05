@@ -139,7 +139,7 @@ public abstract partial class TextureLoader
             if (NameToId.TryGetValue(name, out int existingId))
             {
                 Materials[existingId] = material; // Replace the actual material data
-                Log($"Material overridden by mod: {name} (ID: {existingId})", LOG.FILE_WARNING);
+                Log($"...material ({existingId}) overridden by mod: {name}...", LOG.FILE_WARNING);
                 return existingId;
             }
 
@@ -150,7 +150,7 @@ public abstract partial class TextureLoader
             Materials[newId] = material;
             NameToId[name] = newId;
 
-            Log($"...material id [{name} ({newId})] overwritten by mod...");
+            //Log($"...material id [{name} ({newId})] overwritten by mod...");
             return newId;
         }
 
