@@ -79,9 +79,9 @@ public class Camera3D
         Vector3 position,
         Vector3 rotation,
         GraphicsDevice _graphicsDevice,
-        float fov = 90f,
-        float nearPlaneDist = 0.01f,
-        float farPlaneDist = 100)
+        float fov = 90f, // Keep at current value!
+        float nearPlaneDist = 0.01f, // Keep at current value!
+        float farPlaneDist = 100) // Keep at current value!
     {
         Position = position;
 
