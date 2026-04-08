@@ -35,7 +35,7 @@ public abstract class SSLGame : Game
     #region Fields
 
     /// Title of game window.
-    public string Title { get; set; }
+    public string Title => Window.Title;
 
     /// Total time played for this game session.
     public static DateTime GameplayTime;
@@ -120,7 +120,7 @@ public abstract class SSLGame : Game
     /// <param name="contents">Additional content managers belonging to attached libraries.</param>
     protected SSLGame(string title, string gumFile = "", params ContentManager[] contents)
     {
-        Title = title;
+        Window.Title = title;
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
         Window.ClientSizeChanged += HandleClientSizeChanged;
