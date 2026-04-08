@@ -244,13 +244,14 @@ public abstract partial class TextureLoader
     /// </summary>
     private static Texture2D LoadFromFileOrContent(string filePath, string cacheKey, string category, bool isMulti)
     {
+        Texture2D texture;
         // 1. Direct file load (for mod/override support)
         if (File.Exists(filePath))
         {
             try
             {
                 using var stream = File.OpenRead(filePath);
-                var texture = Texture2D.FromStream(_graphicsDevice, stream);
+                texture = Texture2D.FromStream(_graphicsDevice, stream).ToMipMapped();
 
                 if (isMulti || category.IsNullOrEmpty())
                     return texture;
@@ -273,11 +274,11 @@ public abstract partial class TextureLoader
         {
             try
             {
-                var tex = contentManager.Load<Texture2D>(cacheKey);
+                texture = contentManager.Load<Texture2D>(cacheKey).ToMipMapped();
                 if (!isMulti && category.IsNullOrEmpty())
-                    _textures[category][cacheKey] = tex;
+                    _textures[category][cacheKey] = texture;
 
-                return tex;
+                return texture;
             }
             catch
             {
