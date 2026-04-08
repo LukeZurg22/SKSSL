@@ -196,7 +196,7 @@ public abstract partial class TextureLoader
                 {
                     try
                     {
-                        diffuse = contentManager.Load<Texture2D>(assetPath);
+                        diffuse = contentManager.Load<Texture2D>(assetPath).ToMipMapped();
                         //Log($"Content fallback succeeded for '{handle}' using real path: {assetPath}");
                         // TODO: Include "unimportant" or "content override" log.
                         break;
