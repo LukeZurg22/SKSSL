@@ -1,5 +1,6 @@
 using ImGuiNET;
 using Microsoft.Xna.Framework;
+
 // ReSharper disable UnusedParameter.Global
 
 // ReSharper disable UnusedMember.Global
@@ -51,53 +52,20 @@ public abstract class ImGuiWindow
         if (!IsVisible)
             return;
         
+        //@formatter:off
         ImGuiWindowFlags windowFlags = 0;
-        if (no_titlebar)
-        {
-            windowFlags |= ImGuiWindowFlags.NoTitleBar;
-        }
-
-        if (no_scrollbar)
-        {
-            windowFlags |= ImGuiWindowFlags.NoScrollbar;
-        }
-
-        if (!no_menu)
-        {
-            windowFlags |= ImGuiWindowFlags.MenuBar;
-        }
-
-        if (no_move)
-        {
-            windowFlags |= ImGuiWindowFlags.NoMove;
-        }
-
-        if (no_resize)
-        {
-            windowFlags |= ImGuiWindowFlags.NoResize;
-        }
-
-        if (no_collapse)
-        {
-            windowFlags |= ImGuiWindowFlags.NoCollapse;
-        }
-
-        if (no_nav)
-        {
-            windowFlags |= ImGuiWindowFlags.NoNav;
-        }
-
-        if (no_background)
-        {
-            windowFlags |= ImGuiWindowFlags.NoBackground;
-        }
-
-        if (no_bring_to_front)
-        {
-            windowFlags |= ImGuiWindowFlags.NoBringToFrontOnFocus;
-        }
+        if (no_titlebar)        windowFlags |= ImGuiWindowFlags.NoTitleBar;
+        if (no_scrollbar)       windowFlags |= ImGuiWindowFlags.NoScrollbar;
+        if (!no_menu)           windowFlags |= ImGuiWindowFlags.MenuBar;
+        if (no_move)            windowFlags |= ImGuiWindowFlags.NoMove;
+        if (no_resize)          windowFlags |= ImGuiWindowFlags.NoResize;
+        if (no_collapse)        windowFlags |= ImGuiWindowFlags.NoCollapse;
+        if (no_nav)             windowFlags |= ImGuiWindowFlags.NoNav;
+        if (no_background)      windowFlags |= ImGuiWindowFlags.NoBackground;
+        if (no_bring_to_front)  windowFlags |= ImGuiWindowFlags.NoBringToFrontOnFocus;
         //if (no_close) { } // p_open = null;
         //bool p_open = true;
+        //@formatter:on
 
         ImGui.SetNextWindowPos(_initialPosition, ImGuiCond.FirstUseEver);
         ImGui.SetNextWindowSize(_initialSize, ImGuiCond.FirstUseEver);
@@ -108,9 +76,9 @@ public abstract class ImGuiWindow
             ImGui.End();
             return;
         }
-        
+
         Render(gameTime); // Render implemented game window content code.
-        
+
         ImGui.End();
     }
 
