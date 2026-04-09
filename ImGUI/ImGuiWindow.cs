@@ -32,6 +32,7 @@ public abstract class ImGuiWindow
     //@formatter:on
 
     public string Title;
+    public bool IsVisible = true;
 
     private System.Numerics.Vector2 _initialPosition;
     private System.Numerics.Vector2 _initialSize;
@@ -46,6 +47,10 @@ public abstract class ImGuiWindow
 
     public void Draw(GameTime gameTime)
     {
+        // Simply cut drawing short w. visibility toggle.
+        if (!IsVisible)
+            return;
+        
         ImGuiWindowFlags windowFlags = 0;
         if (no_titlebar)
         {
