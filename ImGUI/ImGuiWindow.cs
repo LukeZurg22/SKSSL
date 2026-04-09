@@ -45,6 +45,10 @@ public abstract class ImGuiWindow
         _initialSize = size?.ToNumerics() ?? new Vector2(550, 680).ToNumerics();
     }
 
+    /// <summary>
+    /// Extracted flags from this window used in Draw().
+    /// </summary>
+    /// <returns>All flags assigned to this Window.</returns>
     public ImGuiWindowFlags GetWindowFlags()
     {
         //@formatter:off
