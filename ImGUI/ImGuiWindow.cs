@@ -2,7 +2,6 @@ using ImGuiNET;
 using Microsoft.Xna.Framework;
 
 // ReSharper disable UnusedParameter.Global
-
 // ReSharper disable UnusedMember.Global
 // ReSharper disable VirtualMemberNeverOverridden.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Local
