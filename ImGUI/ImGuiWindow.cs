@@ -1,5 +1,6 @@
 using ImGuiNET;
 using Microsoft.Xna.Framework;
+// ReSharper disable UnusedParameter.Global
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable VirtualMemberNeverOverridden.Global
@@ -103,7 +104,7 @@ public abstract class ImGuiWindow
             return;
         }
         
-        Render(); // Render implemented game window content code.
+        Render(gameTime); // Render implemented game window content code.
         
         ImGui.End();
     }
@@ -112,5 +113,9 @@ public abstract class ImGuiWindow
     /// Game-implementation for how this UI should render. Call <see cref="ImGui.Begin(string)"/> is already done
     /// earlier, and .End() is called automatically. This should only be written to implement window content.
     /// </summary>
-    public abstract void Render();
+    /// <remarks>
+    /// DO NOT CALL THIS!<br/>
+    /// Call .Draw(GameTime) instead!
+    /// </remarks>
+    public abstract void Render(GameTime gameTime);
 }
