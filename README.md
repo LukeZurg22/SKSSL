@@ -2,11 +2,11 @@
 This is a shared library turned game engine. "SKSSL" stands for "SolKom Shared Standard Library" This was written in and for C#, and for use with the MonoGame and Gum UI frameworks. Many parts of this library— including its name —are derived from various other fragmented projects of mine whose parts were merged into this. (Example: DustLogger ➡ DustToDust, SolKom ➡ SolarKommand, YAMLParser ➡ XMP, etc.)
 
 ## System Information
-- .NET 9.0 SDK
-- Developer OS: Windows
+- .NET 9.0.0 SDK
+- Developer OS: Windows 10
 - Intended OS('s): Windows & Linux (and MacOS? Untested.)
 - Framework: Monogame DesktopGL 3.4.2+
-- Language(s): C#, YAML, YML
+- Language(s): CS, YAML / YML, FTL
 
 ## Program Goal
 The goal is to establish a library built on top of Monogame and Gum that acts as a general framework for my other projects. As I progress my skills as a game developer, I am sharing my active understanding of code as the library progresses.
@@ -20,22 +20,21 @@ This is all a massive work-in-progress, but don't wait for releases! When I find
 ---
 
 ## Licensing and References
-- Best accomodate projects using the [Gum](https://github.com/vchelaru/Gum?tab=MIT-1-ov-file) Framework. [MIT]
-- Explicitely Used In [Monogame](https://github.com/MonoGame/MonoGame) Projects. [Ms-Pl / MIT]
-- [VYaml](https://github.com/hadashiA/VYaml) [MIT]
+This library is explicitly for [Monogame](https://github.com/MonoGame/MonoGame) Projects that
+best accomodate the [Gum](https://github.com/vchelaru/Gum?tab=MIT-1-ov-file) Framework for general Menu handling.
 
 This library was made by LukeZurg22, All Rights are Reserved. Under the current license you are permitted to fork and develop it under the conditions that you both accredit me, and maintain your fork's public status. This license may change with time.
 
 ### References
 Below is a non-exhaustive list of references the project uses, coupled with the uses for these references.
 
-- "FlatRedBall.GumCommon" (Gum UI)
-- "Gum.MonoGame" (Gum UI, but Monogame)
-- "MonoGame.Framework.DesktopGL" (Monogame)
+- "FlatRedBall.GumCommon" (Gum UI) [MIT]
+- "Gum.MonoGame" (Gum UI, but Monogame) [MIT]
+- "[ImGui.NET](https://github.com/ImGuiNET/ImGui.NET/)" (Additional UI Library) [MIT]
+- "[Monogame](https://github.com/MonoGame/MonoGame).Framework.DesktopGL" (Monogame) [Ms-Pl / MIT]
 - "Microsoft.Extensions.Logging" (Logger)
-- "Microsoft.Extensions.Logging.Abstractions" (Logger)
 - "Microsoft.Testing.Platform" (Logger)
 - "Microsoft.TestPlatform.TestHost" (Logger)
-- "RandN" (random number generation)
-- "VYaml" (yaml parsing)
-- "Sin3D" (3D classes)
+- "RandN" (Random Number Generation) [MIT]
+- "[VYaml](https://github.com/hadashiA/VYaml)" (Extensive Yaml Parsing) [MIT]
+- "Sin3D" (3D-centric Classes) [MIT]
