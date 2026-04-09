@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using MonoGame.ImGuiNet;
 using MonoGameGum;
 using SKSSL.ECS;
 using SKSSL.Localization;
@@ -81,6 +82,8 @@ public abstract class SSLGame : Game
 
     #endregion
 
+    private readonly ImGuiRenderer GuiRenderer;
+    
     /// <remarks>
     /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context
     /// varies between scenes.
@@ -162,6 +165,10 @@ public abstract class SSLGame : Game
         Log("Initializing static paths.");
         StaticGameLoader.Initialize(StaticPaths);
         StaticGameLoader.Load(path => StaticGameLoader.GPath(path));
+        
+        Log("Initializing ImGUI.");
+        GuiRenderer = new ImGuiRenderer(this);
+        GuiRenderer.RebuildFontAtlas();
     }
 
     /// <summary>
