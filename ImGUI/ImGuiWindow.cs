@@ -45,12 +45,8 @@ public abstract class ImGuiWindow
         _initialSize = size?.ToNumerics() ?? new Vector2(550, 680).ToNumerics();
     }
 
-    public void Draw(GameTime gameTime)
+    public ImGuiWindowFlags GetWindowFlags()
     {
-        // Simply cut drawing short w. visibility toggle.
-        if (!IsVisible)
-            return;
-        
         //@formatter:off
         ImGuiWindowFlags windowFlags = 0;
         if (no_titlebar)        windowFlags |= ImGuiWindowFlags.NoTitleBar;
@@ -65,12 +61,24 @@ public abstract class ImGuiWindow
         //if (no_close) { } // p_open = null;
         //bool p_open = true;
         //@formatter:on
+        return windowFlags;
+    }
+    
+    /// <summary>
+    /// Overridable draw call if the existing abstraction of .Render() isn't thorough enough.
+    /// </summary>
+    /// <param name="gameTime"></param>
+    public virtual void Draw(GameTime gameTime)
+    {
+        // Simply cut drawing short w. visibility toggle.
+        if (!IsVisible)
+            return;
 
         ImGui.SetNextWindowPos(_initialPosition, ImGuiCond.FirstUseEver);
         ImGui.SetNextWindowSize(_initialSize, ImGuiCond.FirstUseEver);
 
         //Main body
-        if (!ImGui.Begin(Title, windowFlags))
+        if (!ImGui.Begin(Title, GetWindowFlags()))
         {
             ImGui.End();
             return;
