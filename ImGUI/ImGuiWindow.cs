@@ -67,7 +67,7 @@ public abstract class ImGuiWindow
         //@formatter:on
         return windowFlags;
     }
-    
+
     /// <summary>
     /// Overridable draw call if the existing abstraction of .Render() isn't thorough enough.
     /// </summary>
@@ -78,6 +78,7 @@ public abstract class ImGuiWindow
         if (!IsVisible)
             return;
 
+        // WARN: Position, especially Size are not affecting anything.
         ImGui.SetNextWindowPos(_initialPosition, ImGuiCond.FirstUseEver);
         ImGui.SetNextWindowSize(_initialSize, ImGuiCond.FirstUseEver);
 
