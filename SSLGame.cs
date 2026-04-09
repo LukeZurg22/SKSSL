@@ -82,7 +82,7 @@ public abstract class SSLGame : Game
 
     #endregion
 
-    private readonly ImGuiRenderer GuiRenderer;
+    public readonly ImGuiRenderer GuiRenderer;
     
     /// <remarks>
     /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context
