@@ -60,6 +60,8 @@ public abstract class SSLGame : Game
     private static GumService Gum => GumService.Default;
     private readonly InteractiveGue _currentScreenGue = new();
 
+    public readonly ImGuiRenderer GuiRenderer;
+
     /// Registries and services belonging to the game.
     private readonly IServiceProvider GameServices;
 
@@ -82,8 +84,6 @@ public abstract class SSLGame : Game
 
     #endregion
 
-    public readonly ImGuiRenderer GuiRenderer;
-    
     /// <remarks>
     /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context
     /// varies between scenes.
@@ -165,7 +165,7 @@ public abstract class SSLGame : Game
         Log("Initializing static paths.");
         StaticGameLoader.Initialize(StaticPaths);
         StaticGameLoader.Load(path => StaticGameLoader.GPath(path));
-        
+
         Log("Initializing ImGUI.");
         GuiRenderer = new ImGuiRenderer(this);
         GuiRenderer.RebuildFontAtlas();
