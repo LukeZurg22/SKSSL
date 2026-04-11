@@ -1,6 +1,7 @@
 using Gum.DataTypes;
 using Gum.Wireframe;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -87,28 +88,30 @@ public abstract class SSLGame : Game
     /// <remarks>
     /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context
     /// varies between scenes.
-    /// //WARN: In the system's current limitations, it is difficult to interact with entities
-    ///    across different scenes.
     /// </remarks>
     /// <returns>Scene Manager's Current World's Entity Context.</returns>
-    public static EntityContext? ECS()
+    public static EntityContext ECS()
     {
+        string message;
         if (!UseECS)
         {
-            Log("Failed to get Entity Context because ECS is not enabled.", LOG.SYSTEM_ERROR);
-            return null;
+            message = "Failed to get Entity Context because ECS is not enabled.";
+            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
+            throw new SettingsException(message);
         }
 
         if (SceneManager.CurrentWorld is not BaseWorld world)
         {
-            Log("Failed to get Entity Context from current (null) world in Scene Manager!", LOG.SYSTEM_WARNING);
-            return null;
+            message = "Failed to get Entity Context from current (null) world in Scene Manager!";
+            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
+            throw new Exception(message);
         }
 
         if (world.ECS is null)
         {
-            Log("Failed to get Entity Context for a (null) ECS Controller!", LOG.SYSTEM_WARNING);
-            return null;
+            message = "Failed to get Entity Context for a (null) ECS Controller!";
+            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
+            throw new Exception(message);
         }
 
         var entityContext = new EntityContext(world.ECS);
