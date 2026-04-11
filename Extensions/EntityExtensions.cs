@@ -5,14 +5,10 @@ namespace SKSSL.Extensions;
 public static partial class EntityExtensions
 {
     /// Gets current Game's EntityContext.
-    private static ComponentRegistry ComponentRegistry
-        => SSLGame.ECS()?.Components ??
-           throw new InvalidOperationException("No active ECS context! Initialize ECS first!");
+    private static ComponentRegistry ComponentRegistry => SSLGame.ECS().Components;
 
     /// Retrieves all entities from active EntityContext.
-    private static IReadOnlyList<SKEntity> Entities
-        => SSLGame.ECS()?.EntityManager.AllEntities ??
-           throw new InvalidOperationException("No active ECS context! Initialize ECS first!");
+    private static IReadOnlyList<SKEntity> Entities => SSLGame.ECS().EntityManager.AllEntities;
 }
 /*
     You there, yes, you! Welcome!
