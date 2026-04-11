@@ -48,6 +48,9 @@ public abstract partial record AEntityCommon
 
     /// <returns>Localized Description from Description Key.</returns>
     public void GetDescription() => Loc.Get(DescriptionKey);
+    
+    /// <returns>Fully-justified handle combining source, and short handle.</returns>
+    public string GetFullHandle() => $"{Source}:{Handle}";
 
     /// Predefined class-specific dictionary of components.
     public abstract IReadOnlyDictionary<Type, object> DefaultComponents { get; init; }

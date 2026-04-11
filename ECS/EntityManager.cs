@@ -1,9 +1,10 @@
-using System.Diagnostics;
 using System.Reflection;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
 using SKSSL.Utilities;
 using static SKSSL.DustLogger;
+
+// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.ECS;
 
@@ -15,13 +16,11 @@ public partial class EntityManager
 {
     private static readonly IDIterator _nextId = new();
     private readonly List<SKEntity> _allEntities = [];
-    private readonly ComponentRegistry _componentRegistry;
     private readonly IWorld _world;
 
     /// <inheritdoc cref="EntityManager"/>
-    public EntityManager(ref ComponentRegistry componentRegistry, IWorld world, bool isInitialized = false)
+    public EntityManager(IWorld world)
     {
-        _componentRegistry = componentRegistry;
         _world = world;
     }
 
@@ -33,22 +32,13 @@ public partial class EntityManager
     /// All inactive Entity Definitions, which ubiquitously inherit <see cref="AEntityCommon"/>.
     public static IReadOnlyDictionary<string, AEntityCommon> Definitions => EntityRegistry.Definitions;
 
-    #region Entity Management
+    #region Get Methods
 
-    /// <summary>
-    /// Remove all entities contained in Entity Manager.
-    /// </summary>
-    public void MassacreAllEntities()
-    {
-        // TODO: MIGHT require additional unloading? The list just clears references for the GC. Components these
-        //  entities had aren't clear, and created IDs aren't reset back to start from 0.
-        _allEntities.Clear();
-    }
-
-    /// <param name="handle">Reference ID of entity definition.</param>
+    /// <param name="handle">Full handle ID of entity definition.</param>
     /// <returns>Null or first entity found within active <see cref="AllEntities"/> list.</returns>
     /// <remarks>Acts like <see cref="GetEntity(int)"/>, but uses a string reference handle instead.</remarks>
-    public SKEntity? GetEntity(string handle) => _allEntities.FirstOrDefault(e => e?.Handle == handle, null);
+    public SKEntity? GetEntity(string handle)
+        => _allEntities.FirstOrDefault(e => e?.GetFullHandle() == handle, null);
 
     /// <param name="id">Numeric ID of requested entity.</param>
     /// <returns>Null or instance of entity with provided ID.</returns>
@@ -80,62 +70,27 @@ public partial class EntityManager
         return entity != null;
     }
 
-    /// <summary>
-    /// Create entity using existing raw <see cref="SKEntity"/> definition. Assumes definition is valid.
-    /// </summary>
-    /// <param name="definition">Existing entity definition contained in the manager</param>
-    /// <returns></returns>
-    private SKEntity CreateEntity(SKEntity definition)
-    {
-        Debug.Assert(definition != null, nameof(definition) + " != null");
+    #endregion
 
-        // Create a copy of this entity.
-        if (definition.CloneEntityAs<SKEntity>() is not SKEntity entity)
-            throw new Exception("Attempted to create entity from definition, but the definition was nul!!");
-
-        // Should be safe to create ID by now.
-        int id = _nextId.Iterate();
-
-        entity.SetRuntimeId(id);
-
-        return FinalizeEntity(ref entity, definition.DefaultComponents);
-    }
+    #region Spawn Entity
 
     /// <summary>
-    /// Creates a new entity and returns its handle.
-    /// Optionally fills metadata from a template or explicit values.
+    /// Public generic of <see cref="Spawn(SKSSL.ECS.SKEntity)"/> that creates a new entity w. blank constructor.
     /// </summary>
-    private SKEntity CreateEntity(EntityTemplate template)
-    {
-        int id = _nextId.Iterate();
-
-        // Use the template's desired entity type
-        //  This is essentially a dynamic constructor to account for varying component definitions and templates.
-        SKEntity entity = (SKEntity)Activator.CreateInstance(
-                              template.EntityType,
-                              BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
-                              null,
-                              [id, ComponentRegistry.Count, template], // Relies on precise constructor.
-                              null)!
-                          ?? throw new InvalidOperationException(
-                              $"Failed to create entity \"{template.Handle}\" in {nameof(CreateEntity)}");
-
-        return FinalizeEntity(ref entity, template.DefaultComponents);
-    }
+    /// <typeparam name="T">Entity of type SKEntity</typeparam>
+    /// <returns>Entity instance, which is considered active.</returns>
+    public SKEntity Spawn<T>() where T : SKEntity, new() => Spawn(new T());
 
     /// <summary>
-    /// Generalization of final steps in completing entity creation.
-    /// <br/>-➡ Assign World
-    /// <br/>-➡ Copy Default Components
+    /// Creates a copy of an entity instance in its parameter.
     /// </summary>
-    private SKEntity FinalizeEntity(ref SKEntity entity, IReadOnlyDictionary<Type, object> defaultComponents)
+    /// <param name="input">Entity instance to be copied and finalized.</param>
+    /// <returns>New Entity Instance.</returns>
+    public SKEntity Spawn(SKEntity input)
     {
-        // Assign world to entity. Will cause some funk if the world is null.
-        entity.World = _world;
-
-        foreach ((Type type, object _) in defaultComponents)
-            entity.AddComponent(type);
-
+        // Create entity and hope and pray it's fine.
+        SKEntity entity = CreateEntity(input);
+        Finalize(ref entity);
         return entity;
     }
 
@@ -144,10 +99,11 @@ public partial class EntityManager
     /// </summary>
     /// <param name="handle">Reference id to template stored in registry.</param>
     /// <returns>Spawned entity for later use.</returns>
-    internal SKEntity Spawn(string handle)
+    public SKEntity Spawn(string handle)
     {
         if (!EntityRegistry.TryGetDefinition(handle, out AEntityCommon? definition) || definition is null)
-            throw new Exception($"Failed to create entity copy using handle {handle}");
+            throw new Exception(
+                $"Failed to create entity copy using {handle} handle. Justify with Full Handle instead.");
         // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
 
         // Create entity regardless of how it's stored.
@@ -155,13 +111,91 @@ public partial class EntityManager
             ? CreateEntity((definition as SKEntity)!)
             : CreateEntity((definition as EntityTemplate)!);
 
-        // Initialize the entity.
-        entity.Initialize();
-
-        _allEntities.Add(entity);
+        // Assign world to entity. Will cause some funk if the world is null.
+        Finalize(ref entity);
         return entity;
     }
 
     #endregion
 
+    #region CreateEntity
+
+    /// <summary>
+    /// Create entity using existing raw <see cref="SKEntity"/> definition. Assumes definition is valid.
+    /// </summary>
+    /// <returns>New cloned entity.</returns>
+    private static SKEntity CreateEntity(SKEntity definition)
+    {
+        // Create a copy of this entity.
+        if (definition.CloneEntityAs<SKEntity>() is not SKEntity entity)
+            throw new Exception("Attempted to create entity from definition, but the definition was not an SKEntity!");
+        return entity;
+    }
+
+    /// <summary>
+    /// Creates a new entity and returns its handle.
+    /// Optionally fills metadata from a template or explicit values.
+    /// </summary>
+    private SKEntity CreateEntity(EntityTemplate template)
+    {
+        // Use the template's desired entity type
+        //  This is essentially a dynamic constructor to account for varying component definitions and templates.
+        const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+        SKEntity entity = (SKEntity)Activator.CreateInstance(
+                              template.EntityType,
+                              bindingFlags,
+                              null,
+                              // Parameters for precise constructor.
+                              [
+                                  _nextId + 1, // Preemptively creating next ID without iterating yet. Still valid here!
+                                  ComponentRegistry.Count,
+                                  template
+                              ], null)!
+                          ?? throw new InvalidOperationException(
+                              $"Failed to create entity \"{template.Handle}\" in {nameof(CreateEntity)}");
+        return entity;
+    }
+
+    #endregion
+
+    #region Helpers
+
+    /// <summary>
+    /// Final steps to conduct against an entity before spawning / creating.
+    /// </summary>
+    private void Finalize(ref SKEntity entity)
+    {
+        // Last-preemptive registration if this entity's full handle is not present in the registry.
+        if (!EntityRegistry.ContainsDefinition(entity.Handle))
+            if (!EntityRegistry.ContainsDefinition(entity.GetFullHandle()))
+                EntityRegistry.RegisterDefinition(entity);
+
+        // Assign world.
+        entity.World = _world;
+
+        // Should be safe to create ID by now.
+        int id = _nextId.Iterate();
+        entity.SetRuntimeId(id);
+
+        // Add default components if provided.
+        foreach ((Type type, object _) in entity.DefaultComponents)
+            entity.AddComponent(type);
+
+        // Initialize the entity.
+        entity.Initialize();
+
+        _allEntities.Add(entity);
+    }
+
+    /// <summary>
+    /// Remove all entities contained in Entity Manager.
+    /// </summary>
+    public void MassacreAllEntities()
+    {
+        // TODO: MIGHT require additional unloading? The list just clears references for the GC. Components these
+        //  entities had aren't clear, and created IDs aren't reset back to start from 0.
+        _allEntities.Clear();
+    }
+
+    #endregion
 }

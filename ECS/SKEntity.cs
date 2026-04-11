@@ -5,9 +5,9 @@ using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Scenes;
 using SKSSL.YAML;
 using VYaml.Annotations;
-
+// ReSharper disable VirtualMemberNeverOverridden.Global
+// ReSharper disable UnusedMember.Global
 // ReSharper disable RedundantBaseConstructorCall
-
 // ReSharper disable ClassNeverInstantiated.Global
 
 namespace SKSSL.ECS;
@@ -49,11 +49,11 @@ public partial record SKEntity : AEntityCommon
 
     /// <inheritdoc/>
     [YamlMember(name: "name"), JsonInclude, JsonPropertyName("Name")]
-    public sealed override string NameKey { get; set; }
+    public sealed override string NameKey { get; set; } = null!;
 
     /// <inheritdoc/>
     [YamlMember(name: "description"), JsonInclude, JsonPropertyName("Description")]
-    public sealed override string DescriptionKey { get; set; }
+    public sealed override string DescriptionKey { get; set; } = null!;
 
     /// <inheritdoc/>
     /// Virtual for allow overrides, permitting manually-defined type-specific default components.
@@ -68,7 +68,7 @@ public partial record SKEntity : AEntityCommon
     /// <seealso cref="IterArray{T}"/>
     /// </summary>
     [MemoryPackIgnore, YamlIgnore, JsonIgnore]
-    public readonly int[] ComponentIndices;
+    public readonly int[] ComponentIndices = null!;
 
     /// <summary>
     /// Reverse-reference back to the world that this entity inhabits.

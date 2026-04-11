@@ -28,7 +28,7 @@ public class ECSController
     {
         _systemManager = new SystemManager();
         ComponentRegistry = new ComponentRegistry();
-        EntityManager = new EntityManager(ref ComponentRegistry, world);
+        EntityManager = new EntityManager(world);
     }
 
     /// <summary>

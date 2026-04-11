@@ -66,11 +66,7 @@ public abstract class EntityRegistry
     /// <param name="isRawEntity">Assumed false by default. Toggles alternative handling for raw entity definitions.</param>
     /// <typeparam name="TYaml">Yaml Class</typeparam>
     /// <exception cref="YamlEmitterException">Thrown when ReferenceId / Handle not provided in YAML.</exception>
-    public static void RegisterEntity<TYaml>(
-        TYaml yaml,
-        Type derivedType,
-        bool isRawEntity)
-        where TYaml : EntityYaml
+    public static void RegisterEntity<TYaml>(TYaml yaml, Type derivedType, bool isRawEntity) where TYaml : EntityYaml
     {
         if (!SSLGame.UseECS)
         {
@@ -81,7 +77,6 @@ public abstract class EntityRegistry
 
         // Build components. All entity registration carries forth the task of parsing component data from a yaml file.
         var components = BuildComponentsFromEntityYaml(yaml);
-
 
         AEntityCommon output;
         // Raw entities are instantiated and casted.
@@ -188,8 +183,8 @@ public abstract class EntityRegistry
     /// <remarks>
     /// Automatically registers definitions as a "source:handle" arrangement.
     /// </remarks>
-    private static void RegisterDefinition(AEntityCommon definition)
-        => Definitions[$"{definition.Source}:{definition.Handle}"] = definition;
+    internal static void RegisterDefinition(AEntityCommon definition)
+        => Definitions[definition.GetFullHandle()] = definition;
 
     /// <summary>
     /// Safe[r] TryGet method to retrieve an Entity Definition *OR* Template using a reference id.
@@ -197,11 +192,10 @@ public abstract class EntityRegistry
     /// <returns>True if a template was found. False if one was not. The output is also Null if one was not found.</returns>
     public static bool TryGetDefinition<T>(string handle, out T? definition) where T : AEntityCommon
     {
-        var gotValue = EntityManager.Definitions.TryGetValue(handle, out AEntityCommon? _);
-
-        if (EntityManager.Definitions[handle] is T typed)
+        var gotValue = ContainsDefinition(handle);
+        if (EntityManager.Definitions[handle] is T found)
         {
-            definition = typed;
+            definition = found;
             return true;
         }
 
@@ -212,7 +206,7 @@ public abstract class EntityRegistry
     /// <summary>
     /// Inquiry to the entity manager for a possible entity definition.
     /// </summary>
-    /// <param name="handle">Reference ID that the Entity Registry SHOULD have.</param>
+    /// <param name="handle">Full Source:Handle ID that the Entity Registry definitions should possess.</param>
     /// <returns>True if a template was found. False if one was not.</returns>
     public static bool ContainsDefinition(string handle) => EntityManager.Definitions.ContainsKey(handle);
 }
