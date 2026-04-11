@@ -117,7 +117,7 @@ public partial record SKEntity : AEntityCommon
             RuntimeId = id.Value;
 
         ComponentIndices = new int[count];
-        Array.Fill(ComponentIndices, -1); // ← All slots start as "missing"
+        Array.Fill(ComponentIndices, -1); // <- All slots start as "missing"
     }
 
     #endregion
