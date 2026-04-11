@@ -1,3 +1,4 @@
+using SKSSL.Scenes;
 using static SKSSL.DustLogger;
 
 namespace SKSSL.ECS;
@@ -9,11 +10,13 @@ namespace SKSSL.ECS;
 public readonly struct EntityContext
 {
     /// <inheritdoc cref="SKSSL.ECS.EntityManager"/>
-    public readonly EntityManager EntityManager;
+    public readonly EntityManager EntityManager = null!;
 
     /// <inheritdoc cref="SKSSL.ECS.ComponentRegistry"/>
-    public readonly ComponentRegistry Components;
+    public readonly ComponentRegistry Components = null!;
 
+    public readonly BaseWorld World = null!;
+    
     public EntityContext(EntityManager entityManager, ComponentRegistry componentRegistry)
     {
         EntityManager = entityManager;
@@ -26,21 +29,17 @@ public readonly struct EntityContext
     /// <exception cref="NullReferenceException">Thrown when ECS acquired is null.</exception>
     public EntityContext()
     {
-        var ec = SSLGame.ECS();
-        if (ec == null)
-        {
-            throw new NullReferenceException(
-                "Attempted to create Entity Context in Blank Constructor from an Entity Context that doesn't exist! " +
-                "Is ECS enabled?");
-        }
-
-        EntityManager = ec.Value.EntityManager;
-        Components = ec.Value.Components;
+        EntityContext ecs = SSLGame.ECS();
+        World = ecs.World;
+        EntityManager = ecs.EntityManager;
+        Components = ecs.Components;
     }
 
     /// Wrapper Constructor for a <see cref="ECSController"/>.
-    public EntityContext(ECSController ecs)
+    public EntityContext(BaseWorld world)
     {
+        ECSController ecs = world.ECS;
+        World = world;
         EntityManager = ecs.EntityManager;
         Components = ecs.ComponentRegistry;
     }

@@ -1,8 +1,8 @@
 using Microsoft.Xna.Framework;
 using SKSSL.ECS;
 using static SKSSL.DustLogger;
-// ReSharper disable UnusedAutoPropertyAccessor.Global
 
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable PublicConstructorInAbstractClass
 
 namespace SKSSL.Scenes;
@@ -39,7 +39,6 @@ public interface IWorld
 /// </summary>
 public abstract class BaseWorld : IWorld
 {
-#pragma warning disable CS0618 // Type or member is obsolete
     protected bool IsInitialized { get; private set; }
 
     /// Most worlds use ECS — this depends on overall dictation. If ECS is enabled,
@@ -50,7 +49,7 @@ public abstract class BaseWorld : IWorld
     internal GraphicsDeviceManager _graphics { get; private set; } = null!;
 
     /// ECS controller unique to this world instance. Left null of no ECS controller.
-    public ECSController? ECS { get; private set; } = null;
+    public ECSController ECS { get; } = null!;
 
     /// Calls ECS Init() (if enabled)
     protected BaseWorld()
@@ -66,13 +65,10 @@ public abstract class BaseWorld : IWorld
     {
         _graphics = graphics;
 
-        if (ECS != null)
-        {
-            Log("...initializing ECS...");
-            ECS?.Initialize();
-        }
+        if (!UsesECS) return;
+        Log("...initializing ECS...");
+        ECS.Initialize();
     }
-
 
     /// <inheritdoc cref="IWorld.LoadContent"/>
     public virtual void LoadContent()
@@ -80,17 +76,25 @@ public abstract class BaseWorld : IWorld
     }
 
     /// <inheritdoc cref="IWorld.Update"/>
-    public virtual void Update(GameTime gameTime) => ECS?.Update(gameTime);
+    public virtual void Update(GameTime gameTime)
+    {
+        if (!UsesECS) return;
+        ECS.Update(gameTime);
+    }
 
     /// <inheritdoc cref="IWorld.Draw"/>
-    public virtual void Draw(GameTime gameTime) => ECS?.Draw(gameTime);
+    public virtual void Draw(GameTime gameTime)
+    {
+        if (!UsesECS) return;
+        ECS.Draw(gameTime);
+    }
 
     /// <inheritdoc cref="IWorld.Destroy"/>
     public virtual void Destroy()
     {
-        ECS?.Destroy();
-        ECS = null;
         IsInitialized = false;
+        
+        if (!UsesECS) return;
+        ECS.Destroy();
     }
-#pragma warning restore CS0618 // Type or member is obsolete
 }
