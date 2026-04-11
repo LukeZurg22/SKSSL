@@ -31,7 +31,7 @@ public partial record SKEntity : AEntityCommon
     /// Static Reference ID of this particular entry to a template reference.
     /// </summary>
     [YamlMember(name: "id"), JsonInclude]
-    public override string Handle { get; init; } = null!;
+    public sealed override string Handle { get; init; } = null!;
 
     /// <summary>
     /// Unique runtime ID (only set on spawned instances, -1 on templates)
@@ -49,11 +49,11 @@ public partial record SKEntity : AEntityCommon
 
     /// <inheritdoc/>
     [YamlMember(name: "name"), JsonInclude, JsonPropertyName("Name")]
-    public override string NameKey { get; set; }
+    public sealed override string NameKey { get; set; }
 
     /// <inheritdoc/>
     [YamlMember(name: "description"), JsonInclude, JsonPropertyName("Description")]
-    public override string DescriptionKey { get; set; }
+    public sealed override string DescriptionKey { get; set; }
 
     /// <inheritdoc/>
     /// Virtual for allow overrides, permitting manually-defined type-specific default components.
