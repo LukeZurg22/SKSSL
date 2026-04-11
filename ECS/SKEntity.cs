@@ -65,7 +65,7 @@ public partial record SKEntity : AEntityCommon
     /// Value = slot in ComponentArray&lt;T&gt; (-1 if missing)
     /// <br/><br/>
     /// For every index, there is a unique component type.
-    /// <seealso cref="ComponentArray{T}"/>
+    /// <seealso cref="IterArray{T}"/>
     /// </summary>
     [MemoryPackIgnore, YamlIgnore, JsonIgnore]
     public readonly int[] ComponentIndices;

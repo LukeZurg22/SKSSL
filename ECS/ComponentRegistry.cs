@@ -1,85 +1,15 @@
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
+using SKSSL.Extensions;
 using static SKSSL.DustLogger; // I like my DustLogger. I will use it everywhere.
 using Type = System.Type; // For reflection purposes.
 
+// ReSharper disable UnusedMember.Global
 // ReSharper disable InvalidXmlDocComment
 
 namespace SKSSL.ECS;
-
-#region ComponentArray<> Definition
-
-/// <summary>
-/// Contains the component instances for each registered entity.
-/// </summary>
-/// <remarks>This list is instantiated. It gets pretty complicated, but is essentially used to store component type data.</remarks>
-/// <typeparam name="T">Type of components being stored in this particular list.</typeparam>
-public class ComponentArray<T> : IComponentArray where T : struct, ISKComponent
-{
-    /// <summary>
-    /// Constructor of Component Array that creates empty array on instantiation.
-    /// </summary>
-    /// <param name="capacity">Number of items maximum this array can contain.</param>
-    public ComponentArray(int capacity) => _items = new T[capacity];
-
-    /// Empty constructor that forces default capacity to 1024.
-    public ComponentArray() : this(1024)
-    {
-    }
-
-    /// Private list of contained items.
-    private T[] _items;
-
-    /// <summary>
-    /// Number of entries present within the component array.
-    /// </summary>
-    public int Count { get; private set; } = 0;
-
-    /// <summary>
-    /// Expands list of available items.
-    /// </summary>
-    /// <returns>Reference to <see cref="_items"/> slot.</returns>
-    public ref T Add()
-    {
-        // Double item space every time it's over max.
-        if (Count >= _items.Length)
-            Array.Resize(ref _items, _items.Length * 2);
-
-        return ref _items[Count++];
-    }
-
-    /// <summary>
-    /// Removes component by setting it to default (nulls out value).
-    /// Index remains valid but component is considered "removed".
-    /// You MUST check IsValid(index) before using GetAt().
-    /// </summary>
-    public void RemoveAt(int index)
-    {
-        if (index < 0 || index >= _items.Length)
-            throw new IndexOutOfRangeException($"Index {index} out of bounds (array size: {_items.Length})");
-
-        _items[index] = default;
-    }
-
-    /// <param name="index">Index of desired registered type.</param>
-    /// <returns>Type definition at index.</returns>
-    /// <exception cref="IndexOutOfRangeException">If (<see cref="Count"/> &gt; index &lt; 0 )</exception>
-    public ref T GetAt(int index)
-    {
-        if (index < 0 || index >= Count)
-            throw new IndexOutOfRangeException($"{nameof(GetAt)} index #{index} out of range.");
-
-        return ref _items[index];
-    }
-
-    public ref T this[int index] => ref _items[index];
-    object IComponentArray.this[int index] => _items[index];
-}
-
-#endregion
 
 /// Central registry that creates, handles, gets, an deletes components.
 public class ComponentRegistry
@@ -124,6 +54,9 @@ public class ComponentRegistry
     private static readonly Dictionary<int, Type> _idToType = new();
     private static readonly Dictionary<string, Type> _registeredComponents = new();
 
+    /// All registered component types-types contained in the system.
+    public static IReadOnlyDictionary<Type, int> RegisteredTypesDictionary => _typeToId;
+
     /// All registered component class-types contained in the system.
     public static IReadOnlyDictionary<string, Type> RegisteredComponentTypesDictionary => _registeredComponents;
 
@@ -132,16 +65,16 @@ public class ComponentRegistry
     /// </summary>
     private readonly ConcurrentDictionary<Type, object> _activeComponentArrays = new(); // Type -> ComponentArray<T>
 
-    private static int _nextTypeId = 0;
     private static bool Initialized { get; set; } = false;
 
+    private static int _nextTypeId = 0;
 
     /// Number of Components registered in the registry. Gets next available Component ID.
     public static int Count => _nextTypeId;
 
     /// <param name="id">ID of Registered Component</param>
     /// <returns>Null or Type Definition based on provided ID.</returns>
-    public Type? GetType(int id) => _idToType.GetValueOrDefault(id);
+    public static Type? GetType(int id) => _idToType.GetValueOrDefault(id);
 
     #region Component Registration and Assembly Checks
 
@@ -157,7 +90,7 @@ public class ComponentRegistry
             .Where(IsRelevantAssembly)
             .ToArray();
 
-        Log($"Scanning {assemblies.Length} assemblies for components...");
+        Log($"...scanning {assemblies.Length} assemblies for components...");
 
         int componentCount = 0;
         foreach (Assembly assembly in assemblies)
@@ -177,7 +110,7 @@ public class ComponentRegistry
 
         // Logging
         Log($"Registered {componentCount} components in {stopwatch.ElapsedMilliseconds}ms");
-        Log("Registered types:");
+        Log("Registered component types:");
         // Print all registered components in a nice list. 
         StringBuilder compSb = new();
         foreach (Type type in _registeredComponents.Values)
@@ -201,6 +134,12 @@ public class ComponentRegistry
                 return [];
             }
         }
+
+        bool IsValidComponent(Type t) =>
+            typeof(ISKComponent).IsAssignableFrom(t) &&
+            !t.IsAbstract &&
+            !t.IsInterface &&
+            !t.IsGenericTypeDefinition;
     }
 
     /// <summary>
@@ -211,60 +150,14 @@ public class ComponentRegistry
         string name = assembly.GetName().Name ?? "";
 
         // Skip problematic/problematic assemblies
-        if (name.StartsWith("MonoGame.", StringComparison.OrdinalIgnoreCase) ||
-            name.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) ||
-            name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
-            name.StartsWith("mscorlib") ||
-            name.StartsWith("netstandard") ||
-            assembly.IsDynamic ||
-            assembly.ReflectionOnly)
-            return false;
-
-        // Hard-coding our supported assemblies.
-        return name.Contains("SKSSL") ||
-               name.Contains("KBSL") ||
-               name.Contains("Kuiperbilt");
-        // TODO: I should really add support for an additional user-defined assemblies. Make a virtual call? A wrapper maybe?
+        return !name.StartsWith("MonoGame.", StringComparison.OrdinalIgnoreCase) &&
+               !name.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) &&
+               !name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) &&
+               !name.StartsWith("mscorlib") &&
+               !name.StartsWith("netstandard") &&
+               !assembly.IsDynamic &&
+               !assembly.ReflectionOnly;
     }
-
-    private static bool IsValidComponent(Type t) =>
-        typeof(ISKComponent).IsAssignableFrom(t) &&
-        !t.IsAbstract &&
-        !t.IsInterface &&
-        !t.IsGenericTypeDefinition;
-
-    #endregion
-
-    // I just couldn't choose which to implement. There's multiple ways to do this and i am picky about performance.
-    //  The compiler shall handle the rest of this, consequences be damned.
-
-    #region ComponentArray Activators
-
-#pragma warning disable CS0162 // Unreachable code detected
-#pragma warning disable SYSLIB0050
-
-    private object GetOrCreateComponentArrayActivator(Type componentType)
-    {
-        return _activeComponentArrays.GetOrAdd(componentType, CreateArray);
-
-        static object CreateArray(Type t)
-        {
-            Type arrayType = typeof(ComponentArray<>).MakeGenericType(t);
-            return Activator.CreateInstance(arrayType)!;
-        }
-    }
-
-    private object GetOrCreateComponentArrayRuntime(Type componentType)
-    {
-        return _activeComponentArrays.GetOrAdd(componentType, t =>
-        {
-            Type arrayType = typeof(ComponentArray<>).MakeGenericType(t);
-            return RuntimeHelpers.GetUninitializedObject(arrayType);
-            // Requires manual call .Initialize() or just let List<T> default init
-        });
-    }
-#pragma warning restore SYSLIB0050
-#pragma warning restore CS0162 // Unreachable code detected
 
     #endregion
 
@@ -275,17 +168,11 @@ public class ComponentRegistry
     /// <summary>
     /// Used for extensions that attempt to retrieve a defined component from an entity.
     /// </summary>
-    internal bool TryGetComponentIndex(SKEntity entity, Type componentType, out int index)
+    private static bool TryGetComponentIndex(SKEntity entity, Type componentType, out int index)
     {
-        var compId = entity.ComponentIndices[_typeToId.TryGetValue(componentType, out index) ? index : -1];
-
         // Effectively HasComponent() call, but index is reused later so... ¯\_(ツ)_/¯
-        if (compId != -1)
-            return true;
-
-        Log($"Tried to get bad component index. Entity {entity.RuntimeId} missing component type {componentType.Name}",
-            LOG.GENERAL_WARNING);
-        return false;
+        var compId = entity.ComponentIndices[_typeToId.TryGetValue(componentType, out index) ? index : -1];
+        return compId != -1;
     }
 
     /// <summary>
@@ -293,14 +180,14 @@ public class ComponentRegistry
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public ComponentArray<T> GetOrCreateComponentArray<T>() where T : struct, ISKComponent
-        => (ComponentArray<T>)GetOrCreateComponentArray(typeof(T));
+    private IterArray<T> GetOrCreateComponentArray<T>() where T : class, ISKComponent
+        => (IterArray<T>)GetOrCreateComponentArray(typeof(T));
 
     /// <summary>
     /// Gets or creates the ComponentArray&lt;T&gt; for the given component type.
     /// Called only once per component type.
     /// </summary>
-    public object GetOrCreateComponentArray(Type componentType)
+    private object GetOrCreateComponentArray(Type componentType)
     {
         ArgumentNullException.ThrowIfNull(componentType);
 
@@ -309,7 +196,7 @@ public class ComponentRegistry
         static object CreateComponentArray(Type t)
         {
             // Build ComponentArray<componentType>
-            Type arrayType = typeof(ComponentArray<>).MakeGenericType(t);
+            Type arrayType = typeof(IterArray<>).MakeGenericType(t);
 
             // Call the public parameterless constructor
             return Activator.CreateInstance(arrayType)
@@ -317,25 +204,25 @@ public class ComponentRegistry
         }
     }
 
-    /// <param name="array"><see cref="ComponentArray{T}"/> of Active components.</param>
+    /// <param name="array"><see cref="IterArray{T}"/> of Active components.</param>
     /// <param name="index">Index of component provided by an <see cref="SKEntity"/> up the chain.</param>
     /// <returns>
-    /// Gets a component using a <see cref="ComponentArray{T}"/> and provided index of the component's position
+    /// Gets a component using a <see cref="IterArray{T}"/> and provided index of the component's position
     /// within the array.
     /// </returns>
     internal static ISKComponent? GetComponentAt(object array, int index)
     {
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(index);
-        return ((IComponentArray)array)[index] as ISKComponent;
+        return ((IterArray)array)[index] as ISKComponent;
     }
 
-    internal static T GetComponentAt<T>(ComponentArray<T> array, int index) where T : struct, ISKComponent
+    internal static T GetComponentAt<T>(IterArray<T> array, int index) where T : class, ISKComponent
         => array.GetAt(index);
 
     /// <returns>ID of component defined in type dictionary, or -1.</returns>
     /// <exception cref="ArgumentException">Provided type not present in dictionary.</exception>
-    public int GetComponentTypeId(Type componentType)
+    public static int GetComponentTypeId(Type componentType)
     {
         if (!_typeToId.TryGetValue(componentType, out int id))
             throw new ArgumentException($"Component type {componentType.Name} not registered!");
@@ -343,7 +230,7 @@ public class ComponentRegistry
     }
 
     /// <inheritdoc cref="GetComponentTypeId"/>
-    private int GetComponentTypeId<T>() => GetComponentTypeId(typeof(T));
+    public static int GetComponentTypeId<T>() => GetComponentTypeId(typeof(T));
 
     /// <summary>
     /// Multipurpose method used to retrieve an ID of a registered type, or additionally
@@ -386,6 +273,9 @@ public class ComponentRegistry
             throw new ArgumentException($"Type {componentType.Name} must implement ISKComponent.",
                 nameof(componentType));
 
+        if (!entity.HasComponent(componentType))
+            return null;
+
         if (!TryGetComponentIndex(entity, componentType, out var index))
             return null;
 
@@ -399,26 +289,11 @@ public class ComponentRegistry
     /// <typeparam name="T">The component type (must implement ISKComponent).</typeparam>
     /// <returns>A reference to the component if found; otherwise throws.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component.</exception>
-    public ref T GetComponent<T>(SKEntity entity) where T : struct, ISKComponent
+    public ref T GetComponent<T>(SKEntity entity) where T : class, ISKComponent
     {
         if (!TryGetComponentIndex(entity, typeof(T), out var index))
-            Log($"{nameof(GetComponent)} is going through with an invalid index! Not good!", LOG.SYSTEM_WARNING);
-
+            throw new InvalidOperationException($"Failed to find expected component type in Entity #{entity.Id}");
         return ref GetOrCreateComponentArray<T>().GetAt(index);
-    }
-
-
-    /// <summary>
-    /// Acts like <see cref="GetComponent{T}"/> but more direct and possibly dangerous.
-    /// </summary>
-    /// <param name="entity">Entity whose components are queried.</param>
-    /// <typeparam name="T">Type of component.</typeparam>
-    /// <returns>Component reference.</returns>
-    public ref T GetComponentRef<T>(SKEntity entity) where T : struct, ISKComponent
-    {
-        var array = (ComponentArray<T>)_activeComponentArrays[typeof(T)];
-        int idx = entity.ComponentIndices[GetComponentTypeId<T>()];
-        return ref array.GetAt(idx);
     }
 
     #endregion
@@ -426,30 +301,6 @@ public class ComponentRegistry
     // ""Unsafe"" add methods.
 
     #region AddComponent
-
-    /// <summary>
-    /// Adds a new component of type T to the entity and returns a mutable reference to it.
-    /// </summary>
-    /// <param name="entity">Entity that a component is added to.</param>
-    /// <typeparam name="T">The component type (must be struct and implement ISKComponent).</typeparam>
-    /// <returns>A reference to the newly added component (zero-initialized).</returns>
-    [Obsolete("Use AddComponent(entity, type) instead.")]
-    public ref T AddComponent<T>(SKEntity entity) where T : struct, ISKComponent
-    {
-        var array = GetOrCreateComponentArray<T>();
-
-        // Calls a custom Add() -> returns ref to the new slot
-        ref T componentSlot = ref array.Add();
-
-        // Default-initialize (zero-init for struct — fast and safe)
-        componentSlot = default; // or = new T(); Maybe?
-
-        int typeId = GetComponentTypeId<T>();
-        entity.ComponentIndices[typeId] = array.Count - 1; // Count already incremented, indexed by zero.
-
-        // Basically returns a component placed in a slot equal to the index reference contained in the entity.
-        return ref componentSlot;
-    }
 
     /// <summary>
     /// Adds a component of the specified runtime type and returns the new component boxed instance.
@@ -546,10 +397,9 @@ public class ComponentRegistry
     /// <param name="component">Component output for use.</param>
     /// <typeparam name="T">Expected Component Type within entity.</typeparam>
     /// <returns>False if a component wasn't found.</returns>
-    public bool TryGetComponent<T>(SKEntity entity, out T component) where T : struct, ISKComponent
+    public bool TryGetComponent<T>(SKEntity entity, out T? component) where T : class, ISKComponent
     {
-        component = default;
-
+        component = null;
         int typeId = GetComponentTypeId<T>();
         int index = entity.ComponentIndices[typeId];
 
@@ -636,13 +486,8 @@ public class ComponentRegistry
 
     #endregion
 
-    #endregion
-}
+    public static bool HasComponent(SKEntity entity, Type componentType)
+        => entity.ComponentIndices[RegisteredTypesDictionary.GetValueOrDefault(componentType, -1)] != -1;
 
-/// <summary>
-/// Interface for indexable component array that stores Component IDs.
-/// </summary>
-public interface IComponentArray
-{
-    object? this[int index] { get; }
+    #endregion
 }

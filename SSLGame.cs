@@ -169,6 +169,8 @@ public abstract class SSLGame : Game
         Log("Initializing ImGUI.");
         GuiRenderer = new ImGuiRenderer(this);
         GuiRenderer.RebuildFontAtlas();
+        
+        Log("SSLGame Root Initialized. Proceeding...");
     }
 
     /// <summary>

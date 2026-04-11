@@ -43,6 +43,15 @@
       <Compile Update="Textures\TextureLoader.HardcodedTextures.cs">
         <DependentUpon>TextureLoader.cs</DependentUpon>
       </Compile>
+      <Compile Update="Extensions\EntityExtensions_Clone.cs">
+        <DependentUpon>EntityExtensions.cs</DependentUpon>
+      </Compile>
+      <Compile Update="Extensions\EntityExtensions_Components.cs">
+        <DependentUpon>EntityExtensions.cs</DependentUpon>
+      </Compile>
+      <Compile Update="Extensions\EntityExtensions_Queries.cs">
+        <DependentUpon>EntityExtensions.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
     
 </Project>
