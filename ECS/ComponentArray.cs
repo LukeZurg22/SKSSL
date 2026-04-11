@@ -1,3 +1,6 @@
+using System.Runtime.CompilerServices;
+// ReSharper disable UnusedMember.Global
+
 namespace SKSSL.ECS;
 
 /// <summary>
@@ -6,6 +9,11 @@ namespace SKSSL.ECS;
 public interface IterArray
 {
     object? this[int index] { get; }
+    public int Increment();
+    object GetAt(int index); // Returns boxed component for generic AddComponent
+    void RemoveAt(int index);
+    ref T1 GetRefAt<T1>(int index) where T1 : ISKComponent;
+    int Count { get; }
 }
 
 /// <summary>
@@ -29,6 +37,22 @@ public class IterArray<T> : IterArray where T : class, ISKComponent
     /// Private list of contained items.
     private T[] _items;
 
+    public ref T1 GetRefAt<T1>(int index) where T1 : ISKComponent
+    {
+        if ((uint)index >= (uint)Count)
+            throw new IndexOutOfRangeException(
+                $"GetRefAt index #{index} out of range in ComponentArray<{typeof(T).Name}>.");
+
+        // Enforce that the caller is requesting the correct type for this array
+        if (typeof(T1) != typeof(T))
+            throw new InvalidCastException(
+                $"Cannot get component of type {typeof(T1).Name} from ComponentArray<{typeof(T).Name}>. " +
+                "Types must match exactly.");
+
+        // This is the only way to safely return ref T1 when T1 == T
+        return ref Unsafe.As<T, T1>(ref _items[index]);
+    }
+
     /// <summary>
     /// Number of entries present within the component array.
     /// </summary>
@@ -37,14 +61,13 @@ public class IterArray<T> : IterArray where T : class, ISKComponent
     /// <summary>
     /// Expands list of available items.
     /// </summary>
-    /// <returns>Reference to <see cref="_items"/> slot.</returns>
-    public ref T Add()
+    /// <returns>References <see cref="_items"/> slot.</returns>
+    public int Increment()
     {
         // Double item space every time it's over max.
         if (Count >= _items.Length)
             Array.Resize(ref _items, _items.Length * 2);
-
-        return ref _items[Count++];
+        return ++Count;
     }
 
     /// <summary>
@@ -64,12 +87,11 @@ public class IterArray<T> : IterArray where T : class, ISKComponent
     /// <param name="index">Index of desired registered type.</param>
     /// <returns>Type definition at index.</returns>
     /// <exception cref="IndexOutOfRangeException">If (<see cref="Count"/> &gt; index &lt; 0 )</exception>
-    public ref T GetAt(int index)
+    public object GetAt(int index)
     {
         if (index < 0 || index >= Count)
-            throw new IndexOutOfRangeException($"{nameof(GetAt)} index #{index} out of range.");
-
-        return ref _items[index];
+            throw new IndexOutOfRangeException($"GetAt index #{index} out of range.");
+        return _items[index];
     }
 
     public ref T this[int index] => ref _items[index];

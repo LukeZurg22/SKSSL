@@ -217,12 +217,12 @@ public class ComponentRegistry
         return ((IterArray)array)[index] as ISKComponent;
     }
 
-    internal static T GetComponentAt<T>(IterArray<T> array, int index) where T : class, ISKComponent
-        => array.GetAt(index);
+    internal static ref T GetComponentAt<T>(IterArray<T> array, int index) where T : class, ISKComponent
+        => ref array.GetRefAt<T>(index);
 
     /// <returns>ID of component defined in type dictionary, or -1.</returns>
     /// <exception cref="ArgumentException">Provided type not present in dictionary.</exception>
-    public static int GetComponentTypeId(Type componentType)
+    private static int GetComponentTypeId(Type componentType)
     {
         if (!_typeToId.TryGetValue(componentType, out int id))
             throw new ArgumentException($"Component type {componentType.Name} not registered!");
@@ -293,7 +293,7 @@ public class ComponentRegistry
     {
         if (!TryGetComponentIndex(entity, typeof(T), out var index))
             throw new InvalidOperationException($"Failed to find expected component type in Entity #{entity.Id}");
-        return ref GetOrCreateComponentArray<T>().GetAt(index);
+        return ref GetOrCreateComponentArray<T>().GetRefAt<T>(index);
     }
 
     #endregion
@@ -317,38 +317,26 @@ public class ComponentRegistry
             throw new ArgumentException($"Type {componentType.Name} does not implement ISKComponent");
 
         // Get or create the component array
-        object arrayObj = GetOrCreateComponentArray(componentType);
-
-        // Call custom Add() via reflection to allocate slot
-        MethodInfo addMethod = arrayObj.GetType()
-                                   .GetMethod("Add", Type.EmptyTypes)
-                               ?? throw new InvalidOperationException(
-                                   $"Missing Add() on ComponentArray<{componentType.Name}>");
-
-        // Increments count and returns discarded [ref]erence.
-        addMethod.Invoke(arrayObj, null);
-
-        // Get the new index
-        int newIndex = (int)(arrayObj.GetType().GetProperty("Count")?.GetValue(arrayObj)
-                             ?? throw new InvalidOperationException(
-                                 $"No Count field in ComponentArray<{componentType.Name}> found."))
-                       - 1; // -1 due to zero-based indexing.
-
+        if (GetOrCreateComponentArray(componentType) is not IterArray componentArray)
+            throw new ArgumentException($"Cannot create IterArray of Component {componentType.Name}.");
+        
         // Store index in entity
         int typeId = GetComponentTypeId(componentType);
+        var newIndex = componentArray.Increment();
         entity.ComponentIndices[typeId] = newIndex;
 
-        // Return the actual component instance (by value) — perfect for initialization
-        MethodInfo getAtMethod = arrayObj.GetType().GetMethod("GetAt")
-                                 ?? throw new InvalidOperationException(
-                                     $"Missing GetAt(int) on ComponentArray<{componentType.Name}>");
-
         // Returns ref T, but boxed to object
-        object component = getAtMethod.Invoke(arrayObj, [newIndex])
-                           ?? throw new InvalidOperationException("GetAt returned null");
-
+        object component = componentArray.GetAt(newIndex);
         return component;
     }
+    
+    /// <inheritdoc cref="AddComponent(SKSSL.ECS.SKEntity,Type)"/>
+    public T AddComponent<T>(SKEntity entity) where T : class, ISKComponent
+        => (T)AddComponent(entity, typeof(T));
+    
+    /// <inheritdoc cref="AddComponent(SKSSL.ECS.SKEntity,Type)"/>
+    public ISKComponent AddComponent(SKEntity entity, ISKComponent component)
+        => (ISKComponent)AddComponent(entity, component.GetType());
 
     #endregion
 
@@ -406,7 +394,7 @@ public class ComponentRegistry
         if (index == -1)
             return false;
 
-        component = GetOrCreateComponentArray<T>().GetAt(index);
+        component = GetOrCreateComponentArray<T>().GetRefAt<T>(index);
         return true;
     }
 
@@ -490,4 +478,5 @@ public class ComponentRegistry
         => entity.ComponentIndices[RegisteredTypesDictionary.GetValueOrDefault(componentType, -1)] != -1;
 
     #endregion
+    
 }
