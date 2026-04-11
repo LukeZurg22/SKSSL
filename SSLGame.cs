@@ -90,9 +90,11 @@ public abstract class SSLGame : Game
     /// varies between scenes.
     /// </remarks>
     /// <returns>Scene Manager's Current World's Entity Context.</returns>
-    public static EntityContext ECS()
+    public static EntityContext ECS(BaseWorld? world = null)
     {
         string message;
+        
+        // If not using ECS, then why? Throw an error!
         if (!UseECS)
         {
             message = "Failed to get Entity Context because ECS is not enabled.";
@@ -100,21 +102,23 @@ public abstract class SSLGame : Game
             throw new SettingsException(message);
         }
 
-        if (SceneManager.CurrentWorld is not BaseWorld world)
+        // If the scene manager has a world, then use that world instead of the provided one if this is null.
+        if (world == null && SceneManager.CurrentWorld is BaseWorld res)
         {
-            message = "Failed to get Entity Context from current (null) world in Scene Manager!";
+            world ??= res; // Reassign world.
+        }
+        
+        // Final check to validate that the world (and its ECS) is functioning.
+        if (world?.ECS is null)
+        {
+            message = "Failed to get Entity Context from null world or null World ECS!";
             Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
             throw new Exception(message);
         }
 
-        if (world.ECS is null)
-        {
-            message = "Failed to get Entity Context for a (null) ECS Controller!";
-            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
-            throw new Exception(message);
-        }
-
-        var entityContext = new EntityContext(world.ECS);
+        // Return the latest & greatest entity context!
+        // Do NOT instantiate a blank-constructor EntityContext here! It will cause an infinite loop of ECS() calls!
+        var entityContext = new EntityContext(world);
         return entityContext;
     }
 
@@ -172,7 +176,7 @@ public abstract class SSLGame : Game
         Log("Initializing ImGUI.");
         GuiRenderer = new ImGuiRenderer(this);
         GuiRenderer.RebuildFontAtlas();
-        
+
         Log("SSLGame Root Initialized. Proceeding...");
     }
 
