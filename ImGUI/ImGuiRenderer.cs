@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System.Runtime.InteropServices;
 using ImGuiNET;
+using SKSSL.ImGUI;
 
 namespace MonoGame.ImGuiNet;
 
