@@ -139,6 +139,33 @@ public static partial class DustLogger
     /// Overload using enum, which is cast to byte.
     public static void Log(string message, LOG log, bool outputToFile = DefaultOutputBoolean) => Log(message, (byte)log, outputToFile);
 
+    public static void Panic<T>(string message) where T : Exception
+    {
+        // Log first.
+        Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
+
+        // Use Activator to create exception with custom message when possible
+        Exception exception;
+
+        try
+        {
+            // Prefer constructors that accept a message
+            exception = (Exception)Activator.CreateInstance(typeof(T), message)!;
+        }
+        catch
+        {
+            // Fallback if the exception type doesn't have a (string) constructor
+            exception = (Exception)Activator.CreateInstance(typeof(T))!;
+        
+            // Try to set message via reflection as fallback
+            typeof(Exception)
+                .GetField("_message", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.SetValue(exception, message);
+        }
+
+        throw exception;
+    }
+    
     /// Write logging message to file. 
     private static void WriteToFile(LOG log, string message)
     {
