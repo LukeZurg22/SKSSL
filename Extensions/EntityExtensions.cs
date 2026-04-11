@@ -1,57 +1,39 @@
-using System.Reflection;
 using SKSSL.ECS;
 
 namespace SKSSL.Extensions;
 
-/// <summary>
-/// Extends the functionality of records and <see cref="SKEntity"/> objects with Cloning methods.
-/// </summary>
-public static class RecordExtensions
+public static partial class EntityExtensions
 {
-    /// <summary>
-    /// Creates a shallow clone of the given record instance.
-    /// </summary>
-    /// <param name="original">The existing record instance to clone.</param>
-    /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
-    public static object? Clone(object original)
-    {
-        Type type = original.GetType();
-        var clone = Activator.CreateInstance(type);
+    /// Gets current Game's EntityContext.
+    private static ComponentRegistry ComponentRegistry
+        => SSLGame.ECS()?.Components ??
+           throw new InvalidOperationException("No active ECS context! Initialize ECS first!");
 
-        foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-            if (prop.CanRead && prop.CanWrite)
-                prop.SetValue(clone, prop.GetValue(original));
-
-        // I know this acts like MemberwiseClone(), however it stays anyway because i'm just that unreasonable.
-        
-        return clone;
-    }
-    
-    /// <summary>
-    /// Creates a shallow clone of the given entity without any type casting.
-    /// </summary>
-    /// <param name="original">The existing record instance to clone.</param>
-    /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
-    public static SKEntity CloneEntity(SKEntity original)
-    {
-        Type type = original.GetType();
-
-        if (Activator.CreateInstance(type) is not SKEntity clone)
-            throw new InvalidCastException($"Type-cast failed to create SKEntity in {nameof(CloneEntity)}");
-        
-        foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-            if (prop.CanRead && prop.CanWrite)
-                prop.SetValue(clone, prop.GetValue(original));
-        
-        return clone;
-    }
-    
-    /// <summary>
-    /// Creates a shallow clone of the given entity, and type-casts it.
-    /// Calls <see cref="CloneEntity"/> for entity clone that's type-casted.
-    /// </summary>
-    /// <typeparam name="T">Public record type this object is cast to.</typeparam>
-    /// <param name="original">The existing record instance to clone.</param>
-    /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
-    public static object? CloneEntityAs<T>(this SKEntity original) where T : SKEntity => CloneEntity(original) as T;
+    /// Retrieves all entities from active EntityContext.
+    private static IReadOnlyList<SKEntity> Entities
+        => SSLGame.ECS()?.EntityManager.AllEntities ??
+           throw new InvalidOperationException("No active ECS context! Initialize ECS first!");
 }
+/*
+    You there, yes, you! Welcome!
+        This class is the parent of Entity Extensions.
+            These Entity Extension classes depend upon this one.
+                Expand this class within your IDE's navigation to see them.
+                    Here lies the self-reflective "Get" methods for the game's EntityContext.
+
+                ┌────────────────────────────────────────────────────────────────────┐
+                │                       │EntityExtensions│                           │
+                │                                │                                   │
+                │                                │                                   │
+                ├──────────────────────────┐     │     ┌─────────────────────────────┤
+                │EntityExtensions (Queries)◄─────┼────►│EntityExtensions (Components)│
+                ├──────────────────────────┘     │     └─────────────────────────────┤
+                │                                │                                   │
+                │                                │                                   │
+                │                   ┌────────────▼───────────┐                       │
+                │                   │EntityExtensions (Clone)│                       │
+                └───────────────────┴────────────────────────┴───────────────────────┘
+
+            Enjoy,
+            -Z
+*/
