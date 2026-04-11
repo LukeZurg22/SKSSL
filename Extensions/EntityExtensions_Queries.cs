@@ -1,4 +1,7 @@
 using SKSSL.ECS;
+using SKSSL.Scenes;
+
+// ReSharper disable InvalidXmlDocComment
 
 // ReSharper disable UnusedMember.Global
 
@@ -9,19 +12,75 @@ namespace SKSSL.Extensions;
 /// </summary>
 public static partial class EntityExtensions
 {
-    #region GetEntitiesWith
+    /*
+     * There may look to be a lot of duplications. There technically are. Half of these are not intended to be called
+     * directly, but instead as extensions to worlds.
+     */
+    
+    #region GetEntitiesWith (From World)
 
+    /// <summary>
+    /// Yields all entities containing component types.
+    /// </summary>
+    /// <param name="world">Reflected world instance to query.</param>
+    /// <typeparam name="T1">Component to search.</typeparam>
+    /// <returns>All entities containing provided component type.</returns>
+    public static IEnumerable<SKEntity> GetEntitiesWith<T1>(this BaseWorld world)
+        => GetEntitiesWith(world, typeof(T1));
+
+    ///<inheritdoc cref="GetEntitiesWith{T1}"/>
+    /// <typeparam name="T2">Another component to search.</typeparam>
+    public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2>(this BaseWorld world)
+        => GetEntitiesWith(world, typeof(T1), typeof(T2));
+
+    ///<inheritdoc cref="GetEntitiesWith{T1,T2}"/>
+    /// <typeparam name="T3">Yet another component to search.</typeparam>
+    public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2, T3>(this BaseWorld world)
+        => GetEntitiesWith(world, typeof(T1), typeof(T2), typeof(T3));
+
+    ///<inheritdoc cref="GetEntitiesWith{T1,T2,T3}"/>
+    /// <typeparam name="T4">A fourth component to also search for.</typeparam>
+    public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2, T3, T4>(this BaseWorld world)
+        => GetEntitiesWith(world, typeof(T1), typeof(T2), typeof(T3), typeof(T4));
+
+    /// Core implementation (supports any number of components)
+    /// Get all entities that have all of the specified component types.
+    public static IEnumerable<SKEntity> GetEntitiesWith(this BaseWorld world, params Type[] componentTypes)
+    {
+        var entities = new EntityContext(world).ActiveEntities;
+        foreach (SKEntity entity in entities)
+            if (componentTypes.All(type => entity.HasComponent(type)))
+                yield return entity;
+    }
+
+    #endregion
+    
+    // TODO: These might not be needed.
+    #region GetEntitiesWith (From ECS -> Scene World)
+
+    /// <summary>
+    /// Yields all entities containing component types. Utilizes blank EntityContext.
+    /// </summary>
+    /// <param name="world">Reflected world instance to query.</param>
+    /// <typeparam name="T1">Component to search.</typeparam>
+    /// <returns>All entities containing provided component type.</returns>
     public static IEnumerable<SKEntity> GetEntitiesWith<T1>()
         => GetEntitiesWith(typeof(T1));
 
+    ///<inheritdoc cref="GetEntitiesWith{T1}()"/>
+    /// <typeparam name="T2">Another component to search.</typeparam>
     public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2>()
         => GetEntitiesWith(typeof(T1), typeof(T2));
 
+    ///<inheritdoc cref="GetEntitiesWith{T1,T2}()"/>
+    /// <typeparam name="T3">Yet another component to search.</typeparam>
     public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2, T3>()
         => GetEntitiesWith(typeof(T1), typeof(T2), typeof(T3));
 
+    ///<inheritdoc cref="GetEntitiesWith{T1,T2,T3}()"/>
+    /// <typeparam name="T4">A fourth component to also search for.</typeparam>
     public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2, T3, T4>()
-        => GetEntitiesWith(typeof(T1), typeof(T2), typeof(T3), typeof(T4));
+        => GetEntitiesWith( typeof(T1), typeof(T2), typeof(T3), typeof(T4));
 
     /// Core implementation (supports any number of components)
     /// Get all entities that have all of the specified component types.
@@ -33,10 +92,64 @@ public static partial class EntityExtensions
     }
 
     #endregion
+    
+    #region GetEntitiesWithComponents (From World)
 
-    #region GetEntitiesWithComponents
+    /// <summary>
+    /// Yields all entities containing component types along side the components queried into a Tuple.
+    /// </summary>
+    /// <param name="world">Reflected world instance to query.</param>
+    /// <typeparam name="T1">Component to search.</typeparam>
+    /// <returns>All entities that contain provided component type, and those entities in a Tuple.</returns>
+    public static IEnumerable<(SKEntity entity, T1 comp1)> GetEntitiesWithComponents<T1>(this BaseWorld world)
+        where T1 : class, ISKComponent
+    {
+        var entities = new EntityContext(world).ActiveEntities;
+        foreach (SKEntity entity in entities)
+            if (entity.TryGetComponent(out T1? comp1) && comp1 != null)
+                yield return (entity, comp1);
+    }
 
-    // Returns entities + the requested components in one go
+    ///<inheritdoc cref="GetEntitiesWithComponents{T1}(SKSSL.Scenes.BaseWorld)"/>
+    /// <typeparam name="T2">Another component to search.</typeparam>
+    public static IEnumerable<(SKEntity entity, T1 comp1, T2 comp2)> GetEntitiesWithComponents<T1, T2>(
+        this BaseWorld world)
+        where T1 : class, ISKComponent where T2 : class, ISKComponent
+    {
+        var entities = new EntityContext(world).ActiveEntities;
+        foreach (SKEntity entity in entities)
+            if (entity.TryGetComponent(out T1? comp1) &&
+                entity.TryGetComponent(out T2? comp2) &&
+                comp1 != null && comp2 != null)
+                yield return (entity, comp1, comp2);
+    }
+
+    ///<inheritdoc cref="GetEntitiesWithComponents{T1,T2}(SKSSL.Scenes.BaseWorld)"/>
+    /// <typeparam name="T3">Yet one more component to search.</typeparam>
+    public static IEnumerable<(SKEntity entity, T1 c1, T2 c2, T3 c3)> GetEntitiesWithComponents<T1, T2, T3>(
+        this BaseWorld world)
+        where T1 : class, ISKComponent where T2 : class, ISKComponent where T3 : class, ISKComponent
+    {
+        var entities = new EntityContext(world).ActiveEntities;
+        foreach (SKEntity entity in entities)
+            if (entity.TryGetComponent(out T1? c1) &&
+                entity.TryGetComponent(out T2? c2) &&
+                entity.TryGetComponent(out T3? c3) &&
+                c1 != null && c2 != null && c3 != null)
+                yield return (entity, c1, c2, c3);
+    }
+
+    #endregion
+
+    // TODO: These ALSO might not be needed.
+    #region GetEntitiesWithComponents (ECS() -> Scene World Call)
+
+    /// <summary>
+    /// Yields all entities containing component types along side the components queried into a Tuple.
+    /// Ignores world query and defaults to ECS's call for the SceneManager's current world.
+    /// </summary>
+    /// <typeparam name="T1">Component to search.</typeparam>
+    /// <returns>A Tuple of entities, of which that contain (all) provided component type(s).</returns>
     public static IEnumerable<(SKEntity entity, T1 comp1)> GetEntitiesWithComponents<T1>()
         where T1 : class, ISKComponent
     {
@@ -45,6 +158,8 @@ public static partial class EntityExtensions
                 yield return (entity, comp1);
     }
 
+    ///<inheritdoc cref="GetEntitiesWithComponents{T1}(SKSSL.Scenes.BaseWorld)"/>
+    /// <typeparam name="T2">Another component to search.</typeparam>
     public static IEnumerable<(SKEntity entity, T1 comp1, T2 comp2)> GetEntitiesWithComponents<T1, T2>()
         where T1 : class, ISKComponent where T2 : class, ISKComponent
     {
@@ -55,6 +170,8 @@ public static partial class EntityExtensions
                 yield return (entity, comp1, comp2);
     }
 
+    ///<inheritdoc cref="GetEntitiesWithComponents{T1,T2}(SKSSL.Scenes.BaseWorld)"/>
+    /// <typeparam name="T3">Yet another component to search for.</typeparam>
     public static IEnumerable<(SKEntity entity, T1 c1, T2 c2, T3 c3)> GetEntitiesWithComponents<T1, T2, T3>()
         where T1 : class, ISKComponent where T2 : class, ISKComponent where T3 : class, ISKComponent
     {
