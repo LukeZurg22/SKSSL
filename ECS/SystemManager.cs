@@ -24,6 +24,7 @@ public class SystemManager
     /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
     public void RegisterAll()
     {
+        // Get all loaded assemblies.
         Log("...reading system assemblies...");
         var systemTypes = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(a => a.GetTypes())
@@ -35,6 +36,7 @@ public class SystemManager
                 return attr.Order;
             }).ToList();
 
+        // Read all registered types.
         Log($"...loading systems from {systemTypes.Count} types...");
         foreach (Type type in systemTypes)
         {
@@ -44,7 +46,9 @@ public class SystemManager
             //                              ?? throw new InvalidOperationException(
             //                                  $"System {type.Name} missing (World world) constructor");
 
-            ConstructorInfo constructor = type.GetConstructor([])!;
+            ConstructorInfo constructor = type.GetConstructor([])
+                                          ?? throw new InvalidOperationException(
+                                              $"No blank constructor for system type {type.Name}");
 
             //var system = constructor.Invoke([world]);
             var system = constructor.Invoke([]);
@@ -61,23 +65,6 @@ public class SystemManager
         }
 
         Log($"Completed registration of {_updateSystems.Count + _drawSystems.Count} Systems.");
-    }
-
-    /// <summary>
-    /// Manual registration.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    [Obsolete("System registration is automatic via reflection. This method is no longer required.")]
-    public void Register<T>() where T : new()
-    {
-        var system = new T();
-
-        // Auto-detect interfaces
-        if (system is IUpdateSystem update)
-            _updateSystems.Add(update);
-
-        if (system is IDrawSystem draw)
-            _drawSystems.Add(draw);
     }
 
     /// For manual registration.
