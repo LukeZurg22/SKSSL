@@ -77,7 +77,7 @@ public class IterArray<T> : IterArray where T : class, ISKComponent
     /// </summary>
     public void RemoveAt(int index)
     {
-        if (index < 0 || index > _items.Length)
+        if (IsOutOfRange(index))
             throw new IndexOutOfRangeException($"Index {index} out of bounds (array size: {_items.Length})");
 
         // WARN: Possible crash here.
@@ -89,10 +89,12 @@ public class IterArray<T> : IterArray where T : class, ISKComponent
     /// <exception cref="IndexOutOfRangeException">If (<see cref="Count"/> &gt; index &lt; 0 )</exception>
     public object GetAt(int index)
     {
-        if (index < 0 || index >= Count)
+        if (IsOutOfRange(index))
             throw new IndexOutOfRangeException($"GetAt index #{index} out of range.");
         return _items[index];
     }
+    
+    private bool IsOutOfRange(int index) => index < 0 || index > Count;
 
     public ref T this[int index] => ref _items[index];
     object IterArray.this[int index] => _items[index];
