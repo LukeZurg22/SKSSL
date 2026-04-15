@@ -3,6 +3,8 @@ using Microsoft.Xna.Framework;
 using SKSSL.Scenes;
 using static SKSSL.DustLogger;
 
+// ReSharper disable SuspiciousTypeConversion.Global
+
 // ReSharper disable PossibleMultipleEnumeration
 
 // ReSharper disable RedundantAttributeUsageProperty
@@ -14,8 +16,9 @@ namespace SKSSL.ECS;
 /// </summary>
 public class SystemManager
 {
-    private readonly List<IUpdateSystem> _updateSystems = [];
-    private readonly List<IDrawSystem> _drawSystems = [];
+    private readonly List<EntitySystem> _systems = [];
+    private readonly List<int> _updateSystemIndices = [];
+    private readonly List<int> _drawSystemIndices = [];
 
     /// <summary>
     /// Registers all systems within a provided world.
@@ -24,6 +27,7 @@ public class SystemManager
     /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
     public void RegisterAll()
     {
+        _systems.Clear();
         // Get all loaded assemblies.
         Log("...reading system assemblies...");
         var systemTypes = AppDomain.CurrentDomain.GetAssemblies()
@@ -53,36 +57,40 @@ public class SystemManager
             //var system = constructor.Invoke([world]);
             var system = constructor.Invoke([]);
 
-            switch (system)
-            {
-                case IUpdateSystem update:
-                    _updateSystems.Add(update);
-                    break;
-                case IDrawSystem draw:
-                    _drawSystems.Add(draw);
-                    break;
-            }
+            // Add system to System Manager.
+            Add((system as EntitySystem)!);
         }
 
-        Log($"Completed registration of {_updateSystems.Count + _drawSystems.Count} Systems.");
+        Log($"Completed registration of {_systems.Count} Systems.");
     }
 
     /// For manual registration.
-    public void Add(IUpdateSystem system) => _updateSystems.Add(system);
-
-    /// For manual registration.
-    public void Add(IDrawSystem system) => _drawSystems.Add(system);
-
-    public void Update(GameTime dt)
+    public void Add(EntitySystem system)
     {
-        foreach (IUpdateSystem system in _updateSystems)
-            system.Update(dt);
+        if (system is IUpdateSystem)
+            _updateSystemIndices.Add(_updateSystemIndices.Count);
+        if (system is IDrawSystem)
+            _drawSystemIndices.Add(_updateSystemIndices.Count);
+        _systems.Add(system);
+        system.Initialize();
     }
 
+    /// <summary>
+    /// Loops through system update indices and Updates corresponding systems in the systems list.
+    /// </summary>
+    /// <param name="gameTime">By-reference gameTime object for system update.</param>
+    public void Update(GameTime gameTime)
+    {
+        foreach (int index in _updateSystemIndices) (_systems[index] as IUpdateSystem)?.Update(gameTime);
+    }
+
+    /// <summary>
+    /// Loops through system Draw indices and Draws corresponding systems in the systems list.
+    /// </summary>
+    /// <param name="gameTime">By-reference gameTime object for system Draw.</param>
     public void Draw(GameTime gameTime)
     {
-        foreach (IDrawSystem system in _drawSystems)
-            system.Draw(gameTime);
+        foreach (var index in _drawSystemIndices) (_systems[index] as IDrawSystem)?.Draw(gameTime);
     }
 }
 
@@ -98,12 +106,12 @@ public interface IDrawSystem
 }
 
 /// <summary>
-/// Marks the class this is attribute is tied to as viable for the automatic registry system.
+/// Marks the class this attribute is tied-to as viable for automatic system registry.
 /// World data is provided on-registration.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public sealed class RegisterSystemAttribute : Attribute
 {
-    // To control order or phase
+    /// To control order or phase of system.
     public int Order { get; set; } = 0;
 }
