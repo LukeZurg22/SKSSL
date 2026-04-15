@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+
 // ReSharper disable UnusedMember.Global
 
 namespace SKSSL.ECS;
@@ -93,9 +94,8 @@ public class IterArray<T> : IterArray where T : class, ISKComponent
             throw new IndexOutOfRangeException($"GetAt index #{index} out of range.");
         return _items[index];
     }
-    
-    private bool IsOutOfRange(int index) => index < 0 || index > Count;
 
+    private bool IsOutOfRange(int index) => index < 0 || index > Count;
     public ref T this[int index] => ref _items[index];
     object IterArray.this[int index] => _items[index];
 }
