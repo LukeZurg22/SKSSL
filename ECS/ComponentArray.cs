@@ -77,11 +77,11 @@ public class IterArray<T> : IterArray where T : class, ISKComponent
     /// </summary>
     public void RemoveAt(int index)
     {
-        if (index < 0 || index >= _items.Length)
+        if (index < 0 || index > _items.Length)
             throw new IndexOutOfRangeException($"Index {index} out of bounds (array size: {_items.Length})");
 
         // WARN: Possible crash here.
-        _items[index] = default;
+        _items[index] = default!;
     }
 
     /// <param name="index">Index of desired registered type.</param>
