@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using SKSSL.ECS;
 using static SKSSL.DustLogger;
+using EventHandler = SKSSL.ECS.EventHandler;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable PublicConstructorInAbstractClass
@@ -39,6 +40,11 @@ public interface IWorld
 /// </summary>
 public abstract class BaseWorld : IWorld
 {
+    /// <summary>
+    /// Event handler for this world's systems.
+    /// </summary>
+    public readonly EventHandler Events = new();
+    
     protected bool IsInitialized { get; private set; }
 
     /// Most worlds use ECS — this depends on overall dictation. If ECS is enabled,
