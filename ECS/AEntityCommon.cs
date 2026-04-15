@@ -73,5 +73,13 @@ public abstract partial record AEntityCommon
     [JsonConstructor]
     protected AEntityCommon()
     {
+        var type = GetType().Name.Replace("Entity", "");
+        
+        // Auto-generate fallback handle if not provided.
+        if (string.IsNullOrEmpty(Handle)) Handle = type.ToLower().ToLower();
+        
+        // Auto-generate fallback source if not provided.
+        if (string.IsNullOrEmpty(Source)) Source = "game";
+        
     }
 }

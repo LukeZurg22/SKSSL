@@ -87,9 +87,8 @@ public partial record SKEntity : AEntityCommon
     /// <param name="id">Unique numerical of the entity.</param>
     /// <param name="count">Number of component indices in the game.</param>
     /// <param name="template">Provided template. Uses base <see cref="EntityTemplate"/> by default.</param>
-    protected SKEntity(int id, int count, EntityTemplate template)
+    protected SKEntity(int id, EntityTemplate template)
         : this(
-            count: count,
             handle: template.Handle,
             name: template.NameKey,
             description:
@@ -106,7 +105,7 @@ public partial record SKEntity : AEntityCommon
     /// <param name="name"></param>
     /// <param name="description"></param>
     /// <param name="id"></param>
-    protected SKEntity(int count, string handle, string name, string description, int? id) : base()
+    protected SKEntity(string handle, string name, string description, int? id) : base()
     {
         Handle = handle;
         NameKey = name;
@@ -116,7 +115,7 @@ public partial record SKEntity : AEntityCommon
         if (id.HasValue)
             RuntimeId = id.Value;
 
-        ComponentIndices = new int[count];
+        ComponentIndices = new int[ComponentRegistry.Count];
         Array.Fill(ComponentIndices, -1); // <- All slots start as "missing"
     }
 
@@ -133,6 +132,8 @@ public partial record SKEntity : AEntityCommon
     [MemoryPackConstructor, JsonConstructor, YamlConstructor]
     protected internal SKEntity() : base()
     {
+        ComponentIndices = new int[ComponentRegistry.Count];
+        Array.Fill(ComponentIndices, -1); // <- All slots start as "missing"
     }
 
     #endregion

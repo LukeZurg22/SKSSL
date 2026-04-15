@@ -69,7 +69,7 @@ public class ComponentRegistry
 
     private static int _nextTypeId = 0;
 
-    /// Number of Components registered in the registry. Gets next available Component ID.
+    /// Number of Component Types in the registry. Gets next available Component ID.
     public static int Count => _nextTypeId;
 
     /// <param name="id">ID of Registered Component</param>

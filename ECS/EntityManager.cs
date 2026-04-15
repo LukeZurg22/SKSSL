@@ -148,7 +148,6 @@ public partial class EntityManager
                               // Parameters for precise constructor.
                               [
                                   _nextId + 1, // Preemptively creating next ID without iterating yet. Still valid here!
-                                  ComponentRegistry.Count,
                                   template
                               ], null)!
                           ?? throw new InvalidOperationException(
