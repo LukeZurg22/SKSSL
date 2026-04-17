@@ -41,7 +41,7 @@ public class IterArray<T> : IterArray where T : ISKComponent
 
     public ref T1 GetRefAt<T1>(int index) where T1 : ISKComponent
     {
-        if ((uint)index >= (uint)Count)
+        if ((uint)index > (uint)Count)
             throw new IndexOutOfRangeException(
                 $"GetRefAt index #{index} out of range in ComponentArray<{typeof(T).Name}>.");
 
