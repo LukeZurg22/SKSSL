@@ -42,7 +42,7 @@ public abstract class EntitySystem
     /// <summary>
     /// Quick route to SSLGame.ECS().World.Graphics handling.
     /// </summary>
-    public static GraphicsDevice GraphicsDevice => Context.World.Graphics.GraphicsDevice;
+    public static GraphicsDevice Graphics => Context.World.Graphics.GraphicsDevice;
 
     #endregion
 
