@@ -349,16 +349,9 @@ public class ComponentRegistry
 
     public bool TryAddComponent<T>(SKEntity entity, out T? component) where T : ISKComponent, new()
     {
-        try
-        {
-            component = (T)AddComponent(entity, new T());
-            return true;
-        }
-        catch
-        {
-            component = default;
-            return false;
-        }
+        bool output = TryAddComponent(entity, typeof(T), out var compObject);
+        component = compObject as T;
+        return output;
     }
 
     public bool TryAddComponent(SKEntity entity, Type componentType, out object? component)

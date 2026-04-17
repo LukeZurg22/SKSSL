@@ -36,7 +36,7 @@ public static partial class EntityExtensions
     public static ISKComponent AddComponent(this SKEntity entity, Type type)
         => ComponentRegistry.AddComponent(entity, ComponentRegistry.CreateComponentFromType(type));
 
-    public static object AddComponent(this SKEntity entity, ISKComponent comp)
+    public static ISKComponent AddComponent(this SKEntity entity, ISKComponent comp)
         => ComponentRegistry.AddComponent(entity, comp);
 
     #endregion
