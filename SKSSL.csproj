@@ -52,6 +52,12 @@
       <Compile Update="Extensions\EntityExtensions_Queries.cs">
         <DependentUpon>EntityExtensions.cs</DependentUpon>
       </Compile>
+      <Compile Update="ECS\EntitySystem_Interfaces.cs">
+        <DependentUpon>EntitySystem.cs</DependentUpon>
+      </Compile>
+      <Compile Update="ECS\RegisterSystemAttribute.cs">
+        <DependentUpon>EntitySystem.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
     
 </Project>

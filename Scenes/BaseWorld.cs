@@ -73,7 +73,7 @@ public abstract class BaseWorld : IWorld
 
         if (!UsesECS) return;
         Log("...initializing ECS...");
-        ECS.Initialize();
+        ECS.Initialize(graphics);
     }
 
     /// <inheritdoc cref="IWorld.LoadContent"/>

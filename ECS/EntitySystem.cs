@@ -1,8 +1,9 @@
+using SKSSL.Scenes;
+
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedTypeParameter
 // ReSharper disable VirtualMemberNeverOverridden.Global
-
-using SKSSL.Scenes;
+// ReSharper disable PublicConstructorInAbstractClass
 
 namespace SKSSL.ECS;
 
@@ -21,7 +22,7 @@ public abstract class EntitySystem
     /// Will cause a crash if ECS isn't enabled, and Entity Systems are in use.
     /// </remarks>
     protected static EntityContext Context => SSLGame.ECS();
-    
+
     /// <summary>
     /// Quick route to SSLGame.ECS().EntityManager.
     /// </summary>
@@ -38,7 +39,7 @@ public abstract class EntitySystem
     public static EventHandler Events => Context.World.Events;
 
     #endregion
-    
+
     /// <summary>
     /// Public class so the system stops complaining.
     /// </summary>

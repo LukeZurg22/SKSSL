@@ -19,14 +19,17 @@ public class SystemManager
     private readonly List<EntitySystem> _systems = [];
     private readonly List<int> _updateSystemIndices = [];
     private readonly List<int> _drawSystemIndices = [];
+    private GraphicsDeviceManager _graphics = null!;
 
     /// <summary>
     /// Registers all systems within a provided world.
     /// </summary>
+    /// <param name="graphics"></param>
     /// <exception cref="InvalidOperationException">A defined system type doesn't have a valid World constructor.</exception>
     /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
-    public void RegisterAll()
+    public void RegisterAll(GraphicsDeviceManager graphics)
     {
+        _graphics = graphics;
         _systems.Clear();
         // Get all loaded assemblies.
         Log("...reading system assemblies...");
@@ -92,26 +95,4 @@ public class SystemManager
     {
         foreach (var index in _drawSystemIndices) (_systems[index] as IDrawSystem)?.Draw(gameTime);
     }
-}
-
-// Interfaces
-public interface IUpdateSystem
-{
-    void Update(GameTime dt);
-}
-
-public interface IDrawSystem
-{
-    void Draw(GameTime gameTime);
-}
-
-/// <summary>
-/// Marks the class this attribute is tied-to as viable for automatic system registry.
-/// World data is provided on-registration.
-/// </summary>
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
-public sealed class RegisterSystemAttribute : Attribute
-{
-    /// To control order or phase of system.
-    public int Order { get; set; } = 0;
 }
