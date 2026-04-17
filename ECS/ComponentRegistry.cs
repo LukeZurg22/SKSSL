@@ -169,9 +169,14 @@ public class ComponentRegistry
     /// </summary>
     private static bool TryGetComponentIndex(SKEntity entity, Type componentType, out int index)
     {
-        // Effectively HasComponent() call, but index is reused later so... ¯\_(ツ)_/¯
-        var compId = entity.ComponentIndices[_typeToId.TryGetValue(componentType, out index) ? index : -1];
-        return compId != -1;
+        if (!_typeToId.TryGetValue(componentType, out var typeId))
+        {
+            index = -1;
+            return false;
+        }
+
+        index = entity.ComponentIndices[typeId];
+        return index != -1;
     }
 
     /// <summary>
@@ -321,7 +326,7 @@ public class ComponentRegistry
             throw new ArgumentException($"Cannot create IterArray of Component {componentType.Name}.");
 
         // Store index of component inside entity, using index of its type.
-        var componentIndex = componentArray.Increment();
+        var componentIndex = componentArray.Count;
         entity.ComponentIndices[GetComponentTypeId(componentType)] = componentIndex;
 
         // Assign reference back to parent.
@@ -329,7 +334,7 @@ public class ComponentRegistry
 
         // Set component index in its array to referenced component
         componentArray.Set(componentIndex, component);
-
+        componentArray.Increment();
         return component; // Fin.
     }
 
