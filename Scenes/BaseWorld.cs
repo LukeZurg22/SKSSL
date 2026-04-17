@@ -45,13 +45,12 @@ public abstract class BaseWorld : IWorld
     /// </summary>
     public readonly EventHandler Events = new();
     
-    protected bool IsInitialized { get; private set; }
-
     /// Most worlds use ECS — this depends on overall dictation. If ECS is enabled,
     /// then a world can be forcefully disconnected per its definition. 
     /// <value>SSLGame.<see cref="SSLGame.UseECS"/></value>
     protected virtual bool UsesECS => SSLGame.UseECS;
 
+    /// Graphics management embedded in this world.
     public GraphicsDeviceManager Graphics { get; private set; } = null!;
 
     /// ECS controller unique to this world instance. Left null of no ECS controller.
@@ -98,8 +97,6 @@ public abstract class BaseWorld : IWorld
     /// <inheritdoc cref="IWorld.Destroy"/>
     public virtual void Destroy()
     {
-        IsInitialized = false;
-        
         if (!UsesECS) return;
         ECS.Destroy();
     }
