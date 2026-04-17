@@ -11,7 +11,8 @@ public interface IterArray
 {
     object? this[int index] { get; }
     public int Increment();
-    object GetAt(int index); // Returns boxed component for generic AddComponent
+    public void Set<T>(int index, T value);
+    object GetAt(int index); 
     void RemoveAt(int index);
     ref T1 GetRefAt<T1>(int index) where T1 : ISKComponent;
     int Count { get; }
@@ -70,6 +71,8 @@ public class IterArray<T> : IterArray where T : ISKComponent
             Array.Resize(ref _items, _items.Length * 2);
         return ++Count;
     }
+
+    public void Set<T1>(int index, T1 value) => _items[index] = (value as T)!; // Casting here anyway.
 
     /// <summary>
     /// Removes component by setting it to default (nulls out value).

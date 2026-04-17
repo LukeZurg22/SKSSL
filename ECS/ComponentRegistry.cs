@@ -158,6 +158,14 @@ public class ComponentRegistry
                !assembly.ReflectionOnly;
     }
 
+    public static ISKComponent CreateComponentFromType(Type type)
+    {
+        var compObject = Activator.CreateInstance(type);
+        if (compObject is not ISKComponent component)
+            throw new InvalidOperationException("Failed to convert type to ISKComponent.");
+        return component;
+    }
+
     #endregion
 
     #region Pseudo-Extensions
@@ -309,37 +317,29 @@ public class ComponentRegistry
     /// <returns>The newly added component instance (boxed as object).</returns>
     /// <exception cref="ArgumentException">If the type doesn't implement ISKComponent.</exception>
     /// <exception cref="InvalidOperationException">If reflection fails or array is missing.</exception>
-    public object AddComponent(SKEntity entity, Type componentType)
+    public ISKComponent AddComponent(SKEntity entity, ISKComponent component)
     {
-        ArgumentNullException.ThrowIfNull(componentType);
-        if (!typeof(ISKComponent).IsAssignableFrom(componentType))
-            throw new ArgumentException($"Type {componentType.Name} does not implement ISKComponent");
+        if (component is null)
+            throw new ArgumentException(
+                $"Fed null component to {entity.Handle} Entity [{entity.Id}] does not implement ISKComponent");
 
+        Type componentType = component.GetType();
         // Get or create the component array
         if (GetOrCreateComponentArray(componentType) is not IterArray componentArray)
             throw new ArgumentException($"Cannot create IterArray of Component {componentType.Name}.");
 
-        // Store index in entity
-        int typeId = GetComponentTypeId(componentType);
-        var newIndex = componentArray.Increment();
-        entity.ComponentIndices[typeId] = newIndex;
-
-        // Returns ref T, but boxed to object
-        object component = componentArray.GetAt(newIndex);
+        // Store index of component inside entity, using index of its type.
+        var componentIndex = componentArray.Increment();
+        entity.ComponentIndices[GetComponentTypeId(componentType)] = componentIndex;
         
         // Assign reference back to parent.
-        ((ISKComponent)component).Parent = entity.Id;
+        component.Parent = entity.Id;
         
-        return component;
+        // Set component index in its array to referenced component
+        componentArray.Set(componentIndex, component);
+        
+        return component; // Fin.
     }
-
-    /// <inheritdoc cref="AddComponent(SKSSL.ECS.SKEntity,Type)"/>
-    public T AddComponent<T>(SKEntity entity) where T : ISKComponent
-        => (T)AddComponent(entity, typeof(T));
-
-    /// <inheritdoc cref="AddComponent(SKSSL.ECS.SKEntity,Type)"/>
-    public ISKComponent AddComponent(SKEntity entity, ISKComponent iskComponent)
-        => (ISKComponent)AddComponent(entity, iskComponent.GetType());
 
     #endregion
 
@@ -347,11 +347,11 @@ public class ComponentRegistry
 
     #region TryAddComponent
 
-    public bool TryAddComponent<T>(SKEntity entity, out T? component) where T : ISKComponent
+    public bool TryAddComponent<T>(SKEntity entity, out T? component) where T : ISKComponent, new()
     {
         try
         {
-            component = AddComponent<T>(entity);
+            component = (T)AddComponent(entity, new T());
             return true;
         }
         catch
@@ -365,7 +365,7 @@ public class ComponentRegistry
     {
         try
         {
-            component = AddComponent(entity, componentType);
+            component = AddComponent(entity, CreateComponentFromType(componentType));
             return true;
         }
         catch

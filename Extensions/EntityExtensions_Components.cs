@@ -29,11 +29,12 @@ public static partial class EntityExtensions
 
     #region Add Components
 
-    public static T AddComponent<T>(this SKEntity entity) where T : ISKComponent
-        => ComponentRegistry.AddComponent<T>(entity);
+    public static T AddComponent<T>(this SKEntity entity) where T : ISKComponent, new()
+        => (T)ComponentRegistry.AddComponent(entity, new T());
 
-    public static object AddComponent(this SKEntity entity, Type type)
-        => ComponentRegistry.AddComponent(entity, type);
+    /// Use AddComponent(component instance) or the generic method instead! This is more dangerous!
+    public static ISKComponent AddComponent(this SKEntity entity, Type type)
+        => ComponentRegistry.AddComponent(entity, ComponentRegistry.CreateComponentFromType(type));
 
     public static object AddComponent(this SKEntity entity, ISKComponent comp)
         => ComponentRegistry.AddComponent(entity, comp);
