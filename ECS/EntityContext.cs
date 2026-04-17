@@ -15,6 +15,7 @@ public readonly struct EntityContext
     /// <inheritdoc cref="SKSSL.ECS.ComponentRegistry"/>
     public readonly ComponentRegistry Components = null!;
 
+    /// <inheritdoc cref="BaseWorld"/>
     public readonly BaseWorld World = null!;
     
     public EntityContext(EntityManager entityManager, ComponentRegistry componentRegistry)

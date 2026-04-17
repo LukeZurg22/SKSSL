@@ -1,9 +1,7 @@
 using SKSSL.ECS;
 using SKSSL.Scenes;
-using ToolsUtilities;
 
 // ReSharper disable InvalidXmlDocComment
-
 // ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Extensions;
@@ -64,7 +62,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>All entities that contain provided component type, and those entities in a Tuple.</returns>
     public static IEnumerable<(SKEntity entity, T1 comp1)> GetEntityComponentTuplesWith<T1>(this BaseWorld world)
-        where T1 : class, ISKComponent
+        where T1 : ISKComponent
     {
         var entities = new EntityContext(world).ActiveEntities;
         foreach (SKEntity entity in entities)
@@ -76,7 +74,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Another component to search.</typeparam>
     public static IEnumerable<(SKEntity entity, T1 comp1, T2 comp2)> GetEntityComponentTuplesWith<T1, T2>(
         this BaseWorld world)
-        where T1 : class, ISKComponent where T2 : class, ISKComponent
+        where T1 : ISKComponent where T2 : ISKComponent
     {
         var entities = new EntityContext(world).ActiveEntities;
         foreach (SKEntity entity in entities)
@@ -90,7 +88,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T3">Yet one more component to search.</typeparam>
     public static IEnumerable<(SKEntity entity, T1 c1, T2 c2, T3 c3)> GetEntityComponentTuplesWith<T1, T2, T3>(
         this BaseWorld world)
-        where T1 : class, ISKComponent where T2 : class, ISKComponent where T3 : class, ISKComponent
+        where T1 : ISKComponent where T2 : ISKComponent where T3 : ISKComponent
     {
         var entities = new EntityContext(world).ActiveEntities;
         foreach (SKEntity entity in entities)
@@ -111,7 +109,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>An enumerable of components.</returns>
     public static IEnumerable<T1> Query<T1>(this BaseWorld world)
-        where T1 : class, ISKComponent
+        where T1 : ISKComponent
     {
         foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) && comp1 != null)
@@ -125,8 +123,8 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
     public static IEnumerable<(T1, T2)> Query<T1, T2>(this BaseWorld world)
-        where T1 : class, ISKComponent
-        where T2 : class, ISKComponent
+        where T1 : ISKComponent
+        where T2 : ISKComponent
     {
         foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) &&
@@ -143,9 +141,9 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Yet another component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
     public static IEnumerable<(T1, T2, T3)> Query<T1, T2, T3>(this BaseWorld world)
-        where T1 : class, ISKComponent
-        where T2 : class, ISKComponent
-        where T3 : class, ISKComponent
+        where T1 : ISKComponent
+        where T2 : ISKComponent
+        where T3 : ISKComponent
     {
         foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) &&

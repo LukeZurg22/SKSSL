@@ -1,3 +1,4 @@
+// ReSharper disable NotAccessedField.Global
 namespace SKSSL.ECS;
 
 #pragma warning disable CS8618, CS9264
@@ -7,4 +8,12 @@ namespace SKSSL.ECS;
 /// SKSSL's ECS uses reflection to get all ISKComponents and their fields.
 /// Components exist here solely to store and represent data within an entity.
 /// </remarks>
-public interface ISKComponent;
+public abstract record ISKComponent
+{
+    /// <summary>
+    /// ID reference back to parent entity this control belongs to.
+    /// </summary>
+    public int Parent;
+
+    ~ISKComponent() => Parent = -1;
+}

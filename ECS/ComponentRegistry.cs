@@ -112,10 +112,10 @@ public class ComponentRegistry
         Log($"Registered {componentCount} components in {stopwatch.ElapsedMilliseconds}ms");
         Log("Registered component types:");
         // Print all registered components in a nice list. 
-        StringBuilder compSb = new();
+        StringBuilder consoleTypesOutput = new();
         foreach (Type type in _registeredComponents.Values)
-            compSb.AppendLine($"\n  {type.Name} -> ID {GetOrRegister(type)}");
-        Log(compSb.ToString());
+            consoleTypesOutput.AppendLine($"\n  {type.Name} -> ID {GetOrRegister(type)}");
+        Log(consoleTypesOutput.ToString());
 
         return;
 
@@ -135,11 +135,10 @@ public class ComponentRegistry
             }
         }
 
-        bool IsValidComponent(Type t) =>
-            typeof(ISKComponent).IsAssignableFrom(t) &&
-            !t.IsAbstract &&
-            !t.IsInterface &&
-            !t.IsGenericTypeDefinition;
+        bool IsValidComponent(Type type) =>
+            typeof(ISKComponent).IsAssignableFrom(type) &&
+            !type.IsAbstract &&
+            !type.IsGenericTypeDefinition;
     }
 
     /// <summary>
@@ -180,7 +179,7 @@ public class ComponentRegistry
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    private IterArray<T> GetOrCreateComponentArray<T>() where T : class, ISKComponent
+    private IterArray<T> GetOrCreateComponentArray<T>() where T : ISKComponent
         => (IterArray<T>)GetOrCreateComponentArray(typeof(T));
 
     /// <summary>
@@ -217,7 +216,7 @@ public class ComponentRegistry
         return ((IterArray)array)[index] as ISKComponent;
     }
 
-    internal static ref T GetComponentAt<T>(IterArray<T> array, int index) where T : class, ISKComponent
+    internal static ref T GetComponentAt<T>(IterArray<T> array, int index) where T : ISKComponent
         => ref array.GetRefAt<T>(index);
 
     /// <returns>ID of component defined in type dictionary, or -1.</returns>
@@ -289,7 +288,7 @@ public class ComponentRegistry
     /// <typeparam name="T">The component type (must implement ISKComponent).</typeparam>
     /// <returns>A reference to the component if found; otherwise throws.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component.</exception>
-    public ref T GetComponent<T>(SKEntity entity) where T : class, ISKComponent
+    public ref T GetComponent<T>(SKEntity entity) where T : ISKComponent
     {
         if (!TryGetComponentIndex(entity, typeof(T), out var index))
             throw new InvalidOperationException($"Failed to find expected component type in Entity #{entity.Id}");
@@ -319,7 +318,7 @@ public class ComponentRegistry
         // Get or create the component array
         if (GetOrCreateComponentArray(componentType) is not IterArray componentArray)
             throw new ArgumentException($"Cannot create IterArray of Component {componentType.Name}.");
-        
+
         // Store index in entity
         int typeId = GetComponentTypeId(componentType);
         var newIndex = componentArray.Increment();
@@ -327,16 +326,20 @@ public class ComponentRegistry
 
         // Returns ref T, but boxed to object
         object component = componentArray.GetAt(newIndex);
+        
+        // Assign reference back to parent.
+        ((ISKComponent)component).Parent = entity.Id;
+        
         return component;
     }
-    
+
     /// <inheritdoc cref="AddComponent(SKSSL.ECS.SKEntity,Type)"/>
-    public T AddComponent<T>(SKEntity entity) where T : class, ISKComponent
+    public T AddComponent<T>(SKEntity entity) where T : ISKComponent
         => (T)AddComponent(entity, typeof(T));
-    
+
     /// <inheritdoc cref="AddComponent(SKSSL.ECS.SKEntity,Type)"/>
-    public ISKComponent AddComponent(SKEntity entity, ISKComponent component)
-        => (ISKComponent)AddComponent(entity, component.GetType());
+    public ISKComponent AddComponent(SKEntity entity, ISKComponent iskComponent)
+        => (ISKComponent)AddComponent(entity, iskComponent.GetType());
 
     #endregion
 
@@ -344,11 +347,11 @@ public class ComponentRegistry
 
     #region TryAddComponent
 
-    public bool TryAddComponent<T>(SKEntity entity, out T component) where T : struct, ISKComponent
+    public bool TryAddComponent<T>(SKEntity entity, out T? component) where T : ISKComponent
     {
         try
         {
-            component = (T)AddComponent(entity, typeof(T));
+            component = AddComponent<T>(entity);
             return true;
         }
         catch
@@ -385,7 +388,7 @@ public class ComponentRegistry
     /// <param name="component">Component output for use.</param>
     /// <typeparam name="T">Expected Component Type within entity.</typeparam>
     /// <returns>False if a component wasn't found.</returns>
-    public bool TryGetComponent<T>(SKEntity entity, out T? component) where T : class, ISKComponent
+    public bool TryGetComponent<T>(SKEntity entity, out T? component) where T : ISKComponent
     {
         component = null;
         int typeId = GetComponentTypeId<T>();
@@ -478,5 +481,4 @@ public class ComponentRegistry
         => entity.ComponentIndices[RegisteredTypesDictionary.GetValueOrDefault(componentType, -1)] != -1;
 
     #endregion
-    
 }

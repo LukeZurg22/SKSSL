@@ -22,7 +22,7 @@ public interface IterArray
 /// </summary>
 /// <remarks>This list is instantiated. It gets pretty complicated, but is essentially used to store component type data.</remarks>
 /// <typeparam name="T">Type of components being stored in this particular list.</typeparam>
-public class IterArray<T> : IterArray where T : class, ISKComponent
+public class IterArray<T> : IterArray where T : ISKComponent
 {
     /// <summary>
     /// Constructor of Component Array that creates empty array on instantiation.

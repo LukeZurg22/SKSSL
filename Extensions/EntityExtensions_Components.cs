@@ -10,13 +10,13 @@ public static partial class EntityExtensions
 {
     #region Get Components
 
-    public static ref T GetComponent<T>(this SKEntity entity) where T : class, ISKComponent
+    public static ref T GetComponent<T>(this SKEntity entity) where T : ISKComponent
         => ref ComponentRegistry.GetComponent<T>(entity);
 
     public static ISKComponent? GetComponent(this SKEntity entity, Type componentType)
         => ComponentRegistry.GetComponent(entity, componentType);
 
-    public static bool TryGetComponent<T>(this SKEntity entity, out T? component) where T : class, ISKComponent
+    public static bool TryGetComponent<T>(this SKEntity entity, out T? component) where T : ISKComponent
         => ComponentRegistry.TryGetComponent(entity, out component);
 
     public static bool TryGetComponent(this SKEntity entity, Type type, out ISKComponent? component)
@@ -29,7 +29,7 @@ public static partial class EntityExtensions
 
     #region Add Components
 
-    public static T AddComponent<T>(this SKEntity entity) where T : class, ISKComponent
+    public static T AddComponent<T>(this SKEntity entity) where T : ISKComponent
         => ComponentRegistry.AddComponent<T>(entity);
 
     public static object AddComponent(this SKEntity entity, Type type)

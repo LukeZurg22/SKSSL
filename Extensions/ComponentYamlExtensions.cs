@@ -6,11 +6,11 @@ using VYaml.Annotations;
 namespace SKSSL.Extensions;
 public static class ComponentYamlExtensions
 {
-    public static ComponentYaml ToComponentYaml(this ISKComponent componentInterface)
+    public static ComponentYaml ToComponentYaml(this ISKComponent component)
     {
-        ArgumentNullException.ThrowIfNull(componentInterface);
+        ArgumentNullException.ThrowIfNull(component);
 
-        Type concreteType = componentInterface.GetType();
+        Type concreteType = component.GetType();
         var fieldPairs = new Dictionary<string, object>();
 
         // Get all instance fields (public + non-public)
@@ -23,7 +23,7 @@ public static class ComponentYamlExtensions
             // If the yaml parser can ignore it, then why can't we?
             if (field.IsDefined(typeof(YamlIgnoreAttribute), inherit: true))
                 continue;
-            object? value = field.GetValue(componentInterface);
+            object? value = field.GetValue(component);
             if (value is null)
                 continue;
             
