@@ -1,5 +1,6 @@
 using SKSSL.ECS;
 using SKSSL.Scenes;
+using ToolsUtilities;
 
 // ReSharper disable InvalidXmlDocComment
 
@@ -16,7 +17,7 @@ public static partial class EntityExtensions
      * There may look to be a lot of duplications. There technically are. Half of these are not intended to be called
      * directly, but instead as extensions to worlds.
      */
-    
+
     #region GetEntitiesWith (From World)
 
     /// <summary>
@@ -54,45 +55,7 @@ public static partial class EntityExtensions
     }
 
     #endregion
-    
-    // TODO: These might not be needed.
-    #region GetEntitiesWith (From ECS -> Scene World)
 
-    /// <summary>
-    /// Yields all entities containing component types. Utilizes blank EntityContext.
-    /// </summary>
-    /// <param name="world">Reflected world instance to query.</param>
-    /// <typeparam name="T1">Component to search.</typeparam>
-    /// <returns>All entities containing provided component type.</returns>
-    public static IEnumerable<SKEntity> GetEntitiesWith<T1>()
-        => GetEntitiesWith(typeof(T1));
-
-    ///<inheritdoc cref="GetEntitiesWith{T1}()"/>
-    /// <typeparam name="T2">Another component to search.</typeparam>
-    public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2>()
-        => GetEntitiesWith(typeof(T1), typeof(T2));
-
-    ///<inheritdoc cref="GetEntitiesWith{T1,T2}()"/>
-    /// <typeparam name="T3">Yet another component to search.</typeparam>
-    public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2, T3>()
-        => GetEntitiesWith(typeof(T1), typeof(T2), typeof(T3));
-
-    ///<inheritdoc cref="GetEntitiesWith{T1,T2,T3}()"/>
-    /// <typeparam name="T4">A fourth component to also search for.</typeparam>
-    public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2, T3, T4>()
-        => GetEntitiesWith( typeof(T1), typeof(T2), typeof(T3), typeof(T4));
-
-    /// Core implementation (supports any number of components)
-    /// Get all entities that have all of the specified component types.
-    public static IEnumerable<SKEntity> GetEntitiesWith(params Type[] componentTypes)
-    {
-        foreach (SKEntity entity in Entities)
-            if (componentTypes.All(type => entity.HasComponent(type)))
-                yield return entity;
-    }
-
-    #endregion
-    
     #region GetEntityComponentTuplesWith (From World)
 
     /// <summary>
@@ -141,46 +104,56 @@ public static partial class EntityExtensions
 
     #endregion
 
-    // TODO: These ALSO might not be needed.
-    #region GetEntityComponentTuplesWith (ECS() -> Scene World Call)
+    #region Query (Component-Only Queries)
 
     /// <summary>
-    /// Yields all entities containing component types along side the components queried into a Tuple.
-    /// Ignores world query and defaults to ECS's call for the SceneManager's current world.
+    /// Yields all active instances of this component type.
     /// </summary>
     /// <typeparam name="T1">Component to search.</typeparam>
-    /// <returns>A Tuple of entities, of which that contain (all) provided component type(s).</returns>
-    public static IEnumerable<(SKEntity entity, T1 comp1)> GetEntityComponentTuplesWith<T1>()
+    /// <returns>An enumerable of components.</returns>
+    public static IEnumerable<T1> Query<T1>()
         where T1 : class, ISKComponent
     {
         foreach (SKEntity entity in Entities)
             if (entity.TryGetComponent(out T1? comp1) && comp1 != null)
-                yield return (entity, comp1);
+                yield return comp1;
     }
 
-    ///<inheritdoc cref="GetEntityComponentTuplesWith{T1}(SKSSL.Scenes.BaseWorld)"/>
-    /// <typeparam name="T2">Another component to search.</typeparam>
-    public static IEnumerable<(SKEntity entity, T1 comp1, T2 comp2)> GetEntityComponentTuplesWith<T1, T2>()
-        where T1 : class, ISKComponent where T2 : class, ISKComponent
+    /// <summary>
+    /// Yields all active instances of components that are paired inside an entity.
+    /// </summary>
+    /// <typeparam name="T1">Component to search.</typeparam>
+    /// <typeparam name="T2">Other component to search.</typeparam>
+    /// <returns>An enumerable of component tuple pairs.</returns>
+    public static IEnumerable<(T1, T2)> Query<T1, T2>()
+        where T1 : class, ISKComponent
+        where T2 : class, ISKComponent
     {
         foreach (SKEntity entity in Entities)
             if (entity.TryGetComponent(out T1? comp1) &&
                 entity.TryGetComponent(out T2? comp2) &&
                 comp1 != null && comp2 != null)
-                yield return (entity, comp1, comp2);
+                yield return (comp1, comp2);
     }
 
-    ///<inheritdoc cref="GetEntityComponentTuplesWith{T1,T2}"/>
-    /// <typeparam name="T3">Yet another component to search for.</typeparam>
-    public static IEnumerable<(SKEntity entity, T1 c1, T2 c2, T3 c3)> GetEntityComponentTuplesWith<T1, T2, T3>()
-        where T1 : class, ISKComponent where T2 : class, ISKComponent where T3 : class, ISKComponent
+    /// <summary>
+    /// Yields all active instances of components that are paired inside an entity.
+    /// </summary>
+    /// <typeparam name="T1">Component to search.</typeparam>
+    /// <typeparam name="T2">Other component to search.</typeparam>
+    /// <typeparam name="T2">Yet another component to search.</typeparam>
+    /// <returns>An enumerable of component tuple pairs.</returns>
+    public static IEnumerable<(T1, T2, T3)> Query<T1, T2, T3>()
+        where T1 : class, ISKComponent
+        where T2 : class, ISKComponent
+        where T3 : class, ISKComponent
     {
         foreach (SKEntity entity in Entities)
-            if (entity.TryGetComponent(out T1? c1) &&
-                entity.TryGetComponent(out T2? c2) &&
-                entity.TryGetComponent(out T3? c3) &&
-                c1 != null && c2 != null && c3 != null)
-                yield return (entity, c1, c2, c3);
+            if (entity.TryGetComponent(out T1? comp1) &&
+                entity.TryGetComponent(out T2? comp2) &&
+                entity.TryGetComponent(out T3? comp3) &&
+                comp1 != null && comp2 != null && comp3 != null)
+                yield return (comp1, comp2, comp3);
     }
 
     #endregion
