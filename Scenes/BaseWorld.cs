@@ -52,7 +52,7 @@ public abstract class BaseWorld : IWorld
     /// <value>SSLGame.<see cref="SSLGame.UseECS"/></value>
     protected virtual bool UsesECS => SSLGame.UseECS;
 
-    internal GraphicsDeviceManager _graphics { get; private set; } = null!;
+    public GraphicsDeviceManager Graphics { get; private set; } = null!;
 
     /// ECS controller unique to this world instance. Left null of no ECS controller.
     public ECSController ECS { get; } = null!;
@@ -69,11 +69,11 @@ public abstract class BaseWorld : IWorld
     /// Calls Spacial Initializations as base class method.
     public virtual void Initialize(GraphicsDeviceManager graphics)
     {
-        _graphics = graphics;
+        Graphics = graphics;
 
         if (!UsesECS) return;
         Log("...initializing ECS...");
-        ECS.Initialize(graphics);
+        ECS.Initialize();
     }
 
     /// <inheritdoc cref="IWorld.LoadContent"/>

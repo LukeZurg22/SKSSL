@@ -35,7 +35,7 @@ public class ECSController
     /// Required method to initialize all ECS systems.
     /// </summary>
     /// <param name="graphics"></param>
-    public void Initialize(GraphicsDeviceManager graphics)
+    public void Initialize()
     {
         if (Initialized)
         {
@@ -44,8 +44,7 @@ public class ECSController
         }
 
         Initialized = true;
-
-        _systemManager.RegisterAll(graphics);
+        _systemManager.RegisterAll();
     }
 
     /// Calls system manager update calls.

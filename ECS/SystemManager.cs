@@ -19,17 +19,14 @@ public class SystemManager
     private readonly List<EntitySystem> _systems = [];
     private readonly List<int> _updateSystemIndices = [];
     private readonly List<int> _drawSystemIndices = [];
-    private GraphicsDeviceManager _graphics = null!;
 
     /// <summary>
     /// Registers all systems within a provided world.
     /// </summary>
-    /// <param name="graphics"></param>
     /// <exception cref="InvalidOperationException">A defined system type doesn't have a valid World constructor.</exception>
     /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
-    public void RegisterAll(GraphicsDeviceManager graphics)
+    public void RegisterAll()
     {
-        _graphics = graphics;
         _systems.Clear();
         // Get all loaded assemblies.
         Log("...reading system assemblies...");
@@ -74,6 +71,7 @@ public class SystemManager
             _updateSystemIndices.Add(_updateSystemIndices.Count);
         if (system is IDrawSystem)
             _drawSystemIndices.Add(_updateSystemIndices.Count);
+
         _systems.Add(system);
         system.Initialize();
     }

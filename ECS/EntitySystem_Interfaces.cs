@@ -1,5 +1,4 @@
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.ECS;
 
@@ -12,7 +11,6 @@ public interface IUpdateSystem
 /// System with supported draw calls.
 public interface IDrawSystem
 {
-    GraphicsDevice GraphicsDevice { get; set; }
     void Draw(GameTime gameTime);
 }
 
