@@ -16,14 +16,14 @@ public class ComponentRegistry
 {
     #region Fast Component Creation
 
-    private static readonly Dictionary<Type, Func<object>> _creators = new();
+    private static readonly Dictionary<Type, Func<ISKComponent>> _creators = new();
 
-    internal static object FastCreate(Type type)
+    internal static ISKComponent FastCreate(Type type)
     {
         if (_creators.TryGetValue(type, out var creator))
             return creator();
 
-        Func<object> newCreator;
+        Func<ISKComponent> newCreator;
 
         // Try to find parameterless constructor
         ConstructorInfo? ctor = type.GetConstructor(Type.EmptyTypes);
@@ -31,13 +31,13 @@ public class ComponentRegistry
         {
             // Fast path: compile expression tree once
             NewExpression newExpr = Expression.New(ctor);
-            var lambda = Expression.Lambda<Func<object>>(newExpr);
+            var lambda = Expression.Lambda<Func<ISKComponent>>(newExpr);
             newCreator = lambda.Compile();
         }
         else
         {
             // Slow but safe fallback: use Activator
-            newCreator = () => Activator.CreateInstance(type)
+            newCreator = () => (ISKComponent)Activator.CreateInstance(type)!
                                ?? throw new InvalidOperationException(
                                    $"Cannot instantiate {type.Name}: no parameterless constructor and Activator failed.");
         }
@@ -156,14 +156,6 @@ public class ComponentRegistry
                !name.StartsWith("netstandard") &&
                !assembly.IsDynamic &&
                !assembly.ReflectionOnly;
-    }
-
-    public static ISKComponent CreateComponentFromType(Type type)
-    {
-        var compObject = Activator.CreateInstance(type);
-        if (compObject is not ISKComponent component)
-            throw new InvalidOperationException("Failed to convert type to ISKComponent.");
-        return component;
     }
 
     #endregion
@@ -331,13 +323,13 @@ public class ComponentRegistry
         // Store index of component inside entity, using index of its type.
         var componentIndex = componentArray.Increment();
         entity.ComponentIndices[GetComponentTypeId(componentType)] = componentIndex;
-        
+
         // Assign reference back to parent.
         component.Parent = entity.Id;
-        
+
         // Set component index in its array to referenced component
         componentArray.Set(componentIndex, component);
-        
+
         return component; // Fin.
     }
 
@@ -358,7 +350,7 @@ public class ComponentRegistry
     {
         try
         {
-            component = AddComponent(entity, CreateComponentFromType(componentType));
+            component = AddComponent(entity, FastCreate(componentType));
             return true;
         }
         catch

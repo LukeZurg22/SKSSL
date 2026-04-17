@@ -34,7 +34,7 @@ public static partial class EntityExtensions
 
     /// Use AddComponent(component instance) or the generic method instead! This is more dangerous!
     public static ISKComponent AddComponent(this SKEntity entity, Type type)
-        => ComponentRegistry.AddComponent(entity, ComponentRegistry.CreateComponentFromType(type));
+        => ComponentRegistry.AddComponent(entity, ComponentRegistry.FastCreate(type));
 
     public static ISKComponent AddComponent(this SKEntity entity, ISKComponent comp)
         => ComponentRegistry.AddComponent(entity, comp);
