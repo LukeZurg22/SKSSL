@@ -48,8 +48,7 @@ public static partial class EntityExtensions
     /// Get all entities that have all of the specified component types.
     public static IEnumerable<SKEntity> GetEntitiesWith(this BaseWorld world, params Type[] componentTypes)
     {
-        var entities = new EntityContext(world).ActiveEntities;
-        foreach (SKEntity entity in entities)
+        foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
             if (componentTypes.All(type => entity.HasComponent(type)))
                 yield return entity;
     }
@@ -111,10 +110,10 @@ public static partial class EntityExtensions
     /// </summary>
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>An enumerable of components.</returns>
-    public static IEnumerable<T1> Query<T1>()
+    public static IEnumerable<T1> Query<T1>(this BaseWorld world)
         where T1 : class, ISKComponent
     {
-        foreach (SKEntity entity in Entities)
+        foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) && comp1 != null)
                 yield return comp1;
     }
@@ -125,11 +124,11 @@ public static partial class EntityExtensions
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
-    public static IEnumerable<(T1, T2)> Query<T1, T2>()
+    public static IEnumerable<(T1, T2)> Query<T1, T2>(this BaseWorld world)
         where T1 : class, ISKComponent
         where T2 : class, ISKComponent
     {
-        foreach (SKEntity entity in Entities)
+        foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) &&
                 entity.TryGetComponent(out T2? comp2) &&
                 comp1 != null && comp2 != null)
@@ -143,17 +142,40 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <typeparam name="T2">Yet another component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
-    public static IEnumerable<(T1, T2, T3)> Query<T1, T2, T3>()
+    public static IEnumerable<(T1, T2, T3)> Query<T1, T2, T3>(this BaseWorld world)
         where T1 : class, ISKComponent
         where T2 : class, ISKComponent
         where T3 : class, ISKComponent
     {
-        foreach (SKEntity entity in Entities)
+        foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) &&
                 entity.TryGetComponent(out T2? comp2) &&
                 entity.TryGetComponent(out T3? comp3) &&
                 comp1 != null && comp2 != null && comp3 != null)
                 yield return (comp1, comp2, comp3);
+    }
+
+    /// <summary>
+    /// Yields all active instances of components that are paired inside an entity.
+    /// </summary>
+    /// <typeparam name="T1">Component to search.</typeparam>
+    /// <typeparam name="T2">Other component to search.</typeparam>
+    /// <typeparam name="T2">Yet another component to search.</typeparam>
+    /// <returns>An enumerable of component tuple pairs.</returns>
+    public static IEnumerable<ISKComponent> Query(this BaseWorld world, params Type[] componentTypes)
+    {
+        foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
+        {
+            if (!componentTypes.All(d => entity.HasComponent(d))) continue;
+            // Does entity have all components provided?
+            foreach (Type type in componentTypes)
+            {
+                ISKComponent? comp = entity.GetComponent(type);
+                if (comp == null)
+                    yield break;
+                yield return comp;
+            }
+        }
     }
 
     #endregion

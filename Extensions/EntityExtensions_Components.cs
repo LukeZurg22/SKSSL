@@ -13,8 +13,14 @@ public static partial class EntityExtensions
     public static ref T GetComponent<T>(this SKEntity entity) where T : class, ISKComponent
         => ref ComponentRegistry.GetComponent<T>(entity);
 
+    public static ISKComponent? GetComponent(this SKEntity entity, Type componentType)
+        => ComponentRegistry.GetComponent(entity, componentType);
+
     public static bool TryGetComponent<T>(this SKEntity entity, out T? component) where T : class, ISKComponent
         => ComponentRegistry.TryGetComponent(entity, out component);
+
+    public static bool TryGetComponent(this SKEntity entity, Type type, out ISKComponent? component)
+        => ComponentRegistry.TryGetComponent(entity, type, out component);
 
     public static List<object> GetAllComponents(this SKEntity entity)
         => ComponentRegistry.GetAllComponents(entity);
