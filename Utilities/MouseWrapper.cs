@@ -3,6 +3,11 @@ using Microsoft.Xna.Framework.Input;
 
 namespace SKSSL.Utilities;
 
+/// <summary>
+/// A wrapper for general fields and functions to control mouse behaviour. This can be called elsewhere to dynamically
+/// change the "affixed" position of the user's mouse, and can even be done for animations. The mouse affixed position
+/// is handled in SSLGame.Update
+/// </summary>
 public class MouseWrapper
 {
     /// <summary>
@@ -48,6 +53,9 @@ public class MouseWrapper
         AffixedPosition = x;
     }
 
+    /// <summary>
+    /// Called by SSLGame.<see cref="SSLGame.Update"/> to affix mouse to specific position.
+    /// </summary>
     public static void HandleForcedPosition()
     {
         if (Instance.HasAffixedPosition)
