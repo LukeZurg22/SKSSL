@@ -6,11 +6,13 @@ using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using MonoGame.ImGuiNet;
 using MonoGameGum;
 using SKSSL.ECS;
 using SKSSL.Localization;
 using SKSSL.Scenes;
+using SKSSL.Utilities;
 using static SKSSL.DustLogger;
 
 // ReSharper disable ConvertToConstant.Global
@@ -84,12 +86,7 @@ public abstract class SSLGame : Game
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
     public readonly IEnumerable<GameContentDirectory> GameContentDirectories;
 
-    /// Gets game preferred buffer width and height.
-    public Vector2 GetScreenSize()
-        => new(_graphicsManager.PreferredBackBufferWidth, _graphicsManager.PreferredBackBufferHeight);
-
-    /// Gets game preferred buffer width and height.
-    public Vector2 GetScreenCenter() => GetScreenSize() / 2;
+    public MouseWrapper MouseHandler;
 
     #endregion
 
@@ -145,7 +142,8 @@ public abstract class SSLGame : Game
         _graphicsManager = HandleGraphicsDesignManager(new GraphicsDeviceManager(this));
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _currentScreenGue.UpdateLayout(); // UI Behaviour when dragged
-
+        MouseHandler = new MouseWrapper(_graphicsManager);
+        
         if (string.IsNullOrEmpty(gumFile))
             Log($"Provided gum project file is empty! {title}, {nameof(SSLGame)}", LOG.SYSTEM_WARNING);
         else
@@ -252,6 +250,9 @@ public abstract class SSLGame : Game
     protected override void Update(GameTime gameTime)
     {
         GameplayTime = GameplayTime.AddSeconds(gameTime.ElapsedGameTime.TotalSeconds);
+
+        MouseWrapper.HandleForcedPosition();
+       
         base.Update(gameTime);
         Gum.Update(gameTime); // Update Gum UI after game update.
     }
