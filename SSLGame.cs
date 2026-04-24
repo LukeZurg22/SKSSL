@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Gum.DataTypes;
 using Gum.Wireframe;
 using Microsoft.Extensions.DependencyInjection;
@@ -83,6 +84,13 @@ public abstract class SSLGame : Game
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
     public readonly IEnumerable<GameContentDirectory> GameContentDirectories;
 
+    /// Gets game preferred buffer width and height.
+    public Vector2 GetScreenSize()
+        => new(_graphicsManager.PreferredBackBufferWidth, _graphicsManager.PreferredBackBufferHeight);
+
+    /// Gets game preferred buffer width and height.
+    public Vector2 GetScreenCenter() => GetScreenSize() / 2;
+
     #endregion
 
     /// <remarks>
@@ -93,7 +101,7 @@ public abstract class SSLGame : Game
     public static EntityContext ECS(BaseWorld? world = null)
     {
         string message;
-        
+
         // If not using ECS, then why? Throw an error!
         if (!UseECS)
         {
@@ -107,7 +115,7 @@ public abstract class SSLGame : Game
         {
             world ??= res; // Reassign world.
         }
-        
+
         // Final check to validate that the world (and its ECS) is functioning.
         if (world?.ECS is null)
         {
