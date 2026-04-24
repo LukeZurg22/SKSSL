@@ -20,11 +20,11 @@ public class MouseWrapper
     public Vector2 AffixedPosition;
     
     /// Gets game preferred buffer width and height.
-    public Vector2 GetScreenSize()
+    private Vector2 GetScreenSize()
         => new(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
     
     /// Gets game preferred buffer width and height.
-    public Vector2 GetScreenCenter() => GetScreenSize() / 2;
+    private Vector2 GetScreenCenter() => GetScreenSize() / 2;
     
     public MouseWrapper(GraphicsDeviceManager graphics)
     {
@@ -44,7 +44,7 @@ public class MouseWrapper
         AffixedPosition = new Vector2(x, y);
     }
 
-    /// Lazy toggle for affixed position.
+    /// Lazy toggle for affixed position. Effectively clears it.
     public void SetPosition() => HasAffixedPosition = false;
 
     public void SetPosition(Vector2 x)
