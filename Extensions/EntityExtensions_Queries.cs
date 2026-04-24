@@ -16,7 +16,7 @@ public static partial class EntityExtensions
      * directly, but instead as extensions to worlds.
      */
 
-    #region GetEntitiesWith (From World)
+    #region QueryEntitiesWith (From World)
 
     /// <summary>
     /// Yields all entities containing component types.
@@ -24,27 +24,27 @@ public static partial class EntityExtensions
     /// <param name="world">Reflected world instance to query.</param>
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>All entities containing provided component type.</returns>
-    public static IEnumerable<SKEntity> GetEntitiesWith<T1>(this BaseWorld world)
-        => GetEntitiesWith(world, typeof(T1));
+    public static IEnumerable<SKEntity> QueryEntitiesWith<T1>(this BaseWorld world)
+        => QueryEntitiesWith(world, typeof(T1));
 
-    ///<inheritdoc cref="GetEntitiesWith{T1}"/>
+    ///<inheritdoc cref="QueryEntitiesWith{T1}"/>
     /// <typeparam name="T2">Another component to search.</typeparam>
-    public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2>(this BaseWorld world)
-        => GetEntitiesWith(world, typeof(T1), typeof(T2));
+    public static IEnumerable<SKEntity> QueryEntitiesWith<T1, T2>(this BaseWorld world)
+        => QueryEntitiesWith(world, typeof(T1), typeof(T2));
 
-    ///<inheritdoc cref="GetEntitiesWith{T1,T2}"/>
+    ///<inheritdoc cref="QueryEntitiesWith{T1,T2}"/>
     /// <typeparam name="T3">Yet another component to search.</typeparam>
-    public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2, T3>(this BaseWorld world)
-        => GetEntitiesWith(world, typeof(T1), typeof(T2), typeof(T3));
+    public static IEnumerable<SKEntity> QueryEntitiesWith<T1, T2, T3>(this BaseWorld world)
+        => QueryEntitiesWith(world, typeof(T1), typeof(T2), typeof(T3));
 
-    ///<inheritdoc cref="GetEntitiesWith{T1,T2,T3}"/>
+    ///<inheritdoc cref="QueryEntitiesWith{T1,T2,T3}"/>
     /// <typeparam name="T4">A fourth component to also search for.</typeparam>
-    public static IEnumerable<SKEntity> GetEntitiesWith<T1, T2, T3, T4>(this BaseWorld world)
-        => GetEntitiesWith(world, typeof(T1), typeof(T2), typeof(T3), typeof(T4));
+    public static IEnumerable<SKEntity> QueryEntitiesWith<T1, T2, T3, T4>(this BaseWorld world)
+        => QueryEntitiesWith(world, typeof(T1), typeof(T2), typeof(T3), typeof(T4));
 
     /// Core implementation (supports any number of components)
     /// Get all entities that have all of the specified component types.
-    public static IEnumerable<SKEntity> GetEntitiesWith(this BaseWorld world, params Type[] componentTypes)
+    public static IEnumerable<SKEntity> QueryEntitiesWith(this BaseWorld world, params Type[] componentTypes)
     {
         foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
             if (componentTypes.All(type => entity.HasComponent(type)))
@@ -53,7 +53,7 @@ public static partial class EntityExtensions
 
     #endregion
 
-    #region GetEntityComponentTuplesWith (From World)
+    #region QueryEntitiesComponents
 
     /// <summary>
     /// Yields all entities containing component types along side the components queried into a Tuple.
@@ -61,7 +61,7 @@ public static partial class EntityExtensions
     /// <param name="world">Reflected world instance to query.</param>
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>All entities that contain provided component type, and those entities in a Tuple.</returns>
-    public static IEnumerable<(SKEntity entity, T1 comp1)> GetEntityComponentTuplesWith<T1>(this BaseWorld world)
+    public static IEnumerable<(SKEntity entity, T1 comp1)> QueryEntitiesComponents<T1>(this BaseWorld world)
         where T1 : ISKComponent
     {
         var entities = new EntityContext(world).ActiveEntities;
@@ -70,9 +70,9 @@ public static partial class EntityExtensions
                 yield return (entity, comp1);
     }
 
-    ///<inheritdoc cref="GetEntityComponentTuplesWith{T1}(SKSSL.Scenes.BaseWorld)"/>
+    ///<inheritdoc cref="QueryEntitiesComponents{T1}"/>
     /// <typeparam name="T2">Another component to search.</typeparam>
-    public static IEnumerable<(SKEntity entity, T1 comp1, T2 comp2)> GetEntityComponentTuplesWith<T1, T2>(
+    public static IEnumerable<(SKEntity entity, T1 comp1, T2 comp2)> QueryEntitiesComponents<T1, T2>(
         this BaseWorld world)
         where T1 : ISKComponent where T2 : ISKComponent
     {
@@ -84,9 +84,9 @@ public static partial class EntityExtensions
                 yield return (entity, comp1, comp2);
     }
 
-    ///<inheritdoc cref="GetEntityComponentTuplesWith{T1,T2}"/>
+    ///<inheritdoc cref="QueryEntitiesComponents{T1,T2}"/>
     /// <typeparam name="T3">Yet one more component to search.</typeparam>
-    public static IEnumerable<(SKEntity entity, T1 c1, T2 c2, T3 c3)> GetEntityComponentTuplesWith<T1, T2, T3>(
+    public static IEnumerable<(SKEntity entity, T1 c1, T2 c2, T3 c3)> QueryEntitiesComponents<T1, T2, T3>(
         this BaseWorld world)
         where T1 : ISKComponent where T2 : ISKComponent where T3 : ISKComponent
     {
@@ -101,14 +101,14 @@ public static partial class EntityExtensions
 
     #endregion
 
-    #region Query (Component-Only Queries)
+    #region Query Components
 
     /// <summary>
     /// Yields all active instances of this component type.
     /// </summary>
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>An enumerable of components.</returns>
-    public static IEnumerable<T1> Query<T1>(this BaseWorld world)
+    public static IEnumerable<T1> QueryComponents<T1>(this BaseWorld world)
         where T1 : ISKComponent
     {
         foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
@@ -122,7 +122,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
-    public static IEnumerable<(T1, T2)> Query<T1, T2>(this BaseWorld world)
+    public static IEnumerable<(T1, T2)> QueryComponents<T1, T2>(this BaseWorld world)
         where T1 : ISKComponent
         where T2 : ISKComponent
     {
@@ -140,7 +140,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <typeparam name="T2">Yet another component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
-    public static IEnumerable<(T1, T2, T3)> Query<T1, T2, T3>(this BaseWorld world)
+    public static IEnumerable<(T1, T2, T3)> QueryComponents<T1, T2, T3>(this BaseWorld world)
         where T1 : ISKComponent
         where T2 : ISKComponent
         where T3 : ISKComponent
@@ -160,7 +160,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <typeparam name="T2">Yet another component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
-    public static IEnumerable<ISKComponent> Query(this BaseWorld world, params Type[] componentTypes)
+    public static IEnumerable<ISKComponent> QueryComponents(this BaseWorld world, params Type[] componentTypes)
     {
         foreach (SKEntity entity in world.ECS.EntityManager.AllEntities)
         {
