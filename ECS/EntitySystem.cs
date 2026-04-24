@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework.Graphics;
+using SKSSL.Extensions;
 using SKSSL.Scenes;
 
 // ReSharper disable UnusedMember.Global
@@ -43,6 +44,11 @@ public abstract class EntitySystem
     /// Quick route to SSLGame.ECS().World.Graphics handling.
     /// </summary>
     public static GraphicsDevice Graphics => Context.World.Graphics.GraphicsDevice;
+
+    /// <summary>
+    /// Quick route to World.QueryComponents Query.
+    /// </summary>
+    public static IEnumerable<T> Query<T>() where T : ISKComponent => World.QueryComponents<T>();
 
     #endregion
 
