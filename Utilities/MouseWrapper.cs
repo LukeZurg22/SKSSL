@@ -33,6 +33,12 @@ public class MouseWrapper
         Instance = this;
     }
 
+    public static Vector2 GetMousePosition()
+    {
+        MouseState state = Mouse.GetState();
+        return new Vector2(state.X, state.Y);
+    }
+
     public static void SetPositionCenter()
     {
         Instance.HasAffixedPosition = true;
