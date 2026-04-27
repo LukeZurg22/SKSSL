@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Utilities;
 
