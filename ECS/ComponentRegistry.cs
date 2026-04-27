@@ -160,8 +160,6 @@ public class ComponentRegistry
 
     #endregion
 
-    #region Pseudo-Extensions
-
     #region Get Methods
 
     /// <summary>
@@ -469,6 +467,4 @@ public class ComponentRegistry
 
     public static bool HasComponent(SKEntity entity, Type componentType)
         => entity.ComponentIndices[RegisteredTypesDictionary.GetValueOrDefault(componentType, -1)] != -1;
-
-    #endregion
 }
