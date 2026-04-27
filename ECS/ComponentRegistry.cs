@@ -330,7 +330,7 @@ public class ComponentRegistry
         entity.ComponentIndices[GetComponentTypeId(componentType)] = componentIndex;
 
         // Assign reference back to parent.
-        component.Parent = entity.Id;
+        component.Parent = entity;
 
         // Set component index in its array to referenced component
         componentArray.Set(componentIndex, component);
