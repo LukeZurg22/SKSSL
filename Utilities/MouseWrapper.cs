@@ -32,16 +32,16 @@ public class MouseWrapper
         Instance = this;
     }
 
-    public void SetPositionCenter()
+    public static void SetPositionCenter()
     {
-        HasAffixedPosition = true;
-        AffixedPosition = GetScreenCenter();
+        Instance.HasAffixedPosition = true;
+        Instance.AffixedPosition = Instance.GetScreenCenter();
     }
 
-    public void SetPosition(float x, float y)
+    public static void SetPosition(float x, float y)
     {
-        HasAffixedPosition = true;
-        AffixedPosition = new Vector2(x, y);
+        Instance.HasAffixedPosition = true;
+        Instance.AffixedPosition = new Vector2(x, y);
     }
 
     /// Lazy toggle for affixed position. Effectively clears it.
