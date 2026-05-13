@@ -184,6 +184,13 @@ public static partial class YamlLoader
         return conglomerate;
     }
 
+    /// <summary>
+    /// Overload for LoadFile call, feeding only one parameter in available types.
+    /// </summary>
+    /// <param name="file"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public static Dictionary<Type, List<object>> LoadFile<T>(string file) => LoadFile([typeof(T)], file);
 
     /// <summary>
     /// Searches a directory using provided type definitions and file patterns. Directory defaults to application's if
@@ -474,6 +481,7 @@ public static partial class YamlLoader
         return null;
     }
 
+    
     #endregion
 }
 
