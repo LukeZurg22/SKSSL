@@ -1,8 +1,12 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using Fluent.Net;
+using Fluent.Net.RuntimeAst;
 using static SKSSL.DustLogger;
 
+// ReSharper disable UnusedMethodReturnValue.Global
+// ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
@@ -21,12 +25,9 @@ public static class Loc
     /// The localization entries as stored in the game's per-language-culture folder.
     /// Consists of a list of values and (=) keys.
     /// </summary>
-    internal static ConcurrentDictionary<string, string> Localizations { get; }
-
     static Loc()
     {
         string systemCulture = CultureInfo.CurrentCulture.Name;
-        Localizations = new ConcurrentDictionary<string, string>();
         switch (systemCulture)
         {
             case "en-US": // TODO: Add dynamically-supported languages rather than statically-defined.
@@ -65,19 +66,22 @@ public static class Loc
     /// </example>
     public static string Get(string localeID, params (string variableName, object variableValue)[]? values)
     {
-        string output = Localizations.GetValueOrDefault(localeID, localeID);
-        if (values == null)
-            return output; // If there's no provided values, then the existing localization will be enough.
-
-        // In the case that there are multiple variables of the same name, this shouldn't budge or break.
-        // However, it is not advised to do so in one's localizations, because it's... stupid?
-        foreach ((string key, object value) in values)
+        foreach (MessageContext messageContext in MessageContexts)
         {
-            string placeholder = "{$" + key + "}";
-            output = output.Replace(placeholder, value.ToString() ?? "invalid-value");
+            Message? message = messageContext.GetMessage(localeID);
+
+            if (message is null)
+                continue;
+
+            var args = values?.ToDictionary(
+                v => v.variableName,
+                v => v.variableValue
+            );
+
+            return messageContext.Format(message, args, new List<FluentError>());
         }
 
-        return output;
+        return localeID;
     }
 
     /// <summary>
@@ -87,6 +91,8 @@ public static class Loc
     /// <param name="localeDirectory">Directory Path of the localization folder, which contains sub-folders based on language culture.</param>
     public static void Load([NotNull] string? localeDirectory = null)
     {
+        ParseExceptions.Clear();
+
         // Loading localizations should be clear on program init.
         //Localizations.Clear();
 
@@ -124,34 +130,34 @@ public static class Loc
 
         // Get all localization files and load them.
         var files = Directory.GetFiles(languageFolder, "*.ftl*", SearchOption.AllDirectories);
-        Parallel.ForEach(files, ReadFile);
+        Parallel.ForEach(files, ProcessLocaleFile);
+
+        // Spew exceptions.
+        foreach (ParseException exception in ParseExceptions)
+            Log(exception.Message, LOG.FILE_WARNING);
+    }
+
+    private static readonly ConcurrentBag<MessageContext> MessageContexts = [];
+    private static readonly IList<ParseException> ParseExceptions = new List<ParseException>();
+
+    private static MessageContext GetMessages(string ftlPath)
+    {
+        using var streamReader = new StreamReader(ftlPath);
+        var options = new MessageContextOptions { UseIsolating = false };
+        var messageContext = new MessageContext(CurrentLanguage, options);
+        var errors = messageContext.AddMessages(streamReader);
+        foreach (ParseException? error in errors)
+        {
+            ParseExceptions.Add(error);
+        }
+
+        return messageContext;
     }
 
     /// Read all file contents and insert into dictionary.
-    private static void ReadFile(string file)
+    private static void ProcessLocaleFile(string file)
     {
-        string[] contents = File.ReadAllLines(file);
-
-        foreach (string line in contents)
-        {
-            // Skip empty lines
-            if (string.IsNullOrWhiteSpace(line))
-                continue;
-
-            // If the line begins with #, or there is no '=', then there's a problem!
-            int index = line.IndexOf('=');
-            if (index == -1 || line[0].Equals('#'))
-            {
-                if (!line[0].Equals('#'))
-                    Log($"Invalid localization in file \"{file}\": {line}", LOG.FILE_ERROR);
-                continue;
-            }
-
-            // Get left (key) and right (value) hand sides, and
-            //  add to localizations folder. Get() handles the rest.
-            string key = index >= 0 ? line[..index].Trim() : line;
-            string value = index >= 0 ? line[(index + 1)..].Trim() : key;
-            Localizations[key] = value;
-        }
+        MessageContext messageContext = GetMessages(file);
+        MessageContexts.Add(messageContext);
     }
 }
