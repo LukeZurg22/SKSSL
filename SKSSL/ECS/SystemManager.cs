@@ -27,8 +27,6 @@ public class SystemManager
     /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
     public void RegisterAll()
     {
-        // TODO: Switch from reflection to AoT Source Generators for efficiency. See NOTES.txt in personal folder.
-        
         _systems.Clear();
         // Get all loaded assemblies.
         Log("...reading system assemblies...");
