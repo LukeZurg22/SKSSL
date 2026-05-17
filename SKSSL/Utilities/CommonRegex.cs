@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Utilities;
 
@@ -11,6 +12,10 @@ public static partial class CommonRegex
     /// For strings that begin with a letter or underscore, and the remaining are alphanumeric or underscores.
     /// This documentation is overwritten by REGEX, anyway.
     /// </summary>
-    [GeneratedRegex(@"^[_A-Za-z][A-Za-z0-9_]*$")]
-    public static partial Regex AlphaAlphaNumericUnderlineRegex();
+    public static readonly Regex AlphaAlphaNumericUnderlineRegex
+        = new("^[_A-Za-z][A-Za-z0-9_]*$");
+
+    // Windows reserved device names
+    public static readonly Regex ReservedNames
+        = new(@"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)", RegexOptions.IgnoreCase);
 }

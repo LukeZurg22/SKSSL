@@ -1,13 +1,11 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using static SKSSL.Utilities.CommonRegex;
 
 namespace SKSSL.Utilities;
 
 public static partial class FileNameSanitizer
 {
-    // Windows reserved device names
-    private static readonly Regex ReservedNames = ReservedWindowsSystemFileNames();
-
     public static string Sanitize(string input, string replacement = "_", int maxLength = 255)
     {
         if (string.IsNullOrWhiteSpace(input)) return "unnamed";
@@ -36,7 +34,4 @@ public static partial class FileNameSanitizer
 
         return cleaned.Length == 0 ? "unnamed" : cleaned;
     }
-
-    [GeneratedRegex(@"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)", RegexOptions.IgnoreCase, "en-US")]
-    private static partial Regex ReservedWindowsSystemFileNames();
 }

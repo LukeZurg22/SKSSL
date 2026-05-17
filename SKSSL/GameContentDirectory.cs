@@ -1,10 +1,13 @@
 namespace SKSSL;
 
 /// <summary>
-/// A content directory containing game prototype, texture, and localization data.
+/// Wrapper for a game's main content folder. Used for getting game prototype, texture, and localization directories.
 /// </summary>
 public record GameContentDirectory
 {
+    /// Name of the overall directory represented.. Used for sorting and classification.
+    public readonly string DirectoryTitle;
+    
     /// Directory that which game content shall be read.
     public readonly string ContentDirectory;
 
@@ -35,6 +38,7 @@ public record GameContentDirectory
     public GameContentDirectory(string contentDirectory)
     {
         ContentDirectory = contentDirectory;
+        DirectoryTitle = Path.GetFileName(contentDirectory);
         LoadOrder = loadOrderCounter++;
     }
 

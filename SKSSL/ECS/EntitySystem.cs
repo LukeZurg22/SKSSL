@@ -53,7 +53,7 @@ public abstract class EntitySystem
     #endregion
 
     /// <summary>
-    /// Public class so the system stops complaining.
+    /// Public constructor so the system stops complaining.
     /// </summary>
     public EntitySystem()
     {

@@ -15,10 +15,23 @@
 # Build Folders
 bin/
 obj/
+Generated/
+**/bin/
+**/obj/
+**/Generated/
+**/*.g.cs
 
 # Rider
 .idea/
 *.sln.iml
+
+# TestResultsFolder
+**/TestResults/
+TestResultsl/
+
+# VZYaml Folder
+**/VZYaml/
+VZYaml/
 
 # User-specific
 *.user

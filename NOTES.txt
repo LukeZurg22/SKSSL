@@ -1,0 +1,11 @@
+See about using Source Generator for components and systems loading.
+
+https://devblogs.microsoft.com/dotnet/introducing-c-source-generators/
+
+It's more efficient!
+
+Add this somewhere:
+https://projectfluent.org/fluent/guide/
+
+Study this:
+https://github.com/alexmuab/unit-testing-csharp-example

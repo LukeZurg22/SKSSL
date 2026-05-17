@@ -13,6 +13,7 @@
         <Description>Shared general game engine built on Monogame and GumUI.</Description>
         <PackageTags>logging, ecs, yaml, parsing</PackageTags>
         <RepositoryUrl>https://github.com/LukeZurg22/SKSSL</RepositoryUrl>
+        <IncludeBuildOutput>true</IncludeBuildOutput> <!--For generated classes.-->
     </PropertyGroup>
 
     <ItemGroup>
@@ -22,6 +23,8 @@
       <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
       <PackageReference Include="ImGUI.NET.ToolBox" Version="0.1.1" />
       <PackageReference Include="MemoryPack" Version="1.21.4" />
+      <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0" />
+      <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
       <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1" />
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
       <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.1" />
@@ -32,6 +35,28 @@
       <PackageReference Include="VYaml" Version="1.2.0" />
     </ItemGroup>
 
+    <PropertyGroup>
+        <!--<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>-->
+        <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+    </PropertyGroup>
+
+    <!-- Ignore unwanted built-in generators -->
+    <ItemGroup>
+        <CompilerGeneratedFilesToExclude Include="**/*RegexGenerator*" />
+        <CompilerGeneratedFilesToExclude Include="**/*Regex.g.cs" />
+        <CompilerGeneratedFilesToExclude Include="**/*Yaml*" />
+        <CompilerGeneratedFilesToExclude Include="**/*VYaml*" />
+        <CompilerGeneratedFilesToExclude Include="**/*System*" />
+        <CompilerGeneratedFilesToExclude Include="**/*YAMLSerializer*" />
+        <CompilerGeneratedFilesToExclude Include="**/*BaseYaml*" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"/>
+    </ItemGroup>
+    
     <ItemGroup>
       <Folder Include="Networking\" />
     </ItemGroup>

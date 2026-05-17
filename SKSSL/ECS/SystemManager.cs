@@ -27,38 +27,19 @@ public class SystemManager
     /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
     public void RegisterAll()
     {
+        // TODO: Switch from reflection to AoT Source Generators for efficiency. See NOTES.txt in personal folder.
+        
         _systems.Clear();
         // Get all loaded assemblies.
         Log("...reading system assemblies...");
-        var systemTypes = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(a => a.GetTypes())
-            .Where(t => t.IsClass && !t.IsAbstract &&
-                        t.GetCustomAttributes(typeof(RegisterSystemAttribute), false).Length > 0)
-            .OrderBy(t =>
-            {
-                var attr = (RegisterSystemAttribute)t.GetCustomAttributes(typeof(RegisterSystemAttribute), false)[0];
-                return attr.Order;
-            }).ToList();
+        var systems = SystemRegistry.AllSystems;
 
         // Read all registered types.
-        Log($"...loading systems from {systemTypes.Count} types...");
-        foreach (Type type in systemTypes)
+        Log($"...loading systems from {systems.Count} types...");
+        foreach (EntitySystem system in systems)
         {
-            // Systems no longer have WORLD constructor due to accessed global context.
-            // OLD: All systems have (World) constructor
-            //ConstructorInfo constructor = type.GetConstructor([typeof(BaseWorld)])
-            //                              ?? throw new InvalidOperationException(
-            //                                  $"System {type.Name} missing (World world) constructor");
-
-            ConstructorInfo constructor = type.GetConstructor([])
-                                          ?? throw new InvalidOperationException(
-                                              $"No blank constructor for system type {type.Name}");
-
-            //var system = constructor.Invoke([world]);
-            var system = constructor.Invoke([]);
-
             // Add system to System Manager.
-            Add((system as EntitySystem)!);
+            Add(system);
         }
 
         Log($"Completed registration of {_systems.Count} Systems.");
@@ -67,10 +48,15 @@ public class SystemManager
     /// For manual registration.
     public void Add(EntitySystem system)
     {
-        if (system is IUpdateSystem)
-            _updateSystemIndices.Add(_updateSystemIndices.Count);
-        if (system is IDrawSystem)
-            _drawSystemIndices.Add(_updateSystemIndices.Count);
+        switch (system)
+        {
+            case IUpdateSystem:
+                _updateSystemIndices.Add(_updateSystemIndices.Count);
+                break;
+            case IDrawSystem:
+                _drawSystemIndices.Add(_updateSystemIndices.Count);
+                break;
+        }
 
         _systems.Add(system);
         system.Initialize();
