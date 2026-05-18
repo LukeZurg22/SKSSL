@@ -88,7 +88,7 @@ public class YamlLoaderTest
     public void YAML_Parser_Test()
     {
         var lines = TestYaml.Replace("\r", "").Split('\n');
-        YamlLoader.ConvertLinesToYamlBlocks(lines, null);
+        var blocks = YamlLoader.ConvertLinesToYamlBlocks(lines, [typeof(object)]);
     }
 
     [TestMethod]
