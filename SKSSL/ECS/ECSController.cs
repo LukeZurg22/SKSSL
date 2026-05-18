@@ -18,15 +18,11 @@ public class ECSController
     /// Manager of all active entities in this ECS instance.
     public readonly EntityManager EntityManager;
 
-    /// Manager of all active systems in this ECS instance.
-    private readonly SystemManager _systemManager;
-
     /// <summary>
     /// Constructor instantiating an ECS controller unto a world as reference parent.
     /// </summary>
     public ECSController(IWorld world)
     {
-        _systemManager = new SystemManager();
         ComponentRegistry = new ComponentRegistry();
         EntityManager = new EntityManager(world);
     }
@@ -34,7 +30,6 @@ public class ECSController
     /// <summary>
     /// Required method to initialize all ECS systems.
     /// </summary>
-    /// <param name="graphics"></param>
     public void Initialize()
     {
         if (Initialized)
@@ -44,14 +39,17 @@ public class ECSController
         }
 
         Initialized = true;
-        _systemManager.RegisterAll();
     }
 
     /// Calls system manager update calls.
-    public void Update(GameTime gameTime) => _systemManager.Update(gameTime);
+    public void Update(GameTime gameTime)
+    {
+    }
 
     /// Calls system manager draw calls.
-    public void Draw(GameTime gameTime) => _systemManager.Draw(gameTime);
+    public void Draw(GameTime gameTime)
+    {
+    }
 
     /// Ensures that this world instance is safely deleted before being replaced.
     public void Destroy() => EntityManager.MassacreAllEntities();
