@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Gum.DataTypes;
 using Gum.Wireframe;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,7 +5,6 @@ using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 using MonoGame.ImGuiNet;
 using MonoGameGum;
 using SKSSL.ECS;
@@ -143,7 +141,7 @@ public abstract class SSLGame : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _currentScreenGue.UpdateLayout(); // UI Behaviour when dragged
         MouseHandler = new MouseWrapper(_graphicsManager);
-        
+
         if (string.IsNullOrEmpty(gumFile))
             Log($"Provided gum project file is empty! {title}, {nameof(SSLGame)}", LOG.SYSTEM_WARNING);
         else
@@ -227,6 +225,8 @@ public abstract class SSLGame : Game
         SceneManager = new SceneManager(this, _graphicsManager, _spriteBatch, gumSave);
         Components.Add(SceneManager);
 
+        if (UseECS) SystemManager.Initialize();
+
         // Continue
         base.Initialize();
     }
@@ -243,6 +243,7 @@ public abstract class SSLGame : Game
     protected override void Draw(GameTime gameTime)
     {
         base.Draw(gameTime);
+        if (UseECS) SystemManager.Draw(gameTime);
         Gum.Draw(); // Draw Gum UI after game draw.
     }
 
@@ -252,8 +253,9 @@ public abstract class SSLGame : Game
         GameplayTime = GameplayTime.AddSeconds(gameTime.ElapsedGameTime.TotalSeconds);
 
         MouseWrapper.HandleForcedPosition();
-       
+
         base.Update(gameTime);
+        if (UseECS) SystemManager.Update(gameTime);
         Gum.Update(gameTime); // Update Gum UI after game update.
     }
 }
