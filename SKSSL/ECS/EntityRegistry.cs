@@ -121,7 +121,7 @@ public abstract class EntityRegistry
     }
 
     /// <summary>
-    /// Helper for extracting components from a yaml file. Should work with any kind that inherits <see cref="EntityYamlPrototype"/>.
+    /// Helper for extracting components from a yaml file. Should work with any kind that inherits <see cref="Prototype"/>.
     /// Does NOT support other yaml types that implement this. This is for the ECS ONLY
     /// </summary>
     private static Dictionary<Type, object> BuildComponentsFromEntityYaml(Prototype yaml)

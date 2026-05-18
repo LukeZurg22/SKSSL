@@ -99,8 +99,8 @@ public partial class EntityManager
     public Entity Spawn(string handle)
     {
         if (!EntityRegistry.TryGetDefinition(handle, out Prototype? definition) || definition is null)
-            throw new Exception(
-                $"Failed to create entity copy using {handle} handle. Justify with Full Handle instead.");
+            throw new Exception
+                ($"Failed to create entity copy using {handle} handle. Justify with Full Handle instead.");
         // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
 
         // Create entity regardless of how it's stored.
