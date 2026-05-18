@@ -176,7 +176,7 @@ public static partial class YamlLoader
             foreach ((Type type, var yamlData) in output)
             {
                 // Tag each yaml entry with source.
-                yamlData.ForEach(yamlEntry => ((BaseYamlEntry)yamlEntry).Source = Path.GetFileName(directory));
+                yamlData.ForEach(yamlEntry => ((Prototype)yamlEntry).Source = Path.GetFileName(directory));
                 conglomerate[type] = conglomerate[type].Concat(yamlData).ToList();
             }
         }
@@ -481,7 +481,6 @@ public static partial class YamlLoader
         return null;
     }
 
-    
     #endregion
 }
 

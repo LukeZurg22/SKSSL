@@ -2,6 +2,7 @@ using System.Reflection;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
 using SKSSL.Utilities;
+using SKSSL.YAML;
 using static SKSSL.DustLogger;
 
 // ReSharper disable UnusedMember.Global
@@ -9,41 +10,37 @@ using static SKSSL.DustLogger;
 namespace SKSSL.ECS;
 
 /// <summary>
-/// Instantiated Manager for all <see cref="SKEntity"/> instances contained within it. Fundamental ECS
+/// Instantiated Manager for all <see cref="Entity"/> instances contained within it. Fundamental ECS
 /// infrastructure that currently softly requires a world to be contained-in.
 /// </summary>
 public partial class EntityManager
 {
     private static readonly IDIterator _nextId = new();
-    private readonly List<SKEntity> _allEntities = [];
+    private readonly List<Entity> _allEntities = [];
     private readonly IWorld _world;
 
     /// <inheritdoc cref="EntityManager"/>
-    public EntityManager(IWorld world)
-    {
-        _world = world;
-    }
+    public EntityManager(IWorld world) => _world = world;
 
     /// Get all Active entities present in the game.
     /// <seealso cref="Definitions"/>
-    internal IReadOnlyList<SKEntity> AllEntities => _allEntities;
+    internal IReadOnlyList<Entity> AllEntities => _allEntities;
 
-    // ReSharper disable once UnusedMember.Global
-    /// All inactive Entity Definitions, which ubiquitously inherit <see cref="AEntityCommon"/>.
-    public static IReadOnlyDictionary<string, AEntityCommon> Definitions => EntityRegistry.Definitions;
+    /// All inactive Entity Definitions, which ubiquitously inherit <see cref="Prototype"/>.
+    public static IReadOnlyDictionary<string, Prototype> Definitions => EntityRegistry.Definitions;
 
     #region Get Methods
 
     /// <param name="handle">Full handle ID of entity definition.</param>
     /// <returns>Null or first entity found within active <see cref="AllEntities"/> list.</returns>
     /// <remarks>Acts like <see cref="GetEntity(int)"/>, but uses a string reference handle instead.</remarks>
-    public SKEntity? GetEntity(string handle)
-        => _allEntities.FirstOrDefault(e => e?.GetFullHandle() == handle, null);
+    public Entity? GetEntity(string handle)
+        => _allEntities.FirstOrDefault(e => e?.GetUniqueInternalRef() == handle, null);
 
     /// <param name="id">Numeric ID of requested entity.</param>
     /// <returns>Null or instance of entity with provided ID.</returns>
     /// <remarks>Requires the user to know the ID of the entity.</remarks>
-    public SKEntity? GetEntity(int id)
+    public Entity? GetEntity(int id)
     {
         if (_allEntities.Any(e => e.Id == id))
             return _allEntities[id];
@@ -55,16 +52,16 @@ public partial class EntityManager
     /// Get-Method for all Entities of desired type. Does not handle component contents.
     /// </summary>
     /// <typeparam name="T">
-    /// Type of entities queried. <see cref="SKEntity"/> will return all entities, as
+    /// Type of entities queried. <see cref="Entity"/> will return all entities, as
     /// all entities inherit that type.
     /// </typeparam>
     /// <returns>Readonly enumerable list of entities that inherit from type T</returns>
-    public IEnumerable<SKEntity> GetEntities<T>() where T : SKEntity => AllEntities.OfType<T>();
+    public IEnumerable<Entity> GetEntities<T>() where T : Entity => AllEntities.OfType<T>();
 
     /// <summary>
     /// TryGet wrapper for <see cref="GetEntity(string)"/>
     /// </summary>
-    public bool TryGetEntity(string handle, out SKEntity? entity)
+    public bool TryGetEntity(string handle, out Entity? entity)
     {
         entity = GetEntity(handle);
         return entity != null;
@@ -75,21 +72,21 @@ public partial class EntityManager
     #region Spawn Entity
 
     /// <summary>
-    /// Public generic of <see cref="Spawn(SKSSL.ECS.SKEntity)"/> that creates a new entity w. blank constructor.
+    /// Public generic of <see cref="Spawn(Entity)"/> that creates a new entity w. blank constructor.
     /// </summary>
-    /// <typeparam name="T">Entity of type SKEntity</typeparam>
+    /// <typeparam name="T">Entity of type Entity</typeparam>
     /// <returns>Entity instance, which is considered active.</returns>
-    public SKEntity Spawn<T>() where T : SKEntity, new() => Spawn(new T());
+    public Entity Spawn<T>() where T : Entity, new() => Spawn(new T());
 
     /// <summary>
     /// Creates a copy of an entity instance in its parameter.
     /// </summary>
-    /// <param name="input">Entity instance to be copied and finalized.</param>
+    /// <param name="type">Entity instance to be copied and finalized.</param>
     /// <returns>New Entity Instance.</returns>
-    public SKEntity Spawn(SKEntity input)
+    public Entity Spawn(Entity type)
     {
         // Create entity and hope and pray it's fine.
-        SKEntity entity = CreateEntity(input);
+        Entity entity = CreateEntity(type);
         Finalize(ref entity);
         return entity;
     }
@@ -99,17 +96,17 @@ public partial class EntityManager
     /// </summary>
     /// <param name="handle">Reference id to template stored in registry.</param>
     /// <returns>Spawned entity for later use.</returns>
-    public SKEntity Spawn(string handle)
+    public Entity Spawn(string handle)
     {
-        if (!EntityRegistry.TryGetDefinition(handle, out AEntityCommon? definition) || definition is null)
+        if (!EntityRegistry.TryGetDefinition(handle, out Prototype? definition) || definition is null)
             throw new Exception(
                 $"Failed to create entity copy using {handle} handle. Justify with Full Handle instead.");
         // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
 
         // Create entity regardless of how it's stored.
-        SKEntity entity = definition.GetType() == typeof(SKEntity)
-            ? CreateEntity((definition as SKEntity)!)
-            : CreateEntity((definition as EntityTemplate)!);
+        Entity entity = definition.GetType() == typeof(Entity)
+            ? CreateEntity((definition as Entity)!)
+            : CreateEntity(definition);
 
         // Assign world to entity. Will cause some funk if the world is null.
         Finalize(ref entity);
@@ -121,14 +118,14 @@ public partial class EntityManager
     #region CreateEntity
 
     /// <summary>
-    /// Create entity using existing raw <see cref="SKEntity"/> definition. Assumes definition is valid.
+    /// Create entity using existing raw <see cref="Entity"/> definition. Assumes definition is valid.
     /// </summary>
     /// <returns>New cloned entity.</returns>
-    private static SKEntity CreateEntity(SKEntity definition)
+    private static Entity CreateEntity(Entity definition)
     {
         // Create a copy of this entity.
-        if (definition.CloneEntityAs<SKEntity>() is not SKEntity entity)
-            throw new Exception("Attempted to create entity from definition, but the definition was not an SKEntity!");
+        if (definition.CloneEntityAs<Entity>() is not Entity entity)
+            throw new Exception("Attempted to create entity from definition, but the definition was not an Entity!");
         return entity;
     }
 
@@ -136,22 +133,11 @@ public partial class EntityManager
     /// Creates a new entity and returns its handle.
     /// Optionally fills metadata from a template or explicit values.
     /// </summary>
-    private SKEntity CreateEntity(EntityTemplate template)
+    private static Entity CreateEntity(Prototype prototype)
     {
         // Use the template's desired entity type
         //  This is essentially a dynamic constructor to account for varying component definitions and templates.
-        const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
-        SKEntity entity = (SKEntity)Activator.CreateInstance(
-                              template.EntityType,
-                              bindingFlags,
-                              null,
-                              // Parameters for precise constructor.
-                              [
-                                  _nextId + 1, // Preemptively creating next ID without iterating yet. Still valid here!
-                                  template
-                              ], null)!
-                          ?? throw new InvalidOperationException(
-                              $"Failed to create entity \"{template.Handle}\" in {nameof(CreateEntity)}");
+        Entity entity = new Entity(prototype); // WIP: Organize this. Used to be done from templates.
         return entity;
     }
 
@@ -162,11 +148,11 @@ public partial class EntityManager
     /// <summary>
     /// Final steps to conduct against an entity before spawning / creating.
     /// </summary>
-    private void Finalize(ref SKEntity entity)
+    private void Finalize(ref Entity entity)
     {
         // Last-preemptive registration if this entity's full handle is not present in the registry.
         if (!EntityRegistry.ContainsDefinition(entity.Handle))
-            if (!EntityRegistry.ContainsDefinition(entity.GetFullHandle()))
+            if (!EntityRegistry.ContainsDefinition(entity.GetUniqueInternalRef()))
                 EntityRegistry.RegisterDefinition(entity);
 
         // Assign world.
@@ -197,4 +183,28 @@ public partial class EntityManager
     }
 
     #endregion
+
+    /// <summary>
+    /// Dynamic constructor factory — works with any depth of inheritance
+    /// </summary>
+    /// <param name="yaml"></param>
+    /// <param name="components"></param>
+    /// <returns></returns>
+    public static Entity CreateFromYaml(Prototype yaml, Dictionary<Type, object> components)
+    {
+        if (Activator.CreateInstance(
+                typeof(Entity),
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null,
+                [yaml, components],
+                null) is not Entity template)
+        {
+            throw new MissingMethodException(
+                $"No suitable constructor found on {nameof(Entity)} " +
+                $"for YAML type {yaml.GetType().Name}. " +
+                "Ensure there is a protected/internal constructor accepting a compatible YAML type.");
+        }
+
+        return template;
+    }
 }

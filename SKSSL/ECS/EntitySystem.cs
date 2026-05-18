@@ -68,5 +68,5 @@ public abstract class EntitySystem
 
     protected void SubscribeLocalEvent<E>(Action<int, E> handler) where E : EntityEvent => Events.Subscribe(handler);
     protected void RaiseLocalEvent<E>(int uid, E @event) where E : EntityEvent => Events.Raise(uid, @event);
-    protected void RaiseLocalEvent<E>(SKEntity ent, E @event) where E : EntityEvent => Events.Raise(ent.Id, @event);
+    protected void RaiseLocalEvent<E>(Entity ent, E @event) where E : EntityEvent => Events.Raise(ent.Id, @event);
 }

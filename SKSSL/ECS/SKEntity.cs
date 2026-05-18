@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Scenes;
 using SKSSL.YAML;
 using VYaml.Annotations;
+
 // ReSharper disable VirtualMemberNeverOverridden.Global
 // ReSharper disable UnusedMember.Global
 // ReSharper disable RedundantBaseConstructorCall
@@ -16,22 +17,26 @@ namespace SKSSL.ECS;
 /// Instanced Entity representing an object present within game memory. Entities are contained within a
 /// <see cref="World"/>, and contain <see cref="ComponentIndices"/> for pointing to component arrays.
 /// </summary>
+/// <inheritdoc cref="Prototype"/>
+/// <code>
+/// In Addition To:
+///   components: (Component Yaml Entries)
+///     - type: (string)
+///       field_1: (varies)
+///       field_2: (varies)
+///       field_3: (varies)
+/// # (Note: Component fields vary between component type.)
+/// </code>
 [YamlObject]
-public partial record SKEntity : AEntityCommon
+public partial record Entity : Prototype
 {
     /// <summary>
     /// Can be overwritten to allow for safe type-casting.
     /// </summary>
     [YamlIgnore, JsonIgnore]
-    public virtual Type EntityType => typeof(SKEntity);
+    public Type EntityType => typeof(Entity);
 
     #region Fields
-
-    /// <summary>
-    /// Static Reference ID of this particular entry to a template reference.
-    /// </summary>
-    [YamlMember(name: "id"), JsonInclude]
-    public sealed override string Handle { get; init; } = null!;
 
     /// <summary>
     /// Unique runtime ID (only set on spawned instances, -1 on templates)
@@ -41,23 +46,11 @@ public partial record SKEntity : AEntityCommon
 
     /// Manually assign runtime ID for if entity is created manually.
     /// Should NOT be called outside of <see cref="EntityManager"/>.
-    protected internal void SetRuntimeId(int id) => RuntimeId = id;
+    internal void SetRuntimeId(int id) => RuntimeId = id;
 
     /// Defers back to the <see cref="RuntimeId"/> for compatability reasons between projects.
     [MemoryPackIgnore, YamlIgnore, JsonIgnore]
     public int Id => RuntimeId;
-
-    /// <inheritdoc/>
-    [YamlMember(name: "name"), JsonInclude, JsonPropertyName("Name")]
-    public sealed override string NameKey { get; set; } = null!;
-
-    /// <inheritdoc/>
-    [YamlMember(name: "description"), JsonInclude, JsonPropertyName("Description")]
-    public sealed override string DescriptionKey { get; set; } = null!;
-
-    /// <inheritdoc/>
-    /// Virtual for allow overrides, permitting manually-defined type-specific default components.
-    public override IReadOnlyDictionary<Type, object> DefaultComponents { get; init; } = new Dictionary<Type, object>();
 
     /// <summary>
     /// Array of component indices.<br/>
@@ -76,61 +69,40 @@ public partial record SKEntity : AEntityCommon
     [MemoryPackIgnore, YamlIgnore, JsonIgnore]
     public IWorld? World { get; set; }
 
+
+    /// Predefined class-specific dictionary of components.
+    public IReadOnlyDictionary<Type, object> DefaultComponents { get; init; }
+
     #endregion
 
-    #region Constructors (Active Entities)
+    #region Constructors
 
     /// <summary>
     /// Entities may use inherited template types to fill certain details in
     /// their constructors but always MUST call this base constructor. 
     /// </summary>
-    /// <param name="id">Unique numerical of the entity.</param>
-    /// <param name="count">Number of component indices in the game.</param>
-    /// <param name="template">Provided template. Uses base <see cref="EntityTemplate"/> by default.</param>
-    protected SKEntity(int id, EntityTemplate template)
-        : this(
-            handle: template.Handle,
-            name: template.NameKey,
-            description:
-            template.DescriptionKey,
-            id)
+    public Entity(Prototype prototype) : this()
     {
+        Handle = prototype.Handle;
+        NameKey = prototype.NameKey;
+        DescriptionKey = prototype.DescriptionKey;
     }
-
-    /// <summary>
-    /// Manual constructor to create active entity.
-    /// </summary>
-    /// <param name="count"></param>
-    /// <param name="handle"></param>
-    /// <param name="name"></param>
-    /// <param name="description"></param>
-    /// <param name="id"></param>
-    protected SKEntity(string handle, string name, string description, int? id) : base()
-    {
-        Handle = handle;
-        NameKey = name;
-        DescriptionKey = description;
-
-        // For raw definitions, which do not have runtime IDs.
-        if (id.HasValue)
-            RuntimeId = id.Value;
-
-        ComponentIndices = new int[ComponentRegistry.Count];
-        Array.Fill(ComponentIndices, -1); // <- All slots start as "missing"
-    }
-
-    #endregion
-
-    #region Constructors (Raw Definition / Pseudo-Template)
 
     /// Construct raw definition using YAML and Default Components.
-    protected internal SKEntity(EntityYaml yaml, IReadOnlyDictionary<Type, object> components) : base(yaml, components)
+    internal Entity(Prototype yaml, IReadOnlyDictionary<Type, object> components) : this(yaml)
     {
+        DefaultComponents = components;
+    }
+
+    internal Entity(int id) : this()
+    {
+        // For raw definitions, which do not have runtime IDs.
+        if (id != -1) RuntimeId = id;
     }
 
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
     [MemoryPackConstructor, JsonConstructor, YamlConstructor]
-    protected internal SKEntity() : base()
+    internal Entity() : base()
     {
         ComponentIndices = new int[ComponentRegistry.Count];
         Array.Fill(ComponentIndices, -1); // <- All slots start as "missing"
@@ -147,17 +119,17 @@ public partial record SKEntity : AEntityCommon
     /// Systems will automatically act upon an entity's components, this method is a formality for special
     /// alternative behaviour on-creation.
     /// </remarks>
-    public virtual void Initialize()
+    public void Initialize()
     {
     }
 
     /// Special draw instructions per-entity, should a Rendering component not be enough.
-    public virtual void Draw(SpriteBatch spriteBatch)
+    public void Draw(SpriteBatch spriteBatch)
     {
     }
 
     /// Special entity behaviour / status update call, should behavioural components not be enough.
-    public virtual void Update(GameTime gameTime)
+    public void Update(GameTime gameTime)
     {
     }
 }

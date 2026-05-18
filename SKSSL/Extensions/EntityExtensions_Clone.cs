@@ -5,7 +5,7 @@ using SKSSL.ECS;
 namespace SKSSL.Extensions;
 
 /// <summary>
-/// Extends the functionality of records and <see cref="SKEntity"/> objects with Cloning methods.
+/// Extends the functionality of records and <see cref="Entity"/> objects with Cloning methods.
 /// </summary>
 public static partial class EntityExtensions
 {
@@ -36,12 +36,12 @@ public static partial class EntityExtensions
     /// </summary>
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
-    public static SKEntity CloneEntity(SKEntity original)
+    public static Entity CloneEntity(Entity original)
     {
         Type type = original.GetType();
 
-        if (Activator.CreateInstance(type) is not SKEntity clone)
-            throw new InvalidCastException($"Type-cast failed to create SKEntity in {nameof(CloneEntity)}");
+        if (Activator.CreateInstance(type) is not Entity clone)
+            throw new InvalidCastException($"Type-cast failed to create Entity in {nameof(CloneEntity)}");
         
         foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             if (prop.CanRead && prop.CanWrite)
@@ -57,5 +57,5 @@ public static partial class EntityExtensions
     /// <typeparam name="T">Public record type this object is cast to.</typeparam>
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
-    public static object? CloneEntityAs<T>(this SKEntity original) where T : SKEntity => CloneEntity(original) as T;
+    public static object? CloneEntityAs<T>(this Entity original) where T : Entity => CloneEntity(original) as T;
 }

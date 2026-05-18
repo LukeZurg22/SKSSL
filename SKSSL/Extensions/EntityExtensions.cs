@@ -8,7 +8,7 @@ public static partial class EntityExtensions
     private static ComponentRegistry ComponentRegistry => SSLGame.ECS().Components;
 
     /// Retrieves all entities from active EntityContext.
-    private static IReadOnlyList<SKEntity> Entities => SSLGame.ECS().EntityManager.AllEntities;
+    private static IReadOnlyList<Entity> Entities => SSLGame.ECS().EntityManager.AllEntities;
 }
 /*
     You there, yes, you! Welcome!

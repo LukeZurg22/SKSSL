@@ -165,7 +165,7 @@ public class ComponentRegistry
     /// <summary>
     /// Used for extensions that attempt to retrieve a defined component from an entity.
     /// </summary>
-    private static bool TryGetComponentIndex(SKEntity entity, Type componentType, out int index)
+    private static bool TryGetComponentIndex(Entity entity, Type componentType, out int index)
     {
         if (!_typeToId.TryGetValue(componentType, out var typeId))
         {
@@ -207,7 +207,7 @@ public class ComponentRegistry
     }
 
     /// <param name="array"><see cref="IterArray{T}"/> of Active components.</param>
-    /// <param name="index">Index of component provided by an <see cref="SKEntity"/> up the chain.</param>
+    /// <param name="index">Index of component provided by an <see cref="Entity"/> up the chain.</param>
     /// <returns>
     /// Gets a component using a <see cref="IterArray{T}"/> and provided index of the component's position
     /// within the array.
@@ -269,7 +269,7 @@ public class ComponentRegistry
     /// <param name="componentType">The runtime type of the component (must implement ISKComponent).</param>
     /// <returns>The component instance (boxed as ISKComponent), or null if not found (or throws based on preference).</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component or type is invalid.</exception>
-    public ISKComponent? GetComponent(SKEntity entity, Type componentType)
+    public ISKComponent? GetComponent(Entity entity, Type componentType)
     {
         if (!typeof(ISKComponent).IsAssignableFrom(componentType))
             throw new ArgumentException($"Type {componentType.Name} must implement ISKComponent.",
@@ -291,7 +291,7 @@ public class ComponentRegistry
     /// <typeparam name="T">The component type (must implement ISKComponent).</typeparam>
     /// <returns>A reference to the component if found; otherwise throws.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component.</exception>
-    public ref T GetComponent<T>(SKEntity entity) where T : ISKComponent
+    public ref T GetComponent<T>(Entity entity) where T : ISKComponent
     {
         if (!TryGetComponentIndex(entity, typeof(T), out var index))
             throw new InvalidOperationException($"Failed to find expected component type in Entity #{entity.Id}");
@@ -312,7 +312,7 @@ public class ComponentRegistry
     /// <returns>The newly added component instance (boxed as object).</returns>
     /// <exception cref="ArgumentException">If the type doesn't implement ISKComponent.</exception>
     /// <exception cref="InvalidOperationException">If reflection fails or array is missing.</exception>
-    public ISKComponent AddComponent(SKEntity entity, ISKComponent component)
+    public ISKComponent AddComponent(Entity entity, ISKComponent component)
     {
         if (component is null)
             throw new ArgumentException(
@@ -342,14 +342,14 @@ public class ComponentRegistry
 
     #region TryAddComponent
 
-    public bool TryAddComponent<T>(SKEntity entity, out T? component) where T : ISKComponent, new()
+    public bool TryAddComponent<T>(Entity entity, out T? component) where T : ISKComponent, new()
     {
         bool output = TryAddComponent(entity, typeof(T), out var compObject);
         component = compObject as T;
         return output;
     }
 
-    public bool TryAddComponent(SKEntity entity, Type componentType, out object? component)
+    public bool TryAddComponent(Entity entity, Type componentType, out object? component)
     {
         try
         {
@@ -376,7 +376,7 @@ public class ComponentRegistry
     /// <param name="component">Component output for use.</param>
     /// <typeparam name="T">Expected Component Type within entity.</typeparam>
     /// <returns>False if a component wasn't found.</returns>
-    public bool TryGetComponent<T>(SKEntity entity, out T? component) where T : ISKComponent
+    public bool TryGetComponent<T>(Entity entity, out T? component) where T : ISKComponent
     {
         component = null;
         int typeId = GetComponentTypeId<T>();
@@ -393,7 +393,7 @@ public class ComponentRegistry
     /// Attempts to retrieve a component using explicit type, outputting null interface of <see cref="ISKComponent"/>
     /// if not found.
     /// </summary>
-    public bool TryGetComponent(SKEntity entity, Type componentType, out ISKComponent? component)
+    public bool TryGetComponent(Entity entity, Type componentType, out ISKComponent? component)
     {
         component = null;
 
@@ -427,7 +427,7 @@ public class ComponentRegistry
     /// This is intended for debugging, serialization, inspection, or rare runtime needs.
     /// For performance, use <see cref="GetComponent{T}"/> instead.
     /// </remarks>
-    public ref List<object> GetAllComponents(SKEntity entity)
+    public ref List<object> GetAllComponents(Entity entity)
     {
         // Return a ref to a static thread-local list to avoid allocations in hot paths
         // Still safe since it's ref-local-scoped.
@@ -465,6 +465,6 @@ public class ComponentRegistry
 
     #endregion
 
-    public static bool HasComponent(SKEntity entity, Type componentType)
+    public static bool HasComponent(Entity entity, Type componentType)
         => entity.ComponentIndices[RegisteredTypesDictionary.GetValueOrDefault(componentType, -1)] != -1;
 }

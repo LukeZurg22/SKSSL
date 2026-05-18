@@ -59,7 +59,7 @@ Once you've acquired your Yaml data one way or another, you'll need to use the `
 
 Start with `RegisterTemplate()` calls to the EntityRegistry. Register all your entities you want to define in Yaml. Just remember that special objects— such as Voxels... :) —are *not* cooperative nor performant with this system. This works best for things such as Mob entities and Items.
 
-Once a template is registered, you can now use the `EntityManager` to instantiate an entity using the template. Naturally, you may want to define your own entity types, which should be inherited from `SKEntity`. Custom Entities can also have custom `EntityTemplate` types provided through their constructors, which allows special handling of data per-template!
+Once a template is registered, you can now use the `EntityManager` to instantiate an entity using the template. Naturally, you may want to define your own entity types, which should be inherited from `Entity`. Custom Entities can also have custom `EntityTemplate` types provided through their constructors, which allows special handling of data per-template!
 
 To instantiate an entity, utilize the `EntityManager`'s `Spawn()` method. Provide a `reference ID` and optionally the world that which contains the `Entity`.
 

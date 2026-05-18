@@ -11,26 +11,23 @@ namespace SKSSL.ECS;
 /// </summary>
 public abstract class EntityRegistry
 {
-    internal static readonly Dictionary<string, AEntityCommon> Definitions = new();
+    internal static readonly Dictionary<string, Prototype> Definitions = new();
 
     /// <inheritdoc cref="RegisterEntity{T, EntityYaml}"/>
-    public static void RegisterEntity<T>(EntityYaml yaml) where T : AEntityCommon =>
-        RegisterEntity<T, EntityYaml>(yaml);
+    public static void RegisterEntity<T>(Prototype yaml) where T : Entity => RegisterEntity<T, Prototype>(yaml);
 
     /// <summary>
-    /// Handles registration of entity ambiguously between SKEntity and EntityTemplate derivations.
+    /// Handles registration of entity ambiguously between Entity and EntityTemplate derivations.
     /// </summary>
     /// <remarks>
-    /// Provided that the Derived Type T is an EntityTemplate or SKEntity, will either call a direct  
+    /// Provided that the Derived Type T is an EntityTemplate or Entity, will either call a direct  
     /// Calls <see cref="RegisterEntity{TYaml}(TYaml,System.Type,bool)"/>.
     /// When registering specialized templates, use <see cref="RegisterEntity{TYaml}(TYaml,System.Type,bool)"/> instead.
     /// </remarks>
     /// <param name="yaml">The yaml file of the template.</param>
     /// <typeparam name="T">Derived Type of entity intermediate type registered. Forces inheritance.</typeparam>
     /// <typeparam name="Y"></typeparam>
-    public static void RegisterEntity<T, Y>(Y yaml)
-        where T : AEntityCommon
-        where Y : EntityYaml
+    public static void RegisterEntity<T, Y>(Y yaml) where T : Entity where Y : Prototype
     {
         if (!SSLGame.UseECS)
         {
@@ -42,12 +39,12 @@ public abstract class EntityRegistry
         Type derivedType = typeof(T);
 
         // Register raw entity
-        if (typeof(SKEntity).IsAssignableFrom(derivedType))
+        if (typeof(Entity).IsAssignableFrom(derivedType))
         {
             RegisterEntity(yaml, derivedType, true);
         }
         // Attempt register of template
-        else if (typeof(EntityTemplate).IsAssignableFrom(derivedType))
+        else if (typeof(Prototype).IsAssignableFrom(derivedType))
         {
             RegisterEntity(yaml, derivedType, false);
         }
@@ -66,7 +63,7 @@ public abstract class EntityRegistry
     /// <param name="isRawEntity">Assumed false by default. Toggles alternative handling for raw entity definitions.</param>
     /// <typeparam name="TYaml">Yaml Class</typeparam>
     /// <exception cref="YamlEmitterException">Thrown when ReferenceId / Handle not provided in YAML.</exception>
-    public static void RegisterEntity<TYaml>(TYaml yaml, Type derivedType, bool isRawEntity) where TYaml : EntityYaml
+    public static void RegisterEntity<TYaml>(TYaml yaml, Type derivedType, bool isRawEntity) where TYaml : Prototype
     {
         if (!SSLGame.UseECS)
         {
@@ -78,7 +75,7 @@ public abstract class EntityRegistry
         // Build components. All entity registration carries forth the task of parsing component data from a yaml file.
         var components = BuildComponentsFromEntityYaml(yaml);
 
-        AEntityCommon output;
+        Prototype output;
         // Raw entities are instantiated and casted.
         if (isRawEntity)
         {
@@ -87,7 +84,7 @@ public abstract class EntityRegistry
 
             // Cast to the derived type
             var entityObject = Convert.ChangeType(instance, derivedType);
-            if (entityObject is not SKEntity entity)
+            if (entityObject is not Entity entity)
                 throw new YamlEmitterException("Entity created was not of expected type!");
 
             // Tag 'em.
@@ -109,7 +106,7 @@ public abstract class EntityRegistry
             // Call constructor
             var templateObj = ctor.Invoke([yaml, components]);
 
-            if (templateObj is not EntityTemplate template)
+            if (templateObj is not Prototype template)
                 throw new YamlEmitterException("Created template is not an EntityTemplate!");
 
             if (string.IsNullOrEmpty(template.Handle))
@@ -124,10 +121,10 @@ public abstract class EntityRegistry
     }
 
     /// <summary>
-    /// Helper for extracting components from a yaml file. Should work with any kind that inherits <see cref="EntityYaml"/>.
+    /// Helper for extracting components from a yaml file. Should work with any kind that inherits <see cref="EntityYamlPrototype"/>.
     /// Does NOT support other yaml types that implement this. This is for the ECS ONLY
     /// </summary>
-    private static Dictionary<Type, object> BuildComponentsFromEntityYaml(EntityYaml yaml)
+    private static Dictionary<Type, object> BuildComponentsFromEntityYaml(Prototype yaml)
     {
         var components = new Dictionary<Type, object>();
 
@@ -178,19 +175,19 @@ public abstract class EntityRegistry
     }
 
     /// <summary>
-    /// Register an entity Definition raw or template according to <see cref="AEntityCommon"/>.
+    /// Register an entity Definition raw or template according to <see cref="Prototype"/>.
     /// </summary>
     /// <remarks>
     /// Automatically registers definitions as a "source:handle" arrangement.
     /// </remarks>
-    internal static void RegisterDefinition(AEntityCommon definition)
-        => Definitions[definition.GetFullHandle()] = definition;
+    internal static void RegisterDefinition(Prototype definition)
+        => Definitions[definition.GetUniqueInternalRef()] = definition;
 
     /// <summary>
     /// Safe[r] TryGet method to retrieve an Entity Definition *OR* Template using a reference id.
     /// </summary>
     /// <returns>True if a template was found. False if one was not. The output is also Null if one was not found.</returns>
-    public static bool TryGetDefinition<T>(string handle, out T? definition) where T : AEntityCommon
+    public static bool TryGetDefinition<T>(string handle, out T? definition) where T : Prototype
     {
         var gotValue = ContainsDefinition(handle);
         if (EntityManager.Definitions[handle] is T found)

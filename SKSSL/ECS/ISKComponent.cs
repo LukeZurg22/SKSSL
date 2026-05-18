@@ -13,5 +13,5 @@ public abstract record ISKComponent
     /// <summary>
     /// ID reference back to parent entity this control belongs to.
     /// </summary>
-    public SKEntity Entity;
+    public Entity Entity;
 }

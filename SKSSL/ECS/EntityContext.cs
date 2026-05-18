@@ -58,13 +58,13 @@ public readonly struct EntityContext
     #region Proxy-Methods
 
     /// <inheritdoc cref="SKSSL.ECS.EntityManager.AllEntities"/>
-    public List<SKEntity> ActiveEntities => EntityManager.AllEntities.ToList();
+    public List<Entity> ActiveEntities => EntityManager.AllEntities.ToList();
 
     /// <seealso cref="EntityManager"/>
     /// <seealso cref="EntityManager.Spawn"/>
-    public SKEntity? SpawnEntity(string handle)
+    public Entity? SpawnEntity(string handle)
     {
-        SKEntity? spawnedEntity = null;
+        Entity? spawnedEntity = null;
         try
         {
             spawnedEntity = EntityManager.Spawn(handle);
