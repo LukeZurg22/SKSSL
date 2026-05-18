@@ -5,22 +5,18 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <!--Enable Compiler-Generated Code-->
+  <!--START - Enable Compiler-Generated Code-->
+  <ItemGroup>
+    <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"/>
+    <ProjectReference Include="..\SKSSL\SKSSL.csproj" />
+  </ItemGroup>
   <PropertyGroup>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
-
-  <!--Cleanup Compiler-Generated Code-->
-  <Target Name="CleanSKSSLGeneratedFiles" BeforeTargets="BeforeBuild;BeforeRebuild">
-    <Delete Files="@(CompilerGeneratedFilesToDelete)" />
-
-    <ItemGroup>
-      <CompilerGeneratedFilesToDelete Include="$(CompilerGeneratedFilesOutputPath)\SKSSL\*.g.cs" />
-    </ItemGroup>
-
-    <Delete Files="@(CompilerGeneratedFilesToDelete)" />
-  </Target>
+  <!--END - Enable Compiler-Generated Code-->
   
   <ItemGroup>
     <PackageReference Include="Fluent.Net" Version="1.0.63" />
@@ -30,17 +26,15 @@
     <PackageReference Include="MSTest.TestFramework" Version="4.1.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false"/>
-    <ProjectReference Include="..\SKSSL\SKSSL.csproj" />
-  </ItemGroup>
-
+ 
   <ItemGroup>
     <Content Include="Localization\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Parsing\YAML\" />
   </ItemGroup>
   
 </Project>
