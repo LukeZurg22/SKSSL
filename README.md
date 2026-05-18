@@ -38,4 +38,4 @@ Below is a non-exhaustive list of references the project uses, coupled with the 
 - "RandN" (Random Number Generation) [MIT]
 - "[VYaml](https://github.com/hadashiA/VYaml)" (Extensive Yaml Parsing) [MIT]
 - "Sin3D" (3D-centric Classes) [MIT]
-- Fluent.NET (Localization) [Apache-2.0]
+- "[Fluent.NET](https://projectfluent.org/fluent/guide/)" (Localization) [Apache-2.0]
