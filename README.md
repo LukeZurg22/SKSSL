@@ -12,10 +12,10 @@ This is a shared library turned game engine. "SKSSL" stands for "SolKom Shared S
 The goal is to establish a library built on top of Monogame and Gum that acts as a general framework for my other projects. As I progress my skills as a game developer, I am sharing my active understanding of code as the library progresses.
 
 ## Limitations
-Given that this is a library, it has limitations from C# version 9+ and its other depedencies. The classes are meant to be as ubiquitous as can be, but very-distant dependency versions past the ones this was developed with may cause issues. Otherwise, the limitations are systematic to the library and anything self-referential within it. (E.g. ECS & BaseWorld, SceneManager & BaseWorld, etc.)
+Given that this is a library, it has limitations from C# version 9+ and its other dependencies. The classes are meant to be as ubiquitous as can be, but very-distant dependency versions past the ones this was developed with may cause issues. Otherwise, the limitations are systematic to the library and anything self-referential within it. (E.g. ECS & BaseWorld, SceneManager & BaseWorld, etc.)
 
 ## Maintainer's Remarks
-This is all a massive work-in-progress, but don't wait for releases! When I find a system in this library satisfactory enough for my other projects I will stop adding to that system. Pull Requests to contribute to the system in places that are no longer actively maintained are welcomed.
+This is all a work-in-progress, but don't wait for releases! When I find a system in this library satisfactory enough for my other projects, I stop adding to that system. Contributions to systems no longer actively maintained are welcome.
 
 ---
 
@@ -38,3 +38,4 @@ Below is a non-exhaustive list of references the project uses, coupled with the 
 - "RandN" (Random Number Generation) [MIT]
 - "[VYaml](https://github.com/hadashiA/VYaml)" (Extensive Yaml Parsing) [MIT]
 - "Sin3D" (3D-centric Classes) [MIT]
+- Fluent.NET (Localization) [Apache-2.0]
