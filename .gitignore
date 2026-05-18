@@ -21,6 +21,9 @@ Generated/
 **/Generated/
 **/*.g.cs
 
+# Test Project
+*.Tests/
+
 # Rider
 .idea/
 *.sln.iml
