@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using SKSSL.Scenes;
 using static SKSSL.DustLogger;
+
 // ReSharper disable ConvertIfStatementToSwitchStatement
 // ReSharper disable SuspiciousTypeConversion.Global
 // ReSharper disable PossibleMultipleEnumeration
@@ -17,12 +18,12 @@ public class SystemManager
     // TODO: Peel away statics and return to per-world systems.
     //  Finding a way to physically cull certain systems from worlds might be worth a try.
     //  Probably not, though.
-    
+
     private static readonly List<int> _updateSystemIndices = [];
     private static readonly List<int> _drawSystemIndices = [];
 
     private static readonly List<EntitySystem> _allSystems = [];
-        
+
     public static IReadOnlyList<EntitySystem> AllSystems => _allSystems.AsReadOnly();
 
     /// Called by source generator.
@@ -30,7 +31,7 @@ public class SystemManager
     {
         var system = new T();
         _allSystems.Add(system);
-        
+
         // Add system to Update and/or Draw flow.
         if (system is IUpdateSystem)
             _updateSystemIndices.Add(_updateSystemIndices.Count);
@@ -47,7 +48,7 @@ public class SystemManager
         foreach (EntitySystem system in _allSystems)
             action(system);
     }
-    
+
     /// <summary>
     /// Initializes all systems. Assumes they have been registered beforehand
     /// </summary>
@@ -55,34 +56,31 @@ public class SystemManager
     /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
     public static void Initialize()
     {
-        // Get all loaded assemblies.
-        Log("...reading registered systems...");
-        var systems = AllSystems;
-
         // Read all registered types.
-        Log($"...initializing {systems.Count} systems...");
-        foreach (EntitySystem system in systems)
+        Log($"...initializing {AllSystems.Count} systems...");
+        foreach (EntitySystem system in AllSystems)
             system.Initialize();
 
-        Log($"Completed Systems Init.");
+        Log("Completed Systems Init.");
     }
 
     /// <summary>
     /// Loops through system update indices and Updates corresponding systems in the systems list.
     /// </summary>
     /// <param name="gameTime">By-reference gameTime object for system update.</param>
-    public void Update(GameTime gameTime)
+    public static void Update(GameTime gameTime)
     {
-        // WARN: May cause issues as instanced method.
-        foreach (int index in _updateSystemIndices) (AllSystems[index] as IUpdateSystem)?.Update(gameTime);
+        foreach (int index in _updateSystemIndices)
+            (AllSystems[index] as IUpdateSystem)?.Update(gameTime);
     }
 
     /// <summary>
     /// Loops through system Draw indices and Draws corresponding systems in the systems list.
     /// </summary>
     /// <param name="gameTime">By-reference gameTime object for system Draw.</param>
-    public void Draw(GameTime gameTime)
+    public static void Draw(GameTime gameTime)
     {
-        foreach (var index in _drawSystemIndices) (AllSystems[index] as IDrawSystem)?.Draw(gameTime);
+        foreach (var index in _drawSystemIndices)
+            (AllSystems[index] as IDrawSystem)?.Draw(gameTime);
     }
 }
