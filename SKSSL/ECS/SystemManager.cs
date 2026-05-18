@@ -1,10 +1,8 @@
-using System.Reflection;
 using Microsoft.Xna.Framework;
 using SKSSL.Scenes;
 using static SKSSL.DustLogger;
-
+// ReSharper disable ConvertIfStatementToSwitchStatement
 // ReSharper disable SuspiciousTypeConversion.Global
-
 // ReSharper disable PossibleMultipleEnumeration
 
 // ReSharper disable RedundantAttributeUsageProperty
@@ -16,48 +14,57 @@ namespace SKSSL.ECS;
 /// </summary>
 public class SystemManager
 {
-    private readonly List<EntitySystem> _systems = [];
-    private readonly List<int> _updateSystemIndices = [];
-    private readonly List<int> _drawSystemIndices = [];
+    // TODO: Peel away statics and return to per-world systems.
+    //  Finding a way to physically cull certain systems from worlds might be worth a try.
+    //  Probably not, though.
+    
+    private static readonly List<int> _updateSystemIndices = [];
+    private static readonly List<int> _drawSystemIndices = [];
 
+    private static readonly List<EntitySystem> _allSystems = [];
+        
+    public static IReadOnlyList<EntitySystem> AllSystems => _allSystems.AsReadOnly();
+
+    /// Called by source generator.
+    public static void Register<T>() where T : EntitySystem, new()
+    {
+        var system = new T();
+        _allSystems.Add(system);
+        
+        // Add system to Update and/or Draw flow.
+        if (system is IUpdateSystem)
+            _updateSystemIndices.Add(_updateSystemIndices.Count);
+        if (system is IDrawSystem)
+            _drawSystemIndices.Add(_drawSystemIndices.Count);
+    }
+
+    public static void Register(EntitySystem system) => _allSystems.Add(system);
+
+    public static void Clear() => _allSystems.Clear();
+
+    public static void ForEach(Action<EntitySystem> action)
+    {
+        foreach (EntitySystem system in _allSystems)
+            action(system);
+    }
+    
     /// <summary>
-    /// Registers all systems within a provided world.
+    /// Initializes all systems. Assumes they have been registered beforehand
     /// </summary>
     /// <exception cref="InvalidOperationException">A defined system type doesn't have a valid World constructor.</exception>
     /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
-    public void RegisterAll()
+    public static void Initialize()
     {
-        _systems.Clear();
         // Get all loaded assemblies.
-        Log("...reading system assemblies...");
-        var systems = SystemRegistry.AllSystems;
+        Log("...reading registered systems...");
+        var systems = AllSystems;
 
         // Read all registered types.
-        Log($"...loading systems from {systems.Count} types...");
+        Log($"...initializing {systems.Count} systems...");
         foreach (EntitySystem system in systems)
-        {
-            // Add system to System Manager.
-            Add(system);
-        }
+            system.Initialize();
 
-        Log($"Completed registration of {_systems.Count} Systems.");
-    }
-
-    /// For manual registration.
-    public void Add(EntitySystem system)
-    {
-        switch (system)
-        {
-            case IUpdateSystem:
-                _updateSystemIndices.Add(_updateSystemIndices.Count);
-                break;
-            case IDrawSystem:
-                _drawSystemIndices.Add(_updateSystemIndices.Count);
-                break;
-        }
-
-        _systems.Add(system);
-        system.Initialize();
+        Log($"Completed Systems Init.");
     }
 
     /// <summary>
@@ -66,7 +73,8 @@ public class SystemManager
     /// <param name="gameTime">By-reference gameTime object for system update.</param>
     public void Update(GameTime gameTime)
     {
-        foreach (int index in _updateSystemIndices) (_systems[index] as IUpdateSystem)?.Update(gameTime);
+        // WARN: May cause issues as instanced method.
+        foreach (int index in _updateSystemIndices) (AllSystems[index] as IUpdateSystem)?.Update(gameTime);
     }
 
     /// <summary>
@@ -75,6 +83,6 @@ public class SystemManager
     /// <param name="gameTime">By-reference gameTime object for system Draw.</param>
     public void Draw(GameTime gameTime)
     {
-        foreach (var index in _drawSystemIndices) (_systems[index] as IDrawSystem)?.Draw(gameTime);
+        foreach (var index in _drawSystemIndices) (AllSystems[index] as IDrawSystem)?.Draw(gameTime);
     }
 }
