@@ -14,6 +14,9 @@
         <PackageTags>logging, ecs, yaml, parsing</PackageTags>
         <RepositoryUrl>https://github.com/LukeZurg22/SKSSL</RepositoryUrl>
         <IncludeBuildOutput>true</IncludeBuildOutput> <!--For generated classes.-->
+
+        <GenerateLibraryLayout>true</GenerateLibraryLayout>
+        <PublishWithAspNetCoreTargetManifest>false</PublishWithAspNetCoreTargetManifest>
     </PropertyGroup>
 
     <ItemGroup>
