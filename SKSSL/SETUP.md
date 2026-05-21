@@ -6,7 +6,11 @@
 - MonoGamePlatform = DesktopGL
 > For OpenGL/cross-platform
 
-# References
+> Property Group (For Source Generator to work)
+> - EmitCompilerGeneratedFiles = true
+> - CompilerGeneratedFilesOutputPath = Generated</CompilerGeneratedFilesOutputPath>
+
+# Item Group (References)
       "FlatRedBall.GumCommon"
       "Fluent.Net"
       "Gum.MonoGame"
@@ -26,3 +30,5 @@
 
 # SSLGame
 TODO: Note SSLGame implement.
+
+
