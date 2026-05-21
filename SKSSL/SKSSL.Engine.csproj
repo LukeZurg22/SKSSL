@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
         <RootNamespace>SKSSL</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <PackageId>SKSSL.Engine</PackageId>
+        <PackageId>SKSSL</PackageId>
         <Version>1.8.1</Version>
         <Authors>LukeZurg22</Authors>
         <Description>Shared general game engine built on Monogame and GumUI.</Description>
