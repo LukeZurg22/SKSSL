@@ -46,6 +46,13 @@
         <PackageReference Include="Microsoft.TestPlatform.TestHost" Version="17.14.1" PrivateAssets="all" />
     </ItemGroup>
 
+    <!--Exclude Testhost Stuff-->
+    <ItemGroup>
+        <Content Update="testhost.exe;testhost*.exe;testhost*.dll;testhost*.json"
+                 CopyToOutputDirectory="Never"
+                 CopyToPublishDirectory="Never" />
+    </ItemGroup>
+
     <PropertyGroup>
         <!--<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>-->
         <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
