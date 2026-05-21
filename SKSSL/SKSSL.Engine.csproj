@@ -17,22 +17,25 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="FlatRedBall.GumCommon" Version="2025.11.30.1" PrivateAssets="all" />
-      <PackageReference Include="Fluent.Net" Version="1.0.63" PrivateAssets="all"/>
-      <PackageReference Include="Gum.MonoGame" Version="2025.11.30.1" PrivateAssets="all"/>
       <PackageReference Include="ImGui.NET" Version="1.91.6.1" PrivateAssets="all"/>
       <PackageReference Include="ImGUI.NET.ToolBox" Version="0.1.1" PrivateAssets="all"/>
-      <PackageReference Include="MemoryPack" Version="1.21.4" PrivateAssets="all"/>
       <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0" PrivateAssets="all"/>
       <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all"/>
-      <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1" PrivateAssets="all"/>
-      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" PrivateAssets="all"/>
       <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.1" PrivateAssets="all"/>
       <PackageReference Include="Microsoft.Testing.Platform" Version="1.7.3" PrivateAssets="all"/>
       <PackageReference Include="Microsoft.TestPlatform.TestHost" Version="17.14.1" PrivateAssets="all"/>
-      <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" PrivateAssets="all"/>
-      <PackageReference Include="RandN" Version="0.5.0" PrivateAssets="all"/>
-      <PackageReference Include="VYaml" Version="1.2.0" PrivateAssets="all"/>
+    </ItemGroup>
+    
+    <ItemGroup>
+      <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1"/>
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1"/>
+      <PackageReference Include="RandN" Version="0.5.0"/>
+      <PackageReference Include="Fluent.Net" Version="1.0.63"/>
+      <PackageReference Include="MemoryPack" Version="1.21.4"/>
+      <PackageReference Include="VYaml" Version="1.2.0"/>
+      <PackageReference Include="FlatRedBall.GumCommon" Version="2025.11.30.1"/>
+      <PackageReference Include="Gum.MonoGame" Version="2025.11.30.1"/>
+      <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1"/>
     </ItemGroup>
 
     <PropertyGroup>

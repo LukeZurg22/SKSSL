@@ -2,6 +2,9 @@ Study this: https://github.com/alexmuab/unit-testing-csharp-example
 
 /usr/share/dotnet/sdk/10.0.300/NuGet.targets(521,5): error MSB3202: The project file "/home/runner/work/SKSSL/SKSSL/SKSSL.Tests/SKSSL.Tests.csproj" was not found. [/home/runner/work/SKSSL/SKSSL/SKSSL.sln]
 
+Add Wave Function Collapse: 
+https://github.com/mxgmn/WaveFunctionCollapse
+
 
 MSBUILD : warning MSB5029: The value "\**\*.cs" of the "Exclude" attribute in element <ItemGroup> in file "/usr/share/dotnet/sdk/10.0.300/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.DefaultItems.props (36,62)" is a wildcard that results in enumerating all files on the drive, which was likely not intended. Check that referenced properties are always defined and that the project and current working directory are not at the drive root.
 /usr/share/dotnet/sdk/10.0.300/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.DefaultItems.props(36,62): error 
