@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using SKSSL.ECS;
 // ReSharper disable UnusedMember.Global
@@ -40,6 +41,8 @@ public static partial class EntityExtensions
     {
         Type type = original.GetType();
 
+        // TODO: Replace this with something more effective?
+        
         if (Activator.CreateInstance(type) is not Entity clone)
             throw new InvalidCastException($"Type-cast failed to create Entity in {nameof(CloneEntity)}");
         

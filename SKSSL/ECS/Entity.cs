@@ -1,11 +1,15 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using MemoryPack;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SKSSL.Localization;
 using SKSSL.Scenes;
 using SKSSL.YAML;
 using VYaml.Annotations;
 
+// ReSharper disable VirtualMemberCallInConstructor
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable VirtualMemberNeverOverridden.Global
 // ReSharper disable UnusedMember.Global
@@ -38,19 +42,31 @@ public partial record Entity : Prototype
     public Type EntityType => typeof(Entity);
 
     /// <inheritdoc cref="Prototype.Type"/>
+    [YamlMember(name: "type")]
     public override string Type { get; set; } = "entity";
 
-    #region Fields
+    /*
+     * All Entities are expected to have name and description keys provided. This isn't as limiting as it seems.
+     * Inheriting directly from the root Prototype record allows one to create a new prototype definition which does
+     * not need to contain a name.
+     */
 
-    /// <summary>
-    /// Unique runtime ID (only set on spawned instances, -1 on templates)
-    /// </summary>
-    [YamlIgnore, JsonIgnore]
-    public int RuntimeId { get; private set; } = -1;
+    /// Non-localized name key.
+    [YamlMember(name: "name"), JsonInclude, JsonPropertyName("Name")]
+    public string NameKey { get; set; }
 
-    /// Defers back to the <see cref="RuntimeId"/> for compatability reasons between projects.
-    [MemoryPackIgnore, YamlIgnore, JsonIgnore]
-    public int Id => RuntimeId;
+    /// <returns>Localized name from Name Key.</returns>
+    public void GetName() => Loc.Get(NameKey);
+
+    /// Non-localized description key.
+    [YamlMember(name: "description"), JsonInclude, JsonPropertyName("Description")]
+    public string DescriptionKey { get; set; }
+
+    /// <returns>Localized Description from Description Key.</returns>
+    public void GetDescription() => Loc.Get(DescriptionKey);
+
+    /// Unique runtime ID. Created on instantiation.
+    [YamlIgnore, JsonIgnore] public readonly EntityUid Uid;
 
     /// <summary>
     /// Array of component indices.<br/>
@@ -73,12 +89,6 @@ public partial record Entity : Prototype
     [MemoryPackIgnore, YamlIgnore, JsonIgnore]
     public IReadOnlyDictionary<Type, object> DefaultComponents { get; init; }
 
-    #endregion
-
-    /// Manually assign runtime ID for if entity is created manually.
-    /// Should NOT be called outside of <see cref="EntityManager"/>.
-    internal void SetRuntimeId(int id) => RuntimeId = id;
-
     #region Constructors
 
     /// <summary>
@@ -87,9 +97,8 @@ public partial record Entity : Prototype
     /// </summary>
     public Entity(Prototype prototype) : this()
     {
+        Type = prototype.Type;
         Handle = prototype.Handle;
-        NameKey = prototype.NameKey;
-        DescriptionKey = prototype.DescriptionKey;
     }
 
     /// Construct raw definition using YAML and Default Components.
@@ -98,16 +107,13 @@ public partial record Entity : Prototype
         DefaultComponents = components;
     }
 
-    internal Entity(int id) : this()
-    {
-        // For raw definitions, which do not have runtime IDs.
-        if (id != -1) SetRuntimeId(id);
-    }
-
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
     [MemoryPackConstructor, JsonConstructor, YamlConstructor]
     internal Entity() : base()
     {
+        NameKey = "";
+        DescriptionKey = "";
+        Uid = new EntityUid(this);
         DefaultComponents = new Dictionary<Type, object>();
         ComponentIndices = new int[ComponentRegistry.Count];
         Array.Fill(ComponentIndices, -1); // <- All slots start as "missing"
@@ -137,4 +143,10 @@ public partial record Entity : Prototype
     public void Update(GameTime gameTime)
     {
     }
+
+    /// Implicit operator to convert an entity into its UID.
+    public static implicit operator EntityUid(Entity entity) => entity.Uid;
+
+    public virtual bool Equals(Entity? other) => other is not null && Uid == other.Uid;
+    public override int GetHashCode() => Uid.GetHashCode();
 }

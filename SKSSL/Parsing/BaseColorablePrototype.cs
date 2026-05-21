@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using RenderingLibrary.Graphics;
 using VYaml.Annotations;
@@ -21,7 +22,7 @@ namespace SKSSL.YAML;
 ///   color: "#RRGGBB"
 /// </code>
 /// </summary>
-[YamlObject]
+[YamlObject, Obsolete("Will be removed. Replace w. custom prototype definition!")]
 public partial record ColorablePrototype : Prototype
 {
     /// <summary>
@@ -33,7 +34,7 @@ public partial record ColorablePrototype : Prototype
     private Color? _color;
 
     [YamlIgnore]
-    public Color Color
+    public Color Color // TODO: Make this an optional thing.
     {
         get
         {

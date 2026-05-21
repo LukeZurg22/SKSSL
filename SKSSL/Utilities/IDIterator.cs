@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+
 namespace SKSSL.Utilities;
 
 /// <summary>
@@ -21,15 +24,17 @@ public class IDIterator(int InitialId = 0, int Maximum = -1)
     #endregion
 
     /// Initialized integer ID value with initial ID from constructor.
-    public int ID { get; private set; } = InitialId;
+    public int ID = InitialId;
 
     /// Increments internal ID value by one, up to a maximum, if there is any defined.
     public int Iterate()
     {
-        int nextId = ID++;
-        return Maximum != -1 && ID > Maximum
-            ? throw new IndexOutOfRangeException("Iterator exceeds maximum value on iterate call!")
-            : nextId;
+        return
+            // TODO: Check this.
+            Maximum != -1 && ID > Maximum
+                ? throw new IndexOutOfRangeException("Iterator exceeds maximum value on iterate call!")
+                : Interlocked.Increment(ref ID);
+        
     }
 
     /// <inheritdoc cref="System.Object.ToString"/>

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
@@ -48,7 +50,7 @@ public abstract class EntitySystem
     /// <summary>
     /// Quick route to World.QueryComponents Query.
     /// </summary>
-    public static IEnumerable<T> Query<T>() where T : ISKComponent => World.QueryComponents<T>();
+    public static IEnumerable<T> Query<T>() where T : Component => World.QueryComponents<T>();
 
     #endregion
 
@@ -66,7 +68,12 @@ public abstract class EntitySystem
     {
     }
 
-    protected void SubscribeLocalEvent<E>(Action<int, E> handler) where E : EntityEvent => Events.Subscribe(handler);
-    protected void RaiseLocalEvent<E>(int uid, E @event) where E : EntityEvent => Events.Raise(uid, @event);
-    protected void RaiseLocalEvent<E>(Entity ent, E @event) where E : EntityEvent => Events.Raise(ent.Id, @event);
+    protected static void SubscribeEvent<E>(Action<EntityUid, E> handler) where E : EntityEvent =>
+        Events.Subscribe(handler);
+
+    protected static void RaiseEvent<E>(EntityUid uid, E @event) where E : EntityEvent =>
+        Events.Raise(uid, @event);
+
+    protected static void RaiseEvent<E>(Entity ent, E @event) where E : EntityEvent =>
+        Events.Raise(ent.Uid, @event);
 }

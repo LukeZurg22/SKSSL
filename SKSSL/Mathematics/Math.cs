@@ -1,6 +1,7 @@
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
 
+using System;
 using Microsoft.Xna.Framework;
 
 namespace SKSSL.Mathematics;

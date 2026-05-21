@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using SKSSL.ECS;
-using SKSSL.Localization;
 using VYaml.Annotations;
+// ReSharper disable VirtualMemberCallInConstructor
 
+// ReSharper disable VirtualMemberNeverOverridden.Global
 // ReSharper disable UnusedType.Global
 // ReSharper disable PropertyCanBeMadeInitOnly.Global
 // ReSharper disable UnusedMember.Global
@@ -34,7 +36,7 @@ public partial record Prototype
 {
     /// Game content directory key to reverse-trace where this yaml prototype originated.
     [YamlIgnore]
-    public string Source { get; set; }
+    public virtual string Source { get; set; }
 
     /// Explicit type definition for this entry. For direct raw-serialization of entities.
     /// Completely unused if prioritizing yaml templates.
@@ -45,20 +47,6 @@ public partial record Prototype
     /// Searchable, indexable ID. Virtual for possible nullability change in child classes.
     [YamlMember(name: "id")]
     public string Handle { get; set; }
-
-    /// Non-localized name key.
-    [YamlMember(name: "name"), JsonInclude, JsonPropertyName("Name")]
-    public string NameKey { get; set; }
-
-    /// Non-localized description key.
-    [YamlMember(name: "description"), JsonInclude, JsonPropertyName("Description")]
-    public string DescriptionKey { get; set; }
-
-    /// <returns>Localized name from Name Key.</returns>
-    public void GetName() => Loc.Get(NameKey);
-
-    /// <returns>Localized Description from Description Key.</returns>
-    public void GetDescription() => Loc.Get(DescriptionKey);
 
     /// <summary>
     /// Internal categorization of this yaml entry. Split into parts:<br/>
@@ -75,8 +63,6 @@ public partial record Prototype
     [YamlConstructor, JsonConstructor]
     protected Prototype()
     {
-        var type = GetType().Name.Replace("Entity", "");
-
         // Auto-generate fallback source if not provided.
         if (string.IsNullOrEmpty(Source)) Source = "game";
     }
@@ -92,8 +78,6 @@ public partial record Prototype
         Handle = yaml.Handle;
 
         // Name and description may be absent / null, so handle them here.
-        NameKey = yaml.NameKey;
-        DescriptionKey = yaml.DescriptionKey;
         Type = yaml.Type;
         Components = yaml.Components;
     }

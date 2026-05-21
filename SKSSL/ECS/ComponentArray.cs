@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.CompilerServices;
 
 // ReSharper disable UnusedMember.Global
@@ -10,11 +11,13 @@ namespace SKSSL.ECS;
 public interface IterArray
 {
     object? this[int index] { get; }
+    // ReSharper disable once UnusedMethodReturnValue.Global
     public int Increment();
     public void Set<T>(int index, T value);
     object GetAt(int index); 
     void RemoveAt(int index);
-    ref T1 GetRefAt<T1>(int index) where T1 : ISKComponent;
+    // ReSharper disable once UnusedMemberInSuper.Global
+    ref T1 GetRefAt<T1>(int index) where T1 : Component;
     int Count { get; }
 }
 
@@ -23,7 +26,7 @@ public interface IterArray
 /// </summary>
 /// <remarks>This list is instantiated. It gets pretty complicated, but is essentially used to store component type data.</remarks>
 /// <typeparam name="T">Type of components being stored in this particular list.</typeparam>
-public class IterArray<T> : IterArray where T : ISKComponent
+public class IterArray<T> : IterArray where T : Component
 {
     /// <summary>
     /// Constructor of Component Array that creates empty array on instantiation.
@@ -39,7 +42,7 @@ public class IterArray<T> : IterArray where T : ISKComponent
     /// Private list of contained items.
     private T[] _items;
 
-    public ref T1 GetRefAt<T1>(int index) where T1 : ISKComponent
+    public ref T1 GetRefAt<T1>(int index) where T1 : Component
     {
         if ((uint)index > (uint)Count)
             throw new IndexOutOfRangeException(

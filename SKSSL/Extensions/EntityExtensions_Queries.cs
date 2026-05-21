@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using SKSSL.ECS;
 using SKSSL.Scenes;
 
@@ -62,7 +65,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>All entities that contain provided component type, and those entities in a Tuple.</returns>
     public static IEnumerable<(Entity entity, T1 comp1)> QueryEntitiesComponents<T1>(this BaseWorld world)
-        where T1 : ISKComponent
+        where T1 : Component
     {
         var entities = new EntityContext(world).ActiveEntities;
         foreach (Entity entity in entities)
@@ -74,7 +77,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Another component to search.</typeparam>
     public static IEnumerable<(Entity entity, T1 comp1, T2 comp2)> QueryEntitiesComponents<T1, T2>(
         this BaseWorld world)
-        where T1 : ISKComponent where T2 : ISKComponent
+        where T1 : Component where T2 : Component
     {
         var entities = new EntityContext(world).ActiveEntities;
         foreach (Entity entity in entities)
@@ -88,7 +91,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T3">Yet one more component to search.</typeparam>
     public static IEnumerable<(Entity entity, T1 c1, T2 c2, T3 c3)> QueryEntitiesComponents<T1, T2, T3>(
         this BaseWorld world)
-        where T1 : ISKComponent where T2 : ISKComponent where T3 : ISKComponent
+        where T1 : Component where T2 : Component where T3 : Component
     {
         var entities = new EntityContext(world).ActiveEntities;
         foreach (Entity entity in entities)
@@ -109,7 +112,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>An enumerable of components.</returns>
     public static IEnumerable<T1> QueryComponents<T1>(this BaseWorld world)
-        where T1 : ISKComponent
+        where T1 : Component
     {
         foreach (Entity entity in world.ECS.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) && comp1 != null)
@@ -123,8 +126,8 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
     public static IEnumerable<(T1, T2)> QueryComponents<T1, T2>(this BaseWorld world)
-        where T1 : ISKComponent
-        where T2 : ISKComponent
+        where T1 : Component
+        where T2 : Component
     {
         foreach (Entity entity in world.ECS.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) &&
@@ -141,9 +144,9 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Yet another component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
     public static IEnumerable<(T1, T2, T3)> QueryComponents<T1, T2, T3>(this BaseWorld world)
-        where T1 : ISKComponent
-        where T2 : ISKComponent
-        where T3 : ISKComponent
+        where T1 : Component
+        where T2 : Component
+        where T3 : Component
     {
         foreach (Entity entity in world.ECS.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) &&
@@ -160,7 +163,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <typeparam name="T2">Yet another component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
-    public static IEnumerable<ISKComponent> QueryComponents(this BaseWorld world, params Type[] componentTypes)
+    public static IEnumerable<Component> QueryComponents(this BaseWorld world, params Type[] componentTypes)
     {
         foreach (Entity entity in world.ECS.EntityManager.AllEntities)
         {
@@ -168,7 +171,7 @@ public static partial class EntityExtensions
             // Does entity have all components provided?
             foreach (Type type in componentTypes)
             {
-                ISKComponent? comp = entity.GetComponent(type);
+                Component? comp = entity.GetComponent(type);
                 if (comp == null)
                     yield break;
                 yield return comp;

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using SKSSL.Scenes;
 using static SKSSL.DustLogger;
@@ -5,7 +7,6 @@ using static SKSSL.DustLogger;
 // ReSharper disable ConvertIfStatementToSwitchStatement
 // ReSharper disable SuspiciousTypeConversion.Global
 // ReSharper disable PossibleMultipleEnumeration
-
 // ReSharper disable RedundantAttributeUsageProperty
 
 namespace SKSSL.ECS;
@@ -13,7 +14,7 @@ namespace SKSSL.ECS;
 /// <summary>
 /// Manages all system draw and update calls. Should be added once per Game instance.
 /// </summary>
-public class SystemManager
+public abstract class SystemManager
 {
     // TODO: Peel away statics and return to per-world systems.
     //  Finding a way to physically cull certain systems from worlds might be worth a try.
@@ -27,7 +28,7 @@ public class SystemManager
     public static IReadOnlyList<EntitySystem> AllSystems => _allSystems.AsReadOnly();
 
     /// Called by source generator.
-    public static void Register<T>() where T : EntitySystem, new()
+    public void Register<T>() where T : EntitySystem, new()
     {
         var system = new T();
         _allSystems.Add(system);

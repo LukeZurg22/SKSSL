@@ -1,6 +1,8 @@
 
 // ReSharper disable UnusedType.Global
 
+using System;
+
 namespace SKSSL.Types;
 
 public class Box<T> where T : struct

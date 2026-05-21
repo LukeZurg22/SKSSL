@@ -1,10 +1,60 @@
 Study this: https://github.com/alexmuab/unit-testing-csharp-example
 
-/usr/share/dotnet/sdk/10.0.300/NuGet.targets(521,5): error MSB3202: The project file "/home/runner/work/SKSSL/SKSSL/SKSSL.Tests/SKSSL.Tests.csproj" was not found. [/home/runner/work/SKSSL/SKSSL/SKSSL.sln]
-
 Add Wave Function Collapse: 
 https://github.com/mxgmn/WaveFunctionCollapse
 
+dotnet build -c Release --no-incremental
+dotnet pack -c Release
 
-MSBUILD : warning MSB5029: The value "\**\*.cs" of the "Exclude" attribute in element <ItemGroup> in file "/usr/share/dotnet/sdk/10.0.300/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.DefaultItems.props (36,62)" is a wildcard that results in enumerating all files on the drive, which was likely not intended. Check that referenced properties are always defined and that the project and current working directory are not at the drive root.
-/usr/share/dotnet/sdk/10.0.300/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.DefaultItems.props(36,62): error 
+------------------------------------------------------------------------------------------------------------------
+
+Fix up SKSSL test cases
+Ensure SKSSL.Generator is also packed in
+Tap Github Releases into Nuget
+
+Make mods folder no longer mandatory
+Make GUM no longer mandatory
+
+Microsoft.Logging.Console (fixed?)
+ImGUI.Net (fixed?)
+
+IT DEMANDS GUM
+-> Gum FOLDER and FILE (+ extension) currently must be specified in constructor.
+--> Resolve by auto-assume folder named "Gum"
+--> Set GUM as optional insert, call w. checks.
+
+MAKE SCENES NOT FED BY GENERIC TYPES
+(or make it optional)
+
+Gum Needs:
+- Package Reference (include by default)
+- File
+
+System.MissingMethodException: Method not found: 'System.Collections.ObjectModel.ObservableCollection`1<RenderingLibrary.Graphics.IRenderableIpso> Gum.Wireframe.GraphicalUiElement.get_Children()'.
+
+Scene Changer might be invalidated due to Gum..etc...Children not existing.
+
+FlatRedBall needs transfer-over.
+
+Clearing Gum Screens from
+SceneManager.SwitchScene(new SceneMainMenu()); -> CRASHES
+
+Simplify BaseWorld
+
+Components are still loaded via reflection, not source generation.
+
+Prototype defined type may be constrictor
+
+Prototype fails to deserialize at "DeserializeBytesAsListOfType"
+
+Load all Prototype Definitions via Source Gen, then read game content and automatically feed Type values.
+
+Add a wrapper for Entities to their IDs, EntityID.
+
+Events expect an integer, not an EntityID passthrough.
+
+Make GetEntity give a warning that its output needs to be used.
+
+SKSSL entities have a non-readonly runtime ID.
+
+SKSSL can have array of structs for storing entities in EntityManager

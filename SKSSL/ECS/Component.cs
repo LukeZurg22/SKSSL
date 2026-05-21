@@ -8,10 +8,10 @@ namespace SKSSL.ECS;
 /// SKSSL's ECS uses reflection to get all ISKComponents and their fields.
 /// Components exist here solely to store and represent data within an entity.
 /// </remarks>
-public abstract record ISKComponent
+public abstract record Component
 {
     /// <summary>
     /// ID reference back to parent entity this control belongs to.
     /// </summary>
-    public Entity Entity;
+    public EntityUid Entity;
 }

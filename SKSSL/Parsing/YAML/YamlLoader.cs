@@ -1,7 +1,13 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using SKSSL.Utilities;
 using VYaml.Serialization;
 using static SKSSL.DustLogger;
 
@@ -229,10 +235,6 @@ public static partial class YamlLoader
 
     #region Helpers
 
-    [GeneratedRegex(@"\btype\s*:\s*(Base)?([A-Za-z0-9_]+)(Yaml)?\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
-    private static partial Regex RegexSpaceTypeBaseYaml();
-
     /// <summary>
     /// Returns a distinct set of file paths matching the given patterns, optionally restricted to a base directory.
     /// </summary>
@@ -358,7 +360,7 @@ public static partial class YamlLoader
         // Extracts type tag from line.
         string? ExtractTypeTag(string line)
         {
-            Match match = RegexSpaceTypeBaseYaml().Match(line);
+            Match match = CommonRegex.BaseYaml.Match(line);
             return match.Success switch
             {
                 false => null,

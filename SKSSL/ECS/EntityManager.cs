@@ -1,7 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
-using SKSSL.Utilities;
 using SKSSL.YAML;
 using static SKSSL.DustLogger;
 
@@ -15,7 +17,6 @@ namespace SKSSL.ECS;
 /// </summary>
 public partial class EntityManager
 {
-    private static readonly IDIterator _nextId = new();
     private readonly List<Entity> _allEntities = [];
     private readonly IWorld _world;
 
@@ -42,7 +43,7 @@ public partial class EntityManager
     /// <remarks>Requires the user to know the ID of the entity.</remarks>
     public Entity? GetEntity(int id)
     {
-        if (_allEntities.Any(e => e.Id == id))
+        if (_allEntities.Any(e => e.Uid == id))
             return _allEntities[id];
         Log($"Attempted to retrieve nonexistent entity with ID {id}");
         return null;
@@ -157,10 +158,6 @@ public partial class EntityManager
 
         // Assign world.
         entity.World = _world;
-
-        // Should be safe to create ID by now.
-        int id = _nextId.Iterate();
-        entity.SetRuntimeId(id);
 
         // Add default components if provided.
         foreach ((Type type, object _) in entity.DefaultComponents)

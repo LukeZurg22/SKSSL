@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using SKSSL.ECS;
 using SKSSL.YAML;
 using System.Reflection;
@@ -6,7 +8,7 @@ using VYaml.Annotations;
 namespace SKSSL.Extensions;
 public static class ComponentYamlExtensions
 {
-    public static ComponentYaml ToComponentYaml(this ISKComponent component)
+    public static ComponentYaml ToComponentYaml(this Component component)
     {
         ArgumentNullException.ThrowIfNull(component);
 

@@ -2,6 +2,8 @@
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
+using System;
+
 namespace SKSSL.ECS;
 
 /// <summary>
