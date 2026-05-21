@@ -6,6 +6,7 @@ using SKSSL.Scenes;
 using SKSSL.YAML;
 using VYaml.Annotations;
 
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable VirtualMemberNeverOverridden.Global
 // ReSharper disable UnusedMember.Global
 // ReSharper disable RedundantBaseConstructorCall
@@ -36,6 +37,9 @@ public partial record Entity : Prototype
     [YamlIgnore, JsonIgnore]
     public Type EntityType => typeof(Entity);
 
+    /// <inheritdoc cref="Prototype.Type"/>
+    public override string Type { get; set; } = "entity";
+
     #region Fields
 
     /// <summary>
@@ -43,10 +47,6 @@ public partial record Entity : Prototype
     /// </summary>
     [YamlIgnore, JsonIgnore]
     public int RuntimeId { get; private set; } = -1;
-
-    /// Manually assign runtime ID for if entity is created manually.
-    /// Should NOT be called outside of <see cref="EntityManager"/>.
-    internal void SetRuntimeId(int id) => RuntimeId = id;
 
     /// Defers back to the <see cref="RuntimeId"/> for compatability reasons between projects.
     [MemoryPackIgnore, YamlIgnore, JsonIgnore]
@@ -69,11 +69,15 @@ public partial record Entity : Prototype
     [MemoryPackIgnore, YamlIgnore, JsonIgnore]
     public IWorld? World { get; set; }
 
-
     /// Predefined class-specific dictionary of components.
+    [MemoryPackIgnore, YamlIgnore, JsonIgnore]
     public IReadOnlyDictionary<Type, object> DefaultComponents { get; init; }
 
     #endregion
+
+    /// Manually assign runtime ID for if entity is created manually.
+    /// Should NOT be called outside of <see cref="EntityManager"/>.
+    internal void SetRuntimeId(int id) => RuntimeId = id;
 
     #region Constructors
 
@@ -97,13 +101,14 @@ public partial record Entity : Prototype
     internal Entity(int id) : this()
     {
         // For raw definitions, which do not have runtime IDs.
-        if (id != -1) RuntimeId = id;
+        if (id != -1) SetRuntimeId(id);
     }
 
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
     [MemoryPackConstructor, JsonConstructor, YamlConstructor]
     internal Entity() : base()
     {
+        DefaultComponents = new Dictionary<Type, object>();
         ComponentIndices = new int[ComponentRegistry.Count];
         Array.Fill(ComponentIndices, -1); // <- All slots start as "missing"
     }

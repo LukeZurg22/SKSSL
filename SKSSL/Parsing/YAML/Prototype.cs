@@ -29,7 +29,7 @@ namespace SKSSL.YAML;
 /// </code>
 /// </summary>
 [YamlObject]
-[YamlObjectUnion("!Entity", typeof(Entity))]
+//[YamlObjectUnion("!Entity", typeof(Entity))]
 public partial record Prototype
 {
     /// Game content directory key to reverse-trace where this yaml prototype originated.
@@ -72,7 +72,7 @@ public partial record Prototype
 
     /// Blank constructor for Common Entity root. Avoid using this unless absolutely necessary.
     /// Used for creating active <see cref="Entity"/> instances in the ECS, where properties are set elsewhere.
-    [JsonConstructor]
+    [YamlConstructor, JsonConstructor]
     protected Prototype()
     {
         var type = GetType().Name.Replace("Entity", "");

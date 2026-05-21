@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using VYaml.Serialization;
 using static SKSSL.DustLogger;
 
+// ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
 // ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 
