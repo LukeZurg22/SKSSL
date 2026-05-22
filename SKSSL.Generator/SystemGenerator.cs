@@ -3,11 +3,12 @@ using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+// ReSharper disable BadControlBracesIndent
 
 namespace SKSSL.Generator;
 
 [Generator]
-public class RegisteredSystemGenerator : IIncrementalGenerator
+public class SystemGenerator : IIncrementalGenerator
 {
     private const string AttributeFullName = "SKSSL.ECS.RegisterSystemAttribute";
     private const string SYS_REG_NAME = "SystemRegistry.g.cs";
@@ -70,21 +71,20 @@ public class RegisteredSystemGenerator : IIncrementalGenerator
         sb.AppendLine("using System.Runtime.CompilerServices;");
         sb.AppendLine("using SKSSL.ECS;");
         sb.AppendLine();
-        sb.AppendLine("namespace SKSSL.Generated");
+        sb.AppendLine("namespace SKSSL.Generated;");
+        sb.AppendLine();
+        sb.AppendLine("public static class SystemInitializer");
         sb.AppendLine("{");
-        sb.AppendLine("    public static class SystemInitializer");
-        sb.AppendLine("    {");
-        sb.AppendLine("        [ModuleInitializer]");
-        sb.AppendLine("        public static void Initialize()");
-        sb.AppendLine("        {");
-        sb.AppendLine("            SystemManager.Clear(); // Clean the list!");
+        sb.AppendLine("     [ModuleInitializer]");
+        sb.AppendLine("     public static void Initialize()");
+        sb.AppendLine("     {");
+        sb.AppendLine("         SystemManager.Clear(); // Clean the list!");
         foreach (SystemInfo? sys in systems.OrderBy(s => s.Priority))
-            sb.AppendLine($"            SystemManager.Register<{sys.FullTypeName}>(); // {sys.Name}");
-        sb.AppendLine("        }");
-        sb.AppendLine("    }");
+        {
+        sb.AppendLine($"         SystemManager.Register<{sys.FullTypeName}>(); // {sys.Name}");
+        }
+        sb.AppendLine("     }");
         sb.AppendLine("}");
         return sb.ToString();
     }
 }
-
-internal record SystemInfo(string FullTypeName, string Name, int Priority);

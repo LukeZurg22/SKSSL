@@ -6,7 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using SKSSL.ECS;
 using SKSSL.Utilities;
 using VYaml.Serialization;
 using static SKSSL.DustLogger;
@@ -62,103 +62,7 @@ public static partial class YamlLoader
 
     #endregion
 
-    #region Loading (Single)
-
-    /// Loads a file containing more than one entry of type T. Entries are a consecutive list beginning with '-' each.
-    [Obsolete("This method is deprecated. Use LoadFile() instead.")]
-    public static async Task<List<T>> LoadFileAsync<T>(string path)
-    {
-        ArgumentNullException.ThrowIfNull(path);
-
-        if (!File.Exists(path))
-            throw new FileNotFoundException("File not found", path);
-
-        try
-        {
-            await using FileStream stream = File.OpenRead(path);
-            var sample = await YamlSerializer.DeserializeAsync<List<T>>(stream);
-            return sample;
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"YAML deserialization failed for {path}: {ex.Message}", ex);
-        }
-    }
-
-    /// <summary>
-    /// Attempt to extract yaml data with limited defined types.
-    /// Entries are expected to begin with "- type: example"
-    /// </summary>
-    /// <returns>A filled, partially filled, or empty dictionary of expected types with their corresponding yaml blocks.</returns>
-    private static void ExtractYamlData(string file, Type[] expectedTypes, out Dictionary<Type, List<object>> output)
-    {
-        // Read all lines, divide into blocks in accordance to expected types.
-        var lines = File.ReadAllLines(file);
-        var yamlBlocks = ConvertLinesToYamlBlocks(lines, expectedTypes, file);
-
-        // Creating intermediate dictionary where yaml blocks are amalgamated together.
-        var combined = expectedTypes.ToDictionary(type => type, _ => Array.Empty<byte>());
-        CombineYamlBlockBytes(yamlBlocks, combined);
-        output = FillDeserializedData(file, expectedTypes, combined);
-    }
-
-    #endregion
-
-    #region Loading (Bulk)
-
-    /// <summary>
-    /// Gets all files in directory, searches every file, searches every in said file for provided type.
-    /// If the first entry contains it, then an attempt to parse the entire file as a list is made.
-    /// </summary>
-    /// <param name="directory">Directory path to load.</param>
-    /// <typeparam name="T">Entry type in files</typeparam>
-    [Obsolete("Use the alternative non-generic LoadDirectory() instead.")]
-    public static IEnumerable<T> LoadDirectory<T>(GameContentDirectory directory)
-    {
-        var extensions = new[] { ".yaml", ".yml" };
-
-        // Loop over every YAML file.
-        var files = Directory
-            .GetFiles(path: directory.ContentDirectory, "*.*", SearchOption.AllDirectories)
-            .Where(f => extensions.Contains(Path.GetExtension(f)));
-
-        foreach (var file in files)
-        {
-            string expectedTypeName = typeof(T).Name;
-
-            // Regex breakdown:
-            // .*?                  -> any characters (non-greedy) before "type"
-            // type\s*:\s*          -> the keyword "type" (case-insensitive), colon, optional whitespace
-            // (Base)?              -> optional "Base" prefix
-            // ([A-Za-z0-9_]+)      -> capture group 2: the core type name (alphanumeric + _)
-            // (Yaml)?              -> optional "Yaml" suffix
-            // .*                   -> any characters after (we don't care)
-            var regex = new Regex(
-                @".*?type\s*:\s*(Base)?([A-Za-z0-9_]+)(Yaml)?.*",
-                options: RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
-            bool typeFound = false;
-            using var reader = new StreamReader(file);
-            while (reader.ReadLine() is { } line)
-            {
-                Match hasType = regex.Match(line);
-                if (!hasType.Success)
-                    continue;
-                string extractedTypeName = hasType.Groups[1].Value;
-
-                if (!string.Equals(extractedTypeName, expectedTypeName, StringComparison.OrdinalIgnoreCase)) continue;
-                typeFound = true;
-                break;
-            }
-
-            if (!typeFound)
-                continue;
-
-            var yaml = LoadFileAsync<T>(file).Result;
-            foreach (T entry in yaml)
-                yield return entry;
-        }
-    }
+    #region Loading
 
     /// <summary>
     /// Searches a directory using provided type definitions and file patterns. Directory defaults to application's if
@@ -183,7 +87,7 @@ public static partial class YamlLoader
             foreach ((Type type, var yamlData) in output)
             {
                 // Tag each yaml entry with source.
-                yamlData.ForEach(yamlEntry => ((Prototype)yamlEntry).Source = Path.GetFileName(directory));
+                yamlData.ForEach(yamlEntry => ((ECS.Prototype)yamlEntry).Source = Path.GetFileName(directory));
                 conglomerate[type] = conglomerate[type].Concat(yamlData).ToList();
             }
         }
@@ -205,23 +109,40 @@ public static partial class YamlLoader
     /// </summary>
     public static Dictionary<Type, List<object>> LoadFile(Type[] types, string file)
     {
+        if (File.Exists(file)) return ExtractYamlData(types, File.ReadAllLines(file), file);
+        Log($"File not found from file path {file}, it's being skipped entirely!");
+        return [];
+    }
+
+    /// <summary>
+    /// Conglomerate and extract yaml data from text.
+    /// </summary>
+    /// <param name="types"></param>
+    /// <param name="text"></param>
+    /// <param name="fileTrace"></param>
+    /// <returns></returns>
+    public static Dictionary<Type, List<object>> ExtractYamlData(Type[] types, string[] text, string fileTrace = "")
+    {
+        types = PrototypeRegistry.Definitions.Values.ToArray();
+        
         // "You can tell its conglomerate- because it's everywhere!"
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
         // Files should -not- have a type defined within them outside the ones passed through here. If one somehow
         //  gets passed, it's probably because of a test.
         var conglomerate = types.ToDictionary(type => type, _ => new List<object>());
-        if (!File.Exists(file))
-        {
-            Log($"File not found from file path {file}, it's being skipped entirely!");
-            return [];
-        }
 
         try
         {
-            // Get file output and put to dictionary.
-            ExtractYamlData(file, types, out var output);
+            // Read all lines, divide into blocks in accordance to expected types.
+            var yamlBlocks = ConvertLinesToYamlBlocks(text, types, fileTrace);
+
+            // Creating intermediate dictionary where yaml blocks are amalgamated together.
+            var combined = types.ToDictionary(type => type, _ => Array.Empty<byte>());
+            CombineYamlBlockBytes(yamlBlocks, combined);
+            var output = DeserializeFillData(types, combined, fileTrace);
+
             foreach ((Type type, var entries) in output)
-                conglomerate[type].AddRange(entries);
+                conglomerate[type].AddRange(entries); // Additive
         }
         catch (Exception ex)
         {
@@ -276,8 +197,8 @@ public static partial class YamlLoader
     }
 
 
-    /// Reads all lines in a file, and parses them into blocks.
-    public static List<IYamlBlock> ConvertLinesToYamlBlocks(string[] lines, Type[] expectedTypes, string? file = null)
+    /// Reads all lines in a string, and parses them into yaml-blocks.
+    private static List<IYamlBlock> ConvertLinesToYamlBlocks(string[] lines, Type[] expectedTypes, string? file = null)
     {
         var entries = new List<IYamlBlock>();
         file ??= ""; // For reverse-tracing files.
@@ -388,8 +309,9 @@ public static partial class YamlLoader
         }
     }
 
-    private static Dictionary<Type, List<object>> FillDeserializedData(
-        string file, Type[] expectedTypes, Dictionary<Type, byte[]> combined)
+    /// Deserialize a set of bytes per type, and fill the data into a dictionary for use elsewhere.
+    private static Dictionary<Type, List<object>> DeserializeFillData(
+        Type[] expectedTypes, Dictionary<Type, byte[]> combined, string fileTrace)
     {
         // Assign proper types to a new dictionary to organize all the different flavors of files.
         // Because provided types are static, and that yaml blocks are later verified,
@@ -401,7 +323,7 @@ public static partial class YamlLoader
         {
             try
             {
-                var deserializedTypeList = DeserializeBytesAsListOfType(combinedKVP.Value, combinedKVP.Key, file);
+                var deserializedTypeList = DeserializeBytesAsListOfType(combinedKVP.Value, combinedKVP.Key, fileTrace);
                 if (deserializedTypeList == null)
                 {
                     // Do NOT throw an error here, as this particular deserialized list may not have been found in the
@@ -418,7 +340,7 @@ public static partial class YamlLoader
             catch (Exception ex)
             {
                 throw new Exception(
-                    $"Failed to deserialize {combinedKVP.Key.Name} type from \"{Path.GetFileName(file)}\".", ex);
+                    $"Failed to deserialize {combinedKVP.Key.Name} type from \"{Path.GetFileName(fileTrace)}\".", ex);
             }
         }
 

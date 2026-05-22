@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using SKSSL.ECS;
+using SKSSL.YAML;
 using VYaml.Annotations;
+
 // ReSharper disable VirtualMemberCallInConstructor
 
 // ReSharper disable VirtualMemberNeverOverridden.Global
@@ -15,7 +16,7 @@ using VYaml.Annotations;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-namespace SKSSL.YAML;
+namespace SKSSL.ECS;
 
 /// <summary>
 /// Common abstraction for <see cref="Entity"/> and <see cref="Prototype"/> objects.
@@ -46,7 +47,7 @@ public partial record Prototype
     /// Definition's Reference ID to later refer-to when making copies.
     /// Searchable, indexable ID. Virtual for possible nullability change in child classes.
     [YamlMember(name: "id")]
-    public string Handle { get; set; }
+    public virtual string Handle { get; set; }
 
     /// <summary>
     /// Internal categorization of this yaml entry. Split into parts:<br/>
@@ -69,7 +70,7 @@ public partial record Prototype
 
     /// [De]serialized component entries part of this prototype.
     [YamlMember(name: "components")]
-    public List<ComponentYaml>? Components { get; set; } = [];
+    public List<ComponentYaml>? YamlComponents { get; set; } = [];
 
     /// Constructor for Entity Yaml basic fields and default components. This is for definitions.
     protected Prototype(Prototype yaml)
@@ -79,6 +80,6 @@ public partial record Prototype
 
         // Name and description may be absent / null, so handle them here.
         Type = yaml.Type;
-        Components = yaml.Components;
+        YamlComponents = yaml.YamlComponents;
     }
 }

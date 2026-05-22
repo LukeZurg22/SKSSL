@@ -6,7 +6,7 @@ using static SKSSL.Utilities.CommonRegex;
 
 namespace SKSSL.Utilities;
 
-public static partial class FileNameSanitizer
+public static partial class NameSanitizer
 {
     public static string Sanitize(string input, string replacement = "_", int maxLength = 255)
     {
