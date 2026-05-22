@@ -29,7 +29,9 @@
       "VYaml"
 
 # SSLGame
-Make game Class inherit SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs
+Make game Class inherit SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs<br/>
+A Gum project file name can be fed into the SSLGame constructor, which assumes the file is located in
+Content/Gum/\<file name + extension\>
 
 # ECS
 - All Components are records inheriting the base "Component" record.
