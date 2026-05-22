@@ -5,54 +5,90 @@ using SKSSL.YAML;
 using VYaml.Emitter;
 using static SKSSL.DustLogger;
 
+// ReSharper disable UnusedMember.Global
+
 namespace SKSSL.ECS;
 
-///<summary>
-/// Registry of all Entity Definitions. Called by <see cref="EntityManager"/>.
-/// <seealso cref="ComponentRegistry"/>
+/// <summary>
+/// Storing all prototype definitions.
 /// </summary>
-public abstract class EntityRegistry
+public abstract class PrototypeRegistry
 {
-    internal static readonly Dictionary<string, Prototype> Definitions = new();
+    #region System Type Definitions
 
-    /// <inheritdoc cref="RegisterEntity{T, EntityYaml}"/>
-    public static void RegisterEntity<T>(Prototype yaml) where T : Entity => RegisterEntity<T, Prototype>(yaml);
+    /// Raw class type-definitions in development environment -only-. These are used in inheritance rules and are
+    /// project-specific.
+    public static readonly Dictionary<string, Type> Definitions = new();
+
+
+    /// Outputs a string handle based on provided type linked to class-type definition.
+    public static bool TryGetTypeHandle(Type type, out string typeHandle)
+    {
+        typeHandle = "";
+        foreach (var definition in Definitions)
+        {
+            if (definition.Value != type)
+                continue;
+            typeHandle = definition.Key;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// Clears all definitions in registry. Called by Source Generator.
+    // ReSharper disable once UnusedMember.Global
+    public static void Clear()
+    {
+        Definitions.Clear();
+        _loadedGamePrototypes.Clear();
+    }
+    
+    #endregion
+
+    public static bool ContainsDefinition(string name) => Definitions.Count != 0 && Definitions.ContainsKey(name);
+    public static bool ContainsDefinition(Type type) => Definitions.Count != 0 && Definitions.ContainsValue(type);
+
+    public static readonly Dictionary<string, Prototype> _loadedGamePrototypes = [];
+
+    /// Individual definitions belonging to all prototype instances loaded from yaml.
+    public static IReadOnlyDictionary<string, Prototype> LoadedGamePrototypes => _loadedGamePrototypes;
+
+
+
+    /// <inheritdoc cref="Register{T,Y}"/>
+    // ReSharper disable once UnusedMember.Global
+    public static void Register<T>(Prototype yaml) where T : Entity => Register<T, Prototype>(yaml);
 
     /// <summary>
-    /// Handles registration of entity ambiguously between Entity and EntityTemplate derivations.
+    /// Handles registration of definition from yaml data.
     /// </summary>
-    /// <remarks>
-    /// Provided that the Derived Type T is an EntityTemplate or Entity, will either call a direct  
-    /// Calls <see cref="RegisterEntity{TYaml}(TYaml,System.Type,bool)"/>.
-    /// When registering specialized templates, use <see cref="RegisterEntity{TYaml}(TYaml,System.Type,bool)"/> instead.
-    /// </remarks>
     /// <param name="yaml">The yaml file of the template.</param>
     /// <typeparam name="T">Derived Type of entity intermediate type registered. Forces inheritance.</typeparam>
     /// <typeparam name="Y"></typeparam>
-    public static void RegisterEntity<T, Y>(Y yaml) where T : Entity where Y : Prototype
+    public static void Register<T, Y>(Y yaml) where T : Entity where Y : Prototype
     {
         if (!SSLGame.UseECS)
         {
-            Log($"Attempted to register {yaml.Type} Entity {yaml.Handle} without initializing Entity Manager!",
-                LOG.SYSTEM_WARNING);
+            Log($"Attempted to register {yaml.Type} Entity {yaml.Handle} without ECS enabled!", LOG.SYSTEM_WARNING);
             return;
         }
 
         Type derivedType = typeof(T);
 
-        // Register raw entity
-        if (typeof(Entity).IsAssignableFrom(derivedType))
+        // WIP: Use type and get from proto list
+
+        if (typeof(Prototype).IsAssignableFrom(derivedType))
         {
-            RegisterEntity(yaml, derivedType, true);
-        }
-        // Attempt register of template
-        else if (typeof(Prototype).IsAssignableFrom(derivedType))
-        {
-            RegisterEntity(yaml, derivedType, false);
+            // Assumes that the yaml.handle has been sanitized of spare "...Prototype" or "...Entity" naming.
+            if (TryGetTypeHandle(derivedType, out string typeHandle) && yaml.Handle.Equals(typeHandle))
+            {
+                Register(yaml, derivedType);
+            }
         }
         else
         {
-            throw new InvalidOperationException("Unknown type for registration");
+            Log("Unknown type for registration", LOG.FILE_ERROR);
         }
     }
 
@@ -62,10 +98,9 @@ public abstract class EntityRegistry
     /// </summary>
     /// <param name="yaml">Yaml instance to process.</param>
     /// <param name="derivedType">Assumed derived type from EntityTemplate</param>
-    /// <param name="isRawEntity">Assumed false by default. Toggles alternative handling for raw entity definitions.</param>
     /// <typeparam name="TYaml">Yaml Class</typeparam>
     /// <exception cref="YamlEmitterException">Thrown when ReferenceId / Handle not provided in YAML.</exception>
-    public static void RegisterEntity<TYaml>(TYaml yaml, Type derivedType, bool isRawEntity) where TYaml : Prototype
+    public static void Register<TYaml>(TYaml yaml, Type derivedType) where TYaml : Prototype
     {
         if (!SSLGame.UseECS)
         {
@@ -75,68 +110,38 @@ public abstract class EntityRegistry
         }
 
         // Build components. All entity registration carries forth the task of parsing component data from a yaml file.
-        var components = BuildComponentsFromEntityYaml(yaml);
+        var components = BuildComponentsFromYaml(yaml);
 
-        Prototype output;
-        // Raw entities are instantiated and casted.
-        if (isRawEntity)
-        {
-            // Create instance dynamically
-            object? instance = Activator.CreateInstance(derivedType, yaml, components /*constructor parameters*/);
+        // Raw entities are instantiated and casted. Create instance dynamically
+        object? instance = Activator.CreateInstance(derivedType, yaml, components /*constructor parameters*/);
 
-            // Cast to the derived type
-            var entityObject = Convert.ChangeType(instance, derivedType);
-            if (entityObject is not Entity entity)
-                throw new YamlEmitterException("Entity created was not of expected type!");
+        // Cast to the derived type
+        var entityObject = Convert.ChangeType(instance, derivedType);
+        if (entityObject is not Entity entity)
+            throw new YamlEmitterException("Entity created was not of expected type!");
 
-            // Tag 'em.
-            entity.Source = yaml.Source;
-            output = entity;
-        }
-        // Templates are constructed and the yaml is passed-through.
-        else
-        {
-            // Get dynamic template constructor.
-            ConstructorInfo? ctor = derivedType.GetConstructor(
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                binder: null,
-                types: [yaml.GetType(), components.GetType()],
-                modifiers: null);
-            if (ctor == null)
-                throw new InvalidOperationException($"Type {derivedType} has no matching constructor.");
+        // Tag 'em.
+        entity.Source = yaml.Source;
+        Prototype output = entity;
 
-            // Call constructor
-            var templateObj = ctor.Invoke([yaml, components]);
-
-            if (templateObj is not Prototype template)
-                throw new YamlEmitterException("Created template is not an EntityTemplate!");
-
-            if (string.IsNullOrEmpty(template.Handle))
-                throw new YamlEmitterException("Invalid template!");
-
-            // Tag 'em.
-            template.Source = yaml.Source;
-            output = template;
-        }
-
-        RegisterDefinition(output);
+        RegisterPrototype(output);
     }
 
     /// <summary>
     /// Helper for extracting components from a yaml file. Should work with any kind that inherits <see cref="Prototype"/>.
     /// Does NOT support other yaml types that implement this. This is for the ECS ONLY
     /// </summary>
-    private static Dictionary<Type, object> BuildComponentsFromEntityYaml(Prototype yaml)
+    private static Dictionary<Type, object> BuildComponentsFromYaml(Prototype yaml)
     {
         var components = new Dictionary<Type, object>();
 
-        if (yaml.Components == null)
+        if (yaml.YamlComponents == null)
         {
-            yaml.Components = [];
+            yaml.YamlComponents = [];
             return components;
         }
 
-        foreach (ComponentYaml yamlComponent in yaml.Components)
+        foreach (ComponentYaml yamlComponent in yaml.YamlComponents)
         {
             if (!ComponentRegistry.RegisteredComponentTypesDictionary
                     .TryGetValue(yamlComponent.Type.Replace("Component", string.Empty), out Type? componentType))
@@ -147,7 +152,7 @@ public abstract class EntityRegistry
 
             object component = Activator.CreateInstance(componentType)
                                ?? throw new InvalidOperationException(
-                                   $"Cannot create {componentType.Name} in {nameof(BuildComponentsFromEntityYaml)}");
+                                   $"Cannot create {componentType.Name} in {nameof(BuildComponentsFromYaml)}");
 
             // Handle component variables.
             foreach (var field in yamlComponent.Fields)
@@ -182,17 +187,17 @@ public abstract class EntityRegistry
     /// <remarks>
     /// Automatically registers definitions as a "source:handle" arrangement.
     /// </remarks>
-    internal static void RegisterDefinition(Prototype definition)
-        => Definitions[definition.GetUniqueInternalRef()] = definition;
+    internal static void RegisterPrototype(Prototype definition)
+        => _loadedGamePrototypes[definition.GetUniqueInternalRef()] = definition;
 
     /// <summary>
     /// Safe[r] TryGet method to retrieve an Entity Definition *OR* Template using a reference id.
     /// </summary>
     /// <returns>True if a template was found. False if one was not. The output is also Null if one was not found.</returns>
-    public static bool TryGetDefinition<T>(string handle, out T? definition) where T : Prototype
+    public static bool TryGetPrototype<T>(string handle, out T? definition) where T : Prototype
     {
         var gotValue = ContainsDefinition(handle);
-        if (EntityManager.Definitions[handle] is T found)
+        if (LoadedGamePrototypes[handle] is T found)
         {
             definition = found;
             return true;
@@ -207,5 +212,5 @@ public abstract class EntityRegistry
     /// </summary>
     /// <param name="handle">Full Source:Handle ID that the Entity Registry definitions should possess.</param>
     /// <returns>True if a template was found. False if one was not.</returns>
-    public static bool ContainsDefinition(string handle) => EntityManager.Definitions.ContainsKey(handle);
+    public static bool ContainsPrototype(string handle) => LoadedGamePrototypes.ContainsKey(handle);
 }
