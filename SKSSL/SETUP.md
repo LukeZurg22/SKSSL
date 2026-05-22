@@ -29,6 +29,10 @@
       "VYaml"
 
 # SSLGame
-TODO: Note SSLGame implement.
+Make game Class inherit SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs
 
-
+# ECS
+- All Components are records inheriting the base "Component" record.
+- All system classes must implement the [RegisterSystem] attribute.
+- All custom prototype- types are records inheriting the base "Prototype" record.
+- Toggle SSLGame.UsesECS to true in a static constructor to use ECS>
