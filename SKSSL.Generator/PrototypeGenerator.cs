@@ -12,7 +12,7 @@ namespace SKSSL.Generator;
 public class PrototypeGenerator : IIncrementalGenerator
 {
     private const string PrototypeBaseName = "Prototype";
-    private const string PROTO_REG_NAME = "PrototypeRegistry.g.cs";
+    private const string PROTO_REG_NAME = "PrototypeRegistrar.g.cs";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -72,9 +72,9 @@ public class PrototypeGenerator : IIncrementalGenerator
         sb.AppendLine("using System.Runtime.CompilerServices;");
         sb.AppendLine("using SKSSL.ECS;");
         sb.AppendLine();
-        sb.AppendLine("namespace PrototypeRegistry;");
+        sb.AppendLine("namespace PrototypeRegistrar;");
         sb.AppendLine();
-        sb.AppendLine("public static class PrototypeRegistry");
+        sb.AppendLine("public static class PrototypeRegistrar");
         sb.AppendLine("{");
         //sb.AppendLine("     public static readonly Dictionary<string, Type> Prototypes = new();");
         sb.AppendLine();
@@ -83,7 +83,8 @@ public class PrototypeGenerator : IIncrementalGenerator
         sb.AppendLine("      {");
         sb.AppendLine("            // Wipe any pre-existing prototype / entity definitions.");
         sb.AppendLine("            SKSSL.ECS.PrototypeRegistry.Clear();");
-
+        // Accommodating base-entity type, which can exist out in the wild. Base-prototype, however, cannot!
+        sb.AppendLine($"            SKSSL.ECS.PrototypeRegistry.Definitions[\"Entity\"] = typeof(global::SKSSL.ECS.Entity);");
         foreach (INamedTypeSymbol? proto in prototypes)
         {
             var fullName = proto.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -92,7 +93,6 @@ public class PrototypeGenerator : IIncrementalGenerator
                 shortName = shortName[..^9];
             
             if (string.IsNullOrWhiteSpace(shortName)) continue;
-            sb.AppendLine($"            SKSSL.ECS.PrototypeRegistry.Definitions[\"{shortName}\"] = typeof({fullName});");
             sb.AppendLine($"            SKSSL.ECS.PrototypeRegistry.Definitions[\"{shortName}\"] = typeof({fullName});");
         }
 

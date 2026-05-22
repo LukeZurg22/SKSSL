@@ -68,7 +68,7 @@
         <CompilerGeneratedFilesToExclude Include="**/*BaseYaml*" />
     </ItemGroup>
     
-    <ItemGroup>
+    <ItemGroup> <!--Reference to Source Generator(s)-->
         <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false"/>

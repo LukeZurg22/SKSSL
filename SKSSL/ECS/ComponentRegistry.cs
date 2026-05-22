@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using SKSSL.Extensions;
-using static SKSSL.DustLogger; // I like my DustLogger. I will use it everywhere.
 using Type = System.Type; // For reflection purposes.
 
 // ReSharper disable UnusedMember.Global
@@ -54,9 +51,19 @@ public class ComponentRegistry
 
     #endregion
 
+    #region Storage
+
     private static readonly Dictionary<Type, int> _typeToId = new();
     private static readonly Dictionary<int, Type> _idToType = new();
     private static readonly Dictionary<string, Type> _registeredComponents = new();
+
+    /// Called by Source Generator.
+    public static void Clear()
+    {
+        _typeToId.Clear();
+        _idToType.Clear();
+        _registeredComponents.Clear();
+    }
 
     /// All registered component types-types contained in the system.
     public static IReadOnlyDictionary<Type, int> RegisteredTypesDictionary => _typeToId;
@@ -69,7 +76,7 @@ public class ComponentRegistry
     /// </summary>
     private readonly ConcurrentDictionary<Type, object> _activeComponentArrays = new(); // Type -> ComponentArray<T>
 
-    private static bool Initialized { get; set; } = false;
+    #endregion
 
     private static int _nextTypeId = 0;
 
@@ -79,90 +86,6 @@ public class ComponentRegistry
     /// <param name="id">ID of Registered Component</param>
     /// <returns>Null or Type Definition based on provided ID.</returns>
     public static Type? GetType(int id) => _idToType.GetValueOrDefault(id);
-
-    #region Component Registration and Assembly Checks
-
-    /// Uses reflection to get all defined components in the (relevant) assemblies, and initializes them.
-    public static void Initialize()
-    {
-        if (Initialized) return;
-        Initialized = true;
-
-        // Keeping stopwatch timer for releases. It's nice to have.
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(IsRelevantAssembly)
-            .ToArray();
-
-        Log($"...scanning {assemblies.Length} assemblies for components...");
-
-        int componentCount = 0;
-        foreach (Assembly assembly in assemblies)
-        {
-            var types = GetTypesSafe(assembly);
-            foreach (Type type in types)
-            {
-                if (!IsValidComponent(type))
-                    continue;
-                GetOrRegister(type); // Registers
-                componentCount++;
-            }
-        }
-
-        stopwatch.Stop();
-        Initialized = true;
-
-        // Logging
-        Log($"Registered {componentCount} components in {stopwatch.ElapsedMilliseconds}ms");
-        Log("Registered component types:");
-        // Print all registered components in a nice list. 
-        StringBuilder consoleTypesOutput = new();
-        foreach (Type type in _registeredComponents.Values)
-            consoleTypesOutput.AppendLine($"\n  {type.Name} -> ID {GetOrRegister(type)}");
-        Log(consoleTypesOutput.ToString());
-
-        return;
-
-        Type[] GetTypesSafe(Assembly asm)
-        {
-            try
-            {
-                return asm.GetTypes();
-            }
-            catch (ReflectionTypeLoadException ex)
-            {
-                return ex.Types.Where(t => t != null).ToArray()!;
-            }
-            catch
-            {
-                return [];
-            }
-        }
-
-        bool IsValidComponent(Type type) =>
-            typeof(Component).IsAssignableFrom(type) &&
-            !type.IsAbstract &&
-            !type.IsGenericTypeDefinition;
-    }
-
-    /// <summary>
-    /// Filters game assemblies. Includes hard-coded assemblies that use SKSSL, KBSL, or Kuiperbilt.
-    /// </summary>
-    private static bool IsRelevantAssembly(Assembly assembly)
-    {
-        string name = assembly.GetName().Name ?? "";
-
-        // Skip problematic/problematic assemblies
-        return !name.StartsWith("MonoGame.", StringComparison.OrdinalIgnoreCase) &&
-               !name.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) &&
-               !name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) &&
-               !name.StartsWith("mscorlib") &&
-               !name.StartsWith("netstandard") &&
-               !assembly.IsDynamic &&
-               !assembly.ReflectionOnly;
-    }
-
-    #endregion
 
     #region Get Methods
 
@@ -216,7 +139,7 @@ public class ComponentRegistry
     /// Gets a component using a <see cref="IterArray{T}"/> and provided index of the component's position
     /// within the array.
     /// </returns>
-    internal static Component? GetComponentAt(object array, int index)
+    private static Component? GetComponentAt(object array, int index)
     {
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(index);
@@ -244,7 +167,7 @@ public class ComponentRegistry
     /// </summary>
     /// <param name="type">A class-type definition hopefully implementing <see cref="Component"/>.</param>
     /// <returns>Integer ID of (what should be) a Type implementing <see cref="Component"/>.</returns>
-    private static int GetOrRegister(Type type)
+    public static int GetOrRegister(string name, Type type)
     {
         if (_typeToId.TryGetValue(type, out int id))
             return id;
@@ -255,7 +178,7 @@ public class ComponentRegistry
         // For entity ID lists to types.
         _idToType[id] = type;
         // For deserializing entities. Renames TestComponent -> Test for deserialization reasons.
-        _registeredComponents[type.Name.Replace("Component", string.Empty)] = type;
+        _registeredComponents[name] = type;
 
         return id;
     }
