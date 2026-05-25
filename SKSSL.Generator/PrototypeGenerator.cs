@@ -95,16 +95,7 @@ public class PrototypeGenerator : IIncrementalGenerator
             if (string.IsNullOrWhiteSpace(shortName)) continue;
             sb.AppendLine($"            SKSSL.ECS.PrototypeRegistry.Definitions[\"{shortName}\"] = typeof({fullName});");
         }
-
         sb.AppendLine("      }");
-
-        /*sb.AppendLine();
-        sb.AppendLine(" public static T Create<T>() where T : Prototype");
-        sb.AppendLine(" {");
-        sb.AppendLine("     if (_prototypes.TryGetValue(typeof(T), out var prototype))");
-        sb.AppendLine("         return (T)prototype.Clone();");
-        sb.AppendLine("     throw new InvalidOperationException($\"No prototype registered for {typeof(T)}\");");
-        sb.AppendLine(" }");*/
         sb.AppendLine("}");
         return sb;
         //@formatter:on
