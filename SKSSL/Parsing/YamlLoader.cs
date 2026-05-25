@@ -53,12 +53,16 @@ public static partial class YamlLoader
     }
 
     /// <summary>
-    /// 
+    /// Serializes an object as either itself, or a list of its provided type.
     /// </summary>
-    /// <param name="obj"></param>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
-    public static string Serialize<T>(T obj) where T : class => YamlSerializer.SerializeToString(obj);
+    /// <returns>Serialized form of Object for YAML file save.</returns>
+    /// <remarks>Forces object to list of itself for serialization.</remarks>
+    public static string Serialize<T>(T obj) where T : class
+    {
+        return obj is List<T> list
+            ? YamlSerializer.SerializeToString(list)
+            : YamlSerializer.SerializeToString(new List<T> { obj });
+    } // TEMP: I am worried this will not handle multiple types very well!
 
     #endregion
 
@@ -68,10 +72,13 @@ public static partial class YamlLoader
     /// Searches a directory using provided type definitions and file patterns. Directory defaults to application's if
     /// not provided.
     /// </summary>
-    public static Dictionary<Type, List<object>> LoadDirectory(Type[] types, string directory, params string[] patterns)
+    public static Dictionary<Type, List<object>> LoadDirectory(string directory, params string[] patterns)
     {
         // Get all yaml files.
         var files = GetFiles(patterns, directory);
+
+        // Forces-load in bulk from all prototype definitions.
+        var types = PrototypeRegistry.Definitions.Values.ToArray();
 
         // "You can tell its conglomerate- because it's everywhere!"
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
@@ -83,11 +90,11 @@ public static partial class YamlLoader
         foreach (var file in files)
         {
             // Merging the file's conglomerate with our super conglomerate.
-            var output = LoadFile(types, file);
+            var output = LoadFile(file, types);
             foreach ((Type type, var yamlData) in output)
             {
                 // Tag each yaml entry with source.
-                yamlData.ForEach(yamlEntry => ((ECS.Prototype)yamlEntry).Source = Path.GetFileName(directory));
+                yamlData.ForEach(yamlEntry => ((Prototype)yamlEntry).Source = Path.GetFileName(directory));
                 conglomerate[type] = conglomerate[type].Concat(yamlData).ToList();
             }
         }
@@ -101,15 +108,18 @@ public static partial class YamlLoader
     /// <param name="file"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static Dictionary<Type, List<object>> LoadFile<T>(string file) => LoadFile([typeof(T)], file);
+    public static Dictionary<Type, List<object>> LoadFile<T>(string file) => LoadFile(file, typeof(T));
 
     /// <summary>
     /// Searches a directory using provided type definitions and file patterns. Directory defaults to application's if
     /// not provided.
     /// </summary>
-    public static Dictionary<Type, List<object>> LoadFile(Type[] types, string file)
+    public static Dictionary<Type, List<object>> LoadFile(string file, params Type[] types)
     {
-        if (File.Exists(file)) return ExtractYamlData(types, File.ReadAllLines(file), file);
+        // Supported types are gotten from Source Generators' output to PrototypeManager, now!
+        if (types.Length == 0)
+            types = PrototypeRegistry.Definitions.Values.ToArray();
+        if (File.Exists(file)) return ExtractYamlData(File.ReadAllLines(file), file, types);
         Log($"File not found from file path {file}, it's being skipped entirely!");
         return [];
     }
@@ -117,14 +127,15 @@ public static partial class YamlLoader
     /// <summary>
     /// Conglomerate and extract yaml data from text.
     /// </summary>
-    /// <param name="types"></param>
     /// <param name="text"></param>
     /// <param name="fileTrace"></param>
+    /// <param name="types"></param>
     /// <returns></returns>
-    public static Dictionary<Type, List<object>> ExtractYamlData(Type[] types, string[] text, string fileTrace = "")
+    public static Dictionary<Type, List<object>> ExtractYamlData(string[] text, string fileTrace = "",
+        Type[]? types = null)
     {
-        types = PrototypeRegistry.Definitions.Values.ToArray();
-        
+        if (types is null || types.Length == 0) types = PrototypeRegistry.Definitions.Values.ToArray();
+
         // "You can tell its conglomerate- because it's everywhere!"
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
         // Files should -not- have a type defined within them outside the ones passed through here. If one somehow
