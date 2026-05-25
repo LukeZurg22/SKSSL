@@ -18,7 +18,6 @@ public static partial class CommonRegex
     public static readonly Regex ReservedNames
         = new(@"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)", RegexOptions.IgnoreCase);
 
-
     /// Extract referenced "type" from yaml entry.
     /// <example>- type: MyYaml</example> 
     public static readonly Regex BaseYaml = new(
