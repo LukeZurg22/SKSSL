@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using Gum.DataTypes;
 using Gum.Wireframe;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,7 +64,7 @@ public abstract class SSLGame : Game
     private readonly GraphicsDeviceManager _graphicsManager;
     private readonly SpriteBatch _spriteBatch;
 
-    private static GumService Gum => GumService.Default;
+    private static GumService? Gum;
     private readonly InteractiveGue _currentScreenGue = new();
 
     public readonly ImGuiRenderer GuiRenderer;
@@ -146,9 +148,9 @@ public abstract class SSLGame : Game
         MouseHandler = new MouseWrapper(_graphicsManager);
 
         if (string.IsNullOrEmpty(gumFile))
-            Log($"Provided gum project file is empty! {title}, {nameof(SSLGame)}", LOG.SYSTEM_WARNING);
+            Log($"No gum project file in Content/Gum in {title}, {nameof(SSLGame)}", LOG.SYSTEM_WARNING);
         else
-            GumFile = gumFile;
+            GumFile = Path.Combine("Gum", gumFile);
 
         var services = new ServiceCollection();
         LoadServices(services);
@@ -170,9 +172,13 @@ public abstract class SSLGame : Game
         Log($"ECS status: {(UseECS ? "on" : "off")}");
         if (UseECS)
         {
-            // Initializing component registry before anything else. 
-            Log("Initializing components.");
-            ComponentRegistry.Initialize();
+            Log($"Source generator accounted for {ComponentRegistry.Count} components:");
+            // Print all registered components in a nice list. 
+            StringBuilder componentTypesOutput = new();
+            foreach (var type in ComponentRegistry.RegisteredComponentTypesDictionary)
+                componentTypesOutput.AppendLine(
+                    $"\n  {type.Key} -> ID {ComponentRegistry.GetOrRegister(type.Key, type.Value)}");
+            Log(componentTypesOutput.ToString());
         }
 
         // Load Static Game Content
@@ -224,7 +230,12 @@ public abstract class SSLGame : Game
     {
         // Initialize Gum UI Handling (Some projects may choose not to utilize Gum)
         GumProjectSave? gumSave = null;
-        if (!string.IsNullOrEmpty(GumFile)) gumSave = Gum.Initialize(this, GumFile);
+        if (!string.IsNullOrEmpty(GumFile))
+        {
+            Gum = GumService.Default;
+            gumSave = Gum.Initialize(this, GumFile);
+        }
+
         SceneManager = new SceneManager(this, _graphicsManager, _spriteBatch, gumSave);
         Components.Add(SceneManager);
 
@@ -247,7 +258,7 @@ public abstract class SSLGame : Game
     {
         base.Draw(gameTime);
         if (UseECS) SystemManager.Draw(gameTime);
-        Gum.Draw(); // Draw Gum UI after game draw.
+        Gum?.Draw(); // Draw Gum UI after game draw.
     }
 
     /// <inheritdoc />
@@ -259,6 +270,6 @@ public abstract class SSLGame : Game
 
         base.Update(gameTime);
         if (UseECS) SystemManager.Update(gameTime);
-        Gum.Update(gameTime); // Update Gum UI after game update.
+        Gum?.Update(gameTime); // Update Gum UI after game update.
     }
 }

@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <NoWarn>$(NoWarn);SYSLIB0011</NoWarn>
+        <NoWarn>$(NoWarn);SYSLIB0011;CS0108;CS8618;CS8619;NU5100</NoWarn>
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>disable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>SKSSL</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <PackageId>SKSSL</PackageId>
-        <Version>1.8.2</Version> <!--1.8.2 (Namespaces, Prototype / Entity Refactor)-->
+        <Version>1.0.0</Version> <!--1.8.2 (Namespaces, Prototype / Entity Refactor)--> <!--Version Auto-Changed-->
         <Authors>LukeZurg22</Authors>
         <Description>Shared general game engine built on Monogame and GumUI.</Description>
         <PackageTags>logging, ecs, yaml, parsing</PackageTags>
@@ -16,6 +16,7 @@
         <IncludeBuildOutput>true</IncludeBuildOutput> <!--For generated classes.-->
 
         <!--For Packaging-->
+        <ExcludeTestAssets>true</ExcludeTestAssets>
         <IsPackable>true</IsPackable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <GenerateLibraryLayout>true</GenerateLibraryLayout>
@@ -72,6 +73,14 @@
         <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Explicitly pack the generator DLL (adjust path if needed) -->
+        <None Include="..\SKSSL.Generator\bin\$(Configuration)\netstandard2.0\SKSSL.Generator.dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              Visible="true" />
     </ItemGroup>
     
     <ItemGroup>
