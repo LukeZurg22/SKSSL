@@ -18,8 +18,8 @@ public abstract class PrototypeRegistry
 
     /// Raw class type-definitions in development environment -only-. These are used in inheritance rules and are
     /// project-specific.
+    // ReSharper disable once CollectionNeverUpdated.Global
     public static readonly Dictionary<string, Type> Definitions = new();
-
 
     /// Outputs a string handle based on provided type linked to class-type definition.
     public static bool TryGetTypeHandle(Type type, out string typeHandle)
@@ -54,8 +54,6 @@ public abstract class PrototypeRegistry
     /// Individual definitions belonging to all prototype instances loaded from yaml.
     public static IReadOnlyDictionary<string, Prototype> LoadedGamePrototypes => _loadedGamePrototypes;
 
-
-
     /// <inheritdoc cref="Register{T,Y}"/>
     // ReSharper disable once UnusedMember.Global
     public static void Register<T>(Prototype yaml) where T : Entity => Register<T, Prototype>(yaml);
@@ -75,8 +73,6 @@ public abstract class PrototypeRegistry
         }
 
         Type derivedType = typeof(T);
-
-        // WIP: Use type and get from proto list
 
         if (typeof(Prototype).IsAssignableFrom(derivedType))
         {
@@ -104,8 +100,7 @@ public abstract class PrototypeRegistry
     {
         if (!SSLGame.UseECS)
         {
-            Log($"Called Register for {yaml.Type} Entity {yaml.Handle} without initializing Entity Manager!",
-                LOG.SYSTEM_WARNING);
+            Log($"Register {yaml.Type} Entity {yaml.Handle} called without initializing ECS!", LOG.SYSTEM_WARNING);
             return;
         }
 
