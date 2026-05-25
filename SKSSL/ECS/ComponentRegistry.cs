@@ -371,7 +371,7 @@ public class ComponentRegistry
                 continue; // Short-circuit
 
             var array = _activeComponentArrays[componentType];
-            var component = GetComponentAt(array, indexOfComponentEntry);
+            Component? component = GetComponentAt(array, indexOfComponentEntry);
             if (component is not null)
                 resultList.Add(component);
         }
