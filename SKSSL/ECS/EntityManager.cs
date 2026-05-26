@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
-using SKSSL.YAML;
 using static SKSSL.DustLogger;
 
 // ReSharper disable UnusedMember.Global
@@ -24,11 +23,7 @@ public partial class EntityManager
     public EntityManager(IWorld world) => _world = world;
 
     /// Get all Active entities present in the game.
-    /// <seealso cref="Definitions"/>
     internal IReadOnlyList<Entity> AllEntities => _allEntities;
-
-    /// All inactive Entity Definitions, which ubiquitously inherit <see cref="Prototype"/>.
-    public static IReadOnlyDictionary<string, Prototype> Definitions => EntityRegistry.Definitions;
 
     #region Get Methods
 
@@ -96,21 +91,30 @@ public partial class EntityManager
     /// Acquires an entity template using a provided reference id, and creates an entity instance using it.
     /// </summary>
     /// <param name="handle">Reference id to template stored in registry.</param>
-    /// <returns>Spawned entity for later use.</returns>
+    /// <returns>Spawned copy of entity from handle.</returns>
     public Entity Spawn(string handle)
     {
-        if (!EntityRegistry.TryGetDefinition(handle, out Prototype? definition) || definition is null)
+        if (!PrototypeRegistry.TryGetPrototype(handle, out Prototype? definition) || definition is null)
             throw new Exception
                 ($"Failed to create entity copy using {handle} handle. Justify with Full Handle instead.");
         // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
 
-        // Create entity regardless of how it's stored.
-        Entity entity = definition.GetType() == typeof(Entity)
-            ? CreateEntity((definition as Entity)!)
-            : CreateEntity(definition);
 
+        Entity entity;
+        // Create entity regardless of how it's stored.
+        if (definition.GetType() == typeof(Entity))
+        {
+            entity = Spawn((definition as Entity)!);
+        }
+        else
+            // Assumes all definitions present here are entities. A bit ambiguous, it is. May not be needed!  
+        {
+            throw new Exception($"Invalid handle {handle} to spawn Entity." +
+                                $"Are you attempting to spawn some other non-entity prototype? " +
+                                $"This is an Entity Manager. What are you DOING?");
+        }
+        
         // Assign world to entity. Will cause some funk if the world is null.
-        Finalize(ref entity);
         return entity;
     }
 
@@ -130,18 +134,6 @@ public partial class EntityManager
         return entity;
     }
 
-    /// <summary>
-    /// Creates a new entity and returns its handle.
-    /// Optionally fills metadata from a template or explicit values.
-    /// </summary>
-    private static Entity CreateEntity(Prototype prototype)
-    {
-        // Use the template's desired entity type
-        //  This is essentially a dynamic constructor to account for varying component definitions and templates.
-        Entity entity = new Entity(prototype); // WIP: Organize this. Used to be done from templates.
-        return entity;
-    }
-
     #endregion
 
     #region Helpers
@@ -152,10 +144,10 @@ public partial class EntityManager
     private void Finalize(ref Entity entity)
     {
         // Last-preemptive registration if this entity's full handle is not present in the registry.
-        if (!EntityRegistry.ContainsDefinition(entity.Handle))
-            if (!EntityRegistry.ContainsDefinition(entity.GetUniqueInternalRef()))
-                EntityRegistry.RegisterDefinition(entity);
-
+        if (!PrototypeRegistry.ContainsDefinition(entity.Handle))
+            if (!PrototypeRegistry.ContainsDefinition(entity.GetUniqueInternalRef()))
+                PrototypeRegistry.RegisterPrototype(entity);
+        
         // Assign world.
         entity.World = _world;
 

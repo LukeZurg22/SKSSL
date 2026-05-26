@@ -62,7 +62,7 @@ public partial record Prototype
     /// Blank constructor for Common Entity root. Avoid using this unless absolutely necessary.
     /// Used for creating active <see cref="Entity"/> instances in the ECS, where properties are set elsewhere.
     [YamlConstructor, JsonConstructor]
-    protected Prototype()
+    public Prototype()
     {
         // Auto-generate fallback source if not provided.
         if (string.IsNullOrEmpty(Source)) Source = "game";
@@ -70,7 +70,7 @@ public partial record Prototype
 
     /// [De]serialized component entries part of this prototype.
     [YamlMember(name: "components")]
-    public List<ComponentYaml>? YamlComponents { get; set; } = [];
+    public List<ComponentYamlEntry> YamlComponents { get; set; } = [];
 
     /// Constructor for Entity Yaml basic fields and default components. This is for definitions.
     protected Prototype(Prototype yaml)

@@ -136,7 +136,7 @@ public abstract class PrototypeRegistry
             return components;
         }
 
-        foreach (ComponentYaml yamlComponent in yaml.YamlComponents)
+        foreach (ComponentYamlEntry yamlComponent in yaml.YamlComponents)
         {
             if (!ComponentRegistry.RegisteredComponentTypesDictionary
                     .TryGetValue(yamlComponent.Type.Replace("Component", string.Empty), out Type? componentType))
@@ -150,7 +150,7 @@ public abstract class PrototypeRegistry
                                    $"Cannot create {componentType.Name} in {nameof(BuildComponentsFromYaml)}");
 
             // Handle component variables.
-            foreach (var field in yamlComponent.Fields)
+            /*foreach (var field in yamlComponent.Fields)
             {
                 PropertyInfo? property = componentType.GetProperty(field.Key,
                     BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
@@ -168,7 +168,7 @@ public abstract class PrototypeRegistry
                 {
                     Log($"Failed to change type {field.Key} on {componentType.Name}", LOG.FILE_WARNING);
                 }
-            }
+            }*/
 
             components[componentType] = component; // Override.
         }
