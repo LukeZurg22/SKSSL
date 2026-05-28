@@ -1,4 +1,7 @@
 // ReSharper disable NotAccessedField.Global
+
+using VYaml.Annotations;
+
 namespace SKSSL.ECS;
 
 #pragma warning disable CS8618, CS9264
@@ -8,10 +11,10 @@ namespace SKSSL.ECS;
 /// SKSSL's ECS uses reflection to get all ISKComponents and their fields.
 /// Components exist here solely to store and represent data within an entity.
 /// </remarks>
-public abstract record Component
+public record Component
 {
     /// <summary>
     /// ID reference back to parent entity this control belongs to.
     /// </summary>
-    public EntityUid Entity;
+    [YamlIgnore] public EntityUid Entity;
 }

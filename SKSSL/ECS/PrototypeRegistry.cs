@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
-using SKSSL.YAML;
 using VYaml.Emitter;
 using static SKSSL.DustLogger;
 
@@ -54,21 +52,20 @@ public abstract class PrototypeRegistry
     /// Individual definitions belonging to all prototype instances loaded from yaml.
     public static IReadOnlyDictionary<string, Prototype> LoadedGamePrototypes => _loadedGamePrototypes;
 
-    /// <inheritdoc cref="Register{T,Y}"/>
     // ReSharper disable once UnusedMember.Global
-    public static void Register<T>(Prototype yaml) where T : Entity => Register<T, Prototype>(yaml);
+    public static void Register<T>(Prototype proto) where T : Entity => Register<T, Prototype>(proto);
 
     /// <summary>
     /// Handles registration of definition from yaml data.
     /// </summary>
-    /// <param name="yaml">The yaml file of the template.</param>
+    /// <param name="proto">The yaml file of the template.</param>
     /// <typeparam name="T">Derived Type of entity intermediate type registered. Forces inheritance.</typeparam>
     /// <typeparam name="Y"></typeparam>
-    public static void Register<T, Y>(Y yaml) where T : Entity where Y : Prototype
+    public static void Register<T, Y>(Y proto) where T : Entity where Y : Prototype
     {
         if (!SSLGame.UseECS)
         {
-            Log($"Attempted to register {yaml.Type} Entity {yaml.Handle} without ECS enabled!", LOG.SYSTEM_WARNING);
+            Log($"Attempted to register {proto.Type} Entity {proto.Handle} without ECS enabled!", LOG.SYSTEM_WARNING);
             return;
         }
 
@@ -77,9 +74,9 @@ public abstract class PrototypeRegistry
         if (typeof(Prototype).IsAssignableFrom(derivedType))
         {
             // Assumes that the yaml.handle has been sanitized of spare "...Prototype" or "...Entity" naming.
-            if (TryGetTypeHandle(derivedType, out string typeHandle) && yaml.Handle.Equals(typeHandle))
+            if (TryGetTypeHandle(derivedType, out string typeHandle) && proto.Handle.Equals(typeHandle))
             {
-                Register(yaml, derivedType);
+                Register(proto, derivedType);
             }
         }
         else
@@ -92,23 +89,22 @@ public abstract class PrototypeRegistry
     /// Creates copyable entity template from a provided Yaml file, and Template type. Also handles raw entities
     /// via a boolean toggle. Assumes templating by default.
     /// </summary>
-    /// <param name="yaml">Yaml instance to process.</param>
+    /// <param name="proto">Yaml instance to process.</param>
     /// <param name="derivedType">Assumed derived type from EntityTemplate</param>
-    /// <typeparam name="TYaml">Yaml Class</typeparam>
     /// <exception cref="YamlEmitterException">Thrown when ReferenceId / Handle not provided in YAML.</exception>
-    public static void Register<TYaml>(TYaml yaml, Type derivedType) where TYaml : Prototype
+    public static void Register(Prototype proto, Type derivedType)
     {
         if (!SSLGame.UseECS)
         {
-            Log($"Register {yaml.Type} Entity {yaml.Handle} called without initializing ECS!", LOG.SYSTEM_WARNING);
+            Log($"Register {proto.Type} Entity {proto.Handle} called without initializing ECS!", LOG.SYSTEM_WARNING);
             return;
         }
 
         // Build components. All entity registration carries forth the task of parsing component data from a yaml file.
-        var components = BuildComponentsFromYaml(yaml);
+        var components = BuildComponentsFromYaml(proto);
 
         // Raw entities are instantiated and casted. Create instance dynamically
-        object? instance = Activator.CreateInstance(derivedType, yaml, components /*constructor parameters*/);
+        object? instance = Activator.CreateInstance(derivedType, proto, components /*constructor parameters*/);
 
         // Cast to the derived type
         var entityObject = Convert.ChangeType(instance, derivedType);
@@ -116,7 +112,7 @@ public abstract class PrototypeRegistry
             throw new YamlEmitterException("Entity created was not of expected type!");
 
         // Tag 'em.
-        entity.Source = yaml.Source;
+        entity.Source = proto.Source;
         Prototype output = entity;
 
         RegisterPrototype(output);
@@ -130,13 +126,14 @@ public abstract class PrototypeRegistry
     {
         var components = new Dictionary<Type, object>();
 
-        if (yaml.YamlComponents == null)
+        // WIP: REWORKING THIS W. ENTITY [DE]SERIALIZATION
+        /*if (yaml.YamlComponents == null)
         {
             yaml.YamlComponents = [];
             return components;
         }
 
-        foreach (ComponentYamlEntry yamlComponent in yaml.YamlComponents)
+        foreach (YamlComponent yamlComponent in yaml.YamlComponents)
         {
             if (!ComponentRegistry.RegisteredComponentTypesDictionary
                     .TryGetValue(yamlComponent.Type.Replace("Component", string.Empty), out Type? componentType))
@@ -150,7 +147,7 @@ public abstract class PrototypeRegistry
                                    $"Cannot create {componentType.Name} in {nameof(BuildComponentsFromYaml)}");
 
             // Handle component variables.
-            /*foreach (var field in yamlComponent.Fields)
+            foreach (var field in yamlComponent.Fields)
             {
                 PropertyInfo? property = componentType.GetProperty(field.Key,
                     BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
@@ -168,10 +165,10 @@ public abstract class PrototypeRegistry
                 {
                     Log($"Failed to change type {field.Key} on {componentType.Name}", LOG.FILE_WARNING);
                 }
-            }*/
+            }
 
             components[componentType] = component; // Override.
-        }
+        }*/
 
         return components;
     }

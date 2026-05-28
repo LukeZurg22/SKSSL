@@ -35,15 +35,9 @@ namespace SKSSL.ECS;
 [YamlObject]
 public partial record Entity : Prototype
 {
-    /// <summary>
-    /// Can be overwritten to allow for safe type-casting.
-    /// </summary>
-    [YamlIgnore, JsonIgnore]
-    public Type EntityType => typeof(Entity);
-
     /// <inheritdoc cref="Prototype.Type"/>
     [YamlMember(name: "type")]
-    public override string Type { get; set; } = "entity";
+    public override string Type { get; set; } = "Entity";
 
     /*
      * All Entities are expected to have name and description keys provided. This isn't as limiting as it seems.
@@ -51,22 +45,31 @@ public partial record Entity : Prototype
      * not need to contain a name.
      */
 
+    // TODO: Add Parentage Field, where the properties of the parent are introduced to the child.
+    //  Child overrides parent properties. This replaces the templating system of olde.
+
+    [YamlMember(name: "parent"), JsonInclude, JsonPropertyName("Parent")]
+    public string? Parent;
+
     /// Non-localized name key.
     [YamlMember(name: "name"), JsonInclude, JsonPropertyName("Name")]
-    public string NameKey { get; set; }
+    public string NameKey;
 
     /// <returns>Localized name from Name Key.</returns>
     public void GetName() => Loc.Get(NameKey);
 
     /// Non-localized description key.
     [YamlMember(name: "description"), JsonInclude, JsonPropertyName("Description")]
-    public string DescriptionKey { get; set; }
+    public string DescriptionKey;
 
     /// <returns>Localized Description from Description Key.</returns>
     public void GetDescription() => Loc.Get(DescriptionKey);
 
+    /// [De]serialized component entries part of this prototype.
+    [YamlMember(name: "components")] public List<YamlComponent>? YamlComponents = [];
+
     /// Unique runtime ID. Created on instantiation.
-    [YamlIgnore, JsonIgnore] public readonly EntityUid Uid;
+    [YamlIgnore, JsonIgnore] public readonly EntityUid Uid = new();
 
     /// <summary>
     /// Array of component indices.<br/>
@@ -85,10 +88,6 @@ public partial record Entity : Prototype
     [MemoryPackIgnore, YamlIgnore, JsonIgnore]
     public IWorld? World { get; set; }
 
-    /// Predefined class-specific dictionary of components.
-    [MemoryPackIgnore, YamlIgnore, JsonIgnore]
-    public IReadOnlyDictionary<Type, object> DefaultComponents { get; init; }
-
     #region Constructors
 
     /// <summary>
@@ -101,20 +100,12 @@ public partial record Entity : Prototype
         Handle = prototype.Handle;
     }
 
-    /// Construct raw definition using YAML and Default Components.
-    internal Entity(Prototype yaml, IReadOnlyDictionary<Type, object> components) : this(yaml)
-    {
-        DefaultComponents = components;
-    }
-
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
     [MemoryPackConstructor, JsonConstructor, YamlConstructor]
-    internal Entity() : base()
+    public Entity() : base()
     {
         NameKey = "";
         DescriptionKey = "";
-        Uid = new EntityUid(this);
-        DefaultComponents = new Dictionary<Type, object>();
         ComponentIndices = new int[ComponentRegistry.Count];
         Array.Fill(ComponentIndices, -1); // <- All slots start as "missing"
     }

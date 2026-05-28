@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using SKSSL.YAML;
 using VYaml.Annotations;
 
 // ReSharper disable VirtualMemberCallInConstructor
@@ -32,8 +30,8 @@ namespace SKSSL.ECS;
 /// </code>
 /// </summary>
 [YamlObject]
-//[YamlObjectUnion("!Entity", typeof(Entity))]
-public partial record Prototype
+[YamlObjectUnion("!Entity", typeof(Entity))]
+public abstract partial record Prototype
 {
     /// Game content directory key to reverse-trace where this yaml prototype originated.
     [YamlIgnore]
@@ -48,7 +46,7 @@ public partial record Prototype
     /// Searchable, indexable ID. Virtual for possible nullability change in child classes.
     [YamlMember(name: "id")]
     public virtual string Handle { get; set; }
-
+    
     /// <summary>
     /// Internal categorization of this yaml entry. Split into parts:<br/>
     /// 1. Directory (dictated by the folder where this was found)<br/>
@@ -62,15 +60,11 @@ public partial record Prototype
     /// Blank constructor for Common Entity root. Avoid using this unless absolutely necessary.
     /// Used for creating active <see cref="Entity"/> instances in the ECS, where properties are set elsewhere.
     [YamlConstructor, JsonConstructor]
-    public Prototype()
+    protected Prototype()
     {
         // Auto-generate fallback source if not provided.
         if (string.IsNullOrEmpty(Source)) Source = "game";
     }
-
-    /// [De]serialized component entries part of this prototype.
-    [YamlMember(name: "components")]
-    public List<ComponentYamlEntry> YamlComponents { get; set; } = [];
 
     /// Constructor for Entity Yaml basic fields and default components. This is for definitions.
     protected Prototype(Prototype yaml)
@@ -80,6 +74,5 @@ public partial record Prototype
 
         // Name and description may be absent / null, so handle them here.
         Type = yaml.Type;
-        YamlComponents = yaml.YamlComponents;
     }
 }

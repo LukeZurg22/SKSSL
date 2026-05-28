@@ -6,7 +6,6 @@ using SKSSL.Extensions;
 using SKSSL.Scenes;
 using static SKSSL.DustLogger;
 
-// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.ECS;
 
@@ -99,7 +98,6 @@ public partial class EntityManager
                 ($"Failed to create entity copy using {handle} handle. Justify with Full Handle instead.");
         // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
 
-
         Entity entity;
         // Create entity regardless of how it's stored.
         if (definition.GetType() == typeof(Entity))
@@ -152,8 +150,9 @@ public partial class EntityManager
         entity.World = _world;
 
         // Add default components if provided.
-        foreach ((Type type, object _) in entity.DefaultComponents)
-            entity.AddComponent(type);
+        //WIP: USE COMPONENT REGISTRY LOOKUP W. YAML COMPONENT TYPE PROVISION
+        //foreach ((Type type, object _) in entity.YamlComponents)
+        //    entity.AddComponent(type);
 
         // Initialize the entity.
         entity.Initialize();

@@ -35,6 +35,31 @@ namespace SKSSL.YAML;
 /// </summary>
 public static partial class YamlLoader
 {
+    public static readonly YamlSerializerOptions SerializerOptions;
+
+    static YamlLoader()
+    {
+        SerializerOptions = YamlSerializerOptions.Standard;
+
+        // Omit properties that are null.
+        SerializerOptions.DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingNull;
+
+        SerializerOptions.Resolver = CompositeResolver.Create(
+            formatters:
+            [
+                new YamlComponentFormatter()
+            ],
+            resolvers:
+            [
+                StandardResolver.Instance,
+                new SKSSLYAMLResolver()
+            ]
+        );
+
+        // Set naming convention to UpperCamelCase.
+        //SerializerOptions.NamingConvention = NamingConvention.UpperCamelCase;
+    }
+
     #region Serialization
 
     /// Serialize provided object and save to specific file path. Overrides existing file if present.
@@ -59,9 +84,29 @@ public static partial class YamlLoader
     /// <remarks>Forces object to list of itself for serialization.</remarks>
     public static string Serialize<T>(T obj) where T : class
     {
-        return obj is List<T> list
-            ? YamlSerializer.SerializeToString(list)
-            : YamlSerializer.SerializeToString(new List<T> { obj });
+        // ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (obj == null)
+            return "";
+
+        // Special handling for collections
+        if (IsCollection(obj) && obj is not string)
+        {
+            return YamlSerializer.SerializeToString(obj, SerializerOptions);
+        }
+        else
+        {
+            return YamlSerializer.SerializeToString(new List<T> { obj }, SerializerOptions);
+        }
+
+        // Helper method - Clean way to detect collections
+        bool IsCollection(object? ding) => ding switch
+        {
+            null or string => false,
+            Array _ => true, // Catches T[]
+            IList _ => true, // Catches List<T>, IList<T>, etc.
+            IEnumerable _ => true,
+            _ => false
+        };
     } // TEMP: I am worried this will not handle multiple types very well!
 
     #endregion
@@ -385,7 +430,7 @@ public static partial class YamlLoader
     /// Helper method used to deserialize bytes as a list of an element type.
     /// Requires the DeserializeListOf method to remain exactly as it is, as this converts a type parameter
     ///  into a generic one.
-    private static object? DeserializeBytesAsListOfType(byte[] bytes, Type genericType, string file)
+    public static object? DeserializeBytesAsListOfType(byte[] bytes, Type genericType, string file = "")
     {
         Type listType = typeof(List<>).MakeGenericType(genericType);
         MethodInfo? method = typeof(YamlSerializer).GetMethod(
@@ -398,7 +443,7 @@ public static partial class YamlLoader
         );
         if (method == null)
             throw new EntryPointNotFoundException(
-                $"Failed to create Deserializer method in SKSSL Yaml Loader. Likely library issue. caused in {file}");
+                $"Failed to create Deserializer method in SKSSL Yaml Loader. Likely library issue in file {file}");
 
         MethodInfo closed = method.MakeGenericMethod(listType);
 
@@ -409,7 +454,7 @@ public static partial class YamlLoader
         catch (Exception ex)
         {
             Log($"Fatal error in {nameof(DeserializeBytesAsListOfType)} call!\n" +
-                $"Check class-type changes, invalid spacing, and values. Casted to list of {genericType} in {file}.\n" +
+                $"Check class-type changes, invalid spacing, and values. Casted to list of {genericType} in file {file}.\n" +
                 $"{ex.InnerException?.Message}", LOG.SYSTEM_ERROR);
         }
         // TODO: Add fallback attempt.
@@ -418,30 +463,4 @@ public static partial class YamlLoader
     }
 
     #endregion
-}
-
-/// A block of YAML text data that represents a single entry in a file, which is assumed to be a list of blocks.
-public readonly record struct IYamlBlock(Type? Type, string Tag, string Text, string File, int Index)
-{
-    /// Explicit representation of Type in Assembly that this block represents.
-    public readonly Type? Type = Type;
-
-    /// Type Tag that the block represents.
-    public readonly string Tag = Tag;
-
-    /// Text contained in the block.
-    public readonly string Text = Text;
-
-    /// Text contained in the block.
-    public readonly string File = File;
-
-    /// Index in the file that which this is defined .
-    public readonly int Index = Index;
-
-    /// Convert Text contained in this block to Bytes with [not] provided encoding.
-    public byte[] ToBytes(Encoding? encoding = null)
-        => encoding == null ? Encoding.UTF8.GetBytes(Text) : encoding.GetBytes(Text);
-
-    /// Returns Block <see cref="Text"/>.
-    public override string ToString() => Text;
 }

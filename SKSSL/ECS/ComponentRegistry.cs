@@ -26,7 +26,7 @@ public class ComponentRegistry
 
         Func<Component> newCreator;
 
-        // Try to find parameterless constructor
+        // Try to find parameterless constructor.
         ConstructorInfo? ctor = type.GetConstructor(Type.EmptyTypes);
         if (ctor != null)
         {
@@ -37,10 +37,10 @@ public class ComponentRegistry
         }
         else
         {
-            // Slow but safe fallback: use Activator
+            // Slow but safe fallback: use Activator.
             newCreator = () => (Component)Activator.CreateInstance(type)!
                                ?? throw new InvalidOperationException(
-                                   $"Cannot instantiate {type.Name}: no parameterless constructor and Activator failed.");
+                                   $"Cannot instantiate {type.Name}: no parameterless constructor; Activator failed.");
         }
 
         // Cache for next time (thread-safe enough)
@@ -65,11 +65,11 @@ public class ComponentRegistry
         _registeredComponents.Clear();
     }
 
-    /// All registered component types-types contained in the system.
-    public static IReadOnlyDictionary<Type, int> RegisteredTypesDictionary => _typeToId;
+    /// All registered component types-types contained in the system. Key = Type; Value = ID
+    public static IReadOnlyDictionary<Type, int> RegisteredTypeIDDictionary => _typeToId;
 
-    /// All registered component class-types contained in the system.
-    public static IReadOnlyDictionary<string, Type> RegisteredComponentTypesDictionary => _registeredComponents;
+    /// All registered component class-types contained in the system. Key = TypeName (short)
+    public static IReadOnlyDictionary<string, Type> RegisteredHandleComponentTypesDictionary => _registeredComponents;
 
     /// <summary>
     /// Dictionary of all active components.
@@ -160,6 +160,10 @@ public class ComponentRegistry
 
     /// <inheritdoc cref="GetComponentTypeId"/>
     public static int GetComponentTypeId<T>() => GetComponentTypeId(typeof(T));
+
+    /// Safe-ish way to to obtain a registered type definition added here from Source Generator Registrar.
+    public static bool TryGetComponentType(string shortName, out Type? type)
+        => RegisteredHandleComponentTypesDictionary.TryGetValue(shortName, out type);
 
     /// <summary>
     /// Multipurpose method used to retrieve an ID of a registered type, or additionally
@@ -354,11 +358,11 @@ public class ComponentRegistry
     /// This is intended for debugging, serialization, inspection, or rare runtime needs.
     /// For performance, use <see cref="GetComponent{T}"/> instead.
     /// </remarks>
-    public ref List<object> GetAllComponents(Entity entity)
+    public ref List<Component> GetAllComponents(Entity entity)
     {
         // Return a ref to a static thread-local list to avoid allocations in hot paths
         // Still safe since it's ref-local-scoped.
-        ref var resultList = ref ThreadLocalList<object>.GetOrCreate();
+        ref var resultList = ref ThreadLocalList<Component>.GetOrCreate();
 
         resultList.Clear();
         var indices = entity.ComponentIndices;
@@ -393,5 +397,5 @@ public class ComponentRegistry
     #endregion
 
     public static bool HasComponent(Entity entity, Type componentType)
-        => entity.ComponentIndices[RegisteredTypesDictionary.GetValueOrDefault(componentType, -1)] != -1;
+        => entity.ComponentIndices[RegisteredTypeIDDictionary.GetValueOrDefault(componentType, -1)] != -1;
 }

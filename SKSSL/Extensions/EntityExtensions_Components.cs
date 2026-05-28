@@ -24,7 +24,7 @@ public static partial class EntityExtensions
     public static bool TryGetComponent(this Entity entity, Type type, out Component? component)
         => ComponentRegistry.TryGetComponent(entity, type, out component);
 
-    public static List<object> GetAllComponents(this Entity entity)
+    public static List<Component> GetAllComponents(this Entity entity)
         => ComponentRegistry.GetAllComponents(entity);
 
     #endregion

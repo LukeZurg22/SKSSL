@@ -8,7 +8,7 @@ namespace SKSSL.YAML;
 
 /// Structure for component information contained in YAML files.
 [YamlObject]
-public partial class ComponentYaml
+public partial class YamlComponent
 {
     // e.g., "RenderableComponent" but named "Renderable"; it's stripped of the "Component" suffix.
     [YamlMember(name: "type")] public string Type { get; set; }
@@ -22,5 +22,5 @@ public partial class ComponentYaml
     /// It's funky. Field names should be about as 1:1 to the actual component's fields.
     /// As far as I know, it's case sensitive.
     /// </remarks>
-    public Dictionary<string, object> Fields { get; set; } = new();
+    public Dictionary<string, object?> Entries { get; set; } = new();
 }
