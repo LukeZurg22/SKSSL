@@ -12,18 +12,23 @@ public static partial class EntityExtensions
 {
     #region Get Components
 
+    /// <inheritdoc cref="ComponentRegistry.GetComponent"/> (Generic Variant)
     public static ref T GetComponent<T>(this Entity entity) where T : Component
         => ref ComponentRegistry.GetComponent<T>(entity);
 
+    /// <inheritdoc cref="ComponentRegistry.GetComponent"/>
     public static Component? GetComponent(this Entity entity, Type componentType)
         => ComponentRegistry.GetComponent(entity, componentType);
 
-    public static bool TryGetComponent<T>(this Entity entity, out T? component) where T : Component
-        => ComponentRegistry.TryGetComponent(entity, out component);
+    /// <inheritdoc cref="ComponentRegistry.TryGetComponent"/> (Generic Variant)
+    public static bool TryGetComponent<T>(this Entity entity, out T component) where T : Component
+        => ComponentRegistry.TryGetComponent(entity, out component!);
 
-    public static bool TryGetComponent(this Entity entity, Type type, out Component? component)
-        => ComponentRegistry.TryGetComponent(entity, type, out component);
+    /// <inheritdoc cref="ComponentRegistry.TryGetComponent"/>
+    public static bool TryGetComponent(this Entity entity, Type type, out Component component)
+        => ComponentRegistry.TryGetComponent(entity, type, out component!);
 
+    /// <inheritdoc cref="ComponentRegistry.GetAllComponents"/>
     public static List<Component> GetAllComponents(this Entity entity)
         => ComponentRegistry.GetAllComponents(entity);
 
@@ -32,7 +37,7 @@ public static partial class EntityExtensions
     #region Add Components
 
     public static T AddComponent<T>(this Entity entity) where T : Component, new()
-        => (T)ComponentRegistry.AddComponent(entity, new T());
+        => (T)ComponentRegistry.AddComponent(entity, ComponentRegistry.FastCreate(typeof(T)));
 
     /// Use AddComponent(component instance) or the generic method instead! This is more dangerous!
     public static Component AddComponent(this Entity entity, Type type)

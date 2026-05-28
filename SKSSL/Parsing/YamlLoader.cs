@@ -168,6 +168,7 @@ public static partial class YamlLoader
     public static Dictionary<Type, List<Prototype>> ExtractYamlData(string[] text, string fileTrace = "",
         Type[]? types = null)
     {
+        // Using source generators to their fullest effectiveness, here!
         if (types is null || types.Length == 0) types = PrototypeRegistry.Definitions.Values.ToArray();
 
         // "You can tell its conglomerate- because it's everywhere!"
@@ -364,11 +365,11 @@ public static partial class YamlLoader
         var yamlDict = expectedTypes.ToDictionary(type => type, _ => new List<Prototype>());
 
         // For every combined pairing, deserialize.
-        foreach (var combinedKVP in combined)
+        foreach ((Type? type, byte[]? bytes) in combined)
         {
             try
             {
-                var deserializedTypeList = DeserializeBytesAsListOfType(combinedKVP.Value, combinedKVP.Key, fileTrace);
+                var deserializedTypeList = DeserializeBytesAsListOfType(bytes, type, fileTrace);
                 if (deserializedTypeList == null)
                 {
                     // Do NOT throw an error here, as this particular deserialized list may not have been found in the
@@ -379,13 +380,13 @@ public static partial class YamlLoader
                 // Iterate through the list and fill the output.
                 foreach (var yamlObject in (IEnumerable)deserializedTypeList)
                 {
-                    yamlDict[combinedKVP.Key].Add((Prototype)Convert.ChangeType(yamlObject, combinedKVP.Key));
+                    yamlDict[type].Add((Prototype)Convert.ChangeType(yamlObject, type));
                 }
             }
             catch (Exception ex)
             {
                 throw new Exception(
-                    $"Failed to deserialize {combinedKVP.Key.Name} type from \"{Path.GetFileName(fileTrace)}\".", ex);
+                    $"Failed to deserialize {type.Name} type from \"{Path.GetFileName(fileTrace)}\".", ex);
             }
         }
 

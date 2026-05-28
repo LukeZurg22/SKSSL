@@ -64,16 +64,14 @@ public abstract class PrototypeRegistry
     /// <returns>True if a template was found. False if one was not.</returns>
     public static bool ContainsPrototype(string handle) => RawGamePrototypes.ContainsKey(handle);
 
-    public static void Insert(List<IYamlBlock> blocks)
+    public static void Insert(Prototype newPrototype)
     {
-        foreach (IYamlBlock block in blocks.Where(b => b.Type == typeof(Entity)))
-        {
-            var entity = DeserializePrototype(block);
-            if (entity != null)
-            {
-                RawGamePrototypes[entity.Type] = entity;
-            }
-        }
+        if (RawGamePrototypes.ContainsKey(newPrototype.Handle))
+            Log($"Raw game prototype storage already contains {newPrototype.Handle} handle, which is being overwritten!");
+        
+        // Allow override of existing, but a warning was definitely needed.
+        // WARN: Load order might not be accommodated-for just yet. Prototypes should not 
+        RawGamePrototypes[newPrototype.Handle] = newPrototype;
 
         // Resolve inheritance.
         foreach (var entityType in Definitions.Keys)
@@ -98,9 +96,9 @@ public abstract class PrototypeRegistry
             Type = raw.Type,
             Handle = raw.Handle,
         };
-        
+
         resolved.ApplyInheritanceOf(raw);
-        
+
         var visited = new HashSet<string>(); // Cycle detection
         ResolveInheritanceRecursive(raw, resolved, visited);
 
@@ -126,20 +124,6 @@ public abstract class PrototypeRegistry
         }
 
         visited.Remove(current.Type);
-    }
-
-
-    private static Prototype? DeserializePrototype(IYamlBlock block)
-    {
-        try
-        {
-            return YamlSerializer.Deserialize<Prototype>(block.ToBytes());
-        }
-        catch (Exception ex)
-        {
-            Log($"Failed to deserialize entity '{block.Tag}' in {block.File}", LOG.FILE_ERROR);
-            return null;
-        }
     }
 
     /// <summary>

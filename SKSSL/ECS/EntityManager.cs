@@ -141,18 +141,21 @@ public partial class EntityManager
     /// </summary>
     private void Finalize(ref Entity entity)
     {
-        // Last-preemptive registration if this entity's full handle is not present in the registry.
-        if (!PrototypeRegistry.TypeDefined(entity.Handle))
-            if (!PrototypeRegistry.TypeDefined(entity.GetUniqueInternalRef()))
-                PrototypeRegistry.RegisterPrototype(entity);
+        // TODO: Last-preemptive registration if this entity's full handle is not present in the registry.
         
         // Assign world.
         entity.World = _world;
 
         // Add default components if provided.
         //WIP: USE COMPONENT REGISTRY LOOKUP W. YAML COMPONENT TYPE PROVISION
-        //foreach ((Type type, object _) in entity.YamlComponents)
-        //    entity.AddComponent(type);
+        foreach (var obj in entity.YamlComponents)
+        {
+            if (ComponentRegistry.TryGetComponentType(obj.Type, out Type component))
+            {
+                entity.AddComponent(component);
+            }
+            
+        }
 
         // Initialize the entity.
         entity.Initialize();

@@ -162,8 +162,16 @@ public class ComponentRegistry
     public static int GetComponentTypeId<T>() => GetComponentTypeId(typeof(T));
 
     /// Safe-ish way to to obtain a registered type definition added here from Source Generator Registrar.
-    public static bool TryGetComponentType(string shortName, out Type? type)
-        => RegisteredHandleComponentTypesDictionary.TryGetValue(shortName, out type);
+    public static bool TryGetComponentType(string shortName, out Type type)
+    {
+        if (RegisteredHandleComponentTypesDictionary.TryGetValue(shortName, out Type? temp))
+        {
+            type = temp;
+            return true;
+        }
+        type = null!;
+        return false;
+    }
 
     /// <summary>
     /// Multipurpose method used to retrieve an ID of a registered type, or additionally
@@ -194,12 +202,13 @@ public class ComponentRegistry
     #region More Get Methods
 
     /// <summary>
-    /// Acts like <see cref="GetComponent{T}"/> but directly expects a provided type.
+    /// Acts like <see cref="GetComponent{T}"/> but expects a provided type directly.
     /// </summary>
-    /// <param name="entity"></param>
+    /// <param name="entity">Entity expected to contain component.</param>
     /// <param name="componentType">The runtime type of the component (must implement ISKComponent).</param>
     /// <returns>The component instance (boxed as ISKComponent), or null if not found (or throws based on preference).</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component or type is invalid.</exception>
+    /// <seealso cref="TryGetComponent{T}"/>
     public Component? GetComponent(Entity entity, Type componentType)
     {
         if (!typeof(Component).IsAssignableFrom(componentType))
@@ -307,9 +316,9 @@ public class ComponentRegistry
     /// <param name="component">Component output for use.</param>
     /// <typeparam name="T">Expected Component Type within entity.</typeparam>
     /// <returns>False if a component wasn't found.</returns>
-    public bool TryGetComponent<T>(Entity entity, out T? component) where T : Component
+    public bool TryGetComponent<T>(Entity entity, out T component) where T : Component
     {
-        component = null;
+        component = null!;
         int typeId = GetComponentTypeId<T>();
         int index = entity.ComponentIndices[typeId];
 
@@ -321,12 +330,12 @@ public class ComponentRegistry
     }
 
     /// <summary>
-    /// Attempts to retrieve a component using explicit type, outputting null interface of <see cref="Component"/>
-    /// if not found.
+    /// Attempts to retrieve a component using explicit type.
     /// </summary>
-    public bool TryGetComponent(Entity entity, Type componentType, out Component? component)
+    /// <returns>true if component was found, output is not null. false if not found, output will be null.</returns>
+    public bool TryGetComponent(Entity entity, Type componentType, out Component component)
     {
-        component = null;
+        component = null!;
 
         if (!typeof(Component).IsAssignableFrom(componentType))
             return false;
@@ -338,7 +347,7 @@ public class ComponentRegistry
             return false;
 
         var array = _activeComponentArrays[componentType];
-        component = GetComponentAt(array, index);
+        component = GetComponentAt(array, index)!;
         return true;
     }
 
@@ -351,6 +360,7 @@ public class ComponentRegistry
     /// <summary>
     /// Gets a list of all components in an entity as a snapshot at the time of the call meaning changes to the entity
     /// won't affect the returned list. Will require casting. Assumes that all returned components are valid.
+    /// Not suggested for use.
     /// </summary>
     /// <returns>A list of all components currently attached to this entity (boxed as object).</returns>
     /// <remarks>
