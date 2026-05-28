@@ -11,7 +11,8 @@ namespace SKSSL.ECS;
 /// SKSSL's ECS uses reflection to get all ISKComponents and their fields.
 /// Components exist here solely to store and represent data within an entity.
 /// </remarks>
-public record Component
+[YamlObject]
+public partial record Component
 {
     /// <summary>
     /// ID reference back to parent entity this control belongs to.

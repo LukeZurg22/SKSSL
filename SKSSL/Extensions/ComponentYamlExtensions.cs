@@ -14,7 +14,7 @@ public static class ComponentYamlExtensions
                                             BindingFlags.IgnoreCase;
 
     /// Converts Component to yaml object for serialization.
-    public static YamlComponent ToYaml(Component component)
+    public static YamlComponent ToYaml(this Component component)
     {
         var result = new YamlComponent
         {
@@ -88,7 +88,7 @@ public static class ComponentYamlExtensions
     /// Converts yaml component object to actual component object instance. This instance is NOT registered in the
     /// registry, and has no assigned entity due to this.
     /// <seealso cref="ComponentRegistry"/>
-    public static Component FromYaml(YamlComponent yaml)
+    public static Component FromYaml(this YamlComponent yaml)
     {
         string typeName = ComponentTypeHelper.NormalizeTypeName(yaml.Type);
         if (!ComponentRegistry.TryGetComponentType(typeName, out Type? componentType))
@@ -138,45 +138,4 @@ public static class ComponentYamlExtensions
         return Convert.ChangeType(value, targetType);
     }
 
-    /// Converts any value to a reasonable YAML-compatible string representation.
-    /// Handles null, primitives, strings, Vectors, common MonoGame types, etc.
-    public static string ValueToYamlString(object value)
-    {
-        Type type = value.GetType();
-
-        // String: quote it
-        if (type == typeof(string))
-            return $"\"{value}\"";
-
-        // Common MonoGame types
-        if (type == typeof(Microsoft.Xna.Framework.Vector2))
-        {
-            var v = (Microsoft.Xna.Framework.Vector2)value;
-            return $"{v.X}, {v.Y}";
-        }
-
-        if (type == typeof(Microsoft.Xna.Framework.Vector3))
-        {
-            var v = (Microsoft.Xna.Framework.Vector3)value;
-            return $"{v.X}, {v.Y}, {v.Z}";
-        }
-
-        if (type == typeof(Microsoft.Xna.Framework.Color))
-        {
-            var c = (Microsoft.Xna.Framework.Color)value;
-            return c.PackedValue.ToString("X8"); // or use Name if known
-        }
-
-        // Enums: use name
-        if (type.IsEnum)
-            return value.ToString()!;
-
-        // Primitives: just ToString()
-        if (type.IsPrimitive || type == typeof(decimal))
-            return value.ToString()!.ToLowerInvariant(); // e.g., true/false instead of True/False
-
-        // Fallback: ToString(), or type name if not helpful
-        string str = value.ToString()!;
-        return str != type.ToString() ? str : $"~{type.Name}"; // mark complex objects
-    }
 }

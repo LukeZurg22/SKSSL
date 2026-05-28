@@ -45,15 +45,8 @@ public static partial class YamlLoader
         SerializerOptions.DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingNull;
 
         SerializerOptions.Resolver = CompositeResolver.Create(
-            formatters:
-            [
-                new YamlComponentFormatter()
-            ],
-            resolvers:
-            [
-                StandardResolver.Instance,
-                new SKSSLYAMLResolver()
-            ]
+            formatters: [new YamlComponentFormatter()],
+            resolvers: [StandardResolver.Instance, new SKSSLYAMLResolver()]
         );
 
         // Set naming convention to UpperCamelCase.
@@ -89,14 +82,9 @@ public static partial class YamlLoader
             return "";
 
         // Special handling for collections
-        if (IsCollection(obj) && obj is not string)
-        {
-            return YamlSerializer.SerializeToString(obj, SerializerOptions);
-        }
-        else
-        {
-            return YamlSerializer.SerializeToString(new List<T> { obj }, SerializerOptions);
-        }
+        return IsCollection(obj) && obj is not string
+            ? YamlSerializer.SerializeToString(obj, SerializerOptions)
+            : YamlSerializer.SerializeToString(new List<T> { obj }, SerializerOptions);
 
         // Helper method - Clean way to detect collections
         bool IsCollection(object? ding) => ding switch
