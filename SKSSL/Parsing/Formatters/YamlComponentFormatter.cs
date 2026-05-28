@@ -31,33 +31,16 @@ public sealed class YamlComponentFormatter : IYamlFormatter<YamlComponent>
         emitter.EndMapping();
     }
 
+
     /// Converts any value to a reasonable YAML-compatible string representation.
     /// Handles null, primitives, strings, Vectors, common MonoGame types, etc.
-    public static string ValueToYamlString(object value)
-    {
-        Type type = value.GetType();
-
-        // Enums: use name
-        if (type.IsEnum)
-            return value.ToString()!;
-
-        // Primitives: just ToString()
-        if (type.IsPrimitive || type == typeof(decimal))
-            return value.ToString()!.ToLowerInvariant(); // e.g., true/false instead of True/False
-
-        // Fallback: ToString(), or type name if not helpful
-        string str = value.ToString()!;
-        return str != type.ToString() ? str : $"~{type.Name}"; // mark complex objects
-    }
-
-    private void SerializeValue(ref Utf8YamlEmitter emitter, object? value, YamlSerializationContext context)
+    private static void SerializeValue(ref Utf8YamlEmitter emitter, object? value, YamlSerializationContext context)
     {
         if (value == null)
         {
             emitter.WriteNull();
             return;
         }
-
 
         switch (value)
         {

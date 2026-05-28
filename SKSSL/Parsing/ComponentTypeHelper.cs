@@ -1,4 +1,3 @@
-using System;
 using static System.StringComparison;
 
 namespace SKSSL;

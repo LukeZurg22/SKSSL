@@ -2,6 +2,8 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using static System.Globalization.CultureInfo;
+using static System.Globalization.NumberStyles;
 
 namespace SKSSL.Extensions;
 
@@ -18,14 +20,14 @@ public static class StringHelpers
             value = value[..i];
         return value;
     }
-    
+
     /// <returns>A "..._&lt;value&gt;" ending tag from a provided string value.</returns>
     public static string GetUnderscoreEndingTag(this string value)
     {
         int i = value.LastIndexOf('_');
         return i >= 0 ? value[(i + 1)..] : "";
     }
-    
+
     public static string ToPascalCase(this string input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -52,33 +54,32 @@ public static class StringHelpers
 
         // Try for an integer
         if (targetType == typeof(int) &&
-            int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
+            int.TryParse(key, Integer, InvariantCulture, out var i))
             return (T?)(object)i;
 
         // Perhaps it's a short, instead?
         if (targetType == typeof(short) &&
-            short.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var s))
+            short.TryParse(key, Integer, InvariantCulture, out var s))
             return (T?)(object)s;
 
         // Somehow, it should be a long?
         if (targetType == typeof(long) &&
-            long.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l))
+            long.TryParse(key, Integer, InvariantCulture, out var l))
             return (T?)(object)l;
 
         // Clearly, it's a float!
-        if (targetType == typeof(float) && float.TryParse(key, NumberStyles.Float | NumberStyles.AllowThousands,
-                CultureInfo.InvariantCulture, out var f))
+        if (targetType == typeof(float) && float.TryParse(key, Float | AllowThousands, InvariantCulture, out var f))
             return (T?)(object)f;
 
         // It should be... a double?
-        if (targetType == typeof(double) && double.TryParse(key, NumberStyles.Float | NumberStyles.AllowThousands,
-                CultureInfo.InvariantCulture, out var d))
+        if (targetType == typeof(double) && double.TryParse(key, Float | AllowThousands,
+                InvariantCulture, out var d))
             return (T?)(object)d;
 
         // It must be an Enum, then! And even better, the user provided the type!
         if (providedEnumType != null && Enum.IsDefined(providedEnumType, key))
             return (T?)Enum.Parse(providedEnumType, key);
-        
+
         // Well clearly, it's an enum, but the correct type was not properly provided.
         return targetType.IsEnum switch
         {
@@ -133,7 +134,7 @@ public static class StringHelpers
 
         return line; // Default to string
     }
-    
+
     /// Returns new string in camel_case.
     public static string ToCamelCase(this string input)
     {
@@ -142,7 +143,7 @@ public static class StringHelpers
 
         // Remove non-alphanumeric characters and capitalize words
         string result = Regex.Replace(input, "[^a-zA-Z0-9]+", " ");
-        TextInfo textInfo = CultureInfo.InvariantCulture.TextInfo;
+        TextInfo textInfo = InvariantCulture.TextInfo;
         result = textInfo.ToTitleCase(result).Replace(" ", "");
 
         // Lowercase first letter
@@ -153,7 +154,7 @@ public static class StringHelpers
     /// Extension method for <see cref="string.IsNullOrEmpty"/>
     /// </summary>
     public static bool IsNullOrEmpty(this string? value) => string.IsNullOrEmpty(value);
-    
+
     /// <summary>
     /// Extension method for <see cref="string.IsNullOrWhiteSpace"/>
     /// </summary>
