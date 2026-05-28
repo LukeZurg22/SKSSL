@@ -53,6 +53,21 @@ public static partial class YamlLoader
         //SerializerOptions.NamingConvention = NamingConvention.UpperCamelCase;
     }
 
+    #region Loading
+
+    /// Using prototype data collected from elsewhere, load into registry.
+    public static void LoadDataToRegistry(Dictionary<Type, List<Prototype>> prototypes)
+    {
+        // TODO: add some safety padding here for overrides?
+        foreach (var prototypeList in prototypes.Values)
+        foreach (var prototype in prototypeList)
+        {
+            PrototypeRegistry.RegisterPrototype(prototype);
+        }
+    }
+
+    #endregion
+
     #region Serialization
 
     /// Serialize provided object and save to specific file path. Overrides existing file if present.
@@ -99,13 +114,13 @@ public static partial class YamlLoader
 
     #endregion
 
-    #region Loading
+    #region Deserialization
 
     /// <summary>
     /// Searches a directory using provided type definitions and file patterns. Directory defaults to application's if
     /// not provided.
     /// </summary>
-    public static Dictionary<Type, List<object>> LoadDirectory(string directory, params string[] patterns)
+    public static Dictionary<Type, List<Prototype>> DeserializeDirectory(string directory, params string[] patterns)
     {
         // Get all yaml files.
         var files = GetFiles(patterns, directory);
@@ -117,13 +132,13 @@ public static partial class YamlLoader
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
         // Files should -not- have a type defined within them outside the ones passed through here. If one somehow
         //  gets passed, it's probably because of a test.
-        var conglomerate = types.ToDictionary(type => type, _ => new List<object>());
+        var conglomerate = types.ToDictionary(type => type, _ => new List<Prototype>());
 
         // Process every file with expected types.
         foreach (var file in files)
         {
             // Merging the file's conglomerate with our super conglomerate.
-            var output = LoadFile(file, types);
+            var output = DeserializeFile(file, types);
             foreach ((Type type, var yamlData) in output)
             {
                 // Tag each yaml entry with source.
@@ -141,19 +156,19 @@ public static partial class YamlLoader
     /// <param name="file"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static Dictionary<Type, List<Prototype>> LoadFile<T>(string file) => LoadFile(file, typeof(T));
+    public static Dictionary<Type, List<Prototype>> DeserializeFile<T>(string file) => DeserializeFile(file, typeof(T));
 
     /// <summary>
     /// Searches a directory using provided type definitions and file patterns. Directory defaults to application's if
     /// not provided.
     /// </summary>
-    public static Dictionary<Type, List<Prototype>> LoadFile(string file, params Type[] types)
+    public static Dictionary<Type, List<Prototype>> DeserializeFile(string file, params Type[] types)
     {
         // Supported types are gotten from Source Generators' output to PrototypeManager, now!
         if (types.Length == 0)
             types = PrototypeRegistry.Definitions.Values.ToArray();
         if (File.Exists(file))
-            return ExtractYamlData(File.ReadAllLines(file), file, types);
+            return DeserializeYamlFrom(File.ReadAllLines(file), file, types);
         Log($"File not found from file path {file}, it's being skipped entirely!");
         return [];
     }
@@ -165,7 +180,7 @@ public static partial class YamlLoader
     /// <param name="fileTrace"></param>
     /// <param name="types"></param>
     /// <returns></returns>
-    public static Dictionary<Type, List<Prototype>> ExtractYamlData(string[] text, string fileTrace = "",
+    public static Dictionary<Type, List<Prototype>> DeserializeYamlFrom(string[] text, string fileTrace = "",
         Type[]? types = null)
     {
         // Using source generators to their fullest effectiveness, here!
@@ -187,8 +202,12 @@ public static partial class YamlLoader
             CombineYamlBlockBytes(yamlBlocks, combined);
             var output = DeserializeFillData(types, combined, fileTrace);
 
-            foreach ((Type type, var entries) in output)
-                conglomerate[type].AddRange(entries); // Additive
+            foreach (Prototype prototype in output)
+            {
+                // Using prototype registry for search. Unstable? Maybe!
+                Type type = PrototypeRegistry.Definitions[prototype.Type];
+                conglomerate[type].AddRange(prototype); // Additive
+            }
         }
         catch (Exception ex)
         {
@@ -356,13 +375,13 @@ public static partial class YamlLoader
     }
 
     /// Deserialize a set of bytes per type, and fill the data into a dictionary for use elsewhere.
-    private static Dictionary<Type, List<Prototype>> DeserializeFillData(
+    private static List<Prototype> DeserializeFillData(
         Type[] expectedTypes, Dictionary<Type, byte[]> combined, string fileTrace)
     {
         // Assign proper types to a new dictionary to organize all the different flavors of files.
         // Because provided types are static, and that yaml blocks are later verified,
         //  this should guarantee that a list within the dictionary is available for all types.
-        var yamlDict = expectedTypes.ToDictionary(type => type, _ => new List<Prototype>());
+        var yamlDict = new List<Prototype>();
 
         // For every combined pairing, deserialize.
         foreach ((Type? type, byte[]? bytes) in combined)
@@ -380,7 +399,7 @@ public static partial class YamlLoader
                 // Iterate through the list and fill the output.
                 foreach (var yamlObject in (IEnumerable)deserializedTypeList)
                 {
-                    yamlDict[type].Add((Prototype)Convert.ChangeType(yamlObject, type));
+                    yamlDict.Add((Prototype)Convert.ChangeType(yamlObject, type));
                 }
             }
             catch (Exception ex)
