@@ -69,8 +69,11 @@ public static class Loc
     /// }
     /// </code>
     /// </example>
-    public static string Get(string localeID, params (string variableName, object variableValue)[]? values)
+    public static string Get(string? localeID, params (string variableName, object variableValue)[]? values)
     {
+        if (localeID == null)
+            return "";
+
         foreach (MessageContext messageContext in MessageContexts)
         {
             Message? message = messageContext.GetMessage(localeID);
