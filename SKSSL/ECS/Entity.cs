@@ -48,8 +48,7 @@ public partial record Entity : Prototype
     // TODO: Add Parentage Field, where the properties of the parent are introduced to the child.
     //  Child overrides parent properties. This replaces the templating system of olde.
 
-    [YamlMember(name: "parent"), JsonInclude, JsonPropertyName("Parent")]
-    public string? Parent;
+    #region Name / Description
 
     /// Non-localized name key.
     [YamlMember(name: "name"), JsonInclude, JsonPropertyName("Name")]
@@ -65,12 +64,17 @@ public partial record Entity : Prototype
     /// <returns>Localized Description from Description Key.</returns>
     public void GetDescription() => Loc.Get(DescriptionKey);
 
-    /// [De]serialized component entries part of this prototype.
-    [YamlMember(name: "components")] public List<YamlComponent>? YamlComponents = [];
+    #endregion
 
     /// Unique runtime ID. Created on instantiation.
     [YamlIgnore, JsonIgnore] public readonly EntityUid Uid = new();
 
+    /// <returns>true if ID != 0, else returns false.</returns>
+    [YamlIgnore, JsonIgnore] public bool IsValid => Uid.Id != 0U;
+
+    /// [De]serialized component entries part of this prototype.
+    [YamlMember(name: "components")] public List<YamlComponent>? YamlComponents = [];
+    
     /// <summary>
     /// Array of component indices.<br/>
     /// Index = ComponentTypeId&lt;T&gt;.Id,<br/>

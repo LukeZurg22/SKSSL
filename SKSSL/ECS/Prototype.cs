@@ -30,17 +30,20 @@ namespace SKSSL.ECS;
 /// </code>
 /// </summary>
 [YamlObject]
-[YamlObjectUnion("!Entity", typeof(Entity))]
-public abstract partial record Prototype
+//[YamlObjectUnion("!Entity", typeof(Entity))]
+public partial record Prototype
 {
     /// Game content directory key to reverse-trace where this yaml prototype originated.
     [YamlIgnore]
     public virtual string Source { get; set; }
 
+    [YamlMember(name: "parent"), JsonInclude, JsonPropertyName("Parent")]
+    public string? Parent;
+    
     /// Explicit type definition for this entry. For direct raw-serialization of entities.
     /// Completely unused if prioritizing yaml templates.
     [YamlMember(name: "type"), JsonInclude]
-    public virtual string Type { get; set; }
+    public virtual string Type { get; set; } = "Prototype";
 
     /// Definition's Reference ID to later refer-to when making copies.
     /// Searchable, indexable ID. Virtual for possible nullability change in child classes.
@@ -60,7 +63,7 @@ public abstract partial record Prototype
     /// Blank constructor for Common Entity root. Avoid using this unless absolutely necessary.
     /// Used for creating active <see cref="Entity"/> instances in the ECS, where properties are set elsewhere.
     [YamlConstructor, JsonConstructor]
-    protected Prototype()
+    public Prototype()
     {
         // Auto-generate fallback source if not provided.
         if (string.IsNullOrEmpty(Source)) Source = "game";

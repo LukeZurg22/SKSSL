@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using SKSSL.ECS;
 using SKSSL.YAML;
@@ -6,8 +7,11 @@ using VYaml.Annotations;
 
 namespace SKSSL.Extensions;
 
-public static class ComponentYamlExtensions
+public static class YamlCompExtensions
 {
+    public static YamlComponent Clone(this YamlComponent source)
+        => new() { Type = source.Type, Entries = new Dictionary<string, object?>(source.Entries) };
+
     private const BindingFlags FieldFlags = BindingFlags.Public |
                                             BindingFlags.NonPublic |
                                             BindingFlags.Instance |
@@ -36,7 +40,7 @@ public static class ComponentYamlExtensions
             string key = field.Name.TrimStart('_');
             if (string.IsNullOrWhiteSpace(key))
                 continue;
-            
+
             // Filter out compiler-generated data.
             if (field.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), true))
                 continue;
@@ -137,5 +141,4 @@ public static class ComponentYamlExtensions
 
         return Convert.ChangeType(value, targetType);
     }
-
 }

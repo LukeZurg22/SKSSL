@@ -14,8 +14,6 @@ public class SKSSLYAMLResolver : IYamlFormatterResolver
     public IYamlFormatter<T>? GetFormatter<T>()
     {
         Type type = typeof(T);
-        //if (type == typeof(Entity))
-        //    return entityFormatterInstance as IYamlFormatter<T>;
 
         if (type == typeof(YamlComponent))
             return yamlComponentFormatterInstance as IYamlFormatter<T>;

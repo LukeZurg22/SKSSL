@@ -142,8 +142,8 @@ public partial class EntityManager
     private void Finalize(ref Entity entity)
     {
         // Last-preemptive registration if this entity's full handle is not present in the registry.
-        if (!PrototypeRegistry.ContainsDefinition(entity.Handle))
-            if (!PrototypeRegistry.ContainsDefinition(entity.GetUniqueInternalRef()))
+        if (!PrototypeRegistry.TypeDefined(entity.Handle))
+            if (!PrototypeRegistry.TypeDefined(entity.GetUniqueInternalRef()))
                 PrototypeRegistry.RegisterPrototype(entity);
         
         // Assign world.

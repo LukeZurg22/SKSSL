@@ -18,7 +18,7 @@ public readonly record struct IYamlBlock(Type? Type, string Tag, string Text, st
     /// Text contained in the block.
     public readonly string File = File;
 
-    /// Index in the file that which this is defined .
+    /// Index in the file that which this is defined.
     public readonly int Index = Index;
 
     /// Convert Text contained in this block to Bytes with [not] provided encoding.
