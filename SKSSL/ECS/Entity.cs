@@ -52,14 +52,14 @@ public partial record Entity : Prototype
 
     /// Non-localized name key.
     [YamlMember(name: "name"), JsonInclude, JsonPropertyName("Name")]
-    public string NameKey;
+    public string? NameKey;
 
     /// <returns>Localized name from Name Key.</returns>
     public void GetName() => Loc.Get(NameKey);
 
     /// Non-localized description key.
     [YamlMember(name: "description"), JsonInclude, JsonPropertyName("Description")]
-    public string DescriptionKey;
+    public string? DescriptionKey;
 
     /// <returns>Localized Description from Description Key.</returns>
     public void GetDescription() => Loc.Get(DescriptionKey);

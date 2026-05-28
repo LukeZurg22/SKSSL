@@ -175,9 +175,9 @@ public abstract class SSLGame : Game
             Log($"Source generator accounted for {ComponentRegistry.Count} components:");
             // Print all registered components in a nice list. 
             StringBuilder componentTypesOutput = new();
-            foreach (var type in ComponentRegistry.RegisteredHandleComponentTypesDictionary)
+            foreach ((string? handle, Type? type) in ComponentRegistry.RegisteredHandleComponentTypesDictionary)
                 componentTypesOutput.AppendLine(
-                    $"\n  {type.Key} -> ID {ComponentRegistry.GetOrRegister(type.Key, type.Value)}");
+                    $"\n  {handle} -> ID {ComponentRegistry.GetId(type)}");
             Log(componentTypesOutput.ToString());
         }
 

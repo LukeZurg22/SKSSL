@@ -50,9 +50,11 @@ public static partial class EntityExtensions
 
     #region Has Components
 
+    /// <inheritdoc cref="ComponentRegistry.HasComponent"/>
     public static bool HasComponent<T>(this Entity entity) where T : Component
         => HasComponent(entity, typeof(T));
 
+    /// <inheritdoc cref="ComponentRegistry.HasComponent"/>
     public static bool HasComponent(this Entity entity, Type componentType)
         => ComponentRegistry.HasComponent(entity, componentType);
 

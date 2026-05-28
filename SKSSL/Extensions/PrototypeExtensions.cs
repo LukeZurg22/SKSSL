@@ -10,6 +10,7 @@ namespace SKSSL.Extensions;
 
 public static class PrototypeExtensions
 {
+    private const BindingFlags Flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
     /// <summary>
     /// Applies additive inheritance from a base Prototype/Entity into a target.
     /// Uses Reflection.
@@ -20,8 +21,7 @@ public static class PrototypeExtensions
     {
         if (baseProto == null) return;
 
-        var props = baseProto.GetType().GetProperties(
-            BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+        var props = baseProto.GetType().GetProperties(Flags);
 
         foreach (PropertyInfo prop in props)
         {

@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using SKSSL.Extensions;
-using SKSSL.YAML;
-using VYaml.Serialization;
 using static SKSSL.DustLogger;
 
 namespace SKSSL.ECS;
@@ -21,6 +18,7 @@ public abstract class PrototypeRegistry
     public static readonly Dictionary<string, Type> Definitions = new();
 
     /// Outputs a string handle based on provided type linked to class-type definition.
+    // ReSharper disable once UnusedMember.Global
     public static bool TryGetTypeHandle(Type type, out string typeHandle)
     {
         typeHandle = "";
@@ -40,7 +38,7 @@ public abstract class PrototypeRegistry
     public static void Clear()
     {
         Definitions.Clear();
-        RawGamePrototypes.Clear();
+        RawPrototypes.Clear();
     }
 
     #endregion
@@ -52,26 +50,34 @@ public abstract class PrototypeRegistry
 
     /// Individual definitions belonging to all prototype instances loaded from yaml.
     /// Handle Key, Entity (ID = 0) Value
-    public static readonly Dictionary<string, Prototype> ResolvedGameEntityDefinitions = [];
+    public static readonly Dictionary<string, Prototype> ResolvedGamePrototypes = [];
 
     /// Individual definitions belonging to all prototype instances loaded from yaml.
-    public static readonly Dictionary<string, Prototype> RawGamePrototypes = [];
+    public static readonly Dictionary<string, Prototype> RawPrototypes = [];
 
     /// <summary>
     /// Inquiry to the entity manager for a possible entity definition.
     /// </summary>
     /// <param name="handle">Full Source:Handle ID that the Entity Registry definitions should possess.</param>
     /// <returns>True if a template was found. False if one was not.</returns>
-    public static bool ContainsPrototype(string handle) => RawGamePrototypes.ContainsKey(handle);
+    public static bool ContainsPrototype(string handle) => RawPrototypes.ContainsKey(handle);
 
     public static void Insert(Prototype newPrototype)
     {
-        if (RawGamePrototypes.ContainsKey(newPrototype.Handle))
-            Log($"Raw game prototype storage already contains {newPrototype.Handle} handle, which is being overwritten!");
-        
+        if (!SSLGame.UseECS)
+        {
+            Log($"Insertion of prototype {newPrototype.GetUniqueInternalRef()} into registry failed! ECS is disabled!",
+                LOG.SYSTEM_WARNING);
+            return;
+        }
+
+        if (RawPrototypes.ContainsKey(newPrototype.Handle))
+            Log(
+                $"Raw game prototype storage already contains {newPrototype.Handle} handle, which is being overwritten!");
+
         // Allow override of existing, but a warning was definitely needed.
         // WARN: Load order might not be accommodated-for just yet. Prototypes should not 
-        RawGamePrototypes[newPrototype.Handle] = newPrototype;
+        RawPrototypes[newPrototype.Handle] = newPrototype;
 
         // Resolve inheritance.
         foreach (var entityType in Definitions.Keys)
@@ -83,11 +89,11 @@ public abstract class PrototypeRegistry
     public static Prototype? GetResolvedPrototype(string handle)
     {
         // Must be in raw prototypes first.
-        if (!RawGamePrototypes.TryGetValue(handle, out Prototype? raw))
+        if (!RawPrototypes.TryGetValue(handle, out Prototype? raw))
             return null;
 
         // If theres a handle to an already-resolved entity, then return that.
-        if (ResolvedGameEntityDefinitions.TryGetValue(handle, out var resolved))
+        if (ResolvedGamePrototypes.TryGetValue(handle, out var resolved))
             return resolved;
 
         resolved = new Prototype
@@ -102,7 +108,7 @@ public abstract class PrototypeRegistry
         var visited = new HashSet<string>(); // Cycle detection
         ResolveInheritanceRecursive(raw, resolved, visited);
 
-        ResolvedGameEntityDefinitions[handle] = resolved;
+        ResolvedGamePrototypes[handle] = resolved;
         return resolved;
     }
 
@@ -133,7 +139,7 @@ public abstract class PrototypeRegistry
     /// Automatically registers definitions as a "source:handle" arrangement.
     /// </remarks>
     internal static void RegisterPrototype(Prototype definition)
-        => RawGamePrototypes[definition.GetUniqueInternalRef()] = definition;
+        => RawPrototypes[definition.GetUniqueInternalRef()] = definition;
 
     /// <summary>
     /// Safe[r] TryGet method to retrieve an Entity Definition *OR* Template using a reference id.
@@ -142,7 +148,7 @@ public abstract class PrototypeRegistry
     public static bool TryGetPrototype<T>(string handle, out T? definition) where T : Prototype
     {
         var gotValue = TypeDefined(handle);
-        if (RawGamePrototypes[handle] is T found)
+        if (RawPrototypes[handle] is T found)
         {
             definition = found;
             return true;

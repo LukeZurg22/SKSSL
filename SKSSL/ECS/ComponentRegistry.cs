@@ -86,7 +86,11 @@ public class ComponentRegistry
     /// <param name="id">ID of Registered Component</param>
     /// <returns>Null or Type Definition based on provided ID.</returns>
     public static Type? GetType(int id) => _idToType.GetValueOrDefault(id);
-
+    
+    /// <param name="type">Type of Registered Component</param>
+    /// <returns>ID of Component Type based on provided type.</returns>
+    public static int GetId(Type type) => _typeToId.GetValueOrDefault(type);
+    
     #region Get Methods
 
     /// <summary>
@@ -400,12 +404,13 @@ public class ComponentRegistry
         public static ref List<T> GetOrCreate()
         {
             _list ??= new List<T>(8);
-            return ref _list!;
+            return ref _list;
         }
     }
 
     #endregion
 
+    /// <returns>true if entity possess an instance of component type, false if not.</returns>
     public static bool HasComponent(Entity entity, Type componentType)
         => entity.ComponentIndices[RegisteredTypeIDDictionary.GetValueOrDefault(componentType, -1)] != -1;
 }
