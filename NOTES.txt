@@ -3,6 +3,8 @@ Study this: https://github.com/alexmuab/unit-testing-csharp-example
 Add Wave Function Collapse: 
 https://github.com/mxgmn/WaveFunctionCollapse
 
+Make Commands generated & inserted by Source Generator.
+
 dotnet build -c Release --no-incremental
 dotnet pack -c Release
 

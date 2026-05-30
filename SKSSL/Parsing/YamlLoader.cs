@@ -60,7 +60,7 @@ public static partial class YamlLoader
     {
         // TODO: add some safety padding here for overrides?
         foreach (var prototypeList in prototypes.Values)
-        foreach (var prototype in prototypeList)
+        foreach (Prototype prototype in prototypeList)
         {
             PrototypeRegistry.RegisterPrototype(prototype);
         }

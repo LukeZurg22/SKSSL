@@ -94,16 +94,6 @@ public partial record Entity : Prototype
 
     #region Constructors
 
-    /// <summary>
-    /// Entities may use inherited template types to fill certain details in
-    /// their constructors but always MUST call this base constructor. 
-    /// </summary>
-    public Entity(Prototype prototype) : this()
-    {
-        Type = prototype.Type;
-        Handle = prototype.Handle;
-    }
-
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
     [MemoryPackConstructor, JsonConstructor, YamlConstructor]
     public Entity() : base()
