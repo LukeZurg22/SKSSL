@@ -20,7 +20,13 @@ public static class FloatExtensions
     /// </summary>
     /// <returns>Whether the two floating point numbers are equal or not.</returns>
     public static bool Equals(this float a, float b, float ep = Epsilon) => Math.Abs(a - b) < ep;
+}
 
+public static class CharacterExtensions
+{
+    public static bool IsOperator(this char token) => token is '+' or '-' or '*' or '/' or '^';
+    public static bool IsBracket(this char token) => token is '(' or ')' or '{' or '}' or '[' or ']';
+    public static bool IsOperator(this string token) => token is "+" or "-" or "*" or "/" or "^";
 }
 
 // ReSharper disable once ConvertIfStatementToReturnStatement
