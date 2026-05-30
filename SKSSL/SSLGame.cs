@@ -146,7 +146,8 @@ public abstract class SSLGame : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _currentScreenGue.UpdateLayout(); // UI Behaviour when dragged
         MouseHandler = new MouseWrapper(_graphicsManager);
-
+        StyleSheet.LoadStyles();
+        
         if (string.IsNullOrEmpty(gumFile))
             Log($"No gum project file in Content/Gum in {title}, {nameof(SSLGame)}", LOG.SYSTEM_WARNING);
         else
