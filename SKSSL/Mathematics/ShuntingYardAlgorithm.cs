@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Text;
 using static SKSSL.Extensions.StringHelpers;
 
@@ -27,7 +28,7 @@ public static class ShuntingYard
     /// Loops over an expression more than once. Conglomerating all of the functions into
     /// one large function is easily doable, but does not read very well.
     /// </remarks>
-    public static bool Evaluate(string expression, out float result, string source = "")
+    public static bool Evaluate(string expression, out double result, string source = "")
     {
         result = 0;
         string location = string.IsNullOrEmpty(source) ? "an unknown source" : source;
@@ -47,13 +48,17 @@ public static class ShuntingYard
             return false;
         }
 
-        // Calculate.
+        // Calculate final result.
+        var l = ToPostfix(parserOutput.Tokens);
 
 
         return true;
     }
 
-    private static (List<string> Tokens, List<int> StringIndices) ParseExpression(string expression)
+    /// <summary>
+    /// Parse an expression into a series of tokens, and a set of indices of detected string-variables.
+    /// </summary>
+    private static (string[] Tokens, List<int> StringIndices) ParseExpression(string expression)
     {
         List<string> tokens = [];
         List<int> stringVarIndices = [];
@@ -131,14 +136,14 @@ public static class ShuntingYard
             }
         }
 
-        return (tokens, stringVarIndices);
+        return (tokens.ToArray(), stringVarIndices);
     }
 
     /// Evaluates a set of tokens using a set of indices pointing to tokens that happen to be string variables.
     /// <returns>true if all string variables were evaluated correctly; false if otherwise.</returns>
     private static bool EvaluateExpressionStringVariables(
         List<int> stringVarIndices,
-        List<string> tokens,
+        string[] tokens,
         out string faultyVariables)
     {
         StringBuilder stringBuilder = new();
@@ -152,10 +157,10 @@ public static class ShuntingYard
             --stringVarCount; // Decrement the "handled these" counter.
             string variable = tokens[stringIndex];
 
-            if (EvaluateVariableString(variable, out int value))
+            if (EvaluateVariableString(variable, out double value))
             {
                 // Replace original variable's token entry with numerical value.
-                tokens[stringIndex] = value.ToString();
+                tokens[stringIndex] = value.ToString(CultureInfo.InvariantCulture);
             }
             else
             {
@@ -171,14 +176,15 @@ public static class ShuntingYard
         return string.IsNullOrEmpty(faultyVariables);
     }
 
-    private static bool EvaluateVariableString(string variable, out int i)
+    private static bool EvaluateVariableString(string variable, out double i)
     {
         // WIP: Complete this. Indexing game statistics. Probably retroactive w. Prototyping beforehand.
         i = -1;
         return false;
     }
 
-    public static List<string> ToPostfix(string[] tokens)
+    /// Evaluate a set of tokens into a mathematical, calculable form. 
+    private static List<string> ToPostfix(string[] tokens)
     {
         var output = new List<string>();
         var operators = new Stack<string>();
@@ -190,12 +196,6 @@ public static class ShuntingYard
             string token = rawToken;
             // WIP: Make sure this isn't buggy as all hell. Unaries are already evaluated earlier in the
             //  call-chain anyway.
-            if (token == "-" && (previous == null || previous == "(" || previous.IsOperator()))
-            {
-                // Unary minus
-                token = "u-";
-            }
-
             if (double.TryParse(token, out _))
             {
                 output.Add(token);
