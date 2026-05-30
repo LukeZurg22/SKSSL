@@ -1,4 +1,15 @@
-﻿#region File Description
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+using SolKom.Console.Commands;
+// ReSharper disable UnusedMember.Global
+
+namespace SKSSL.Console;
+
+#region File Description
 
 //-----------------------------------------------------------------------------
 // MonoGame Console https://github.com/romanov/MonoGameConsole
@@ -9,215 +20,207 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
-using SolKom.Console.Commands;
-using XnaGame = Microsoft.Xna.Framework.Game;
-
-namespace SKSSL.Console
+/// <summary>
+/// A top-screen console. Only one per scene.
+/// <br/><br/>
+/// To Get the Console Remotely:<br/> 
+/// GameConsole console = (GameConsole)this.Services.GetService(typeof(GameConsole));
+/// </summary>
+public class GameConsole
 {
-    /// <summary>
-    /// A top-screen console. Only one per scene.
-    /// <br/><br/>
-    /// To Get the Console Remotely:<br/> 
-    /// GameConsole console = (GameConsole)this.Services.GetService(typeof(GameConsole));
-    /// </summary>
-    public class GameConsole
+    public GameConsoleOptions Options => GameConsoleOptions.Options;
+
+    public static List<IConsoleCommand> Commands => GameConsoleOptions.Commands;
+
+    public static void AddCommand(IConsoleCommand command)
     {
-        public GameConsoleOptions Options => GameConsoleOptions.Options;
+        Commands.Add(command);
+    }
 
-        public List<IConsoleCommand> Commands => GameConsoleOptions.Commands;
+    public bool Enabled { get; set; }
 
-        public bool Enabled { get; set; }
+    /// <summary>
+    /// Indicates whether the console is currently opened
+    /// </summary>
+    public bool Opened => consoleComponent.IsOpen;
 
-        /// <summary>
-        /// Indicates whether the console is currently opened
-        /// </summary>
-        public bool Opened => consoleComponent.IsOpen;
+    internal readonly GameConsoleComponent consoleComponent;
 
-        internal readonly GameConsoleComponent consoleComponent;
+    # region Constructors
 
-        # region Constructors
-
-        /// <summary>
-        /// Assigns the Console Options automatically.
-        /// </summary>
-        /// <returns></returns>
-        public GameConsole SolKomDefault()
+    /// <summary>
+    /// Assigns the Console Options automatically.
+    /// </summary>
+    /// <returns></returns>
+    public GameConsole SolKomDefault()
+    {
+        GameConsoleOptions.Options = new GameConsoleOptions
         {
-            GameConsoleOptions.Options = new GameConsoleOptions
+            ToggleKey = Keys.OemTilde,
+            Font = consoleComponent.Game.Content.Load<SpriteFont>("ConsoleFont"),
+            FontColor = Color.LawnGreen,
+            Prompt = "->",
+            PromptColor = Color.Crimson,
+            CursorColor = Color.OrangeRed,
+            BackgroundColor = new Color(Color.Black, 150),
+            PastCommandOutputColor = Color.White,
+            BufferColor = Color.Gold
+        };
+        return this;
+    }
+
+
+    public GameConsole(Game? game, SpriteBatch? spriteBatch) : this(game, spriteBatch,
+        Array.Empty<IConsoleCommand>(),
+        new GameConsoleOptions())
+    {
+    }
+
+    public GameConsole(Game? game, SpriteBatch? spriteBatch, GameConsoleOptions options)
+        : this(game, spriteBatch, Array.Empty<IConsoleCommand>(), options)
+    {
+    }
+
+    public GameConsole(Game? game, SpriteBatch? spriteBatch, IEnumerable<IConsoleCommand> commands) : this(game,
+        spriteBatch, commands, new GameConsoleOptions())
+    {
+    }
+
+    public GameConsole(Game? game, SpriteBatch? spriteBatch, IEnumerable<IConsoleCommand> commands,
+        GameConsoleOptions options)
+    {
+        if (options.Font == null)
+            throw new NullReferenceException("Please, provide SpriteFont for console font!");
+
+        GameConsoleOptions.Options = options;
+        GameConsoleOptions.Commands = commands.ToList();
+        Enabled = true;
+        consoleComponent = new GameConsoleComponent(this, game, spriteBatch);
+        if (game?.Services.GetService<GameConsole>() == null)
+            game?.Services.AddService(typeof(GameConsole), this);
+        // ReSharper disable once SimplifyLinqExpressionUseAll
+        // If theres already a game component, dispose of it so it can be re-added.
+        if (game != null && game.Components.Any(p => p.GetType() == typeof(GameConsoleComponent)))
+        {
+            foreach (IGameComponent p in game.Components)
             {
-                ToggleKey = Keys.OemTilde,
-                Font = consoleComponent.Game.Content.Load<SpriteFont>("ConsoleFont"),
-                FontColor = Color.LawnGreen,
-                Prompt = "->",
-                PromptColor = Color.Crimson,
-                CursorColor = Color.OrangeRed,
-                BackgroundColor = new Color(Color.Black, 150),
-                PastCommandOutputColor = Color.White,
-                BufferColor = Color.Gold
-            };
-            return this;
-        }
-
-
-        public GameConsole(XnaGame? game, SpriteBatch? spriteBatch) : this(game, spriteBatch, new IConsoleCommand[0],
-            new GameConsoleOptions())
-        {
-        }
-
-        public GameConsole(XnaGame? game, SpriteBatch? spriteBatch, GameConsoleOptions options) : this(game, spriteBatch,
-            new IConsoleCommand[0], options)
-        {
-        }
-
-        public GameConsole(XnaGame? game, SpriteBatch? spriteBatch, IEnumerable<IConsoleCommand> commands) : this(game,
-            spriteBatch, commands, new GameConsoleOptions())
-        {
-        }
-
-        public GameConsole(XnaGame? game, SpriteBatch? spriteBatch, IEnumerable<IConsoleCommand> commands,
-            GameConsoleOptions options)
-        {
-            if (options.Font == null)
-                throw new NullReferenceException("Please, provide SpriteFont for console font!");
-
-            GameConsoleOptions.Options = options;
-            GameConsoleOptions.Commands = commands.ToList();
-            Enabled = true;
-            consoleComponent = new GameConsoleComponent(this, game, spriteBatch);
-            if (game.Services.GetService(typeof(GameConsole)) == null)
-                game.Services.AddService(typeof(GameConsole), this);
-            // ReSharper disable once SimplifyLinqExpressionUseAll
-            // If theres already a game component, dispose of it so it can be re-added.
-            if (game.Components.Any(p => p.GetType() == typeof(GameConsoleComponent)))
-            {
-                foreach (IGameComponent p in game.Components)
-                {
-                    if (p.GetType() != typeof(GameConsoleComponent)) continue;
-                    game.Components.Remove(p);
-                    break;
-                }
+                if (p.GetType() != typeof(GameConsoleComponent)) continue;
+                game.Components.Remove(p);
+                break;
             }
-            game.Components.Add(consoleComponent);
+        }
+
+        game?.Components.Add(consoleComponent);
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Write directly to the output stream of the console
+    /// </summary>
+    /// <param name="text"></param>
+    public void WriteLine(string text) => consoleComponent.WriteLine(text);
+
+    /// <summary>
+    /// Adds a new command to the console
+    /// </summary>
+    /// <param name="name">Name of the command</param>
+    /// <param name="command"></param>
+    /// <param name="action"></param>
+    /// <param name="description"></param>
+    public static void AddCommand(string name, string command, Func<string[], string> action, string description = "")
+    {
+        Commands.Add(new CustomCommand(name.ToLower(), command.ToLower(), action, description));
+    }
+
+    private KeyboardState currentKeyboardState;
+    private KeyboardState previousKeyboardState;
+
+    private int deltaScrollWheelValue = 0;
+    private int currentScrollWheelValue = 0;
+    private const int scrollIntensity = 12;
+
+    public void Update(GameTime gameTime)
+    {
+        #region Mouse
+
+        // Mouse Handling
+        var currentMouseState = Mouse.GetState();
+        deltaScrollWheelValue = currentMouseState.ScrollWheelValue - currentScrollWheelValue;
+        currentScrollWheelValue += deltaScrollWheelValue;
+        switch (deltaScrollWheelValue) // Supposedly using a switch is faster. Might not matter much, but oh well!
+        {
+            case < 0: // scrolling down
+                consoleComponent.consoleRenderer.firstCommandPositionOffset.Y -= scrollIntensity;
+                break;
+
+            case > 0: // scrolling up
+                consoleComponent.consoleRenderer.firstCommandPositionOffset.Y += scrollIntensity;
+                break;
         }
 
         #endregion
 
-        /// <summary>
-        /// Write directly to the output stream of the console
-        /// </summary>
-        /// <param name="text"></param>
-        public void WriteLine(string text)
+        #region Keyboard
+
+        // Update keyboard states
+        previousKeyboardState = currentKeyboardState;
+        currentKeyboardState = Keyboard.GetState();
+
+        // Check for any key press
+        var pressedKey = GetPressedKey();
+
+        // Interrupt!
+        if (!pressedKey.HasValue) return;
+
+        // Pass the pressed key as an argument to your method
+        consoleComponent.inputProcesser.EventInput_KeyDown(this, pressedKey.Value);
+
+        #endregion
+    }
+
+    private int backspacePressTicks = 0;
+    private const int BackspaceDelayTicks = 5; // Adjust the number of ticks for the delay
+
+    /// <summary>
+    /// Obtains a key pressed by the user if any at all.
+    /// </summary>
+    /// <returns></returns>
+    private Keys? GetPressedKey()
+    {
+        // Check if Backspace was just pressed (no need to delay)
+        if (currentKeyboardState.IsKeyDown(Keys.Back) && !previousKeyboardState.IsKeyDown(Keys.Back))
         {
-            consoleComponent.WriteLine(text);
+            return Keys.Back;
         }
 
-        /// <summary>
-        /// Adds a new command to the console
-        /// </summary>
-        /// <param name="name">Name of the command</param>
-        /// <param name="command"></param>
-        /// <param name="action"></param>
-        /// <param name="description"></param>
-        public void AddCommand(string name, string command, Func<string[], string> action, string description = "")
+        // Check if Backspace is held down and wait for a few ticks to ensure it's still pressed
+        if (currentKeyboardState.IsKeyDown(Keys.Back))
         {
-            Commands.Add(new CustomCommand(name.ToLower(), command.ToLower(), action, description));
+            if (backspacePressTicks < BackspaceDelayTicks)
+            {
+                backspacePressTicks++;
+                return null;
+            }
+
+            return Keys.Back;
         }
 
-        private KeyboardState currentKeyboardState;
-        private KeyboardState previousKeyboardState;
-
-        private int deltaScrollWheelValue = 0;
-        private int currentScrollWheelValue = 0;
-        private const int scrollIntensity = 12;
-
-        public void Update(GameTime gameTime)
+        // Reset the counter if Backspace is no longer pressed
+        if (!currentKeyboardState.IsKeyDown(Keys.Back))
         {
-            #region Mouse
-
-            // Mouse Handling
-            var currentMouseState = Mouse.GetState();
-            deltaScrollWheelValue = currentMouseState.ScrollWheelValue - currentScrollWheelValue;
-            currentScrollWheelValue += deltaScrollWheelValue;
-            switch (deltaScrollWheelValue) // Supposedly using a switch is faster. Might not matter much, but oh well!
-            {
-                case < 0: // scrolling down
-                    consoleComponent.consoleRenderer.firstCommandPositionOffset.Y -= scrollIntensity;
-                    break;
-
-                case > 0: // scrolling up
-                    consoleComponent.consoleRenderer.firstCommandPositionOffset.Y += scrollIntensity;
-                    break;
-            }
-
-            #endregion
-
-            #region Keyboard
-
-            // Update keyboard states
-            previousKeyboardState = currentKeyboardState;
-            currentKeyboardState = Keyboard.GetState();
-
-            // Check for any key press
-            var pressedKey = GetPressedKey();
-
-            // Interrupt!
-            if (!pressedKey.HasValue) return;
-
-            // Pass the pressed key as an argument to your method
-            consoleComponent.inputProcesser.EventInput_KeyDown(this, pressedKey.Value);
-
-            #endregion
+            backspacePressTicks = 0;
         }
 
-        private int backspacePressTicks = 0;
-        private const int BackspaceDelayTicks = 5; // Adjust the number of ticks for the delay
-
-        /// <summary>
-        /// Obtains a key pressed by the user if any at all.
-        /// </summary>
-        /// <returns></returns>
-        private Keys? GetPressedKey()
+        // Check for other keys being pressed
+        foreach (Keys key in Enum.GetValues(typeof(Keys)))
         {
-            // Check if Backspace was just pressed (no need to delay)
-            if (currentKeyboardState.IsKeyDown(Keys.Back) && !previousKeyboardState.IsKeyDown(Keys.Back))
+            if (currentKeyboardState.IsKeyDown(key) && !previousKeyboardState.IsKeyDown(key))
             {
-                return Keys.Back;
+                return key;
             }
-
-            // Check if Backspace is held down and wait for a few ticks to ensure it's still pressed
-            if (currentKeyboardState.IsKeyDown(Keys.Back))
-            {
-                if (backspacePressTicks < BackspaceDelayTicks)
-                {
-                    backspacePressTicks++;
-                    return null;
-                }
-
-                return Keys.Back;
-            }
-
-            // Reset the counter if Backspace is no longer pressed
-            if (!currentKeyboardState.IsKeyDown(Keys.Back))
-            {
-                backspacePressTicks = 0;
-            }
-
-            // Check for other keys being pressed
-            foreach (Keys key in Enum.GetValues(typeof(Keys)))
-            {
-                if (currentKeyboardState.IsKeyDown(key) && !previousKeyboardState.IsKeyDown(key))
-                {
-                    return key;
-                }
-            }
-
-            return null;
         }
+
+        return null;
     }
 }

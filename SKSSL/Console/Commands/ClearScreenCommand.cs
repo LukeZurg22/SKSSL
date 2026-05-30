@@ -1,6 +1,4 @@
-﻿using SKSSL.Console;
-
-namespace SolKom.Console.Commands;
+﻿namespace SKSSL.Console.Commands;
 
 internal class ClearScreenCommand: IConsoleCommand
 {
@@ -11,7 +9,7 @@ internal class ClearScreenCommand: IConsoleCommand
     private readonly ConsoleRenderer consoleRenderer;
     public ClearScreenCommand(ConsoleRenderer consoleRenderer) => this.consoleRenderer = consoleRenderer;
 
-    public string Execute(string?[] arguments)
+    public string Execute(string?[]? arguments = null)
     {
         consoleRenderer.Clear();
         return string.Empty;

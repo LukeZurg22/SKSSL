@@ -93,9 +93,19 @@ public class CommandGenerator : IIncrementalGenerator
         sb.AppendLine("      }");*/
         sb.AppendLine("}");
         
+/*
+         // using SKSSL.Console;  USE THIS USING, THEN CALL THE FOLLOWING TO ADD A COMMAND       GameConsoleOptions.AddCommand();
+         *        var inbuiltCommands = new IConsoleCommand[]
+        {
+            new ClearScreenCommand(consoleRenderer),
+            new ExitCommand(game),
+            new HelpCommand(),
+        }.Concat(CommandFactory.CreateCommands()).ToArray();
+        GameConsoleOptions.Commands.AddRange(inbuiltCommands);
+         * 
+         */
+        
         return sb;
         //@formatter:on
     }
-
-    
 }

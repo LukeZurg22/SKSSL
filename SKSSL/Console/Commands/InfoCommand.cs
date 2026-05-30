@@ -1,11 +1,8 @@
 using System;
 using System.Text;
-using SKSSL.Console;
-using SKSSL.Utilities;
 
-namespace SolKom.Console.Commands;
+namespace SKSSL.Console.Commands;
 
-[Command]
 public class InfoCommand : IConsoleCommand
 {
     public string Command => "info x-y-z";
