@@ -1,0 +1,24 @@
+﻿namespace SKSSL.Console;
+
+public interface IConsoleCommand
+{
+    /// <summary>
+    /// The name of the command
+    /// </summary>
+    string Name { get; }
+    
+    /// <summary>
+    /// Invoked through this string
+    /// </summary>
+    string Command { get; }
+    
+    /// <summary>
+    /// The description that is displayed with the 'help' command
+    /// </summary>
+    string Description { get; }
+
+    /// <summary>
+    /// The action of the command.  The return string value is used as output in the console
+    /// </summary>
+    string Execute(string?[] arguments);
+}
