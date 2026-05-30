@@ -23,6 +23,7 @@ Generated/
 
 # Test Project
 *.Tests/
+SKSSL.Tests/Generated/
 
 # Rider
 .idea/
