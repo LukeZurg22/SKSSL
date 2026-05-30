@@ -27,7 +27,7 @@ jobs:
     #- name: Test
     #  run: dotnet test --no-build --verbosity normal
     - name: Restore
-      run: dotnet restore SKSSL/SKSSL.csproj
+      run: dotnet restore SKSSL/SKSSL/SKSSL.csproj
     
     - name: Build
-      run: dotnet build SKSSL/SKSSL.csproj --configuration Release --no-restore
+      run: dotnet build SKSSL/SKSSL/SKSSL.csproj --configuration Release --no-restore
