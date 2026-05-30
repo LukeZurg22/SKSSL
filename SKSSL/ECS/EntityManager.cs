@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
+using SKSSL.YAML;
 using static SKSSL.DustLogger;
 
 
@@ -111,7 +112,7 @@ public partial class EntityManager
                                 $"Are you attempting to spawn some other non-entity prototype? " +
                                 $"This is an Entity Manager. What are you DOING?");
         }
-        
+
         // Assign world to entity. Will cause some funk if the world is null.
         return entity;
     }
@@ -142,19 +143,17 @@ public partial class EntityManager
     private void Finalize(ref Entity entity)
     {
         // TODO: Last-preemptive registration if this entity's full handle is not present in the registry.
-        
+
         // Assign world.
         entity.World = _world;
 
         // Add default components if provided.
-        //WIP: USE COMPONENT REGISTRY LOOKUP W. YAML COMPONENT TYPE PROVISION
-        foreach (var obj in entity.YamlComponents)
+        foreach (YamlComponent yamlComponent in entity.YamlComponents!)
         {
-            if (ComponentRegistry.TryGetComponentType(obj.Type, out Type component))
+            if (ComponentRegistry.TryGetComponentType(yamlComponent.Type, out Type componentType))
             {
-                entity.AddComponent(component);
+                entity.AddComponent(componentType);
             }
-            
         }
 
         // Initialize the entity.

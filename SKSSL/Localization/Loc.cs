@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Fluent.Net;
 using Fluent.Net.RuntimeAst;
-using static SKSSL.DustLogger;
 
 // ReSharper disable UnusedMethodReturnValue.Global
 // ReSharper disable UnusedMember.Global
