@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static SKSSL.Generator.SharedMethods;
 
 namespace SKSSL.Generator;
 
@@ -39,7 +39,8 @@ public class ComponentGenerator : IIncrementalGenerator
         if (classes.IsDefaultOrEmpty) return;
 
         INamedTypeSymbol? ComponentSymbol
-            = compilation.GetTypeByMetadataName(ComponentBaseName) ?? FindComponentInCompilation(compilation);
+            = compilation.GetTypeByMetadataName(ComponentBaseName) ??
+              FindInCompilation(compilation, ComponentBaseName);
 
         if (ComponentSymbol == null) return;
 
@@ -114,50 +115,5 @@ public class ComponentGenerator : IIncrementalGenerator
         //@formatter:on
     }
 
-    /// <summary>
-    /// Filters game assemblies. Includes hard-coded assemblies that use SKSSL, KBSL, or Kuiperbilt.
-    /// </summary>
-    private static bool IsRelevantAssembly(IAssemblySymbol assembly)
-    {
-        string name = assembly.Name;
-
-        // Skip problematic/necessary assemblies
-        return !name.StartsWith("MonoGame.", StringComparison.OrdinalIgnoreCase) &&
-               !name.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) &&
-               !name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) &&
-               !name.StartsWith("mscorlib") &&
-               !name.StartsWith("netstandard");
-    }
-
-    private static INamedTypeSymbol? FindComponentInCompilation(Compilation compilation)
-    {
-        // Fallback: search all types
-        return compilation.GlobalNamespace
-            .GetNamespaceMembers()
-            .SelectMany(GetAllTypes)
-            .FirstOrDefault(t => t.Name == ComponentBaseName && !t.IsGenericType);
-    }
-
-    private static IEnumerable<INamedTypeSymbol> GetAllTypes(INamespaceSymbol ns)
-    {
-        foreach (INamedTypeSymbol? type in ns.GetTypeMembers())
-            yield return type;
-
-        foreach (INamespaceSymbol? nestedNs in ns.GetNamespaceMembers())
-        foreach (INamedTypeSymbol? type in GetAllTypes(nestedNs))
-            yield return type;
-    }
-
-    private static bool IsDerivedFrom(ITypeSymbol type, ITypeSymbol baseType)
-    {
-        INamedTypeSymbol? current = type.BaseType;
-        while (current != null)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                return true;
-            current = current.BaseType;
-        }
-
-        return false;
-    }
+   
 }
