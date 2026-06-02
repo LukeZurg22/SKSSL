@@ -1,49 +1,57 @@
+using System;
 using System.IO;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SKSSL;
 
 /// <summary>
-/// Wrapper for a game's main content folder. Used for getting game prototype, texture, and localization directories.
+/// Wrapper for a game's content folder for getting game prototype, texture, and localization directories.
 /// </summary>
-public record GameContentDirectory
+public sealed class GameDirectory : IComparable<GameDirectory>
 {
-    /// Name of the overall directory represented.. Used for sorting and classification.
-    public readonly string DirectoryTitle;
-    
-    /// Directory that which game content shall be read.
-    public readonly string ContentDirectory;
+    /// <summary>Name of the overall directory. Used for sorting and classification.</summary>
+    public string DirectoryTitle { get; }
 
-    #region Internal Folder Access Fields
+    /// <summary>Root directory that contains game content.</summary>
+    public string RootDirectory { get; }
 
-    /// <returns>Path to localization folder, or null if not found.</returns>
+    /// <summary>Load priority. Lower = loaded first.</summary>
+    public int LoadOrder { get; }
+
+    #region Internal Folder Access
+
     public string? LocalizationFolder => GetFolder("localization");
-
-    /// <returns>Path to internal textures, or null if not found.</returns>
     public string? TexturesFolder => GetFolder("textures");
 
-    /// <returns>Get folder in this content directory.</returns>
-    public string? GetFolder(string folder)
+    /// <summary>Returns path to a subfolder if it exists, otherwise null.</summary>
+    public string? GetFolder(string folderName)
     {
-        string dir = Path.Combine(ContentDirectory, folder);
-        return !Directory.Exists(dir) ? null : dir;
+        if (string.IsNullOrWhiteSpace(folderName))
+            return null;
+
+        string fullPath = Path.Combine(RootDirectory, folderName);
+        return Directory.Exists(fullPath) ? fullPath : null;
     }
 
     #endregion
 
-    /// TODO: Implement load order.
-    private static int loadOrderCounter = 0;
+    private static int _nextLoadOrder = 0;
 
-    /// 
-    public int LoadOrder;
-
-    /// Creates instance of Game Directory Wrapper.
-    public GameContentDirectory(string contentDirectory)
+    /// <summary>
+    /// Creates a new GameDirectory.
+    /// </summary>
+    public GameDirectory(string directory, int? explicitLoadOrder = null)
     {
-        ContentDirectory = contentDirectory;
-        DirectoryTitle = Path.GetFileName(contentDirectory);
-        LoadOrder = loadOrderCounter++;
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
+        RootDirectory = Path.GetFullPath(directory); // Normalize path
+        DirectoryTitle = Path.GetFileName(directory.TrimEnd('\\', '/'));
+
+        LoadOrder = explicitLoadOrder ?? _nextLoadOrder++;
     }
 
-    /// <inheritdoc />
-    public override string ToString() => ContentDirectory;
+    public override string ToString() => RootDirectory;
+
+    /// Sorting by LoadOrder.
+    public int CompareTo(GameDirectory? other) => other is null ? 1 : LoadOrder.CompareTo(other.LoadOrder);
 }

@@ -23,20 +23,18 @@ public class YamlLoader
     [TestInitialize, UsedImplicitly]
     public void Initialize()
     {
-        var lines = TestYaml.TestYamlSingleEntry.Replace("\r", "").Split('\n');
-        var yml = YAML.YamlLoader.DeserializeYamlFrom(lines, "Test", [typeof(Entity)]);
-
-        // Ensure that it is not empty!
-        Assert.IsNotEmpty(yml[typeof(Entity)]);
+        var lines = TestYaml.ExpectedOutputSingleEntry.Replace("\r", "").Split('\n');
+        var yml = YAML.YamlLoader.DeserializePrototypesFrom(lines, "Test");
 
         // entity A
+        Assert.IsNotEmpty(yml); // Testing, just in case!
         _entities = [];
-        _entities.AddRange(yml[typeof(Entity)].Select(nd => nd as Entity));
-
+        yml.ForEach(prototype=>_entities.AddRange(prototype as Entity));
+        
         // entities B & C
-        lines = TestYaml.TestYamlMultiEntry.Replace("\r", "").Split('\n');
-        yml = YAML.YamlLoader.DeserializeYamlFrom(lines, "Test", [typeof(Entity)]);
-        _entities.AddRange(yml[typeof(Entity)].Select(nd => nd as Entity));
+        lines = TestYaml.ExpectedOutputYamlMultiEntry.Replace("\r", "").Split('\n');
+        yml = YAML.YamlLoader.DeserializePrototypesFrom(lines, "Test");
+        yml.ForEach(prototype=>_entities.AddRange(prototype as Entity));
     }
 
 

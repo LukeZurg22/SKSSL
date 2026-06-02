@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using SKSSL.ECS;
 using SKSSL.YAML;
-using VYaml.Annotations;
+using YamlDotNet.Serialization;
+
 
 namespace SKSSL.Extensions;
 

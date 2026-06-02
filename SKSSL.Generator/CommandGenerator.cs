@@ -10,6 +10,8 @@ namespace SKSSL.Generator;
 [Generator]
 public class CommandGenerator : IIncrementalGenerator
 {
+    // WARN: DOES NOT WORK, YET! REASON BEING DUE TO REFLECTION SEARCHING FOR RECORDS. COMMANDS ARE NOT RECORDS, THEY ARE
+    //  CLASSES (FOR NOW)
     private const string CommandBaseName = "Command";
     private const string REG_NAME = "CommandRegistrar.g.cs";
 

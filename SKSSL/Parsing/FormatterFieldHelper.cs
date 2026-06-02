@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using VYaml.Annotations;
+using YamlDotNet.Serialization;
+
 
 namespace SKSSL;
 
@@ -33,7 +34,7 @@ public static class FormatterFieldHelper
             string key = field.Name.TrimStart('_');
             var att = field.GetCustomAttribute<YamlMemberAttribute>();
             key = att != null
-                ? field.GetCustomAttribute<YamlMemberAttribute>()?.Name!
+                ? field.GetCustomAttribute<YamlMemberAttribute>()?.Alias!
                 : char.ToLowerInvariant(key[0]) + key[1..];
 
             yield return (key, field.GetValue(instance));
@@ -48,7 +49,7 @@ public static class FormatterFieldHelper
             string key = prop.Name.TrimStart('_');
             var att = prop.GetCustomAttribute<YamlMemberAttribute>();
             key = att != null
-                ? prop.GetCustomAttribute<YamlMemberAttribute>()?.Name!
+                ? prop.GetCustomAttribute<YamlMemberAttribute>()?.Alias!
                 : char.ToLowerInvariant(key[0]) + key[1..];
 
             yield return (key, prop.GetValue(instance));

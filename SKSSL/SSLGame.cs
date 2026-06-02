@@ -87,7 +87,7 @@ public abstract class SSLGame : Game
     public static string GumFile = "CHANGE_ME";
 
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
-    public readonly IEnumerable<GameContentDirectory> GameContentDirectories;
+    public readonly IEnumerable<GameDirectory> GameContentDirectories;
 
     public MouseWrapper MouseHandler;
 

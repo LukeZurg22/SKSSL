@@ -1,6 +1,6 @@
 using System;
 using SKSSL.ECS;
-using VYaml.Annotations;
+
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable UnusedType.Global
@@ -19,7 +19,6 @@ public record TestPrototypeInherit : TestPrototypeSingle
     public int SecondField { get; set; }
 }
 
-[YamlObject]
 public partial record TestPrototypeSerialize : Prototype;
 
 public record TestPrototypeConstructor : Prototype

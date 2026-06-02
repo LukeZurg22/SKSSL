@@ -1,6 +1,7 @@
 // ReSharper disable NotAccessedField.Global
 
-using VYaml.Annotations;
+
+using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;
 
@@ -11,7 +12,6 @@ namespace SKSSL.ECS;
 /// SKSSL's ECS uses reflection to get all ISKComponents and their fields.
 /// Components exist here solely to store and represent data within an entity.
 /// </remarks>
-[YamlObject]
 public partial record Component
 {
     /// <summary>

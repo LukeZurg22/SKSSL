@@ -92,7 +92,7 @@ public abstract partial class TextureLoader
     /// </summary>
     /// <param name="gameContentDirectories"></param>
     /// <exception cref="ArgumentNullException"></exception>
-    public static void Initialize(IEnumerable<GameContentDirectory> gameContentDirectories)
+    public static void Initialize(IEnumerable<GameDirectory> gameContentDirectories)
     {
         // If the texture loader has already been initialized by a "surface-level" class override,
         //  then that override is the one that shall be used and whatever is needed has already been initialized.
@@ -110,13 +110,13 @@ public abstract partial class TextureLoader
     /// Due to how it is written, all texture categories must be registered.
     /// I.e. "items" must have a dedicated "items" folder.
     /// </remarks>
-    private static void CompleteTextureInit(IEnumerable<GameContentDirectory> gameContentDirectories)
+    private static void CompleteTextureInit(IEnumerable<GameDirectory> gameContentDirectories)
     {
         // Below handles the Initialization (/preloading) of all game data.
         // Also includes mods. This is a trick that will come in handy later~
         // TODO: Implement load order.
         List<string> textureFolders = [];
-        foreach (GameContentDirectory directory in gameContentDirectories)
+        foreach (GameDirectory directory in gameContentDirectories)
         {
             string? texturesFolder = directory.TexturesFolder;
             if (texturesFolder is not null)

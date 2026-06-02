@@ -1,5 +1,6 @@
 using System.Collections.Generic;
-using VYaml.Annotations;
+using YamlDotNet.Serialization;
+
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 // ReSharper disable PropertyCanBeMadeInitOnly.Global
@@ -7,11 +8,10 @@ using VYaml.Annotations;
 namespace SKSSL.YAML;
 
 /// Structure for component information contained in YAML files.
-[YamlObject]
 public partial class YamlComponent
 {
     // e.g., "RenderableComponent" but named "Renderable"; it's stripped of the "Component" suffix.
-    [YamlMember(name: "type")] public string Type { get; set; }
+    [YamlMember(Alias = "type")] public string Type { get; set; }
 
     // Dictionary for flexible fields (for varied components)
     /// <summary>

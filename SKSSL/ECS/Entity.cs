@@ -7,7 +7,8 @@ using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Localization;
 using SKSSL.Scenes;
 using SKSSL.YAML;
-using VYaml.Annotations;
+using YamlDotNet.Serialization;
+
 
 // ReSharper disable VirtualMemberCallInConstructor
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -32,11 +33,10 @@ namespace SKSSL.ECS;
 ///       field_3: (varies)
 /// # (Note: Component fields vary between component type.)
 /// </code>
-[YamlObject]
 public partial record Entity : Prototype
 {
     /// <inheritdoc cref="Prototype.Type"/>
-    [YamlMember(name: "type")]
+    [YamlMember(Alias = "type")]
     public override string Type { get; set; } = "Entity";
 
     /*
@@ -51,14 +51,14 @@ public partial record Entity : Prototype
     #region Name / Description
 
     /// Non-localized name key.
-    [YamlMember(name: "name"), JsonInclude, JsonPropertyName("Name")]
+    [YamlMember(Alias = "name"), JsonInclude, JsonPropertyName("Name")]
     public string? NameKey;
 
     /// <returns>Localized name from Name Key.</returns>
     public void GetName() => Loc.Get(NameKey);
 
     /// Non-localized description key.
-    [YamlMember(name: "description"), JsonInclude, JsonPropertyName("Description")]
+    [YamlMember(Alias = "description"), JsonInclude, JsonPropertyName("Description")]
     public string? DescriptionKey;
 
     /// <returns>Localized Description from Description Key.</returns>
@@ -73,7 +73,7 @@ public partial record Entity : Prototype
     [YamlIgnore, JsonIgnore] public bool IsValid => Uid.Id != 0U;
 
     /// [De]serialized component entries part of this prototype.
-    [YamlMember(name: "components")] public List<YamlComponent>? YamlComponents = [];
+    [YamlMember(Alias = "components")] public List<YamlComponent>? YamlComponents = [];
     
     /// <summary>
     /// Array of component indices.<br/>
@@ -95,7 +95,7 @@ public partial record Entity : Prototype
     #region Constructors
 
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
-    [MemoryPackConstructor, JsonConstructor, YamlConstructor]
+    [MemoryPackConstructor, JsonConstructor]
     public Entity() : base()
     {
         NameKey = "";

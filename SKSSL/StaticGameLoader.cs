@@ -106,16 +106,16 @@ public static class StaticGameLoader
     /// Retrieves all directories in the game, including modded.
     /// </summary>
     /// <returns></returns>
-    public static IEnumerable<GameContentDirectory> GetAllGameDirectories()
+    public static IEnumerable<GameDirectory> GetAllGameDirectories()
     {
         var game = GPath();
         var mods = Directory.GetDirectories(MPath());
         var all = mods.Prepend(game);
 
-        List<GameContentDirectory> result = [];
+        List<GameDirectory> result = [];
         foreach (var directory in all)
         {
-            var gcd = new GameContentDirectory(directory);
+            var gcd = new GameDirectory(directory);
             result.Add(gcd);
         }
 

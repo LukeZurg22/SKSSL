@@ -8,7 +8,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using SKSSL.ECS;
 using SKSSL.Utilities;
-using VYaml.Serialization;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 using static SKSSL.DustLogger;
 
 // ReSharper disable UnusedMember.Global
@@ -35,20 +36,17 @@ namespace SKSSL.YAML;
 /// </summary>
 public static partial class YamlLoader
 {
-    public static readonly YamlSerializerOptions SerializerOptions;
+    private static ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
+        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .JsonCompatible()
+        .Build();
+
+    private static IDeserializer SKSSLDefaultDeserializer = new DeserializerBuilder()
+        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .Build();
 
     static YamlLoader()
     {
-        SerializerOptions = YamlSerializerOptions.Standard;
-
-        // Omit properties that are null.
-        SerializerOptions.DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingNull;
-
-        SerializerOptions.Resolver = CompositeResolver.Create(
-            formatters: [new YamlComponentFormatter()],
-            resolvers: [StandardResolver.Instance, new SKSSLYAMLResolver()]
-        );
-
         // Set naming convention to UpperCamelCase.
         //SerializerOptions.NamingConvention = NamingConvention.UpperCamelCase;
     }
@@ -97,9 +95,12 @@ public static partial class YamlLoader
             return "";
 
         // Special handling for collections
-        return IsCollection(obj) && obj is not string
-            ? YamlSerializer.SerializeToString(obj, SerializerOptions)
-            : YamlSerializer.SerializeToString(new List<T> { obj }, SerializerOptions);
+        //return IsCollection(obj) && obj is not string
+        //    ? YamlSerializer.SerializeToString(obj, SerializerOptions)
+        //    : YamlSerializer.SerializeToString(new List<T> { obj }, SerializerOptions);
+
+        // WARN: THIS SUFFICIENT. THIS IS TEMPORARY WHILST SERIALIZING TO STRING IS BEING RESORTED
+        return "";
 
         // Helper method - Clean way to detect collections
         bool IsCollection(object? ding) => ding switch
@@ -138,12 +139,11 @@ public static partial class YamlLoader
         foreach (var file in files)
         {
             // Merging the file's conglomerate with our super conglomerate.
-            var output = DeserializeFile(file, types);
-            foreach ((Type type, var yamlData) in output)
+            var prototypes = DeserializeFile(file, types);
+            foreach (var prototype in prototypes)
             {
-                // Tag each yaml entry with source.
-                yamlData.ForEach(yamlEntry => yamlEntry.Source = Path.GetFileName(directory));
-                conglomerate[type] = conglomerate[type].Concat(yamlData).ToList();
+                var type = PrototypeRegistry.Definitions[prototype.Type];
+                conglomerate[type].Add(prototype);
             }
         }
 
@@ -156,19 +156,19 @@ public static partial class YamlLoader
     /// <param name="file"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static Dictionary<Type, List<Prototype>> DeserializeFile<T>(string file) => DeserializeFile(file, typeof(T));
+    public static List<Prototype> DeserializeFile<T>(string file) => DeserializeFile(file, typeof(T));
 
     /// <summary>
     /// Searches a directory using provided type definitions and file patterns. Directory defaults to application's if
     /// not provided.
     /// </summary>
-    public static Dictionary<Type, List<Prototype>> DeserializeFile(string file, params Type[] types)
+    public static List<Prototype> DeserializeFile(string file, params Type[] types)
     {
         // Supported types are gotten from Source Generators' output to PrototypeManager, now!
         if (types.Length == 0)
             types = PrototypeRegistry.Definitions.Values.ToArray();
         if (File.Exists(file))
-            return DeserializeYamlFrom(File.ReadAllLines(file), file, types);
+            return DeserializePrototypesFrom(File.ReadAllLines(file), file, types);
         Log($"File not found from file path {file}, it's being skipped entirely!");
         return [];
     }
@@ -180,7 +180,8 @@ public static partial class YamlLoader
     /// <param name="fileTrace"></param>
     /// <param name="types"></param>
     /// <returns></returns>
-    public static Dictionary<Type, List<Prototype>> DeserializeYamlFrom(string[] text, string fileTrace = "",
+    public static List<Prototype> DeserializePrototypesFrom(
+        string[] text, string fileTrace = "",
         Type[]? types = null)
     {
         // Using source generators to their fullest effectiveness, here!
@@ -190,31 +191,17 @@ public static partial class YamlLoader
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
         // Files should -not- have a type defined within them outside the ones passed through here. If one somehow
         //  gets passed, it's probably because of a test.
-        var conglomerate = types.ToDictionary(type => type, _ => new List<Prototype>());
 
-        try
-        {
-            // Read all lines, divide into blocks in accordance to expected types.
-            var yamlBlocks = ConvertLinesToYamlBlocks(text, types, fileTrace);
+        // Read all lines, divide into blocks in accordance to expected types.
+        var yamlBlocks = ConvertLinesToYamlBlocks(text, types, fileTrace);
 
-            // Creating intermediate dictionary where yaml blocks are amalgamated together.
-            var combined = types.ToDictionary(type => type, _ => Array.Empty<byte>());
-            CombineYamlBlockBytes(yamlBlocks, combined);
-            var output = DeserializeFillData(types, combined, fileTrace);
+        // Combine yaml blocks of shared declared-types.
+        var combined = CombineYamlBlocks(yamlBlocks);
 
-            foreach (Prototype prototype in output)
-            {
-                // Using prototype registry for search. Unstable? Maybe!
-                Type type = PrototypeRegistry.Definitions[prototype.Type];
-                conglomerate[type].AddRange(prototype); // Additive
-            }
-        }
-        catch (Exception ex)
-        {
-            Log($"{ex.Message} :: {ex.InnerException?.Message}", LOG.FILE_ERROR);
-        }
-
-        return conglomerate;
+        // Deserialize each set of blocks as a list of their corresponding types.
+        var result = DeserializeFillData(combined, fileTrace);
+        
+        return result;
     }
 
     #endregion
@@ -265,6 +252,7 @@ public static partial class YamlLoader
     /// Reads all lines in a string, and parses them into yaml-blocks.
     private static List<IYamlBlock> ConvertLinesToYamlBlocks(string[] lines, Type[] expectedTypes, string? file = null)
     {
+        int blockStartLine = 0;
         var entries = new List<IYamlBlock>();
         file ??= ""; // For reverse-tracing files.
 
@@ -279,19 +267,26 @@ public static partial class YamlLoader
         for (; index < lines.Length; index++)
         {
             if (string.IsNullOrEmpty(lines[index])) continue; // Skip empty lines.
-            string line = lines[index].Replace("\r", "").Replace("\n", ""); // Clean of Environment new-line characters.
+            string line = lines[index].TrimEnd('\r', '\n');
 
             // Every new '-' primary entry begins a "store and reset"
             if (IsTopLevelEntryStart(line))
             {
-                string text = blockTextBuilder.ToString();
-
-                // Add block. ">0" avoids an edge-case wherein it's the start of the file.
                 if (linesRead > 0)
-                    entries.Add(new IYamlBlock(previousType, previousTag, text, Path.GetFileName(file), index));
+                {
+                    var block = new IYamlBlock(
+                        previousType,
+                        previousTag,
+                        blockTextBuilder.ToString(),
+                        Path.GetFileName(file),
+                        blockStartLine);
 
-                // Conduct a reset.
-                blockTextBuilder = new StringBuilder();
+                    entries.Add(block);
+                }
+
+                blockTextBuilder.Clear();
+                blockStartLine = index;
+
                 previousTag = OutType(line, out Type? type);
                 previousType = type;
                 linesRead = 0;
@@ -375,8 +370,7 @@ public static partial class YamlLoader
     }
 
     /// Deserialize a set of bytes per type, and fill the data into a dictionary for use elsewhere.
-    private static List<Prototype> DeserializeFillData(
-        Type[] expectedTypes, Dictionary<Type, byte[]> combined, string fileTrace)
+    private static List<Prototype> DeserializeFillData(Dictionary<Type, StringBuilder> combined, string fileTrace)
     {
         // Assign proper types to a new dictionary to organize all the different flavors of files.
         // Because provided types are static, and that yaml blocks are later verified,
@@ -384,91 +378,73 @@ public static partial class YamlLoader
         var yamlDict = new List<Prototype>();
 
         // For every combined pairing, deserialize.
-        foreach ((Type? type, byte[]? bytes) in combined)
+        foreach ((Type type, StringBuilder text) in combined)
         {
+            object? deserializedTypeList = null;
             try
             {
-                var deserializedTypeList = DeserializeBytesAsListOfType(bytes, type, fileTrace);
-                if (deserializedTypeList == null)
-                {
-                    // Do NOT throw an error here, as this particular deserialized list may not have been found in the
-                    //  file to begin with!
-                    continue;
-                }
-
-                // Iterate through the list and fill the output.
-                foreach (var yamlObject in (IEnumerable)deserializedTypeList)
-                {
-                    yamlDict.Add((Prototype)Convert.ChangeType(yamlObject, type));
-                }
+                deserializedTypeList = DeserializeAsListOfType(type, text.ToString());
             }
             catch (Exception ex)
             {
-                throw new Exception(
-                    $"Failed to deserialize {type.Name} type from \"{Path.GetFileName(fileTrace)}\".", ex);
+                Log($"Failed to deserialize {type.Name} type from \"{Path.GetFileName(fileTrace)}\". {ex.Message}",
+                    LOG.FILE_ERROR);
+            }
+
+            if (deserializedTypeList == null)
+            {
+                // Do NOT throw an error here, as this particular deserialized list may not have been found in the
+                //  file to begin with!
+                continue;
+            }
+
+            // Iterate through the list and fill the output.
+            foreach (var yamlObject in (IEnumerable)deserializedTypeList)
+            {
+                yamlDict.Add((Prototype)Convert.ChangeType(yamlObject, type));
             }
         }
 
         return yamlDict;
+
+        // Helper method used to deserialize bytes as a list of an element type.
+        // Requires the DeserializeListOf method to remain exactly as it is, as this converts a type parameter
+        //  into a generic one.
+        static object? DeserializeAsListOfType(Type genericType, string text)
+        {
+            Type listType = typeof(List<>).MakeGenericType(genericType);
+            var result = SKSSLDefaultDeserializer.Deserialize(text, listType);
+            return result;
+        }
     }
 
-    private static void CombineYamlBlockBytes(List<IYamlBlock> yamlBlocks, Dictionary<Type, byte[]> combined)
+
+    private static Dictionary<Type, StringBuilder> CombineYamlBlocks(List<IYamlBlock> yamlBlocks)
     {
-        // For every IYamlBlock that happens to have a valid type defined within it...
+        var combined = new Dictionary<Type, StringBuilder>();
+
         foreach (IYamlBlock block in yamlBlocks)
         {
-            // Skip blocks whose text begin with '#', because this is a comment. Comments are ignored!
             if (block.Text.StartsWith('#')) continue;
             if (block.Type == null)
             {
-                // Short-circuit. Type is resolved during block parsing.
-                // IYamlBlock contains the list of expected types.
                 Log(
                     $"{(string.IsNullOrWhiteSpace(block.Tag) ? "missing" : block.Tag)} tag is invalid on line {block.Index} " +
-                    $"in file {block.File}", LOG.FILE_ERROR);
+                    $"in file {block.File}",
+                    LOG.FILE_ERROR);
                 continue;
             }
 
-            // Get the bytes of the block and using the type, combined the bytes with the existing ones to effectively
-            //  merge the yaml entries into one.
-            var bytes = block.ToBytes();
-            combined[block.Type] = combined[block.Type].Concat(bytes).ToArray();
+            if (!combined.TryGetValue(block.Type, out StringBuilder? sb))
+            {
+                sb = new StringBuilder();
+                combined[block.Type] = sb;
+            }
+
+            sb.AppendLine(block.Text);
         }
-    }
 
-    /// Helper method used to deserialize bytes as a list of an element type.
-    /// Requires the DeserializeListOf method to remain exactly as it is, as this converts a type parameter
-    ///  into a generic one.
-    public static object? DeserializeBytesAsListOfType(byte[] bytes, Type genericType, string file = "")
-    {
-        Type listType = typeof(List<>).MakeGenericType(genericType);
-        MethodInfo? method = typeof(YamlSerializer).GetMethod(
-            "Deserialize",
-            1,
-            BindingFlags.Static | BindingFlags.Public,
-            null,
-            [typeof(ReadOnlyMemory<byte>), typeof(YamlSerializerOptions)],
-            null
-        );
-        if (method == null)
-            throw new EntryPointNotFoundException(
-                $"Failed to create Deserializer method in SKSSL Yaml Loader. Likely library issue in file {file}");
-
-        MethodInfo closed = method.MakeGenericMethod(listType);
-
-        try
-        {
-            return closed.Invoke(null, [new ReadOnlyMemory<byte>(bytes), null]);
-        }
-        catch (Exception ex)
-        {
-            Log($"Fatal error in {nameof(DeserializeBytesAsListOfType)} call!\n" +
-                $"Check class-type changes, invalid spacing, and values. Casted to list of {genericType} in file {file}.\n" +
-                $"{ex.InnerException?.Message}", LOG.SYSTEM_ERROR);
-        }
-        // TODO: Add fallback attempt.
-
-        return null;
+        return combined;
     }
 
     #endregion

@@ -1,3 +1,4 @@
+using System;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.Mathematics;
@@ -19,10 +20,28 @@ public class Algorithms
     [TestMethod, UsedImplicitly]
     public void TEST_SHUNTING_YARD()
     {
+        // Simple.
         double result = 0f;
-        const string goodFormula = "(5+3*example_statistic)/3--6";
-        var ppa = ShuntingYard.Evaluate(goodFormula, out result);
-        const string badDelimiterFormula = "(5+3*example_statistic/3--6";
+        const string formulaNormal = "(5+3*9)/3--6"; // -> 4.666666666666667
+        ShuntingYard.Evaluate(formulaNormal, out result);
+        Assert.IsTrue(Math.Abs(result - 4.666) < 0.05);
+        
+        // Variable.
+        StatisticsVariables.Statistics.Clear();
+        StatisticsVariables.Statistics.Add("test_statistic", 4);
+        const string goodFormula = "(5+3*test_statistic)/3--6";
+        /*
+         * (5 + 3 * test_statistic) / 3 - -6
+         * (5 + 3 * 4)              / 3 + 6
+         * (5 + 12)                 / 9
+         * (17) / 9
+         * -> 1.888888888888889
+         */
+        ShuntingYard.Evaluate(goodFormula, out result);
+        Assert.IsTrue(Math.Abs(result - 1.888) < 0.05);
+
+        // Bad Variable.
+        const string badDelimiterFormula = "(5+3*invalid_statistic/3--6";
         Assert.IsFalse(ShuntingYard.Evaluate(badDelimiterFormula, out result));
         // WIP: finish this evaluation & shunting yard.
     }
