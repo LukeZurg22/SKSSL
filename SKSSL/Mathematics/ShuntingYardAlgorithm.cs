@@ -11,7 +11,7 @@ namespace SKSSL.Mathematics;
 /// <summary>
 /// Algorithmically calculates values based on string input. This class was written to align with the
 /// <a href="https://en.wikipedia.org/wiki/Shunting_yard_algorithm">Shunting Yard Algorithm</a>.
-/// <remarks>This algorithm was manually implemented. I have no clue if this will work, or is most performant!</remarks>
+/// <remarks>This algorithm was manually implemented. This is likely not the most performant implementation!</remarks>
 /// </summary>
 public static class ShuntingYard
 {
@@ -80,7 +80,7 @@ public static class ShuntingYard
 
         return EvaluateRPN(output);
 
-        // Shunting yard evaluation algorithm.
+        // Parse all proper tokens that aren't immediately recognised as doubles. 
         void ParseSpecialToken(string token, int index)
         {
             switch (token)
@@ -255,7 +255,7 @@ public static class ShuntingYard
             --stringVarCount; // Decrement the "handled these" counter.
             string variable = tokens[stringIndex];
 
-            if (EvaluateVariableString(variable, out double value))
+            if (GetStringVariableValue(variable, out double value))
             {
                 // Replace original variable's token entry with numerical value.
                 tokens[stringIndex] = value.ToString(CultureInfo.InvariantCulture);
@@ -274,22 +274,23 @@ public static class ShuntingYard
         return string.IsNullOrEmpty(faultyVariables);
     }
 
-    private static bool EvaluateVariableString(string variable, out double i)
+    /// Using the <see cref="StatisticsVariables"/> class, this attempts to get a value from a string.
+    private static bool GetStringVariableValue(string variable, out double value)
     {
-        if (StatisticsVariables.Statistics.TryGetValue(variable, out i))
+        if (StatisticsVariables.Statistics.TryGetValue(variable, out value))
             return true;
-        i = 0;
+        value = 0;
         return false;
     }
 
     /// Read a set tokens, organize into a mathematically calculable stack ordered by importance, and evaluate.
-    private static double EvaluateRPN(Queue<string> rpn)
+    private static double EvaluateRPN(Queue<string> tokenQueue)
     {
         var stack = new Stack<double>();
 
-        while (rpn.Count > 0)
+        while (tokenQueue.Count > 0)
         {
-            string token = rpn.Dequeue();
+            string token = tokenQueue.Dequeue();
 
             if (double.TryParse(token, out double num))
             {
