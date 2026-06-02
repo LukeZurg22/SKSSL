@@ -11,7 +11,7 @@ public abstract class TestYaml
                                                                  description: test-desc
                                                                  components:
                                                                  - type: {nameof(TestBlankComponent).Replace("Component", "")}
-                                                               """.ReplaceLineEndings("").Replace(" ", "");
+                                                               """;
 
     public static readonly string ExpectedOutputYamlMultiEntry = """
                                                                  - type: Entity
@@ -23,7 +23,7 @@ public abstract class TestYaml
                                                                    id: testc       
                                                                    name: test-name
                                                                    description: test-desc
-                                                                 """.ReplaceLineEndings("").Replace(" ", "");
+                                                                 """;
 
     public static readonly string TestYamlSingleEntry = $"""
                                                          - type: Entity

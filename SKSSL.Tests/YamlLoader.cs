@@ -27,9 +27,10 @@ public class YamlLoader
         var yml = YAML.YamlLoader.DeserializePrototypesFrom(lines, "Test");
 
         // entity A
-        Assert.IsNotEmpty(yml); // Testing, just in case!
+        Assert.IsNotEmpty(yml);
         _entities = [];
         yml.ForEach(prototype=>_entities.AddRange(prototype as Entity));
+
         
         // entities B & C
         lines = TestYaml.ExpectedOutputYamlMultiEntry.Replace("\r", "").Split('\n');

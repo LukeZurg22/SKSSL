@@ -1,6 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SolKom.Console.Commands;
 
 namespace SKSSL.Console;
 

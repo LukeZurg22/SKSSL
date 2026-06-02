@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using SKSSL.Extensions;
-using static SKSSL.DustLogger;
 
 namespace SKSSL.ECS;
 

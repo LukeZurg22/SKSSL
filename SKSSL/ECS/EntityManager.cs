@@ -5,7 +5,6 @@ using System.Reflection;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
 using SKSSL.YAML;
-using static SKSSL.DustLogger;
 
 
 namespace SKSSL.ECS;

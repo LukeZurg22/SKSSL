@@ -3,14 +3,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using SKSSL.ECS;
 using SKSSL.Utilities;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
-using static SKSSL.DustLogger;
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
@@ -36,12 +34,12 @@ namespace SKSSL.YAML;
 /// </summary>
 public static partial class YamlLoader
 {
-    private static ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
+    private static readonly ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .JsonCompatible()
         .Build();
 
-    private static IDeserializer SKSSLDefaultDeserializer = new DeserializerBuilder()
+    private static readonly IDeserializer SKSSLDefaultDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 

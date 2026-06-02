@@ -16,7 +16,6 @@ using SKSSL.ECS;
 using SKSSL.Localization;
 using SKSSL.Scenes;
 using SKSSL.Utilities;
-using static SKSSL.DustLogger;
 
 // ReSharper disable ConvertToConstant.Global
 // ReSharper disable CollectionNeverQueried.Global

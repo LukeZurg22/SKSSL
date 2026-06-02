@@ -1,4 +1,3 @@
-using JetBrains.Annotations;
 using SKSSL.ECS;
 
 namespace SKSSL.Tests.TestData;

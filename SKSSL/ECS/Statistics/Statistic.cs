@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using SKSSL.YAML;
 
 namespace SKSSL.ECS.Statistics;
 

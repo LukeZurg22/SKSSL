@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using SKSSL.Scenes;
-using static SKSSL.DustLogger;
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable ConvertIfStatementToSwitchStatement

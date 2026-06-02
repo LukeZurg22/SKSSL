@@ -3,7 +3,6 @@ using Gum.Forms.Controls;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGameGum;
-using static SKSSL.DustLogger;
 
 // ReSharper disable VirtualMemberNeverOverridden.Global
 

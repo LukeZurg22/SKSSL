@@ -1,6 +1,5 @@
 using Microsoft.Xna.Framework;
 using SKSSL.Scenes;
-using static SKSSL.DustLogger;
 
 // ReSharper disable UnusedMember.Local
 

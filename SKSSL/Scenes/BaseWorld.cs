@@ -1,6 +1,5 @@
 using Microsoft.Xna.Framework;
 using SKSSL.ECS;
-using static SKSSL.DustLogger;
 using EventHandler = SKSSL.ECS.EventHandler;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global

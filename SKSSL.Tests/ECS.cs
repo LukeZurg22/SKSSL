@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.Tests.TestData;

@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Extensions;
-using static SKSSL.DustLogger;
 using static SKSSL.Textures.TextureLoader.MaterialRegistry;
 
 // ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
