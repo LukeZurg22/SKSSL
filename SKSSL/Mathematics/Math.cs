@@ -24,6 +24,8 @@ public static class FloatExtensions
 
 public static class CharacterExtensions
 {
+    /// Detects Unary-Minus and Unary plus. Not an extension for ease of use.
+    public static bool IsUnaryOperator(string token) => token is "u-" or "u+";
     public static bool IsOperator(this char token) => token is '+' or '-' or '*' or '/' or '^';
     public static bool IsBracket(this char token) => token is '(' or ')' or '{' or '}' or '[' or ']';
     public static bool IsOperator(this string token) => token is "+" or "-" or "*" or "/" or "^";

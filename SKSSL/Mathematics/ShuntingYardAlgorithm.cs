@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
 using static SKSSL.Extensions.StringHelpers;
+using static SKSSL.Mathematics.CharacterExtensions;
 
 namespace SKSSL.Mathematics;
 
@@ -49,10 +50,91 @@ public static class ShuntingYard
         }
 
         // Calculate final result.
-        var l = ToPostfix(parserOutput.Tokens);
-
-
+        result = Evaluate(parserOutput.Tokens);
         return true;
+    }
+
+    private static double Evaluate(string[] tokens)
+    {
+        if (tokens.Length == 0)
+            return 0;
+
+        var output = new Queue<string>(); // RPN output
+        var operators = new Stack<string>(); // Operator stack
+
+        for (int i = 0; i < tokens.Length; i++)
+        {
+            string token = tokens[i];
+
+            // Number
+            if (double.TryParse(token, out _)) output.Enqueue(token);
+            else ParseSpecialToken(token, i);
+        }
+
+        // Pop remaining operators
+        while (operators.Count > 0)
+        {
+            string op = operators.Pop();
+            if (op != "(") output.Enqueue(op);
+        }
+
+        return EvaluateRPN(output);
+
+        // Shunting yard evaluation algorithm.
+        void ParseSpecialToken(string token, int index)
+        {
+            switch (token)
+            {
+                case "(":
+                    operators.Push(token);
+                    break;
+                case ")":
+                {
+                    while (operators.Count > 0 && operators.Peek() != "(")
+                        output.Enqueue(operators.Pop());
+
+                    if (operators.Count > 0 && operators.Peek() == "(")
+                        operators.Pop(); // discard '('
+                    break;
+                }
+                default:
+                {
+                    if (token.IsOperator()) // +, -, *, /, ^, u-, u+
+                    {
+                        string op = token;
+
+                        // Handle unary minus/plus
+                        if (op is "-" or "+" &&
+                            (index == 0 || IsUnaryOperator(tokens[index - 1])))
+                        {
+                            op = op == "-" ? "u-" : "u+";
+                        }
+
+                        while (operators.Count > 0 &&
+                               operators.Peek() != "(" &&
+                               ShouldPop(operators.Peek(), op))
+                        {
+                            output.Enqueue(operators.Pop());
+                        }
+
+                        operators.Push(op);
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+
+    private static bool ShouldPop(string top, string current)
+    {
+        if (!Precedence.TryGetValue(top, out byte topValue) || !Precedence.TryGetValue(current, out byte currentValue))
+            return false;
+
+        if (current is "^" or "u-") // right-associative
+            return topValue > currentValue;
+
+        return topValue >= currentValue;
     }
 
     /// <summary>
@@ -70,13 +152,23 @@ public static class ShuntingYard
             char character = expression[i];
 
             // If character is an expected, add to stack of string operators,
-            if (char.IsDigit(character))
+            // If character is an expected, add to stack of string operators,
+            if (char.IsDigit(character) || character == '.')
             {
                 int start = i;
+                bool hasDecimal = character == '.';
 
-                while (i + 1 < expression.Length && char.IsDigit(expression[i + 1]))
+                while (i + 1 < expression.Length)
                 {
-                    i++;
+                    char next = expression[i + 1];
+                    if (char.IsDigit(next)) i++;
+                    else if (next == '.' && !hasDecimal)
+                    {
+                        hasDecimal = true;
+                        i++;
+                    }
+                    else
+                        break;
                 }
 
                 string number = expression[start..(i + 1)];
@@ -85,17 +177,25 @@ public static class ShuntingYard
             // Character is an operator
             else if (character.IsOperator())
             {
-                // If the next character is also an operator, then this is a unary / special operator.
-                //  This handles unary operators in pairs. A set of four operators should be two unary ones.
-                if (i + 1 < expression.Length && expression[i + 1].IsOperator())
+                bool isUnary = false;
+
+                // Determine if this is a unary operator
+                if (i == 0) isUnary = true; // Start of expression
+                else
                 {
-                    i++;
-                    string unary = $"u{expression[i]}";
+                    char prev = expression[i - 1];
+                    if (prev == '(' || prev.IsOperator()) isUnary = true;
+                }
+
+                if (isUnary)
+                {
+                    // Consume the unary operator
+                    string unary = "u" + character;
                     tokens.Add(unary);
                 }
                 else
                 {
-                    // Add operator plainly.
+                    // Binary operator
                     tokens.Add(character.ToString());
                 }
             }
@@ -142,9 +242,7 @@ public static class ShuntingYard
     /// Evaluates a set of tokens using a set of indices pointing to tokens that happen to be string variables.
     /// <returns>true if all string variables were evaluated correctly; false if otherwise.</returns>
     private static bool EvaluateExpressionStringVariables(
-        List<int> stringVarIndices,
-        string[] tokens,
-        out string faultyVariables)
+        List<int> stringVarIndices, string[] tokens, out string faultyVariables)
     {
         StringBuilder stringBuilder = new();
         faultyVariables = string.Empty;
@@ -178,85 +276,55 @@ public static class ShuntingYard
 
     private static bool EvaluateVariableString(string variable, out double i)
     {
-        // WIP: Complete this. Indexing game statistics. Probably retroactive w. Prototyping beforehand.
-        i = -1;
+        if (StatisticsVariables.Statistics.TryGetValue(variable, out i))
+            return true;
+        i = 0;
         return false;
     }
 
-    /// Evaluate a set of tokens into a mathematical, calculable form. 
-    private static List<string> ToPostfix(string[] tokens)
+    /// Read a set tokens, organize into a mathematically calculable stack ordered by importance, and evaluate.
+    private static double EvaluateRPN(Queue<string> rpn)
     {
-        var output = new List<string>();
-        var operators = new Stack<string>();
+        var stack = new Stack<double>();
 
-        string? previous = null;
-
-        foreach (var rawToken in tokens)
+        while (rpn.Count > 0)
         {
-            string token = rawToken;
-            // WIP: Make sure this isn't buggy as all hell. Unaries are already evaluated earlier in the
-            //  call-chain anyway.
-            if (double.TryParse(token, out _))
+            string token = rpn.Dequeue();
+
+            if (double.TryParse(token, out double num))
             {
-                output.Add(token);
+                stack.Push(num);
             }
             else
             {
                 switch (token)
                 {
-                    case "(":
-                        operators.Push(token);
+                    case "u-":
+                        stack.Push(-stack.Pop());
                         break;
-                    case ")":
-                    {
-                        while (operators.Count > 0 && operators.Peek() != "(")
-                        {
-                            output.Add(operators.Pop());
-                        }
-
-                        if (operators.Count == 0)
-                            throw new Exception("Mismatched parentheses");
-
-                        operators.Pop(); // Remove '('
+                    case "u+":
+                        // no-op
                         break;
-                    }
                     default:
                     {
-                        if (Precedence.TryGetValue(token, out byte precedence))
-                        {
-                            while (
-                                operators.Count > 0 &&
-                                operators.Peek() != "(" &&
-                                Precedence.TryGetValue(operators.Peek(), out byte p) &&
-                                p >= precedence
-                            )
-                            {
-                                output.Add(operators.Pop());
-                            }
+                        double b = stack.Pop();
+                        double a = stack.Pop();
 
-                            operators.Push(token);
-                        }
-                        else
+                        stack.Push(token switch
                         {
-                            throw new Exception($"Unknown token: {token}");
-                        }
-
+                            "+" => a + b,
+                            "-" => a - b,
+                            "*" => a * b,
+                            "/" => a / b,
+                            "^" => Math.Pow(a, b),
+                            _ => throw new ArgumentException($"Unknown operator: {token}")
+                        });
                         break;
                     }
                 }
             }
-
-            previous = token;
         }
 
-        while (operators.Count > 0)
-        {
-            if (operators.Peek() == "(")
-                throw new Exception("Mismatched parentheses");
-
-            output.Add(operators.Pop());
-        }
-
-        return output;
+        return stack.Pop();
     }
 }
