@@ -104,29 +104,29 @@ public static class Loc
     /// Clears and initializes localization depending on the current assigned language culture.
     /// Localization folder path is optional, which is assigned the default path or vice versa depending on nullability.
     /// </summary>
-    /// <param name="localeDirectory">
+    /// <param name="directory">
     /// Localization directory, which contains which contains sub-folders based on language culture.
     /// </param>
-    public static void Load(string localeDirectory)
+    public static void Load(string directory)
     {
         ParseExceptions.Clear();
 
         // Loading localizations should be clear on program init.
 
-        // Get user's current language culture.
-        string language = CultureInfo.CurrentCulture.Name; // e.g., "en-US", "de-DE"
+        // Get current language culture.
+        string language = CurrentLanguage; // e.g., "en-US", "de-DE"
 
         // Attempt to use requested language folder
-        string languageFolder = Path.Combine(localeDirectory, language);
+        string languageFolder = Path.Combine(directory, language);
 
         // Fall back to default if missing
         if (!Directory.Exists(languageFolder))
         {
             Log(
                 $"Localization folder for \"{language}\" does not exist! Using default \"{CurrentLanguage}\" instead.\n" +
-                $"{localeDirectory}",
+                $"{directory}",
                 LOG.FILE_WARNING);
-            languageFolder = Path.Combine(localeDirectory, CurrentLanguage);
+            languageFolder = Path.Combine(directory, CurrentLanguage);
         }
 
         // If it still doesn't exist after it was defaulted, then something is wrong, and this directory
