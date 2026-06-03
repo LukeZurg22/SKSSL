@@ -139,6 +139,7 @@ public static partial class DustLogger
         // TODO: implement back-logging for antiquated logs. Also include splits.
     }
 
+    // ReSharper disable once InvalidXmlDocComment
     /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
     /// Overload using enum, which is cast to byte.
     public static void Log(string message, LOG log, bool outputToFile = DefaultOutputBoolean) => Log(message, (byte)log, outputToFile);
@@ -159,7 +160,7 @@ public static partial class DustLogger
         catch
         {
             // Fallback if the exception type doesn't have a (string) constructor
-            exception = (Exception)Activator.CreateInstance(typeof(T))!;
+            exception = Activator.CreateInstance<T>();
         
             // Try to set message via reflection as fallback
             typeof(Exception)

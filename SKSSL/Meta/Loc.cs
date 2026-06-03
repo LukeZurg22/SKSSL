@@ -123,9 +123,8 @@ public static class Loc
         if (!Directory.Exists(languageFolder))
         {
             Log(
-                $"Localization folder for \"{language}\" does not exist! Using default \"{CurrentLanguage}\" instead.\n" +
-                $"{directory}",
-                LOG.FILE_WARNING);
+                $"Localization folder for \"{language}\" does not exist! An attempt to default to en-US was made.\n" +
+                $"{directory}", LOG.FILE_WARNING);
             languageFolder = Path.Combine(directory, CurrentLanguage);
         }
 

@@ -39,7 +39,7 @@ public class YamlLoader
     }
 
 
-    readonly YamlComponent _testYamlComponent = new()
+    private readonly YamlComponent _testYamlComponent = new()
     {
         Type = "TestField",
         Entries =
