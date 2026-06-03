@@ -21,28 +21,38 @@ namespace SKSSL;
 /// </summary>
 public static class Loc
 {
-    private const string defaultLanguage = "en-US";
-    public static string CurrentLanguage; // TODO: Load this from settings
+    public static string CurrentLanguage;
 
     /// <summary>
     /// The localization entries as stored in the game's per-language-culture folder.
     /// Consists of a list of values and (=) keys.
     /// </summary>
-    static Loc()
+    public static void InitalizeLocalizationCulture(string language)
     {
-        string systemCulture = CultureInfo.CurrentCulture.Name;
-        switch (systemCulture)
+        string culture = language;
+        
+        if (!IsValidCulture(language))
         {
-            case "en-US": // TODO: Add dynamically-supported languages rather than statically-defined.
-            case "de-DE":
-            case "fr-FR":
-                Thread.CurrentThread.CurrentCulture = new CultureInfo(systemCulture);
-                Thread.CurrentThread.CurrentUICulture = new CultureInfo(systemCulture);
-                CurrentLanguage = systemCulture;
-                break;
-            default: // English is the default if the culture isn't found, as well as being an option.
-                CurrentLanguage = defaultLanguage;
-                break;
+            Log("Invalid language on Locale Init.: " + language, LOG.FILE_ERROR);
+            culture = CultureInfo.CurrentCulture.Name;
+        }
+
+        Thread.CurrentThread.CurrentCulture = new CultureInfo(culture);
+        Thread.CurrentThread.CurrentUICulture = new CultureInfo(culture);
+        CurrentLanguage = culture;
+    }
+
+    private static bool IsValidCulture(string name)
+    {
+        try
+        {
+            // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
+            CultureInfo.GetCultureInfo(name);
+            return true;
+        }
+        catch (CultureNotFoundException)
+        {
+            return false;
         }
     }
 
@@ -113,10 +123,10 @@ public static class Loc
         if (!Directory.Exists(languageFolder))
         {
             Log(
-                $"Localization folder for \"{language}\" does not exist! Using default \"{defaultLanguage}\" instead.\n" +
+                $"Localization folder for \"{language}\" does not exist! Using default \"{CurrentLanguage}\" instead.\n" +
                 $"{localeDirectory}",
                 LOG.FILE_WARNING);
-            languageFolder = Path.Combine(localeDirectory, defaultLanguage);
+            languageFolder = Path.Combine(localeDirectory, CurrentLanguage);
         }
 
         // If it still doesn't exist after it was defaulted, then something is wrong, and this directory

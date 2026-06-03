@@ -164,8 +164,10 @@ public abstract class SSLGame : Game
         // Load settings, and based on game paths, create directories ordered by load order.
         GameSettings settings = LoadSettings();
         GameContentDirectories = GetGameDirectories(settings);
+        Loc.InitalizeLocalizationCulture(settings.Language);
 
-        // Includes load-order implementation. Higher values override lower values.
+        // WIP: Begin loading directories.
+        
         // TODO: Add a way to change load order priorities in game directories. Likely requires a file? Master file?
         //  A file per-game folder means version mismatches per file change that breaks every update.
         //  Ergo, a master file may be the best solution.

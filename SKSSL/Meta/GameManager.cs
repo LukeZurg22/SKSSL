@@ -1,7 +1,6 @@
 namespace SKSSL;
 
 // ReSharper disable UnusedMember.Global
-
 /// <summary>
 /// Static class game manager used to run and handle total game instance.
 /// </summary>
@@ -32,6 +31,7 @@ public static class GameManager
     public static void Run<T>(string gameName) where T : SSLGame, new()
     {
         GameName = gameName;
+        
         // Safely run without running-the-gun.
         using T type = new();
         Game = type;
