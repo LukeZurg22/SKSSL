@@ -132,6 +132,7 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
 
+        // For a typical directory.
         if (!string.IsNullOrEmpty(directory))
         {
             var resolvedDirectory = GetFullPath(directory);
@@ -143,6 +144,7 @@ public sealed class GameDirectory : IComparable<GameDirectory>
 
             ThisDirectory = resolvedDirectory;
         }
+        // If no directory is provided, assume that the root directory is where everything is being handled.
         else
         {
             ThisDirectory = RootDirectory;

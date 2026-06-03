@@ -4,7 +4,6 @@ using System.Text.Json.Serialization;
 using MemoryPack;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SKSSL.Localization;
 using SKSSL.Scenes;
 using SKSSL.YAML;
 using YamlDotNet.Serialization;

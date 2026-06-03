@@ -14,7 +14,7 @@ using Fluent.Net.RuntimeAst;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-namespace SKSSL.Localization;
+namespace SKSSL;
 
 /// <summary>
 /// A public class used in acquiring the localization of any object defined in the .loc files of the Localization folder.

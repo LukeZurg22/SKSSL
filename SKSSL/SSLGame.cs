@@ -12,7 +12,6 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoGame.ImGuiNet;
 using MonoGameGum;
 using SKSSL.ECS;
-using SKSSL.Localization;
 using SKSSL.Scenes;
 using SKSSL.Utilities;
 using YamlDotNet.Serialization;
@@ -81,7 +80,7 @@ public abstract class SSLGame : Game
     public static string GumFile = "CHANGE_ME";
 
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
-    public readonly List<GameDirectory> GameContentDirectories = [];
+    public readonly List<GameDirectory> GameContentDirectories;
 
     public MouseWrapper MouseHandler;
 
@@ -162,33 +161,15 @@ public abstract class SSLGame : Game
         ContentManagers.Add(Content);
         ContentManagers.AddRange(contents);
 
-        // WIP: Load settings, and based on game paths, load content. Game content is no different from the rest!
+        // Load settings, and based on game paths, create directories ordered by load order.
         GameSettings settings = LoadSettings();
-        // If there are designated game paths, create Game Directories.
-        if (settings.GamePaths.Count > 0)
-        {
-            foreach (var gamePath in settings.GamePaths)
-            {
-                var directory = new GameDirectory(gamePath.Path, gamePath.Order);
-                GameContentDirectories.Add(directory);
-            }
-        }
-        // No designated game paths means that a specialized dynamic one will be needed. Mods basically don't
-        //  exist in this arrangement.
-        else
-        {
-                GameContentDirectories.Add(new GameDirectory());
-            
-        }
+        GameContentDirectories = GetGameDirectories(settings);
 
-        // Initialize all static paths, which the developer must have defined!
         // Includes load-order implementation. Higher values override lower values.
         // TODO: Add a way to change load order priorities in game directories. Likely requires a file? Master file?
         //  A file per-game folder means version mismatches per file change that breaks every update.
         //  Ergo, a master file may be the best solution.
         // WIP: CONTENT LOADING!
-        //var gameDirectories = StaticGameLoader.GetAllGameDirectories();
-        //GameContentDirectories = gameDirectories.OrderBy(d => d.LoadOrder).ToList();
 
         // Display ECS status. This constructor is called after inheritors.
         Log($"ECS status: {(UseECS ? "on" : "off")}");
@@ -210,6 +191,29 @@ public abstract class SSLGame : Game
         GuiRenderer.RebuildFontAtlas();
 
         Log("SSLGame Root Initialized. Proceeding...");
+    }
+
+    private static List<GameDirectory> GetGameDirectories(GameSettings settings)
+    {
+        var directories = new List<GameDirectory>();
+        // If there are designated game paths, create Game Directories.
+        if (settings.GamePaths.Count > 0)
+        {
+            foreach (LoadPath gamePath in settings.GamePaths)
+            {
+                var directory = new GameDirectory(gamePath.Path, gamePath.Order);
+                directories.Add(directory);
+            }
+        }
+        // No designated game paths means that a specialized dynamic one will be needed. Mods basically don't
+        //  exist in this arrangement.
+        else
+        {
+            directories.Add(new GameDirectory());
+        }
+
+        directories.Sort((a, b) => a.LoadOrder.CompareTo(b.LoadOrder));
+        return directories;
     }
 
     private static GameSettings LoadSettings()
