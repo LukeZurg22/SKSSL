@@ -3,8 +3,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Extensions;
+using static SKSSL.GameManager;
 using static SKSSL.Textures.TextureLoader.MaterialRegistry;
 
 // ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
@@ -89,47 +91,29 @@ public abstract partial class TextureLoader
     /// <br/><br/>
     /// It is IMPERATIVE that this be loaded before the base.Initialize() of the game's Initialize() method.
     /// </summary>
-    /// <param name="gameContentDirectories"></param>
+    /// <param name="directory">A particular game directory.</param>
     /// <exception cref="ArgumentNullException"></exception>
-    public static void Initialize(IEnumerable<GameDirectory> gameContentDirectories)
+    public static void Initialize(GameDirectory directory)
     {
         // If the texture loader has already been initialized by a "surface-level" class override,
         //  then that override is the one that shall be used and whatever is needed has already been initialized.
         if (IsInitialized) return;
         IsInitialized = true;
         _instance.InitializeRegistries();
-        CompleteTextureInit(gameContentDirectories);
-    }
 
-    /// <summary>
-    /// Load all game textures into memory. This should be called by a Content Manager.
-    /// </summary>
-    /// <param name="gameContentDirectories"></param>
-    /// <remarks>
-    /// Due to how it is written, all texture categories must be registered.
-    /// I.e. "items" must have a dedicated "items" folder.
-    /// </remarks>
-    private static void CompleteTextureInit(IEnumerable<GameDirectory> gameContentDirectories)
-    {
+        // Complete Texture Initialization.
         // Below handles the Initialization (/preloading) of all game data.
         // Also includes mods. This is a trick that will come in handy later~
-        // TODO: Implement load order.
-        List<string> textureFolders = [];
-        foreach (GameDirectory directory in gameContentDirectories)
-        {
-            string? texturesFolder = directory.TexturesFolder;
-            if (texturesFolder is not null)
-                textureFolders.Add(texturesFolder);
-        }
+        string texturesFolder = directory.TexturesFolder;
+        // Load all game textures into memory.
 
         // Load all folders with registered textures.
-        foreach (var folder in textureFolders)
-        {
-            // Get all categorical texture folders.
-            var subFolders = Directory.GetDirectories(folder, "", SearchOption.TopDirectoryOnly);
-            ProcessTextureSubfolder(subFolders);
-        }
+        // Get all categorical texture folders.
+        var subFolders = Directory.GetDirectories(texturesFolder, "", SearchOption.TopDirectoryOnly);
+        ProcessTextureSubfolder(subFolders);
 
+        // Due to how it is written, all texture categories must be registered.
+        // I.e. "items" must have a dedicated "items" folder.
         // Builds Monogame Content.
         BuildContentIndex();
     }
@@ -170,7 +154,8 @@ public abstract partial class TextureLoader
         if (!_textures.ContainsKey(config.AssetPathKey))
             _textures[config.AssetPathKey] = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
 
-        var files = StaticGameLoader.GetGameFiles(directory);
+        var files 
+            = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories);
 
         foreach (var file in files)
         {
@@ -196,10 +181,12 @@ public abstract partial class TextureLoader
     {
         var materialGroups = new Dictionary<string, SKMaterial>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var subDir in Directory.GetDirectories(directory))
+        foreach (var texturesFolder in Directory.GetDirectories(directory))
         {
-            string folderPrefix = Path.GetFileName(subDir).ToLowerInvariant();
-            var files = StaticGameLoader.GetGameFiles(subDir);
+            string folderPrefix = Path.GetFileName(texturesFolder).ToLowerInvariant();
+            var files
+                = Directory.EnumerateFiles(texturesFolder, "*", SearchOption.AllDirectories);
+
 
             foreach (var file in files)
             {
@@ -273,7 +260,7 @@ public abstract partial class TextureLoader
         }
 
         // 2. Fallback to MonoGame Content pipeline (.xnb)
-        foreach (var contentManager in SSLGame.ContentManagers)
+        foreach (ContentManager contentManager in Game.ContentManagers)
         {
             try
             {

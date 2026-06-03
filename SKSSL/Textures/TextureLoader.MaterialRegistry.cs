@@ -4,6 +4,7 @@ using System.IO;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Extensions;
+using static SKSSL.GameManager;
 
 namespace SKSSL.Textures;
 
@@ -38,14 +39,14 @@ public abstract partial class TextureLoader
         /// (e.g. "gneiss_fun_test_three_diffuse") to the correct asset path for Content.Load.
         /// Call this once after all ContentManagers are ready (e.g. in TextureLoader.Initialize).
         /// </summary>
-        public static void BuildContentIndex()
+        public static void BuildContentIndex() // WIP: Move BuildContentIndex somewhere else. Per-Game-Folder handling is real, NOW!
         {
             if (_contentIndexBuilt) return;
             _contentIndexBuilt = true;
 
             Log("Building content index.");
 
-            foreach (var contentManager in SSLGame.ContentManagers)
+            foreach (var contentManager in Game.ContentManagers)
             {
                 if (string.IsNullOrEmpty(contentManager.RootDirectory) ||
                     !Directory.Exists(contentManager.RootDirectory))
@@ -194,7 +195,7 @@ public abstract partial class TextureLoader
             {
                 Texture2D? diffuse = null;
 
-                foreach (var contentManager in SSLGame.ContentManagers)
+                foreach (ContentManager contentManager in Game.ContentManagers)
                 {
                     try
                     {

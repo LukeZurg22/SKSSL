@@ -32,11 +32,13 @@
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" />
     <PackageReference Include="MSTest.TestAdapter" Version="4.1.0" />
     <PackageReference Include="MSTest.TestFramework" Version="4.1.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Tomlyn" Version="2.4.1" />
     <PackageReference Include="YamlDotNet" Version="18.0.0" />
   </ItemGroup>
  
   <ItemGroup>
-    <Content Include="Localization\**\*">
+    <Content Include="localization\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

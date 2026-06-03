@@ -132,8 +132,10 @@ public static partial class DustLogger
         logger = loggerFactory.CreateLogger("SKSSL");
 
         // Establish writer for log output.
-        _logFilePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "log.txt");
-        File.CreateText(_logFilePath).Close(); // Wipe the old file.
+        _logFilePath = Path.Combine(GameDirectory.RootDirectory, "log.txt");
+        StreamWriter writer = File.CreateText(_logFilePath);
+        writer.Close(); // Wipe the old file.
+        
         // TODO: implement back-logging for antiquated logs. Also include splits.
     }
 

@@ -1,5 +1,7 @@
 namespace SKSSL;
 
+// ReSharper disable UnusedMember.Global
+
 /// <summary>
 /// Static class game manager used to run and handle total game instance.
 /// </summary>
@@ -7,10 +9,10 @@ public static class GameManager
 {
     /// Topmost game instance reverse-accessible from lower ends of the call-chain.
     public static SSLGame Game { get; private set; } = null!;
-    
-    /// Title of game window.
-    public static string Title => Game.Title;
-    
+
+    /// Title of game.
+    public static string GameName = "SKSSL";
+
     /// Aspect ratio to render the game.
     public static float AspectRatio => Game.GraphicsDevice.Viewport.AspectRatio;
 
@@ -22,13 +24,14 @@ public static class GameManager
         SSLGame.Quit();
         game.Exit();
     }
-    
+
     /// Force game status reset.
     public static void ResetGame() => SSLGame.ResetGame();
 
     /// Run the game instance.
-    public static void Run<T>() where T : SSLGame, new()
+    public static void Run<T>(string gameName) where T : SSLGame, new()
     {
+        GameName = gameName;
         // Safely run without running-the-gun.
         using T type = new();
         Game = type;

@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -95,21 +94,14 @@ public static class Loc
     /// Clears and initializes localization depending on the current assigned language culture.
     /// Localization folder path is optional, which is assigned the default path or vice versa depending on nullability.
     /// </summary>
-    /// <param name="localeDirectory">Directory Path of the localization folder, which contains sub-folders based on language culture.</param>
-    public static void Load([NotNull] string? localeDirectory = null)
+    /// <param name="localeDirectory">
+    /// Localization directory, which contains which contains sub-folders based on language culture.
+    /// </param>
+    public static void Load(string localeDirectory)
     {
         ParseExceptions.Clear();
 
         // Loading localizations should be clear on program init.
-        //Localizations.Clear();
-
-        // Cautious handling that permits lazy initialization.
-        localeDirectory = localeDirectory switch
-        {
-            // If null, then use default localization.
-            null => StaticGameLoader.FOLDER_LOCALIZATION,
-            _ => localeDirectory
-        };
 
         // Get user's current language culture.
         string language = CultureInfo.CurrentCulture.Name; // e.g., "en-US", "de-DE"

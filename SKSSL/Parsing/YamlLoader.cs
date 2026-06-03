@@ -48,8 +48,6 @@ public static partial class YamlLoader
     /// Using prototype data collected from elsewhere, load into registry.
     public static void LoadGameDirectory(GameDirectory gameDirectory)
     {
-        if (gameDirectory.PrototypesFolder == null)
-            return;
         var prototypes = DeserializeDirectory(gameDirectory.PrototypesFolder);
         
         // TODO: add some safety padding here for overrides?

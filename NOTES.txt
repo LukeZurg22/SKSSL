@@ -4,13 +4,14 @@ Add Wave Function Collapse:
 https://github.com/mxgmn/WaveFunctionCollapse
 
 Make Commands generated & inserted by Source Generator.
+Use SourceGenerator for adding additional Content Folders
 
 dotnet build -c Release --no-incremental
 dotnet pack -c Release
 
 ------------------------------------------------------------------------------------------------------------------
 
-Fix up SKSSL test cases
+
 Ensure SKSSL.Generator is also packed in
 Tap Github Releases into Nuget
 
