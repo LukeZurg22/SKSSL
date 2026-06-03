@@ -22,6 +22,7 @@ public sealed class GameDirectory : IComparable<GameDirectory>
 
     public string? LocalizationFolder => GetFolder("localization");
     public string? TexturesFolder => GetFolder("textures");
+    public string? PrototypesFolder => GetFolder("prototypes");
 
     /// <summary>Returns path to a subfolder if it exists, otherwise null.</summary>
     public string? GetFolder(string folderName)

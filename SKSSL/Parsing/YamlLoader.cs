@@ -43,18 +43,17 @@ public static partial class YamlLoader
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
-    static YamlLoader()
-    {
-        // Set naming convention to UpperCamelCase.
-        //SerializerOptions.NamingConvention = NamingConvention.UpperCamelCase;
-    }
-
     #region Loading
 
     /// Using prototype data collected from elsewhere, load into registry.
-    public static void LoadDataToRegistry(Dictionary<Type, List<Prototype>> prototypes)
+    public static void LoadGameDirectory(GameDirectory gameDirectory)
     {
+        if (gameDirectory.PrototypesFolder == null)
+            return;
+        var prototypes = DeserializeDirectory(gameDirectory.PrototypesFolder);
+        
         // TODO: add some safety padding here for overrides?
+        
         foreach (var prototypeList in prototypes.Values)
         foreach (Prototype prototype in prototypeList)
         {
