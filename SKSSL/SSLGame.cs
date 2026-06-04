@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Gum.DataTypes;
 using Gum.Wireframe;
@@ -13,6 +15,7 @@ using MonoGame.ImGuiNet;
 using MonoGameGum;
 using SKSSL.ECS;
 using SKSSL.Scenes;
+using SKSSL.Textures;
 using SKSSL.Utilities;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -88,7 +91,7 @@ public abstract class SSLGame : Game
     private readonly IServiceProvider GameServices;
 
     // TEMP: Consider content managers into contentdirectories wrapper.
-    
+
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
     public readonly GameContentDirectories Directories;
 
@@ -170,23 +173,35 @@ public abstract class SSLGame : Game
         GameSettings settings = LoadSettings();
         // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
         Directories = GetGameDirectories(settings.GamePaths);
-        //Directories.Sort();
+        Directories.Sort();
+
+        // Init w. language from settings.
         Loc.InitalizeLocalizationCulture(settings.Language);
 
-        Directories.Add("mods/TWO", 2);
-        Directories.Add("mods/THREE", 3);
-        Directories.Add("mods/ZERO", 0);
-        Directories.Sort();
-        
         // WIP: Begin loading directories.
         //  == Textures & Materials
         //  == Prototypes (check ECS I guess?)
         //  == Localization (easy-peasy)
         //  TEMP: Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
+
+        // Assuming there are defined directories to begin with...
         foreach (GameDirectory directory in Directories)
         {
-            directory.LoadLocalization();
+            // Localization
+            if (directory.LocalizationFolder != null)
+                Loc.Load(directory.LocalizationFolder);
+
+            // Textures
+            if (directory.TexturesFolder != null)
+                TextureLoader.Load(directory.TexturesFolder);
+
+            // WIP: Feed configs in from above abstract layer. Load directory willy-nilly and search for a file?
+            //  By jove i've GOT IT! Name folders .m, .s, 
+
+            directory.LoadPrototypes();
         }
+        // If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
+        // In such case, the entire game folder is a game directory.
 
 
         // WIP: DO NOT FORGET CONTENT LOADING!
@@ -220,23 +235,41 @@ public abstract class SSLGame : Game
     #region Utility Methods
 
     /// Get game directories stored in settings.
+    [SuppressMessage("ReSharper", "BadChildStatementIndent")]
     private static GameContentDirectories GetGameDirectories(List<LoadPath> settings)
     {
         GameContentDirectories contentDirectories = new();
 
-        // If there are designated game paths, create Game Directories.
-        if (settings.Count > 0)
-        {
-            foreach (LoadPath gamePath in settings)
-            {
-                contentDirectories.Add(gamePath.Path, gamePath.Order);
-            }
-        }
-        // No designated game paths means that a specialized dynamic one will be needed. Mods basically don't
-        //  exist in this arrangement.
-        else
+        /*
+            If there are designated game paths, create Game Directories.
+            No designated game paths means that a specialized dynamic one will be needed. Mods basically don't
+            exist in this arrangement, but can be added later. This is the expected arrangement that a game will take.
+        */
+        var modifiedSettings = settings.ToList();
+        if (settings.Count == 0)
         {
             contentDirectories.Add();
+        }
+        else
+        {
+            /*  Once a singular game-path is added to the list, any root-level directory is rendered completely
+             worthless. To avoid this conundrum, the specific key word "root" was allocated to check and remove. */
+            if (settings.Any(d => d.Path.Contains("root")))
+            {
+                LoadPath rootPath = settings.First(d => d.Path.Contains("root"));
+                modifiedSettings.Remove(rootPath);
+                // Add root path as "officially" accepted path if provided in list. It has its own load-order!
+                contentDirectories.Add("", rootPath.Order);
+            }
+
+            // Ensure that duplicates are not added!
+            foreach (LoadPath gamePath in modifiedSettings)
+            {
+                if (!contentDirectories.Any(d => d.DirectoryTitle.Equals(gamePath.Path)))
+                {
+                    contentDirectories.Add(gamePath.Path, gamePath.Order);
+                }
+            }
         }
 
         return contentDirectories;

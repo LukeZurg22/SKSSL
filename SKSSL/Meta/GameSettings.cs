@@ -19,7 +19,7 @@ public class GameSettings
     public uint Height { get; set; } = 1080;
 
     /// Paths to game and mod content folders.
-    public List<LoadPath> GamePaths { get; set; } = [new("game", 1)];
+    public List<LoadPath> GamePaths { get; set; } = [];
 
     /// Language culture of the game.
     public string Language { get; set; } = "en-US";

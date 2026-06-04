@@ -5,7 +5,6 @@ using System.IO;
 using static System.IO.Path;
 
 // ReSharper disable UnusedMember.Global
-
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -39,22 +38,6 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     public void LoadPrototypes()
     {
     }
-
-    public void LoadLocalization()
-    {
-        // If this directory has no localization folder, then it is reasonable to assume that it won't be necessary
-        //  to load anything, now wouldn't it?
-        if (LocalizationFolder == null) return;
-        Loc.Load(LocalizationFolder);
-    }
-
-    public void LoadTextures()
-    {
-        if (TexturesFolder == null) return;
-
-        var d = GetGameFiles(TexturesFolder);
-    }
-
 
     /// <summary>
     /// Returns enumerated files from a specific folder path respectful to the program's executable.
@@ -90,14 +73,6 @@ public sealed class GameDirectory : IComparable<GameDirectory>
 
         // If the directory exists, then load it from the root.
         return Directory.Exists(fullPath) ? fullPath : null;
-
-        string supposedGameDirectorySubFolder = Combine(RootDirectory, "game", folderName);
-
-        // Check if "game" exists first, and use its subfolders instead.
-        // When all else fails, use folders in root directory.
-        return Directory.Exists(supposedGameDirectorySubFolder)
-            ? supposedGameDirectorySubFolder
-            : Combine(RootDirectory, folderName);
     }
 
     #endregion
@@ -109,8 +84,8 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     /// </summary>
     public GameDirectory(string directory = "", int? explicitLoadOrder = null)
     {
-        // For a typical directory.
-        if (string.IsNullOrEmpty(directory))
+        // For a typical directory. Root is a reserved keyword!
+        if (string.IsNullOrEmpty(directory) || directory.Equals("root"))
         {
             // If no directory is provided, assume that the root directory is where everything is being handled.
             _location = RootDirectory;
