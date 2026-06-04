@@ -42,6 +42,8 @@ public sealed class GameDirectory : IComparable<GameDirectory>
 
     public void LoadLocalization()
     {
+        // If this directory has no localization folder, then it is reasonable to assume that it won't be necessary
+        //  to load anything, now wouldn't it?
         if (LocalizationFolder == null) return;
         Loc.Load(LocalizationFolder);
     }
@@ -107,8 +109,6 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     /// </summary>
     public GameDirectory(string directory = "", int? explicitLoadOrder = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
-
         // For a typical directory.
         if (string.IsNullOrEmpty(directory))
         {

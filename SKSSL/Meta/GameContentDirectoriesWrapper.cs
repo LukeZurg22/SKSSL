@@ -9,6 +9,8 @@ public class GameContentDirectories : IEnumerable<GameDirectory>
 {
     private readonly List<GameDirectory> Directories = [];
 
+    public int Count => Directories.Count;
+    
     /// <summary>
     /// Sort internal directories by load order.
     /// </summary>
