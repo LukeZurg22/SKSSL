@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SKSSL.Scenes;
+// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.ECS;
 

@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using static System.IO.Path;
+
+// ReSharper disable UnusedMember.Global
 
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -20,18 +23,16 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     public static string RootDirectory { get; } = GetFullPath(Combine(AppContext.BaseDirectory, ".."));
 
     /// Default to "game"
-    public readonly string ThisDirectory;
+    private readonly string _location;
+
+    /// <returns>Directory's primary folder.</returns>
+    public string GetDirectoryPath() => _location;
 
     /// <summary>Load priority. Lower = loaded first.</summary>
     public int LoadOrder { get; }
 
     public static readonly string AppDataDir =
         Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), GameManager.GameName);
-
-    private readonly string DefaultLocaleFolder = Combine(RootDirectory, "localization");
-    private readonly string DefaultPrototypesFolder = Combine(RootDirectory, "prototypes");
-    private readonly string DefaultTexturesFolder = Combine(RootDirectory, "textures");
-
 
     #region Internal Folder Access
 
@@ -41,10 +42,16 @@ public sealed class GameDirectory : IComparable<GameDirectory>
 
     public void LoadLocalization()
     {
+        if (LocalizationFolder == null) return;
+        Loc.Load(LocalizationFolder);
     }
 
-    public IEnumerable<string> GetTextureFiles()
-        => Directory.EnumerateFiles(TexturesFolder, "*", SearchOption.AllDirectories);
+    public void LoadTextures()
+    {
+        if (TexturesFolder == null) return;
+
+        GetGameFiles(TexturesFolder);
+    }
 
 
     /// <summary>
@@ -55,70 +62,40 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     /// Directory is optional, as it will use the game's base application directory instead if
     /// not provided.
     /// </remarks>
-    public IEnumerable<string> GetGameFiles(string directory, params string[] path_s)
+    [Pure]
+    public static IEnumerable<string> GetGameFiles(string directory, params string[] path_s)
     {
         string fullPath = Combine(directory, Combine(path_s));
         return Directory.EnumerateFiles(fullPath, "*", SearchOption.AllDirectories);
     }
 
-    public string LocalizationFolder
-    {
-        get
-        {
-            string? folder = GetFolder("localization");
-            return string.IsNullOrEmpty(folder) ? DefaultLocaleFolder : folder;
-        }
-    }
+    /// Nullable string to state that the folder may be locally-absent. 
+    public string? LocalizationFolder => GetSubFolder("localization");
 
-    public string TexturesFolder
-    {
-        get
-        {
-            string? folder = GetFolder("textures");
-            return string.IsNullOrEmpty(folder) ? DefaultTexturesFolder : folder;
-        }
-    }
+    /// Nullable string to state that the folder may be locally-absent. 
+    public string? TexturesFolder => GetSubFolder("textures");
 
-    public string PrototypesFolder
-    {
-        get
-        {
-            string? locale = GetFolder("prototypes");
-            return string.IsNullOrEmpty(locale) ? DefaultPrototypesFolder : locale;
-        }
-    }
+    /// Nullable string to state that the folder may be locally-absent. 
+    public string? PrototypesFolder => GetSubFolder("prototypes");
 
     /// <summary>Returns path to a subfolder if it exists, otherwise null.</summary>
-    private string? GetFolder(string folderName)
+    private string? GetSubFolder(string folderName)
     {
-        bool found = false;
         if (string.IsNullOrWhiteSpace(folderName))
-            return null;
+            ArgumentException.ThrowIfNullOrWhiteSpace(folderName);
 
-        string fullPath = Combine(RootDirectory, folderName);
+        string fullPath = Combine(_location, folderName);
 
         // If the directory exists, then load it from the root.
-        if (Directory.Exists(fullPath))
-            return fullPath;
+        return Directory.Exists(fullPath) ? fullPath : null;
 
-        // Directory does not exist. We may be able to load a special folder anyway?
-        switch (folderName)
-        {
-            case "localization":
-                found = true;
-                fullPath = Combine(RootDirectory, DefaultLocaleFolder);
-                break;
-            case "textures":
-                found = true;
-                fullPath = Combine(RootDirectory, DefaultTexturesFolder);
-                break;
-            case "prototypes":
-                found = true;
-                fullPath = Combine(RootDirectory, DefaultPrototypesFolder);
-                break;
-        }
+        string supposedGameDirectorySubFolder = Combine(RootDirectory, "game", folderName);
 
-        return found ? fullPath : null;
+        // Check if "game" exists first, and use its subfolders instead.
+        // When all else fails, use folders in root directory.
+        return Directory.Exists(supposedGameDirectorySubFolder)
+            ? supposedGameDirectorySubFolder
+            : Combine(RootDirectory, folderName);
     }
 
     #endregion
@@ -133,24 +110,25 @@ public sealed class GameDirectory : IComparable<GameDirectory>
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
 
         // For a typical directory.
-        if (!string.IsNullOrEmpty(directory))
+        if (string.IsNullOrEmpty(directory))
         {
-            var resolvedDirectory = GetFullPath(directory);
+            // If no directory is provided, assume that the root directory is where everything is being handled.
+            _location = RootDirectory;
+        }
+        else
+        {
+            var resolvedDirectory = Combine(RootDirectory, directory);
             if (!Directory.Exists(resolvedDirectory))
             {
-                resolvedDirectory = Combine(RootDirectory, "game");
+                Log($"Failing to add \'{directory}\' to directory list. " +
+                    $"Creating empty folder at \'{RootDirectory}\'.", LOG.FILE_ERROR);
                 Directory.CreateDirectory(resolvedDirectory);
             }
 
-            ThisDirectory = resolvedDirectory;
-        }
-        // If no directory is provided, assume that the root directory is where everything is being handled.
-        else
-        {
-            ThisDirectory = RootDirectory;
+            _location = resolvedDirectory;
         }
 
-        DirectoryTitle = new DirectoryInfo(ThisDirectory).Name;
+        DirectoryTitle = directory;
         LoadOrder = explicitLoadOrder ?? _nextLoadOrder++;
     }
 

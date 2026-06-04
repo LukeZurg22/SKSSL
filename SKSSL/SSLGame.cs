@@ -87,8 +87,12 @@ public abstract class SSLGame : Game
     /// Registries and services belonging to the game.
     private readonly IServiceProvider GameServices;
 
+    // TEMP: Consider content managers into contentdirectories wrapper.
+    
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
-    public readonly List<GameDirectory> GameContentDirectories;
+    public readonly GameContentDirectories Directories;
+
+
     // TEMP: Consider just throwing this away. Are they ever accessed outside of this class? Probably not!
 
     public MouseWrapper MouseHandler;
@@ -165,14 +169,25 @@ public abstract class SSLGame : Game
         // Load settings, and based on game paths, create directories ordered by load order.
         GameSettings settings = LoadSettings();
         // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
-        GameContentDirectories = GetGameDirectories(settings);
+        Directories = GetGameDirectories(settings.GamePaths);
+        //Directories.Sort();
         Loc.InitalizeLocalizationCulture(settings.Language);
 
+        Directories.Add("mods/TWO", 2);
+        Directories.Add("mods/THREE", 3);
+        Directories.Add("mods/ZERO", 0);
+        Directories.Sort();
+        
         // WIP: Begin loading directories.
         //  == Textures & Materials
         //  == Prototypes (check ECS I guess?)
         //  == Localization (easy-peasy)
         //  TEMP: Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
+        foreach (GameDirectory directory in Directories)
+        {
+            directory.LoadLocalization();
+        }
+
 
         // WIP: DO NOT FORGET CONTENT LOADING!
 
@@ -197,7 +212,7 @@ public abstract class SSLGame : Game
 
         Log("SSLGame Root Initialized. Proceeding...");
     }
-    
+
     /*
      * Methods that handle ulterior loading outside of simple Monogame stuff. Game Directories, localization, etc.
      */
@@ -205,27 +220,26 @@ public abstract class SSLGame : Game
     #region Utility Methods
 
     /// Get game directories stored in settings.
-    private static List<GameDirectory> GetGameDirectories(GameSettings settings)
+    private static GameContentDirectories GetGameDirectories(List<LoadPath> settings)
     {
-        var directories = new List<GameDirectory>();
+        GameContentDirectories contentDirectories = new();
+
         // If there are designated game paths, create Game Directories.
-        if (settings.GamePaths.Count > 0)
+        if (settings.Count > 0)
         {
-            foreach (LoadPath gamePath in settings.GamePaths)
+            foreach (LoadPath gamePath in settings)
             {
-                var directory = new GameDirectory(gamePath.Path, gamePath.Order);
-                directories.Add(directory);
+                contentDirectories.Add(gamePath.Path, gamePath.Order);
             }
         }
         // No designated game paths means that a specialized dynamic one will be needed. Mods basically don't
         //  exist in this arrangement.
         else
         {
-            directories.Add(new GameDirectory());
+            contentDirectories.Add();
         }
 
-        directories.Sort((a, b) => a.LoadOrder.CompareTo(b.LoadOrder));
-        return directories;
+        return contentDirectories;
     }
 
     /// Get game settings from file.
@@ -262,7 +276,7 @@ public abstract class SSLGame : Game
         return settings;
     }
 
-    GumProjectSave? InitializeGum()
+    private GumProjectSave? InitializeGum()
     {
         if (string.IsNullOrEmpty(GumFile))
             Log($"No gum project file in Content/Gum in {Title}, {nameof(SSLGame)} Class.", LOG.SYSTEM_WARNING);
@@ -271,11 +285,9 @@ public abstract class SSLGame : Game
 
         // Initialize Gum UI Handling (Some projects may choose not to utilize Gum)
         GumProjectSave? gumProjectSave = null;
-        if (!string.IsNullOrEmpty(GumFile))
-        {
-            Gum = GumService.Default;
-            gumProjectSave = Gum.Initialize(this, GumFile);
-        }
+        if (string.IsNullOrEmpty(GumFile) || GumFile.Contains("CHANGE_ME")) return gumProjectSave;
+        Gum = GumService.Default;
+        gumProjectSave = Gum.Initialize(this, GumFile);
 
         return gumProjectSave;
     }
