@@ -1,39 +1,73 @@
-# .CSPROJ Properties
-- TargetFramework = net9.0
-- ImplicitUsings = enable
-> Vital. SKSSL uses implicit usings everywhere.
-- Nullable = enable
-- MonoGamePlatform = DesktopGL
-> For OpenGL/cross-platform
-
-> Property Group (For Source Generator to work)
-> - EmitCompilerGeneratedFiles = true
-> - CompilerGeneratedFilesOutputPath = Generated</CompilerGeneratedFilesOutputPath>
-
-# Item Group (References)
-      "FlatRedBall.GumCommon"
-      "Fluent.Net"
-      "Gum.MonoGame"
-      "ImGui.NET"
-      "ImGUI.NET.ToolBox"
-      "MemoryPack"
-      "Microsoft.CodeAnalysis.Common"
-      "Microsoft.CodeAnalysis.CSharp"
-      "Microsoft.Extensions.Logging"
-      "Microsoft.Extensions.Logging.Abstractions
-      "Microsoft.Extensions.Logging.Console"
-      "Microsoft.Testing.Platform"
-      "Microsoft.TestPlatform.TestHost"
-      "MonoGame.Framework.DesktopGL"
-      "RandN"
-      "VYaml"
+# .CSPROJ Adjustments
+```config
+    <!-- !== ADD THE FOLLOWING TO GAME PROJECTS INHERITING / USING SKSSL AS AN ENGINE !== -->
+    <!--START - Enable Compiler-Generated Code-->
+    <PropertyGroup>
+        <OutputPath>build\binaries\</OutputPath> &lt;!&ndash;Executable Is Here, SKSSL Accomodates 1 Level Above&ndash;&gt;
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\SKSSL\SKSSL.Engine.csproj" />
+        <Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
+        <None Include="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
+    </ItemGroup>
+    <!-- Add custom game folders here! -->
+    <!--===EXAMPLE (ROOT GAME EXAMPLE)===-->
+    <ItemGroup>
+        <Content Include="prototypes\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+        <Content Include="textures\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+        <Content Include="localization\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+        <!--This assumes that a settings file is present in your game project pre-compile.-->
+        <Content Include="settings.yaml"> 
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\settings.yaml</Link>
+        </Content>
+    </ItemGroup>
+    <!--END - Enable Compiler-Generated Code-->
+```
 
 # SSLGame
 Make game Class inherit SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs<br/>
+
+## GUM
 A Gum project file name can be fed into the SSLGame constructor, which assumes the file is located in
 Content/Gum/\<file name + extension\>
+> The way a GUM file is loaded may change!
 
-# ECS
+# Settings
+Configure game paths in the provided settings file, which is auto-created for you if one isn't created and specified to 
+be built in the inheriting project's `.csproj` file.
+> # Configuring Game Paths / Directories
+> Note that "root" is a reserved keyword to create a game directory based on the root of the game folder itself!
+> Having the field `game_paths: []` assigned as such will automatically internally create a game directory pointed to 
+> the root. This is the default expected behaviour.
+>
+> [WARNING!] Once you configure your project to load a certain path, the base folder (assume it is not a root) will be
+> created, but dedicated sub-folders will NOT. Previous folders left behind *will be ignored!*
+
+# Usage
+Actually using the engine will depend on which parts are utilized. This is general-purpose, and so certain sections can
+be used freely without the others. However, certain parts such as _Prototypes_ require the ECS to be enabled!
+
+Additionally, the game expects `textures`, `prototypes`, `localization`, etc. folders defined in its loaded directories.
+If these are not provided, then expect certain parts of the engine to be rendered non-functional!
+
+## Developing With an ECS
 - All Components are records inheriting the base "Component" record.
 - All system classes must implement the [RegisterSystem] attribute.
 - All custom prototype- types are records inheriting the base "Prototype" record.
