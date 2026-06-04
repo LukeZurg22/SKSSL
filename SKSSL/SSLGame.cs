@@ -185,6 +185,7 @@ public abstract class SSLGame : Game
         //  TEMP: Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
 
         // Assuming there are defined directories to begin with...
+        Log($"Loading {Directories.Count} game directories.");
         foreach (GameDirectory directory in Directories)
         {
             // Localization
@@ -199,7 +200,10 @@ public abstract class SSLGame : Game
             //  By jove i've GOT IT! Name folders .m, .s, 
 
             directory.LoadPrototypes();
+            
+            Log($"...loaded: {directory}");
         }
+
         // If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
         // In such case, the entire game folder is a game directory.
 
