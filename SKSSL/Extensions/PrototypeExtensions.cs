@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Reflection;
 using SKSSL.ECS;
@@ -70,6 +71,7 @@ public static class PrototypeExtensions
     }
 
     /// Helper for cloning YamlComponents.
+    [Pure]
     private static YamlComponent CloneYamlComponent(YamlComponent source)
     {
         return new YamlComponent

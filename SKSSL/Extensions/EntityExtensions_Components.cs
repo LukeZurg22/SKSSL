@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using SKSSL.ECS;
 
 // ReSharper disable UnusedMethodReturnValue.Global
@@ -13,14 +14,17 @@ public static partial class EntityExtensions
     #region Get Components
 
     /// <inheritdoc cref="ComponentRegistry.GetComponent"/> (Generic Variant)
+    [Pure]
     public static ref T GetComponent<T>(this Entity entity) where T : Component
         => ref ComponentRegistry.GetComponent<T>(entity);
 
     /// <inheritdoc cref="ComponentRegistry.GetComponent"/>
+    [Pure]
     public static Component? GetComponent(this Entity entity, Type componentType)
         => ComponentRegistry.GetComponent(entity, componentType);
 
     /// <inheritdoc cref="ComponentRegistry.TryGetComponent"/> (Generic Variant)
+    [Pure]
     public static bool TryGetComponent<T>(this Entity entity, out T component) where T : Component
         => ComponentRegistry.TryGetComponent(entity, out component!);
 
@@ -29,6 +33,7 @@ public static partial class EntityExtensions
         => ComponentRegistry.TryGetComponent(entity, type, out component!);
 
     /// <inheritdoc cref="ComponentRegistry.GetAllComponents"/>
+    [Pure]
     public static List<Component> GetAllComponents(this Entity entity)
         => ComponentRegistry.GetAllComponents(entity);
 
@@ -51,10 +56,12 @@ public static partial class EntityExtensions
     #region Has Components
 
     /// <inheritdoc cref="ComponentRegistry.HasComponent"/>
+    [Pure]
     public static bool HasComponent<T>(this Entity entity) where T : Component
         => HasComponent(entity, typeof(T));
 
     /// <inheritdoc cref="ComponentRegistry.HasComponent"/>
+    [Pure]
     public static bool HasComponent(this Entity entity, Type componentType)
         => ComponentRegistry.HasComponent(entity, componentType);
 

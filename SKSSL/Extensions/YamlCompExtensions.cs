@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Reflection;
 using SKSSL.ECS;
 using SKSSL.YAML;
@@ -19,6 +20,7 @@ public static class YamlCompExtensions
                                             BindingFlags.IgnoreCase;
 
     /// Converts Component to yaml object for serialization.
+    [Pure]
     public static YamlComponent ToYaml(this Component component)
     {
         var result = new YamlComponent
@@ -93,6 +95,7 @@ public static class YamlCompExtensions
     /// Converts yaml component object to actual component object instance. This instance is NOT registered in the
     /// registry, and has no assigned entity due to this.
     /// <seealso cref="ComponentRegistry"/>
+    [Pure]
     public static Component FromYaml(this YamlComponent yaml)
     {
         string typeName = ComponentTypeHelper.NormalizeTypeName(yaml.Type);

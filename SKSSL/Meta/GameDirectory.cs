@@ -50,7 +50,7 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     {
         if (TexturesFolder == null) return;
 
-        GetGameFiles(TexturesFolder);
+        var d = GetGameFiles(TexturesFolder);
     }
 
 

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.Contracts;
 using System.Reflection;
 using SKSSL.ECS;
 // ReSharper disable UnusedMember.Global
@@ -10,7 +11,7 @@ namespace SKSSL.Extensions;
 /// </summary>
 public static partial class EntityExtensions
 {
-    // public static T Clone<T> ( this T val ) where T : struct => val;
+    [Pure]
     public static T Clone<T>(this T val) where T : struct => val;
 
     /// <summary>
@@ -18,6 +19,7 @@ public static partial class EntityExtensions
     /// </summary>
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
+    [Pure]
     public static object? Clone(object original)
     {
         Type type = original.GetType();
@@ -37,6 +39,7 @@ public static partial class EntityExtensions
     /// </summary>
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
+    [Pure]
     public static Entity CloneEntity(Entity original)
     {
         Type type = original.GetType();
@@ -60,5 +63,6 @@ public static partial class EntityExtensions
     /// <typeparam name="T">Public record type this object is cast to.</typeparam>
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
-    public static object? CloneEntityAs<T>(this Entity original) where T : Entity => CloneEntity(original) as T;
+    [Pure]
+    public static T? CloneEntityAs<T>(this Entity original) where T : Entity => CloneEntity(original) as T;
 }

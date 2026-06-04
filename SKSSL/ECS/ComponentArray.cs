@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 
 // ReSharper disable UnusedMember.Global
@@ -11,11 +12,16 @@ namespace SKSSL.ECS;
 public interface IterArray
 {
     object? this[int index] { get; }
+
     // ReSharper disable once UnusedMethodReturnValue.Global
     public int Increment();
     public void Set<T>(int index, T value);
-    object GetAt(int index); 
+
+    [Pure]
+    object GetAt(int index);
+
     void RemoveAt(int index);
+
     // ReSharper disable once UnusedMemberInSuper.Global
     ref T1 GetRefAt<T1>(int index) where T1 : Component;
     int Count { get; }
@@ -42,6 +48,7 @@ public class IterArray<T> : IterArray where T : Component
     /// Private list of contained items.
     private T[] _items;
 
+    [Pure]
     public ref T1 GetRefAt<T1>(int index) where T1 : Component
     {
         if ((uint)index > (uint)Count)
@@ -87,13 +94,13 @@ public class IterArray<T> : IterArray where T : Component
         if (IsOutOfRange(index))
             throw new IndexOutOfRangeException($"Index {index} out of bounds (array size: {_items.Length})");
 
-        // WARN: Possible crash here.
         _items[index] = default!;
     }
 
     /// <param name="index">Index of desired registered type.</param>
     /// <returns>Type definition at index.</returns>
     /// <exception cref="IndexOutOfRangeException">If (<see cref="Count"/> &gt; index &lt; 0 )</exception>
+    [Pure]
     public object GetAt(int index)
     {
         if (IsOutOfRange(index))
@@ -101,6 +108,7 @@ public class IterArray<T> : IterArray where T : Component
         return _items[index];
     }
 
+    [Pure]
     private bool IsOutOfRange(int index) => index < 0 || index > Count;
     public ref T this[int index] => ref _items[index];
     object IterArray.this[int index] => _items[index];

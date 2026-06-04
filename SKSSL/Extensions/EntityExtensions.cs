@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using SKSSL.ECS;
 
 namespace SKSSL.Extensions;
@@ -9,6 +10,7 @@ public static partial class EntityExtensions
     private static ComponentRegistry ComponentRegistry => SSLGame.ECS().Components;
 
     /// Retrieves all entities from active EntityContext.
+    [Pure]
     private static IReadOnlyList<Entity> Entities => SSLGame.ECS().EntityManager.AllEntities;
 }
 /*

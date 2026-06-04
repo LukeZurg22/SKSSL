@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -14,6 +15,7 @@ public static class StringHelpers
     /// <summary>
     /// Determines if a provided string expression contains an adequate number of brackets of any kind.
     /// </summary>
+    [Pure]
     public static bool EvaluateDelimiters(string expression)
     {
         var stack = new Stack<char>();

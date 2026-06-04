@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using SKSSL.ECS;
 using SKSSL.Scenes;
+
+#pragma warning disable CS8631 // The type cannot be used as type parameter in the generic type or method. Nullability of type argument doesn't match constraint type.
 
 // ReSharper disable InvalidXmlDocComment
 // ReSharper disable UnusedMember.Global
@@ -27,26 +30,31 @@ public static partial class EntityExtensions
     /// <param name="world">Reflected world instance to query.</param>
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>All entities containing provided component type.</returns>
+    [Pure]
     public static IEnumerable<Entity> QueryEntitiesWith<T1>(this BaseWorld world)
         => QueryEntitiesWith(world, typeof(T1));
 
     ///<inheritdoc cref="QueryEntitiesWith{T1}"/>
     /// <typeparam name="T2">Another component to search.</typeparam>
+    [Pure]
     public static IEnumerable<Entity> QueryEntitiesWith<T1, T2>(this BaseWorld world)
         => QueryEntitiesWith(world, typeof(T1), typeof(T2));
 
     ///<inheritdoc cref="QueryEntitiesWith{T1,T2}"/>
     /// <typeparam name="T3">Yet another component to search.</typeparam>
+    [Pure]
     public static IEnumerable<Entity> QueryEntitiesWith<T1, T2, T3>(this BaseWorld world)
         => QueryEntitiesWith(world, typeof(T1), typeof(T2), typeof(T3));
 
     ///<inheritdoc cref="QueryEntitiesWith{T1,T2,T3}"/>
     /// <typeparam name="T4">A fourth component to also search for.</typeparam>
+    [Pure]
     public static IEnumerable<Entity> QueryEntitiesWith<T1, T2, T3, T4>(this BaseWorld world)
         => QueryEntitiesWith(world, typeof(T1), typeof(T2), typeof(T3), typeof(T4));
 
     /// Core implementation (supports any number of components)
     /// Get all entities that have all of the specified component types.
+    [Pure]
     public static IEnumerable<Entity> QueryEntitiesWith(this BaseWorld world, params Type[] componentTypes)
     {
         foreach (Entity entity in world.ECS.EntityManager.AllEntities)
@@ -64,6 +72,7 @@ public static partial class EntityExtensions
     /// <param name="world">Reflected world instance to query.</param>
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>All entities that contain provided component type, and those entities in a Tuple.</returns>
+    [Pure]
     public static IEnumerable<(Entity entity, T1 comp1)> QueryEntitiesComponents<T1>(this BaseWorld world)
         where T1 : Component
     {
@@ -75,6 +84,7 @@ public static partial class EntityExtensions
 
     ///<inheritdoc cref="QueryEntitiesComponents{T1}"/>
     /// <typeparam name="T2">Another component to search.</typeparam>
+    [Pure]
     public static IEnumerable<(Entity entity, T1 comp1, T2 comp2)> QueryEntitiesComponents<T1, T2>(
         this BaseWorld world)
         where T1 : Component where T2 : Component
@@ -89,6 +99,7 @@ public static partial class EntityExtensions
 
     ///<inheritdoc cref="QueryEntitiesComponents{T1,T2}"/>
     /// <typeparam name="T3">Yet one more component to search.</typeparam>
+    [Pure]
     public static IEnumerable<(Entity entity, T1 c1, T2 c2, T3 c3)> QueryEntitiesComponents<T1, T2, T3>(
         this BaseWorld world)
         where T1 : Component where T2 : Component where T3 : Component
@@ -111,6 +122,7 @@ public static partial class EntityExtensions
     /// </summary>
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <returns>An enumerable of components.</returns>
+    [Pure]
     public static IEnumerable<T1> QueryComponents<T1>(this BaseWorld world)
         where T1 : Component
     {
@@ -125,6 +137,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T1">Component to search.</typeparam>
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
+    [Pure]
     public static IEnumerable<(T1, T2)> QueryComponents<T1, T2>(this BaseWorld world)
         where T1 : Component
         where T2 : Component
@@ -143,6 +156,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <typeparam name="T2">Yet another component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
+    [Pure]
     public static IEnumerable<(T1, T2, T3)> QueryComponents<T1, T2, T3>(this BaseWorld world)
         where T1 : Component
         where T2 : Component
@@ -163,6 +177,7 @@ public static partial class EntityExtensions
     /// <typeparam name="T2">Other component to search.</typeparam>
     /// <typeparam name="T2">Yet another component to search.</typeparam>
     /// <returns>An enumerable of component tuple pairs.</returns>
+    [Pure]
     public static IEnumerable<Component> QueryComponents(this BaseWorld world, params Type[] componentTypes)
     {
         foreach (Entity entity in world.ECS.EntityManager.AllEntities)
