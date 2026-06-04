@@ -145,6 +145,10 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
         </Content>
+        <Content Include="settings.yaml"> 
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\settings.yaml</Link>
+        </Content>
     </ItemGroup>-->
     <!--END - Enable Compiler-Generated Code-->
 
