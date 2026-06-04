@@ -107,7 +107,7 @@ public sealed class GameDirectory : IComparable<GameDirectory>
         LoadOrder = explicitLoadOrder ?? _nextLoadOrder++;
     }
 
-    public override string ToString() => RootDirectory;
+    public override string ToString() => _location;
 
     /// Sorting by LoadOrder.
     public int CompareTo(GameDirectory? other) => other is null ? 1 : LoadOrder.CompareTo(other.LoadOrder);
