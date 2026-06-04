@@ -4,19 +4,23 @@ Add Wave Function Collapse:
 https://github.com/mxgmn/WaveFunctionCollapse
 
 Make Commands generated & inserted by Source Generator.
-Use SourceGenerator for adding additional Content Folders
+Use SourceGenerator for adding additional Content Folders?
+Ensure SourceGen is working in LiveTest.
+
+Make a new UML diagram, with black jack and hookers.
 
 dotnet build -c Release --no-incremental
 dotnet pack -c Release
 
-------------------------------------------------------------------------------------------------------------------
+Add Hot Reload for:
+    - Textures (HELP ME, PLEASE)
+    - Prototypes (MEDIUM)
+    - Localization (EASY)
 
-
-Ensure SKSSL.Generator is also packed in
+Ensure SKSSL.Generator is also packed in.
 Tap Github Releases into Nuget
 
-Make mods folder no longer mandatory
-Make GUM no longer mandatory
+------------------------------------------------------------------------------------------------------------------
 
 Microsoft.Logging.Console (fixed?)
 ImGUI.Net (fixed?)
@@ -28,10 +32,6 @@ IT DEMANDS GUM
 
 MAKE SCENES NOT FED BY GENERIC TYPES
 (or make it optional)
-
-Gum Needs:
-- Package Reference (include by default)
-- File
 
 System.MissingMethodException: Method not found: 'System.Collections.ObjectModel.ObservableCollection`1<RenderingLibrary.Graphics.IRenderableIpso> Gum.Wireframe.GraphicalUiElement.get_Children()'.
 
