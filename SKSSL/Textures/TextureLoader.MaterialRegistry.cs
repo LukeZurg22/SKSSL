@@ -1,15 +1,54 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Extensions;
-using static SKSSL.GameManager;
 
 namespace SKSSL.Textures;
 
 public abstract partial class TextureLoader
 {
+    private static void LoadTextureMaterial(string file, string folderName)
+    {
+        var materialGroups = new Dictionary<string, SKMaterial>(StringComparer.OrdinalIgnoreCase);
+
+        string fileNameNoExt = Path.GetFileNameWithoutExtension(file);
+        string baseName = fileNameNoExt.RemoveUnderscoreEndingTag();
+        string suffix = fileNameNoExt.GetUnderscoreEndingTag();
+
+        if (!Enum.TryParse(suffix, true, out TextureType textureType))
+            textureType = TextureType.DIFFUSE;
+
+        // Unique material key (folderPrefix + baseName) -> allows overrides from mods
+        string materialKey = $"{folderName}_{baseName}";
+
+        if (!materialGroups.TryGetValue(materialKey, out SKMaterial? material))
+        {
+            material = new SKMaterial();
+            materialGroups[materialKey] = material;
+        }
+
+        Texture2D texture = LoadFromFileOrContent(file, materialKey, folderName);
+
+        // Assign map (later files override earlier ones for the same material + type)
+        switch (textureType)
+        {
+            case TextureType.DIFFUSE: material.Diffuse = texture; break;
+            case TextureType.NORMAL: material.Normal = texture; break;
+            case TextureType.DISPLACEMENT: material.Displacement = texture; break;
+            case TextureType.EMISSIVE: material.Emissive = texture; break;
+            default: throw new ArgumentOutOfRangeException { Source = nameof(TextureLoader) };
+        }
+
+        // Register / override materials in the MaterialRegistry
+        foreach (var pair in materialGroups)
+        {
+            MaterialRegistry.RegisterMaterial(pair.Key, pair.Value); // This should internally support override
+        }
+    }
+
     /// <summary>
     /// Internal Material Registry for Texture Loader class. Utilized for any kind of object that requires more than one map.
     /// Handles multiple map-types.
@@ -34,19 +73,21 @@ public abstract partial class TextureLoader
 
         private static bool _contentIndexBuilt = false;
 
+        // WIP: Move BuildContentIndex somewhere else. Per-Game-Folder handling is real, NOW!
+        
         /// <summary>
         /// Scans all ContentManagers' output directories and builds a map from material handle 
         /// (e.g. "gneiss_fun_test_three_diffuse") to the correct asset path for Content.Load.
         /// Call this once after all ContentManagers are ready (e.g. in TextureLoader.Initialize).
         /// </summary>
-        public static void BuildContentIndex() // WIP: Move BuildContentIndex somewhere else. Per-Game-Folder handling is real, NOW!
+        public static void BuildContentIndex() 
         {
             if (_contentIndexBuilt) return;
             _contentIndexBuilt = true;
 
             Log("Building content index.");
 
-            foreach (var contentManager in Game.ContentManagers)
+            foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
             {
                 if (string.IsNullOrEmpty(contentManager.RootDirectory) ||
                     !Directory.Exists(contentManager.RootDirectory))
@@ -152,10 +193,15 @@ public abstract partial class TextureLoader
             int newId = MaterialCount++;
             Materials[newId] = material;
             NameToId[name] = newId;
-
-            //Log($"...material id [{name} ({newId})] overwritten by mod...");
             return newId;
         }
+
+        /// <summary>
+        /// Default material with error and null texture mappings.
+        /// </summary>
+        private static readonly SKMaterial DefaultErrorMaterial = SKMaterial.Error(HardcodedTextures.GetErrorTexture());
+
+        #region Get Methods
 
         /// <summary>
         /// Fast access by ID — used heavily at runtime.
@@ -174,7 +220,7 @@ public abstract partial class TextureLoader
         /// Returns the ID for a material name. If not registered, it will attempt to load it from MonoGame Content
         /// (.xnb) as a fallback.
         /// </returns>
-        public static int GetId(string handle)
+        private static int GetId(string handle)
         {
             if (string.IsNullOrWhiteSpace(handle))
                 return -1;
@@ -195,7 +241,7 @@ public abstract partial class TextureLoader
             {
                 Texture2D? diffuse = null;
 
-                foreach (ContentManager contentManager in Game.ContentManagers)
+                foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
                 {
                     try
                     {
@@ -233,6 +279,7 @@ public abstract partial class TextureLoader
         /// <returns>Material by reference id, or <see cref="DefaultErrorMaterial"/></returns>
         /// <remarks>Typically reference is "folder_..._folder_texture"</remarks>
         /// <example>GetMaterial("gneiss_rock");</example>
+        [Pure]
         public static SKMaterial GetMaterial(string handle)
         {
             if (string.IsNullOrWhiteSpace(handle))
@@ -242,9 +289,6 @@ public abstract partial class TextureLoader
             return GetMaterial(id);
         }
 
-        /// <summary>
-        /// Default material with error and null texture mappings.
-        /// </summary>
-        private static readonly SKMaterial DefaultErrorMaterial = SKMaterial.Error(HardcodedTextures.GetErrorTexture());
+        #endregion
     }
 }

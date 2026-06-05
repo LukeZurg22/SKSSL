@@ -42,6 +42,17 @@ namespace SKSSL;
 /// </summary>
 public abstract class SSLGame : Game
 {
+    #region Static Fields /*Don't make too many of these.*/
+
+    public static SSLGame Instance { get; private set; }
+
+    internal static GraphicsDevice Graphics => Instance.GraphicsDevice;
+
+    /// Aspect ratio to render the game.
+    public static float AspectRatio => Graphics.Viewport.AspectRatio;
+
+    #endregion
+
     /*
      * Use static constructor for these.
      */
@@ -120,7 +131,7 @@ public abstract class SSLGame : Game
         }
 
         // If the scene manager has a world, then use that world instead of the provided one if this is null.
-        if (world == null && GameManager.Game.SceneManager.CurrentWorld is BaseWorld res)
+        if (world == null && Instance.SceneManager.CurrentWorld is BaseWorld res)
         {
             world ??= res; // Reassign world.
         }
@@ -151,6 +162,7 @@ public abstract class SSLGame : Game
     /// <param name="contents">Additional content managers belonging to attached libraries.</param>
     protected SSLGame(string title, params ContentManager[] contents)
     {
+        Instance = this;
         Window.Title = title;
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
@@ -188,20 +200,19 @@ public abstract class SSLGame : Game
         Log($"Loading {Directories.Count} game directories.");
         foreach (GameDirectory directory in Directories)
         {
-            // Localization
+            // Localization.
             if (directory.LocalizationFolder != null)
                 Loc.Load(directory.LocalizationFolder);
 
-            // Textures
+            // Textures.
             if (directory.TexturesFolder != null)
                 TextureLoader.Load(directory.TexturesFolder);
 
-            // WIP: Feed configs in from above abstract layer. Load directory willy-nilly and search for a file?
-            //  By jove i've GOT IT! Name folders .m, .s, 
+            // Prototypes.
+            if (directory.PrototypesFolder != null)
+                directory.LoadPrototypes();
 
-            directory.LoadPrototypes();
-            
-            Log($"...loaded: {directory}");
+            Log($"...loaded: {directory.DirectoryTitle}");
         }
 
         // If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.

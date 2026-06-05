@@ -111,6 +111,9 @@
         <Compile Update="ECS\RegisterSystemAttribute.cs">
             <DependentUpon>EntitySystem.cs</DependentUpon>
         </Compile>
+        <Compile Update="Textures\TextureLoader.IconRegistry.cs">
+          <DependentUpon>TextureLoader.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <!-- !== ADD THE FOLLOWING TO GAME PROJECTS INHERITING / USING SKSSL AS AN ENGINE !== -->
