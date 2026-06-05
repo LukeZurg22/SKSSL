@@ -20,16 +20,16 @@
         <Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
         <None Include="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
     </ItemGroup>
-    <!-- Add custom game folders here! -->
+    <!-- Add custom pre-loaded game folders here! -->
     <!--===EXAMPLE (ROOT GAME EXAMPLE)===-->
     <ItemGroup>
         <Content Include="prototypes\**\*.*">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-            <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
+            <Link>..\prototypes\%(RecursiveDir)%(Filename)%(Extension)</Link>
         </Content>
         <Content Include="textures\**\*.*">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-            <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
+            <Link>..\textures\%(RecursiveDir)%(Filename)%(Extension)</Link>
         </Content>
         <Content Include="localization\**\*.*">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -43,6 +43,8 @@
     </ItemGroup>
     <!--END - Enable Compiler-Generated Code-->
 ```
+This is only for a _root_ game directory as an example. A specified directory requires a folder in your project, and
+**only one** of these Directory-centric content inclusions focused on that folder and all of its contents!
 
 # SSLGame
 Make game Class inherit SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs<br/>
