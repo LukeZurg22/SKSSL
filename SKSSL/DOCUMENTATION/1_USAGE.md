@@ -17,6 +17,8 @@ which are loaded at runtime. `Loc.Get` is all that's needed to attempt to get lo
 is not found then the key is returned.
 
 # Developing With an ECS
+To use the ECS, ensure that it is enabled from your `Game.cs` static constructor, where `UsesECS` is set to true!
+
 - All Components are records inheriting the base "Component" record.
 - All system classes must implement the [RegisterSystem] attribute.
 - All custom prototype- types are records inheriting the base "Prototype" record.

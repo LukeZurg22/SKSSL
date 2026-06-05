@@ -45,8 +45,8 @@
 Make game Class inherit SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs<br/>
 
 ## GUM
-A Gum project file name can be fed into the SSLGame constructor, which assumes the file is located in
-Content/Gum/\<file name + extension\>
+A Gum project file name can be overridden in the Static variable "GumFile", which assumes the file is located in
+Content/Gum/\<file name + extension\>. Change this in your special `Game.cs` class' static constructor, much like `UsesECS`.
 > The way a GUM file is loaded may change!
 
 # Settings
