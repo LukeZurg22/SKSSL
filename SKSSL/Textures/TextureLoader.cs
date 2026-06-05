@@ -68,10 +68,17 @@ public abstract partial class TextureLoader
              * The alternative is only reading <name>.<ext> as the indexer, which marks total exclusivity for that
              * folder name, but allows mods to easily override other game content regardless of the way they organize
              * the layout of their textures!
+             *
+             * I subsequently decided to go with the first option. Declarative overrides seemed appealing to me as of
+             * 202606050522, so I am going with that. I could have it toggle-able, and it would be very easy to do, but
+             * for now it isn't necessary and it could come up in the future.
+             *
+             * If it DOES come up in the future, simply add an IF-statement to the assignment of the folder name, where
+             * it will choose between GetRelativePath() or GetFileName(); both calling ToLowerInvariant().
              */
             
             // Ensure that this folder is a valid one.
-            var folderName = Path.GetFileName(texturesFolder).ToLowerInvariant();
+            var folderName = Path.GetRelativePath(directory, texturesFolder).ToLowerInvariant();
             if (folderName.EndsWith(IndicatorMaterial))
             {
                 folderName = folderName[..^IndicatorMaterial.Length];
