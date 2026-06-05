@@ -7,21 +7,15 @@ namespace SKSSL;
 public static class GameManager
 {
     /// Topmost game instance reverse-accessible from lower ends of the call-chain.
-    public static SSLGame Game { get; private set; } = null!;
 
     /// Title of game.
     public static string GameName = "SKSSL";
-
-    /// Aspect ratio to render the game.
-    public static float AspectRatio => Game.GraphicsDevice.Viewport.AspectRatio;
 
     /// Force game closure.
     public static void Exit()
     {
         // Safely exit without suicidal tendencies.
-        SSLGame game = Game;
         SSLGame.Quit();
-        game.Exit();
     }
 
     /// Force game status reset.
@@ -32,9 +26,8 @@ public static class GameManager
     {
         GameName = gameName;
         
-        // Safely run without running-the-gun.
-        using T type = new();
-        Game = type;
+        // Safely run.
+        using var Game = new T();
         Game.Run();
     }
 }
