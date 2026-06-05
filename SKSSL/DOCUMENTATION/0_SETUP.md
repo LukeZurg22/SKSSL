@@ -54,6 +54,20 @@ A Gum project file name can be overridden in the Static variable "GumFile", whic
 Content/Gum/\<file name + extension\>. Change this in your special `Game.cs` class' static constructor, much like `UsesECS`.
 > The way a GUM file is loaded may change!
 
+## Example Class
+```csharp
+public class MyGameClass : SSLGame
+{
+    static MyGameClass()
+    {
+        UseECS = true;
+        GumFile = "MyGumFile.gumx";
+    }
+    
+    ...
+}
+```
+
 # Settings
 Configure game paths in the provided settings file, which is auto-created for you if one isn't created and specified to 
 be built in the inheriting project's `.csproj` file.
@@ -65,4 +79,4 @@ be built in the inheriting project's `.csproj` file.
 > [WARNING!] Once you configure your project to load a certain path, the base folder (assume it is not a root) will be
 > created, but dedicated sub-folders will NOT. Previous folders left behind *will be ignored!*
 
-# [Next](1_USAGE.md)
+# [Read Usage (Next)](1_USAGE.md)

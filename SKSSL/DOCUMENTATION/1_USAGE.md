@@ -6,6 +6,7 @@ Additionally, the game expects `textures`, `prototypes`, `localization`, etc. fo
 If these are not provided, then expect certain parts of the engine to be rendered non-functional!
 
 ## Textures
+THIS IS A WORK IN PROGRESS!
 
 ## Prototypes
 All prototype files are declared in `.yml` files.
