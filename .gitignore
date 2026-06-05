@@ -21,9 +21,11 @@ Generated/
 **/Generated/
 **/*.g.cs
 
-# Test Project
-*.Tests/
+# Test Projects
 SKSSL.Tests/Generated/
+*.Tests/
+SKSSL.LiveTest/
+**/SKSSL.LiveTest/
 
 # Rider
 .idea/
