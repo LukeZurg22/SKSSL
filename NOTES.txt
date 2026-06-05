@@ -1,5 +1,10 @@
 Study this: https://github.com/alexmuab/unit-testing-csharp-example
 
+WARN: Content loaders may index things differently. They index by file name iirc.
+    Directory means nothing to Monogame! I'll need to double check, but this could
+    become a problem for games that are trying to override "base" / "private" game
+    content.
+
 Add Wave Function Collapse: 
 https://github.com/mxgmn/WaveFunctionCollapse
 
