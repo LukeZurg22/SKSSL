@@ -67,112 +67,6 @@ public abstract partial class TextureLoader
         /// Only used during loading. Assigns a material name to a <see cref="SKMaterial"/>'s integer ID.
         public static readonly Dictionary<string, int> NameToId = new(MaxMaterials);
 
-        ///  Storing Content handles to content paths, the former of which are generated from their paths.
-        private static readonly Dictionary<string, string> _handleToContentPath =
-            new(StringComparer.OrdinalIgnoreCase);
-
-        private static bool _contentIndexBuilt = false;
-
-        // WIP: Move BuildContentIndex somewhere else. Per-Game-Folder handling is real, NOW!
-        
-        /// <summary>
-        /// Scans all ContentManagers' output directories and builds a map from material handle 
-        /// (e.g. "gneiss_fun_test_three_diffuse") to the correct asset path for Content.Load.
-        /// Call this once after all ContentManagers are ready (e.g. in TextureLoader.Initialize).
-        /// </summary>
-        public static void BuildContentIndex() 
-        {
-            if (_contentIndexBuilt) return;
-            _contentIndexBuilt = true;
-
-            Log("Building content index.");
-
-            foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
-            {
-                if (string.IsNullOrEmpty(contentManager.RootDirectory) ||
-                    !Directory.Exists(contentManager.RootDirectory))
-                    continue;
-
-                try
-                {
-                    IndexDirectory(contentManager.RootDirectory, contentManager.RootDirectory);
-                }
-                catch (Exception ex)
-                {
-                    Log($"Failed to index Content directory '{contentManager.RootDirectory}': {ex.Message}",
-                        LOG.FILE_WARNING);
-                }
-            }
-
-            Log($"Content index built. Found {_handleToContentPath.Count} assets.");
-        }
-
-        /// <summary>
-        /// Recursively indexes .xnb files and maps the filename (without extension) to its relative asset path.
-        /// </summary>
-        private static void IndexDirectory(string rootDir, string currentDir)
-        {
-            // Gum is a reserved keyword, now, I guess! Seriously. GUM UI elements should not be loaded as material
-            //  textures. This -must- cut short if GUM UI is read.
-            if (currentDir.Contains("Gum"))
-                return;
-
-            string folderPrefix = Path.GetFileName(currentDir).ToLowerInvariant();
-
-            // Index .xnb files in current directory
-            foreach (var file in Directory.GetFiles(currentDir, "*.xnb", SearchOption.TopDirectoryOnly))
-            {
-                // Hard-coded Texture Type values are avoided like the plague.
-                string fileNameNoExt = Path.GetFileNameWithoutExtension(file);
-                string suffix = fileNameNoExt.GetUnderscoreEndingTag();
-                if (!string.IsNullOrEmpty(suffix) && Enum.TryParse(suffix, true, out TextureType _))
-                    continue;
-
-                // Quick header check: Is this actually a Texture2D?
-                if (!IsXnbTexture2D(file))
-                    continue; // Skip models, sounds, SpriteFont, Effect, etc.
-
-                string relativePath =
-                    Path.GetRelativePath(rootDir, Path.ChangeExtension(file, null)).Replace('\\', '/');
-
-                _handleToContentPath[$"{folderPrefix}_{fileNameNoExt}"] = relativePath;
-            }
-
-            // Recurse into subdirectories
-            foreach (var subDir in Directory.GetDirectories(currentDir))
-                IndexDirectory(rootDir, subDir);
-            return;
-
-            // Lightweight check to determine if an .xnb file contains a Texture2D.
-            // This avoids trying to Load<Texture2D> on non-image content (which would throw or waste time).
-            static bool IsXnbTexture2D(string xnbFilePath)
-            {
-                try
-                {
-                    using FileStream fs = File.OpenRead(xnbFilePath);
-                    using var br = new BinaryReader(fs);
-
-                    // XNB header: "XNB" + platform + version + flags
-                    var XNBdHeader = br.ReadInt32();
-                    if (XNBdHeader !=
-                        0x64424E58) // "XNB" in little-endian (actual magic is XNBw/x/z etc. checking bytes)
-                        return false; // Not even a valid XNB
-
-                    // Skip platform byte, version, flags, etc.
-                    br.ReadString(); // skip string's length
-                    br.ReadString(); // skip again
-                    var typeReaderName = br.ReadString(); // Reading butchered string, but should have what's needed.
-                    return typeReaderName.Contains("Texture2DReader", StringComparison.OrdinalIgnoreCase);
-                }
-                catch
-                {
-                    // If anything fails (corrupt file, etc.), treat as non-texture
-                    return false;
-                }
-            }
-        }
-
-
         /// <summary>
         /// Registers or gets an existing material ID by name.
         /// Called during loading when a multi-texture folder is processed.
@@ -231,40 +125,41 @@ public abstract partial class TextureLoader
 
             // Ensure index is built (safe to call multiple times)
             if (!_contentIndexBuilt)
-                BuildContentIndex();
+                XNAContentLoader.BuildContentIndex();
 
             // === Fallback: Try to load from MonoGame Content pipeline ===
             //Log($"Material '{handle}' not registered. Attempting Content pipeline fallback...", LOG.FILE_WARNING);
 
-            // Try exact match from scanned content
-            if (_handleToContentPath.TryGetValue(handle, out string? assetPath))
+            // Try exact match from scanned content. If the XNA / Monogame Content managers don't have it, then...
+            //  well... Uh Oh! It probably doesn't exist!
+            if (!XNAContentLoader.HandleToContentPath.TryGetValue(handle, out string? assetPath))
+                return -1;
+            
+            // Assuming it does exist, then attempt to grab the diffuse.
+            Texture2D? diffuse = null;
+            foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
             {
-                Texture2D? diffuse = null;
-
-                foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
+                try
                 {
-                    try
-                    {
-                        diffuse = contentManager.Load<Texture2D>(assetPath).ToMipMapped();
-                        //Log($"Content fallback succeeded for '{handle}' using real path: {assetPath}");
-                        // TODO: Include "unimportant" or "content override" log.
-                        break;
-                    }
-                    catch (ContentLoadException)
-                    {
-                    }
-                    catch (Exception ex)
-                    {
-                        Log($"Error loading '{assetPath}': {ex.Message}", LOG.FILE_WARNING);
-                    }
+                    diffuse = contentManager.Load<Texture2D>(assetPath).ToMipMapped();
+                    //Log($"Content fallback succeeded for '{handle}' using real path: {assetPath}");
+                    // TODO: Include "unimportant" or "content override" log.
+                    break;
                 }
-
-                if (diffuse != null)
+                catch (ContentLoadException)
                 {
-                    var fallbackMaterial = new SKMaterial { Diffuse = diffuse };
-                    // TODO: Dynamically search-back for full & complete material files. Implement in IndexDirectory?
-                    return RegisterMaterial(handle, fallbackMaterial);
                 }
+                catch (Exception ex)
+                {
+                    Log($"Error loading '{assetPath}': {ex.Message}", LOG.FILE_WARNING);
+                }
+            }
+
+            if (diffuse != null)
+            {
+                var fallbackMaterial = new SKMaterial { Diffuse = diffuse };
+                // TODO: Dynamically search-back for full & complete material files. Implement in IndexDirectory?
+                return RegisterMaterial(handle, fallbackMaterial);
             }
 
             // Final fallback

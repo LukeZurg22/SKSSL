@@ -47,6 +47,9 @@ public abstract partial class TextureLoader
     /// Generic storage: category -> (texture name -> texture object). These are textures actively being used in memory.
     private static readonly ConcurrentDictionary<string, Dictionary<string, Texture2D>> _textures = new();
 
+    /// Stores whether content from XNA / Monogame Content folders have been built.
+    private static bool _contentIndexBuilt = false;
+    
     /// <summary>
     /// Initializes texture loaded. An alternative version of the loaded with a custom implement for
     /// <br/><br/>
@@ -99,62 +102,66 @@ public abstract partial class TextureLoader
 
         // Due to how it is written, all texture categories must be registered.
         // I.e. "items" must have a dedicated "items" folder.
-        // Builds Monogame Content.
-        BuildContentIndex();
+        // Build XNA / Monogame content.
+        // WIP: Ensure this actually works, and simplify external content loaders. Possibly with Source Generators?
+        if (_contentIndexBuilt) return;
+        _contentIndexBuilt = true;
+        
+        XNAContentLoader.BuildContentIndex();
     }
 
-    /// <summary>
-    /// Core loading logic that attempts to load from a file path, then Content pipeline, before returning an
-    /// error texture of nothing was successful. This is generic, working between all kinds of map types.
-    /// </summary>
-    private static Texture2D LoadFromFileOrContent(string filePath, string cacheKey, string category)
-    {
-        Texture2D texture;
-        // 1. Direct file load (for mod/override support)
-        if (File.Exists(filePath))
+           /// <summary>
+        /// Core loading logic that attempts to load from a file path, then Content pipeline, before returning an
+        /// error texture of nothing was successful. This is generic, working between all kinds of map types.
+        /// </summary>
+        internal static Texture2D LoadFromFileOrContent(string filePath, string cacheKey, string category)
         {
-            try
+            Texture2D texture;
+            // 1. Direct file load (for mod/override support)
+            if (File.Exists(filePath))
             {
-                if (_textures.TryGetValue(category, out var categoryDictionary))
+                try
                 {
-                    if (categoryDictionary.TryGetValue(cacheKey, out Texture2D? cached))
-                        return cached;
+                    if (_textures.TryGetValue(category, out var categoryDictionary))
+                    {
+                        if (categoryDictionary.TryGetValue(cacheKey, out Texture2D? cached))
+                            return cached;
+                    }
+
+                    using var stream = new FileStream(
+                        filePath,
+                        FileMode.Open, FileAccess.Read, FileShare.Read,
+                        bufferSize: 4096,
+                        FileOptions.SequentialScan);
+
+                    texture = Texture2D.FromStream(SSLGame.Graphics, stream).ToMipMapped();
+                    return texture;
                 }
-                
-                using var stream = new FileStream(
-                    filePath,
-                    FileMode.Open, FileAccess.Read, FileShare.Read,
-                    bufferSize: 4096,
-                    FileOptions.SequentialScan);
+                catch (Exception ex)
+                {
+                    Log($"Failed direct load: {filePath} - {ex.Message}", LOG.FILE_WARNING);
+                }
+            }
 
-                texture = Texture2D.FromStream(SSLGame.Graphics, stream).ToMipMapped();
-                return texture;
-            }
-            catch (Exception ex)
+            // 2. Fallback to MonoGame Content pipeline (.xnb)
+            foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
             {
-                Log($"Failed direct load: {filePath} - {ex.Message}", LOG.FILE_WARNING);
+                try
+                {
+                    texture = contentManager.Load<Texture2D>(cacheKey).ToMipMapped();
+                    return texture;
+                }
+                catch
+                {
+                    //
+                }
             }
+
+            // 3. Error texture fallback
+            Log($"Texture load failed: {cacheKey} (category: {category}) → error texture", LOG.FILE_WARNING);
+            return HardcodedTextures.GetErrorTexture();
         }
-
-        // 2. Fallback to MonoGame Content pipeline (.xnb)
-        foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
-        {
-            try
-            {
-                texture = contentManager.Load<Texture2D>(cacheKey).ToMipMapped();
-                return texture;
-            }
-            catch
-            {
-                //
-            }
-        }
-
-        // 3. Error texture fallback
-        Log($"Texture load failed: {cacheKey} (category: {category}) → error texture", LOG.FILE_WARNING);
-        return HardcodedTextures.GetErrorTexture();
-    }
-
+    
     /// <summary>
     /// Loads a provided asset name as a <see cref="Texture2D"/>.
     /// Assumes the folders within the TextureLoader are all texture folders.
