@@ -9,6 +9,9 @@
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
     </PropertyGroup>
+    <Target Name="CleanBuildFolder" BeforeTargets="BeforeBuild">
+        <RemoveDir Directories="build" Condition="Exists(build)"/>
+    </Target>
     <ItemGroup>
         <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
                           OutputItemType="Analyzer"
