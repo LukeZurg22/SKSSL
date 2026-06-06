@@ -1,4 +1,4 @@
-# SKSSL ![SKSSL Icon|This logo comes from a Victoria 2 Divergences of Darkness came I ran with friends. I was Arcadia. Me, South America, and Spain conquered all of china. This image is a cleaned icon of a screenshot from that game. My country entered a world war and promptly lost Alaska to the goddamned Ottoman Empire player.](..\SKSSL\Assets\icon.png)
+# SKSSL ![SKSSL Icon|This logo comes from a Victoria 2 Divergences of Darkness came I ran with friends. I was Arcadia. Me, South America, and Spain conquered all of china. This image is a cleaned icon of a screenshot from that game. My country entered a world war and promptly lost Alaska to the goddamned Ottoman Empire player.](SKSSL\Assets\icon.png)
 This is a shared library turned game engine. "SKSSL" stands for "SolKom Shared Standard Library" This was written in and for C#, and for use with the MonoGame and Gum UI frameworks. Many parts of this library— including its name —are derived from various other fragmented projects of mine whose parts were merged into this. (Example: DustLogger ➡ DustToDust, SolKom ➡ SolarKommand, YAMLParser ➡ XMP, etc.)
 
 ## System Information
