@@ -1,4 +1,4 @@
-# SKSSL
+# SKSSL ![SKSSL Icon](..\SKSSL\Assets\icon.png)
 This is a shared library turned game engine. "SKSSL" stands for "SolKom Shared Standard Library" This was written in and for C#, and for use with the MonoGame and Gum UI frameworks. Many parts of this library— including its name —are derived from various other fragmented projects of mine whose parts were merged into this. (Example: DustLogger ➡ DustToDust, SolKom ➡ SolarKommand, YAMLParser ➡ XMP, etc.)
 
 ## System Information
