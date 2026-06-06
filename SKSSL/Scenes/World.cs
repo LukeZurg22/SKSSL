@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using SKSSL.ECS;
 using EventHandler = SKSSL.ECS.EventHandler;
 
+// ReSharper disable UnusedMemberInSuper.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable PublicConstructorInAbstractClass
 

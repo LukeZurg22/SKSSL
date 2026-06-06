@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Reflection;
 using SKSSL.Extensions;
@@ -36,6 +37,7 @@ public partial class EntityManager
     /// <param name="id">Numeric ID of requested entity.</param>
     /// <returns>Null or instance of entity with provided ID.</returns>
     /// <remarks>Requires the user to know the ID of the entity.</remarks>
+    [Pure]
     public Entity? GetEntity(int id)
     {
         if (_allEntities.Any(e => e.Uid == id))
@@ -128,7 +130,7 @@ public partial class EntityManager
     private static Entity CreateEntity(Entity definition)
     {
         // Create a copy of this entity.
-        if (definition.CloneEntityAs<Entity>() is not Entity entity)
+        if (definition.CloneEntityAs<Entity>() is not { } entity)
             throw new Exception("Attempted to create entity from definition, but the definition was not an Entity!");
         return entity;
     }

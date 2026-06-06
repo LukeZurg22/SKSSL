@@ -52,7 +52,7 @@ public class SceneManager : DrawableGameComponent
         }
 
         // If the scene manager has a world, then use that world instead of the provided one if this is null.
-        if (world == null && CurrentWorld is World res)
+        if (world == null && CurrentWorld is { } res)
         {
             world ??= res; // Reassign world.
         }

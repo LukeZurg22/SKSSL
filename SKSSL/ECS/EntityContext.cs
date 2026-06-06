@@ -64,7 +64,6 @@ public readonly struct EntityContext
     public List<Entity> ActiveEntities => EntityManager.AllEntities.ToList();
 
     /// <seealso cref="EntityManager"/>
-    /// <seealso cref="EntityManager.Spawn"/>
     public Entity? SpawnEntity(string handle)
     {
         Entity? spawnedEntity = null;

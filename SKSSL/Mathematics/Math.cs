@@ -3,7 +3,6 @@
 
 using System;
 using Microsoft.Xna.Framework;
-using YamlDotNet.Core.Tokens;
 
 namespace SKSSL.Mathematics;
 
