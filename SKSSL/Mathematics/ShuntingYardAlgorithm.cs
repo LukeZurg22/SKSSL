@@ -1,291 +1,329 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Globalization;
+using System.Text;
+using static SKSSL.Extensions.StringHelpers;
+using static SKSSL.Mathematics.CharacterExtensions;
+
 namespace SKSSL.Mathematics;
 
 /// <summary>
 /// Algorithmically calculates values based on string input. This class was written to align with the
 /// <a href="https://en.wikipedia.org/wiki/Shunting_yard_algorithm">Shunting Yard Algorithm</a>.
-/// <remarks>This algorithm was manually implemented. I have no clue if this will work, or is most performant!</remarks>
+/// <remarks>This algorithm was manually implemented. This is likely not the most performant implementation!</remarks>
 /// </summary>
-public abstract partial class ShuntingYardAlgorithm
+public static class ShuntingYard
 {
-    internal Stack<int> QUEUE = new();
-    internal Stack<int> OPERATIONS = new();
+    /// P.E.M.D.A.S.: Parenthesis, exponents, multiplication, division, addition, subtraction. 
+    private static readonly Dictionary<string, byte> Precedence = new()
+        { { "+", 1 }, { "-", 1 }, { "*", 2 }, { "/", 2 }, { "^", 3 }, { "u-", 4 } };
 
-    // Consider dynamically loading variables that have been pre-emptively parsed.
-
-    // ERR: Flawed, expecting the user's input to be perfect. It also can't handle parenthesis or variable-binding.
-    //  In fact, this method will likely need to be extracted, or generalized to a satisfactory degree.
-    public void Calculate(string input)
+    /// <summary>
+    /// Interpret, Parse, and Evaluate a string expression and output a final result, with logging.
+    /// </summary>
+    /// <param name="expression">string expression to evaluate.</param>
+    /// <param name="result">Final expected value.</param>
+    /// <param name="source">Optional provided source for tracing.</param>
+    /// <returns>true if expression evaluated completely. false if otherwise.</returns>
+    /// <remarks>
+    /// Loops over an expression more than once. Conglomerating all of the functions into
+    /// one large function is easily doable, but does not read very well.
+    /// </remarks>
+    public static bool Evaluate(string expression, out double result, string source = "")
     {
-        var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
-       
-        // WIP: This area is an active work-in-progress. Parsing for formulae are going to be handled in the registry system.
-        
-        // Declare input stack and fill it with collected strings.
-        //var enumerable = possibleVariables as string[] ?? possibleVariables.ToArray();
-        Stack<string> inputStack = new(/*parts.Length*/ 0);
-        
-        
-        foreach (var part in parts) inputStack.Push(part);
+        result = 0;
+        string location = string.IsNullOrEmpty(source) ? "an unknown source" : source;
 
-        List<object> tokens = [];
-
-        // Limitations to 255 possible brackets. Nobody is going to use that many in one formula!
-        //  Should be ZERO by the time this is done parsing. 
-        byte unclosedOpenBrackets = 0;
-
-        // Whilst there are strings in the input stack to deal with
-        while (inputStack.TryPeek(out _))
+        // Check to make sure the brackets are good.
+        if (!EvaluateDelimiters(expression))
         {
-            // Get the string part (Example: "word" or "-25" or "83" or '(' / ')' or "+ - * /"
-            var part = inputStack.Pop();
-
-            int partLength = part.Length;
-
-            // If it's a single character
-            if (partLength == 1)
-            {
-                var character = part[0];
-
-                // This is vital to keeping track of brackets.
-                switch (character)
-                {
-                    case '(':
-                        unclosedOpenBrackets++;
-                        tokens.Add(part);
-                        continue;
-                    case ')':
-                    {
-                        if (unclosedOpenBrackets == 0)
-                        {
-                            DustLogger.Log($"Invalid bracket count for input {input}", 1);
-                        }
-
-                        unclosedOpenBrackets--;
-                        tokens.Add(part);
-                        continue;
-                    }
-                }
-
-                // Single-characters are fine. There isn't any special handling for lone operators here, so this
-                //  part will rely on user-accuracy. Because of how this works, this supports spaces between brackets.
-                if (character is '-' or '+' or '*' or '/' || char.IsNumber(character))
-                    tokens.Add(part); // Numbers are okay!
-                else if (char.IsLetter(character))
-                {
-                    DustLogger.Log(
-                        $"Single-character variable detected \"{character}\" in \"{input}\"." +
-                        $"This is pushing to stack anyway!", 1);
-                    tokens.Add(part);
-                }
-            }
-            // This part contains multiple characters, which should be parsed.
-            else
-            {
-                // Clear out the first character.
-                if (char.IsNumber(part[0]))
-                {
-                    DustLogger.Log($"First-character of a token part is a number, which is invalid syntax in {input}",
-                        1);
-                    return;
-                }
-
-                // Loop over all characters.
-                for (int characterIndex = 0; characterIndex < partLength; characterIndex++)
-                {
-                }
-
-                continue;
-            }
+            Log($"Invalid expression \"{expression}\" from {location}. Please check delimiters.", LOG.GENERAL_ERROR);
+            return false;
         }
 
-        Stack<object> intermediateStack = new();
-    }
-
-    void ProcessPart()
-    {
-        // Read each character.
-        int strLength = 0;
-        string part = "";
-        List<object> tokens = [];
-        for (int i = 0; i < strLength; i++)
+        // Evaluate string variables.
+        var parserOutput = ParseExpression(expression);
+        if (!EvaluateExpressionStringVariables(parserOutput.StringIndices, parserOutput.Tokens, out var faulty))
         {
-            char character = part[i];
-            // If brackets, add to the stack. Algorithm will handle it later.
-            if (character is '(' or ')')
-            {
-                tokens.Add(part);
-            }
-            // If character is a negative sign, make sure it's not a unary operator.
-            else if (character == '-')
-            {
-                // Get next part
-                var nextIndex = part.IndexOf(character, i + 1);
-                if (nextIndex == -1) // There is no next part.
-                {
-                    var nextCharacter = part[i + 1];
-                }
-            }
-            else if (float.TryParse([character], out var num))
-            {
-                Console.Write("");
-            }
-            else if (true)
-            {
-                Console.Write("");
-            }
-
-
-            //var number = double.Parse(climateString, numberFormat);
-            //Operate(tokens.ToArray());
+            Log($"Failed to evaluate \"{faulty}\" expression \"{expression}\" from {location}.", LOG.GENERAL_ERROR);
+            return false;
         }
-    }
 
-    bool IsUnaryMinus(int index, List<string> tokens)
-    {
-        if (index == 0) return true;
-        var prev = tokens.LastOrDefault();
-        return prev is "(" or "+" or "-" or "*" or "/";
-    }
-
-    public static bool GetValueFromString(string input, out float value)
-    {
-        value = 0f;
+        // Calculate final result.
+        result = Evaluate(parserOutput.Tokens);
         return true;
     }
 
-    /// <summary>
-    /// This implementation does not implement composite functions, functions with a variable number of arguments, or unary operators.
-    /// </summary>
-    public void Operate(Stack<object> tokens)
+    private static double Evaluate(string[] tokens)
     {
-        Queue<object> OUTPUT_QUEUE = new Queue<object>();
-        Stack<object> OPERATOR_STACK = new Stack<object>();
-        // https://en.wikipedia.org/wiki/Shunting_yard_algorithm
+        if (tokens.Length == 0)
+            return 0;
 
-        // while there are tokens to be read
-        while (tokens.TryPeek(out var token))
+        var output = new Queue<string>(); // RPN output
+        var operators = new Stack<string>(); // Operator stack
+
+        for (int i = 0; i < tokens.Length; i++)
         {
-            /*
-             read a token
-             if the token is:
-             - a number:
-                 put it into the output queue
-             - a function:
-                 push it onto the operator stack
-             - an operator o1:
-                 while (
-                     there is an operator o2 at the top of the operator stack which is not a left parenthesis,
-                     and (o2 has greater precedence than o1 or (o1 and o2 have the same precedence and o1 is left-associative))
-                 ):
-                     pop o2 from the operator stack into the output queue
-                 push o1 onto the operator stack
-             - a ",":
-                 while the operator at the top of the operator stack is not a left parenthesis:
-                      pop the operator from the operator stack into the output queue
-             - a left parenthesis (i.e. "("):
-                 push it onto the operator stack
-             - a right parenthesis (i.e. ")"):
-                 while the operator at the top of the operator stack is not a left parenthesis:
-                     {assert the operator stack is not empty}
-                     /* If the stack runs out without finding a left parenthesis, then there are mismatched parentheses. * /
-                     pop the operator from the operator stack into the output queue
-                 {assert there is a left parenthesis at the top of the operator stack}
-                 pop the left parenthesis from the operator stack and discard it
-                 if there is a function token at the top of the operator stack, then:
-                     pop the function from the operator stack into the output queue
-             */
+            string token = tokens[i];
+
+            // Number
+            if (double.TryParse(token, out _)) output.Enqueue(token);
+            else ParseSpecialToken(token, i);
         }
 
-
-        /*
-:
-    read a token
-    if the token is:
-    - a number:
-        put it into the output queue
-    - a function:
-        push it onto the operator stack
-    - an operator o1:
-        while (
-            there is an operator o2 at the top of the operator stack which is not a left parenthesis,
-            and (o2 has greater precedence than o1 or (o1 and o2 have the same precedence and o1 is left-associative))
-        ):
-            pop o2 from the operator stack into the output queue
-        push o1 onto the operator stack
-    - a ",":
-        while the operator at the top of the operator stack is not a left parenthesis:
-             pop the operator from the operator stack into the output queue
-    - a left parenthesis (i.e. "("):
-        push it onto the operator stack
-    - a right parenthesis (i.e. ")"):
-        while the operator at the top of the operator stack is not a left parenthesis:
-            {assert the operator stack is not empty}
-            /* If the stack runs out without finding a left parenthesis, then there are mismatched parentheses. * /
-            pop the operator from the operator stack into the output queue
-        {assert there is a left parenthesis at the top of the operator stack}
-        pop the left parenthesis from the operator stack and discard it
-        if there is a function token at the top of the operator stack, then:
-            pop the function from the operator stack into the output queue
-/* After the while loop, pop the remaining items from the operator stack into the output queue. * /
-while there are tokens on the operator stack:
-    /* If the operator token on the top of the stack is a parenthesis, then there are mismatched parentheses. * /
-    {assert the operator on top of the stack is not a (left) parenthesis}
-    pop the operator from the operator stack onto the output queue
-         */
-    }
-
-    static Dictionary<string, double> variables =
-        new Dictionary<string, double>
+        // Pop remaining operators
+        while (operators.Count > 0)
         {
-            ["example_statistic"] = 4
-        };
-
-    static double GetValue(string token)
-    {
-        if (double.TryParse(token, out var number))
-        {
-            return number;
+            string op = operators.Pop();
+            if (op != "(") output.Enqueue(op);
         }
 
-        if (variables.TryGetValue(token, out var val))
-        {
-            return val;
-        }
+        return EvaluateRPN(output);
 
-        throw new Exception($"Unknown token {token}");
-    }
-
-    public static double
-        Evaluate(string[] tokens) // ERR: This AI-Slop is invalid hot garbage. But it's inspirational.
-    {
-        var stack = new Stack<double>();
-        foreach (var token in tokens)
+        // Parse all proper tokens that aren't immediately recognised as doubles. 
+        void ParseSpecialToken(string token, int index)
         {
-            if (token is "+" or "-" or "*" or "/") // IF TOKEN IS OPERATOR
+            switch (token)
             {
-                double right = stack.Pop();
-                double left = stack.Pop();
-                stack.Push(token switch
+                case "(":
+                    operators.Push(token);
+                    break;
+                case ")":
                 {
-                    "+" => left + right,
-                    "-" => left - right,
-                    "*" => left * right,
-                    "/" => left / right,
-                    _ => throw new Exception("Invalid operator")
-                });
+                    while (operators.Count > 0 && operators.Peek() != "(")
+                        output.Enqueue(operators.Pop());
+
+                    if (operators.Count > 0 && operators.Peek() == "(")
+                        operators.Pop(); // discard '('
+                    break;
+                }
+                default:
+                {
+                    if (token.IsOperator()) // +, -, *, /, ^, u-
+                    {
+                        string op = token;
+
+                        // Handle unary.
+                        if (op is "-" && (index == 0 || IsUnaryOperator(tokens[index - 1])))
+                        {
+                            op = "u-";
+                        }
+
+                        while (operators.Count > 0 &&
+                               operators.Peek() != "(" &&
+                               ShouldPop(operators.Peek(), op))
+                        {
+                            output.Enqueue(operators.Pop());
+                        }
+
+                        operators.Push(op);
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+
+    private static bool ShouldPop(string top, string current)
+    {
+        if (!Precedence.TryGetValue(top, out byte topValue) || !Precedence.TryGetValue(current, out byte currentValue))
+            return false;
+
+        if (current is "^" or "u-") // right-associative
+            return topValue > currentValue;
+
+        return topValue >= currentValue;
+    }
+
+    /// <summary>
+    /// Parse an expression into a series of tokens, and a set of indices of detected string-variables.
+    /// </summary>
+    private static (string[] Tokens, List<int> StringIndices) ParseExpression(string expression)
+    {
+        List<string> tokens = [];
+        List<int> stringVarIndices = [];
+
+        //  Split string expression into parts.
+        for (int i = 0; i < expression.Length; i++)
+        {
+            // For every character
+            char character = expression[i];
+
+            // If character is an expected, add to stack of string operators,
+            if (char.IsDigit(character) || character == '.')
+            {
+                int start = i;
+                bool hasDecimal = character == '.';
+
+                while (i + 1 < expression.Length)
+                {
+                    char next = expression[i + 1];
+                    if (char.IsDigit(next)) i++;
+                    else if (next == '.' && !hasDecimal)
+                    {
+                        hasDecimal = true;
+                        i++;
+                    }
+                    else
+                        break;
+                }
+
+                string number = expression[start..(i + 1)];
+                tokens.Add(number);
+            }
+            // Character is an operator
+            else if (character.IsOperator())
+            {
+                bool isUnary = false;
+
+                // Determine if this is a unary operator
+                if (i == 0) isUnary = true; // Start of expression
+                else
+                {
+                    char prev = expression[i - 1];
+                    if (prev == '(' || prev.IsOperator()) isUnary = true;
+                }
+
+                if (isUnary)
+                {
+                    // Consume the unary operator
+                    string unary = "u" + character;
+                    tokens.Add(unary);
+                }
+                else
+                {
+                    // Binary operator
+                    tokens.Add(character.ToString());
+                }
+            }
+            // Brackets are special characters.
+            else if (character.IsBracket())
+            {
+                tokens.Add(character.ToString());
+            }
+            // Character belongs to a string variable.
+            else
+            {
+                int start = i;
+                int tokenIndex = tokens.Count;
+
+                // Continue reading the entire string, and hope that it is:
+                //  - not cut off early
+                //  - not an operator
+                //  - not a bracket
+                //  - not a number (this forces all string variables to be Alphabetic-only!)
+                while (i + 1 < expression.Length &&
+                       !expression[i + 1].IsOperator() &&
+                       !expression[i + 1].IsBracket() &&
+                       !char.IsDigit(expression[i + 1]))
+                {
+                    i++;
+                }
+
+                string variable = expression[start..(i + 1)];
+                tokens.Add(variable);
+
+                // Store token index to work on later.
+                stringVarIndices.Add(tokenIndex);
+
+                // TODO: STEPS
+                //  When reading a character that -is- expected, attempt to evalulate the string.
+                //  If the string evaluates, pop it from its little stack.
+            }
+        }
+
+        return (tokens.ToArray(), stringVarIndices);
+    }
+
+    /// Evaluates a set of tokens using a set of indices pointing to tokens that happen to be string variables.
+    /// <returns>true if all string variables were evaluated correctly; false if otherwise.</returns>
+    private static bool EvaluateExpressionStringVariables(
+        List<int> stringVarIndices, string[] tokens, out string faultyVariables)
+    {
+        StringBuilder stringBuilder = new();
+        faultyVariables = string.Empty;
+        int stringVarCount = stringVarIndices.Count; // Counter for string builder.
+
+        // Evaluate all string variable indices.
+        var indices = stringVarIndices.ToImmutableArray();
+        foreach (int stringIndex in indices)
+        {
+            --stringVarCount; // Decrement the "handled these" counter.
+            string variable = tokens[stringIndex];
+
+            if (GetStringVariableValue(variable, out double value))
+            {
+                // Replace original variable's token entry with numerical value.
+                tokens[stringIndex] = value.ToString(CultureInfo.InvariantCulture);
             }
             else
             {
-                stack.Push(GetValue(token)); // IF TOKEN IS NOT OPERATOR (CONSIDER BRACKETS & UNARY OPERATIONS)
+                // Add to "faulty variables" list. Can clutter the console / logs if there are too many. How can this
+                //  be fixed you may ask? Simple! Don't feed this thing stupid expressions with hundreds of undefined
+                //  variables, and you will be fine! -Z
+                stringBuilder.Append(variable);
+                if (stringVarCount > 0) stringBuilder.Append(", ");
             }
         }
 
-        if (stack.Count != 1)
+        faultyVariables = stringBuilder.ToString();
+        return string.IsNullOrEmpty(faultyVariables);
+    }
+
+    /// Using the <see cref="StatisticsVariables"/> class, this attempts to get a value from a string.
+    private static bool GetStringVariableValue(string variable, out double value)
+    {
+        if (StatisticsVariables.Statistics.TryGetValue(variable, out value))
+            return true;
+        value = 0;
+        return false;
+    }
+
+    /// Read a set tokens, organize into a mathematically calculable stack ordered by importance, and evaluate.
+    private static double EvaluateRPN(Queue<string> tokenQueue)
+    {
+        var stack = new Stack<double>();
+
+        while (tokenQueue.Count > 0)
         {
-            throw new InvalidOperationException("Invalid RPN expression");
+            string token = tokenQueue.Dequeue();
+
+            if (double.TryParse(token, out double num))
+            {
+                stack.Push(num);
+            }
+            else
+            {
+                switch (token)
+                {
+                    case "u-":
+                        stack.Push(-stack.Pop());
+                        break;
+                    case "u+":
+                        // no-op
+                        break;
+                    default:
+                    {
+                        double b = stack.Pop();
+                        double a = stack.Pop();
+
+                        stack.Push(token switch
+                        {
+                            "+" => a + b,
+                            "-" => a - b,
+                            "*" => a * b,
+                            "/" => a / b,
+                            "^" => Math.Pow(a, b),
+                            _ => throw new ArgumentException($"Unknown operator: {token}")
+                        });
+                        break;
+                    }
+                }
+            }
         }
 
         return stack.Pop();
     }
-
 }

@@ -1,0 +1,21 @@
+using System.Collections.Generic;
+
+namespace SKSSL.ECS.Statistics;
+
+public struct Statistic
+{
+    public string ID { get; set; }
+    public string Name { get; set; }
+    public double BaseValue { get; set; }
+    public double CurrentValue { get; set; }
+    public double MinValue { get; set; }
+    public double MaxValue { get; set; }
+    
+    /// List of modifiers.
+    public List<StatisticModifier>? Modifiers { get; set; }
+}
+
+public struct StatisticModifier
+{
+    
+}

@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using SKSSL.ECS;
 
 // ReSharper disable UnusedMethodReturnValue.Global
@@ -10,42 +13,55 @@ public static partial class EntityExtensions
 {
     #region Get Components
 
-    public static ref T GetComponent<T>(this Entity entity) where T : ISKComponent
+    /// <inheritdoc cref="ComponentRegistry.GetComponent"/> (Generic Variant)
+    [Pure]
+    public static ref T GetComponent<T>(this Entity entity) where T : Component
         => ref ComponentRegistry.GetComponent<T>(entity);
 
-    public static ISKComponent? GetComponent(this Entity entity, Type componentType)
+    /// <inheritdoc cref="ComponentRegistry.GetComponent"/>
+    [Pure]
+    public static Component? GetComponent(this Entity entity, Type componentType)
         => ComponentRegistry.GetComponent(entity, componentType);
 
-    public static bool TryGetComponent<T>(this Entity entity, out T? component) where T : ISKComponent
-        => ComponentRegistry.TryGetComponent(entity, out component);
+    /// <inheritdoc cref="ComponentRegistry.TryGetComponent"/> (Generic Variant)
+    [Pure]
+    public static bool TryGetComponent<T>(this Entity entity, out T component) where T : Component
+        => ComponentRegistry.TryGetComponent(entity, out component!);
 
-    public static bool TryGetComponent(this Entity entity, Type type, out ISKComponent? component)
-        => ComponentRegistry.TryGetComponent(entity, type, out component);
+    /// <inheritdoc cref="ComponentRegistry.TryGetComponent"/>
+    public static bool TryGetComponent(this Entity entity, Type type, out Component component)
+        => ComponentRegistry.TryGetComponent(entity, type, out component!);
 
-    public static List<object> GetAllComponents(this Entity entity)
+    /// <inheritdoc cref="ComponentRegistry.GetAllComponents"/>
+    [Pure]
+    public static List<Component> GetAllComponents(this Entity entity)
         => ComponentRegistry.GetAllComponents(entity);
 
     #endregion
 
     #region Add Components
 
-    public static T AddComponent<T>(this Entity entity) where T : ISKComponent, new()
-        => (T)ComponentRegistry.AddComponent(entity, new T());
+    public static T AddComponent<T>(this Entity entity) where T : Component, new()
+        => (T)ComponentRegistry.AddComponent(entity, ComponentRegistry.FastCreate(typeof(T)));
 
     /// Use AddComponent(component instance) or the generic method instead! This is more dangerous!
-    public static ISKComponent AddComponent(this Entity entity, Type type)
+    public static Component AddComponent(this Entity entity, Type type)
         => ComponentRegistry.AddComponent(entity, ComponentRegistry.FastCreate(type));
 
-    public static ISKComponent AddComponent(this Entity entity, ISKComponent comp)
+    public static Component AddComponent(this Entity entity, Component comp)
         => ComponentRegistry.AddComponent(entity, comp);
 
     #endregion
 
     #region Has Components
 
-    public static bool HasComponent<T>(this Entity entity) where T : ISKComponent
+    /// <inheritdoc cref="ComponentRegistry.HasComponent"/>
+    [Pure]
+    public static bool HasComponent<T>(this Entity entity) where T : Component
         => HasComponent(entity, typeof(T));
 
+    /// <inheritdoc cref="ComponentRegistry.HasComponent"/>
+    [Pure]
     public static bool HasComponent(this Entity entity, Type componentType)
         => ComponentRegistry.HasComponent(entity, componentType);
 

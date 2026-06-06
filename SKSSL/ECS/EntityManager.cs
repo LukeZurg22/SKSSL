@@ -1,11 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Contracts;
+using System.Linq;
 using System.Reflection;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
-using SKSSL.Utilities;
 using SKSSL.YAML;
-using static SKSSL.DustLogger;
 
-// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.ECS;
 
@@ -15,7 +17,6 @@ namespace SKSSL.ECS;
 /// </summary>
 public partial class EntityManager
 {
-    private static readonly IDIterator _nextId = new();
     private readonly List<Entity> _allEntities = [];
     private readonly IWorld _world;
 
@@ -23,11 +24,7 @@ public partial class EntityManager
     public EntityManager(IWorld world) => _world = world;
 
     /// Get all Active entities present in the game.
-    /// <seealso cref="Definitions"/>
     internal IReadOnlyList<Entity> AllEntities => _allEntities;
-
-    /// All inactive Entity Definitions, which ubiquitously inherit <see cref="Prototype"/>.
-    public static IReadOnlyDictionary<string, Prototype> Definitions => EntityRegistry.Definitions;
 
     #region Get Methods
 
@@ -40,9 +37,10 @@ public partial class EntityManager
     /// <param name="id">Numeric ID of requested entity.</param>
     /// <returns>Null or instance of entity with provided ID.</returns>
     /// <remarks>Requires the user to know the ID of the entity.</remarks>
+    [Pure]
     public Entity? GetEntity(int id)
     {
-        if (_allEntities.Any(e => e.Id == id))
+        if (_allEntities.Any(e => e.Uid == id))
             return _allEntities[id];
         Log($"Attempted to retrieve nonexistent entity with ID {id}");
         return null;
@@ -61,7 +59,7 @@ public partial class EntityManager
     /// <summary>
     /// TryGet wrapper for <see cref="GetEntity(string)"/>
     /// </summary>
-    public bool TryGetEntity(string handle, out Entity? entity)
+    public bool TryGetEntity(string handle, [MaybeNullWhen(false)] out Entity entity)
     {
         entity = GetEntity(handle);
         return entity != null;
@@ -69,108 +67,49 @@ public partial class EntityManager
 
     #endregion
 
-    #region Spawn Entity
-
-    /// <summary>
-    /// Public generic of <see cref="Spawn(Entity)"/> that creates a new entity w. blank constructor.
-    /// </summary>
-    /// <typeparam name="T">Entity of type Entity</typeparam>
-    /// <returns>Entity instance, which is considered active.</returns>
-    public Entity Spawn<T>() where T : Entity, new() => Spawn(new T());
-
-    /// <summary>
-    /// Creates a copy of an entity instance in its parameter.
-    /// </summary>
-    /// <param name="type">Entity instance to be copied and finalized.</param>
-    /// <returns>New Entity Instance.</returns>
-    public Entity Spawn(Entity type)
-    {
-        // Create entity and hope and pray it's fine.
-        Entity entity = CreateEntity(type);
-        Finalize(ref entity);
-        return entity;
-    }
-
     /// <summary>
     /// Acquires an entity template using a provided reference id, and creates an entity instance using it.
     /// </summary>
     /// <param name="handle">Reference id to template stored in registry.</param>
-    /// <returns>Spawned entity for later use.</returns>
-    public Entity Spawn(string handle)
+    /// <returns>Spawned copy of entity from handle.</returns>
+    public Entity? Spawn(string handle)
     {
-        if (!EntityRegistry.TryGetDefinition(handle, out Prototype? definition) || definition is null)
-            throw new Exception
-                ($"Failed to create entity copy using {handle} handle. Justify with Full Handle instead.");
+        if (!GameECSMasterRegistry.TryGetPrototype(handle, out Prototype definition))
+        {
+            Log($"Failed to get entity copy using {handle} handle. Try full handle instead.",
+                LOG.SYSTEM_ERROR);
+            return null;
+        }
+
+        // Assumes all definitions present here are entities. A bit ambiguous, it is.
+        if (definition is not Entity source || source.Abstract == true)
+        {
+            Log($"Invalid Entity handle \'{handle}\'. Are you attempting to spawn some other non-entity prototype?",
+                LOG.SYSTEM_ERROR);
+            return null;
+        }
+
         // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
-
         // Create entity regardless of how it's stored.
-        Entity entity = definition.GetType() == typeof(Entity)
-            ? CreateEntity((definition as Entity)!)
-            : CreateEntity(definition);
-
-        // Assign world to entity. Will cause some funk if the world is null.
-        Finalize(ref entity);
-        return entity;
-    }
-
-    #endregion
-
-    #region CreateEntity
-
-    /// <summary>
-    /// Create entity using existing raw <see cref="Entity"/> definition. Assumes definition is valid.
-    /// </summary>
-    /// <returns>New cloned entity.</returns>
-    private static Entity CreateEntity(Entity definition)
-    {
-        // Create a copy of this entity.
-        if (definition.CloneEntityAs<Entity>() is not Entity entity)
-            throw new Exception("Attempted to create entity from definition, but the definition was not an Entity!");
-        return entity;
-    }
-
-    /// <summary>
-    /// Creates a new entity and returns its handle.
-    /// Optionally fills metadata from a template or explicit values.
-    /// </summary>
-    private static Entity CreateEntity(Prototype prototype)
-    {
-        // Use the template's desired entity type
-        //  This is essentially a dynamic constructor to account for varying component definitions and templates.
-        Entity entity = new Entity(prototype); // WIP: Organize this. Used to be done from templates.
-        return entity;
-    }
-
-    #endregion
-
-    #region Helpers
-
-    /// <summary>
-    /// Final steps to conduct against an entity before spawning / creating.
-    /// </summary>
-    private void Finalize(ref Entity entity)
-    {
-        // Last-preemptive registration if this entity's full handle is not present in the registry.
-        if (!EntityRegistry.ContainsDefinition(entity.Handle))
-            if (!EntityRegistry.ContainsDefinition(entity.GetUniqueInternalRef()))
-                EntityRegistry.RegisterDefinition(entity);
-
+        var entity = source.CloneEntityAs<Entity>();
+        
+        // Final steps to conduct against an entity before spawning / creating.
         // Assign world.
         entity.World = _world;
 
-        // Should be safe to create ID by now.
-        int id = _nextId.Iterate();
-        entity.SetRuntimeId(id);
-
         // Add default components if provided.
-        foreach ((Type type, object _) in entity.DefaultComponents)
-            entity.AddComponent(type);
+        if (entity.YamlComponents != null)
+            foreach (ComponentProto yamlComponent in entity.YamlComponents)
+                if (ComponentRegistry.TryGetComponentType(yamlComponent.Type, out Type componentType))
+                    entity.AddComponent(componentType);
 
-        // Initialize the entity.
-        entity.Initialize();
-
+        // Add & Initialize the entity.
         _allEntities.Add(entity);
+        entity.Initialize();
+        return entity;
     }
+
+    #region Helpers
 
     /// <summary>
     /// Remove all entities contained in Entity Manager.

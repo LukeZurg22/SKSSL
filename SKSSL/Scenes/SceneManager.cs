@@ -1,10 +1,12 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 using Gum.DataTypes;
+using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Media;
 using MonoGameGum;
-using static SKSSL.DustLogger;
+using SKSSL.ECS;
 
 namespace SKSSL.Scenes;
 
@@ -30,10 +32,47 @@ public class SceneManager : DrawableGameComponent
     /// Allows developers to initialize world settings / data per-scene.
     /// <remarks>May need improvement later.</remarks>
     /// </summary>
-    protected internal IWorld? CurrentWorld;
+    protected internal World? CurrentWorld; // TEMP: How multiple worlds in a networked game will work- I don't know...
 
+    /// <remarks>
+    /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context
+    /// varies between scenes.
+    /// </remarks>
+    /// <returns>Scene Manager's Current World's Entity Context.</returns>
+    public EntityContext ECS(World? world = null)
+    {
+        string message;
+
+        // If not using ECS, then why? Throw an error!
+        if (!SSLGame.UseECS)
+        {
+            message = "Failed to get Entity Context because ECS is not enabled.";
+            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
+            throw new SettingsException(message);
+        }
+
+        // If the scene manager has a world, then use that world instead of the provided one if this is null.
+        if (world == null && CurrentWorld is { } res)
+        {
+            world ??= res; // Reassign world.
+        }
+
+        // Final check to validate that the world (and its ECS) is functioning.
+        if (world?.ECS is null)
+        {
+            message = "Failed to get Entity Context from null world or null World ECS!";
+            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
+            throw new Exception(message);
+        }
+
+        // Return the latest & greatest entity context!
+        // Do NOT instantiate a blank-constructor EntityContext here! It will cause an infinite loop of ECS() calls!
+        var entityContext = new EntityContext(world);
+        return entityContext;
+    }
+    
     /// Active in-use game scene. Class-type specific.
-    protected BaseScene? _currentScene;
+    protected Scene? _currentScene;
 
     /// Constructor for Scene Manager used by <see cref="SSLGame"/> to manage active game scenes.
     public SceneManager(
@@ -54,7 +93,7 @@ public class SceneManager : DrawableGameComponent
     /// </summary>
     public static void ClearScreens()
     {
-        if (GumService.Default.Root.Children != null)
+        if (GumService.Default.Root.Children.Count != 0)
             GumService.Default.Root.Children.Clear();
     }
 
@@ -63,10 +102,10 @@ public class SceneManager : DrawableGameComponent
     /// </summary>
     /// <typeparam name="TScene"></typeparam>
     [SuppressMessage("ReSharper", "UnusedMember.Global")]
-    public void SwitchScene<TScene>() where TScene : BaseScene, new() => SwitchScene(new TScene());
+    public void SwitchScene<TScene>() where TScene : Scene, new() => SwitchScene(new TScene());
 
     /// <inheritdoc cref="SwitchScene{TScene}"/> Utilizes instance instead of generic type.
-    public void SwitchScene(BaseScene scene)
+    public void SwitchScene(Scene scene)
     {
         Log($"Switching to scene {scene.GetType().Name}.");
         var stopwatch = System.Diagnostics.Stopwatch.StartNew(); // Timing the load.

@@ -1,24 +1,23 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Text;
 using Gum.DataTypes;
 using Gum.Wireframe;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.ImGuiNet;
 using MonoGameGum;
 using SKSSL.ECS;
-using SKSSL.Localization;
 using SKSSL.Scenes;
+using SKSSL.Textures;
 using SKSSL.Utilities;
-using static SKSSL.DustLogger;
-
-// ReSharper disable ConvertToConstant.Global
-// ReSharper disable CollectionNeverQueried.Global
-// ReSharper disable FieldCanBeMadeReadOnly.Global
-// ReSharper disable NotAccessedField.Global
-// ReSharper disable VirtualMemberCallInConstructor
-// ReSharper disable NotAccessedField.Local
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace SKSSL;
 
@@ -35,13 +34,22 @@ namespace SKSSL;
 /// </summary>
 public abstract class SSLGame : Game
 {
-    #region Fields
+    #region Static Fields /*Don't make too many of these.*/
 
-    /// Title of game window.
-    public string Title => Window.Title;
+    public static SSLGame Instance { get; private set; }
 
-    /// Total time played for this game session.
-    public static DateTime GameplayTime;
+    internal static GraphicsDevice Graphics => Instance.GraphicsDevice;
+
+    /// Aspect ratio to render the game.
+    public static float AspectRatio => Graphics.Viewport.AspectRatio;
+
+    #endregion
+
+    /*
+     * Use static constructor for these.
+     */
+
+    #region Engine Config
 
     /// Ultimate toggle to use ECS service. Enable this at project initialization.
     /// To use, add the following to the game class inheriting SSLGame:
@@ -49,29 +57,6 @@ public abstract class SSLGame : Game
     /// static MyGameClass() => UseECS = true;
     /// </code>
     public static bool UseECS = false;
-
-    /// General context of the game dictated here.
-    public static SceneManager SceneManager = null!;
-
-    /// Static-instanced access for the Content Manager belonging to the active game instance.
-    public static readonly List<ContentManager> ContentManagers = [];
-
-    private readonly GraphicsDeviceManager _graphicsManager;
-    private readonly SpriteBatch _spriteBatch;
-
-    private static GumService Gum => GumService.Default;
-    private readonly InteractiveGue _currentScreenGue = new();
-
-    public readonly ImGuiRenderer GuiRenderer;
-
-    /// Registries and services belonging to the game.
-    private readonly IServiceProvider GameServices;
-
-    /// <summary>
-    /// An array of Tuple paths assigned to an ID. These are loaded into the game's pather, and should
-    /// NEVER change. General examples include game texture and yaml prototypes folders.
-    /// </summary>
-    protected abstract (string id, string path)[] StaticPaths { get; }
 
     /// <summary>
     /// The Project Gum UI file that will dictate how UI is loaded.
@@ -81,58 +66,77 @@ public abstract class SSLGame : Game
     /// </summary>
     public static string GumFile = "CHANGE_ME";
 
+    /// <summary>
+    /// A configurable developer-provided content loader that handles the logic the game uses to search and
+    /// handle its files, whether to Serialize or Deserialize data.
+    /// </summary>
+    // ReSharper disable once FieldCanBeMadeReadOnly.Global
+    public static GameContentLoader GameContentLoader = new YamlLoader();
+    
+    #endregion
+
+    #region Fields
+
+    /// Title of game.
+    public string Title => Window.Title;
+
+    /// Total time played for this game session.
+    public DateTime GameplayTime;
+
+    /// General context of the game dictated here.
+    public SceneManager SceneManager = null!;
+
+    /// Static-instanced access for the Content Manager belonging to the active game instance.
+    public readonly List<ContentManager> ContentManagers = [];
+
+    private readonly GraphicsDeviceManager _graphicsManager;
+    private readonly SpriteBatch _spriteBatch;
+
+    private static GumService? Gum;
+    private readonly InteractiveGue _currentScreenGue = new();
+
+    public readonly ImGuiRenderer GuiRenderer;
+
+    /// Registries and services belonging to the game.
+    private readonly IServiceProvider GameServices;
+
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
-    public readonly IEnumerable<GameContentDirectory> GameContentDirectories;
+    public readonly GameContentDirectories Directories;
+
+    // TEMP: Consider just throwing this away. Are they ever accessed outside of this class? Probably not!
 
     public MouseWrapper MouseHandler;
 
     #endregion
 
-    /// <remarks>
-    /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context
-    /// varies between scenes.
-    /// </remarks>
-    /// <returns>Scene Manager's Current World's Entity Context.</returns>
-    public static EntityContext ECS(BaseWorld? world = null)
+    /// Base constructor runs first.
+    protected SSLGame() : this("SSLGame")
     {
-        string message;
-
-        // If not using ECS, then why? Throw an error!
-        if (!UseECS)
-        {
-            message = "Failed to get Entity Context because ECS is not enabled.";
-            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
-            throw new SettingsException(message);
-        }
-
-        // If the scene manager has a world, then use that world instead of the provided one if this is null.
-        if (world == null && SceneManager.CurrentWorld is BaseWorld res)
-        {
-            world ??= res; // Reassign world.
-        }
-
-        // Final check to validate that the world (and its ECS) is functioning.
-        if (world?.ECS is null)
-        {
-            message = "Failed to get Entity Context from null world or null World ECS!";
-            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
-            throw new Exception(message);
-        }
-
-        // Return the latest & greatest entity context!
-        // Do NOT instantiate a blank-constructor EntityContext here! It will cause an infinite loop of ECS() calls!
-        var entityContext = new EntityContext(world);
-        return entityContext;
     }
 
     /// <summary>
-    /// Constructor for SSLGame.
+    /// Constructor for SSLGame. Runs before any inheritors.
     /// </summary>
     /// <param name="title">Title of the game window.</param>
-    /// <param name="gumFile">Gum Interface File</param>
     /// <param name="contents">Additional content managers belonging to attached libraries.</param>
-    protected SSLGame(string title, string gumFile = "", params ContentManager[] contents)
+    protected SSLGame(string title, params ContentManager[] contents)
     {
+        #region Settings
+
+        // Load settings, and based on game paths, create directories ordered by load order.
+        GameSettings settings = LoadSettings();
+        // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
+        Directories = GetGameDirectories(settings.GamePaths);
+        Directories.Sort();
+
+        // Init w. language from settings.
+        Loc.InitalizeLocalizationCulture(settings.Language);
+
+        #endregion
+
+        #region Monogame Usuals
+
+        Instance = this;
         Window.Title = title;
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
@@ -141,11 +145,7 @@ public abstract class SSLGame : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _currentScreenGue.UpdateLayout(); // UI Behaviour when dragged
         MouseHandler = new MouseWrapper(_graphicsManager);
-
-        if (string.IsNullOrEmpty(gumFile))
-            Log($"Provided gum project file is empty! {title}, {nameof(SSLGame)}", LOG.SYSTEM_WARNING);
-        else
-            GumFile = gumFile;
+        StyleSheet.LoadStyles();
 
         var services = new ServiceCollection();
         LoadServices(services);
@@ -155,34 +155,172 @@ public abstract class SSLGame : Game
         ContentManagers.Add(Content);
         ContentManagers.AddRange(contents);
 
-        // Initialize all static paths, which the developer must have defined!
-        // Includes load-order implementation. Higher values override lower values.
-        // TODO: Add a way to change load order priorities in game directories. Likely requires a file? Master file?
-        //  A file per-game folder means version mismatches per file change that breaks every update.
-        //  Ergo, a master file may be the best solution.
-        var gameDirectories = StaticGameLoader.GetAllGameDirectories();
-        GameContentDirectories = gameDirectories.OrderBy(d => d.LoadOrder).ToList();
+        #endregion
 
-        // Display ECS status. This constructor is called after inheritors.
+        #region SSLGame Additionals
+
+        // Display ECS status. This called after inheritors.
         Log($"ECS status: {(UseECS ? "on" : "off")}");
         if (UseECS)
         {
-            // Initializing component registry before anything else. 
-            Log("Initializing components.");
-            ComponentRegistry.Initialize();
-        }
+            Log($"Source generator accounted for {ComponentRegistry.Count} components:");
+            // Print all registered components in a nice list. 
+            StringBuilder componentTypesOutput = new();
+            foreach ((string? handle, Type? type) in ComponentRegistry.RegisteredHandleComponentTypesDictionary)
+            {
+                componentTypesOutput.AppendLine($"\n  {handle} -> ID {ComponentRegistry.GetId(type)}");
+            }
 
-        // Load Static Game Content
-        Log("Initializing static paths.");
-        StaticGameLoader.Initialize(StaticPaths);
-        StaticGameLoader.Load(path => StaticGameLoader.GPath(path));
+            Log(componentTypesOutput.ToString());
+        }
 
         Log("Initializing ImGUI.");
         GuiRenderer = new ImGuiRenderer(this);
         GuiRenderer.RebuildFontAtlas();
 
-        Log("SSLGame Root Initialized. Proceeding...");
+        // If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
+        //  If there ever is such a case, then the entire game's folder outside of the binaries is its game directory.
+        Log($"Loading {Directories.Count} Game Directories.");
+        foreach (GameDirectory directory in Directories)
+        {
+            LoadGameDirectories(directory);
+            Log($"...finished loading: {directory.DirectoryTitle}");
+        }
+
+        #endregion
     }
+
+    /// WIP: loading directories.
+    ///  == Textures & Materials
+    ///  == Prototypes (check ECS I guess?)
+        ///  Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
+    private static void LoadGameDirectories(GameDirectory directory)
+    {
+        // Assuming there are defined directories to begin with...
+        // Localization.
+        if (directory.LocalizationFolder != null)
+        {
+            Log($"...loading {directory.DirectoryTitle} localization.");
+            Loc.Load(directory.LocalizationFolder);
+        }
+
+        // Textures.
+        if (directory.TexturesFolder != null)
+        {
+            Log($"...loading {directory.DirectoryTitle} textures.");
+            TextureLoader.Load(directory.TexturesFolder);
+        }
+
+        // Prototypes.
+        if (directory.PrototypesFolder != null && UseECS) // Requires ECS to be on.
+        {
+            Log($"...loading {directory.DirectoryTitle} prototypes.");
+            GameContentLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
+            // TODO: Add custom bootstrapping so developer can have their own loader slotted in.
+        }
+
+        Log($"...loaded {GameECSMasterRegistry.Count()} prototypes.");
+    }
+
+
+/*
+ * Methods that handle ulterior loading outside of simple Monogame stuff. Game Directories, localization, etc.
+ */
+
+    #region Utility Methods
+
+    /// Get game directories stored in settings.
+    [SuppressMessage("ReSharper", "BadChildStatementIndent")]
+    private static GameContentDirectories GetGameDirectories(List<LoadPath> settings)
+    {
+        GameContentDirectories contentDirectories = new();
+
+        /*
+            If there are designated game paths, create Game Directories.
+            No designated game paths means that a specialized dynamic one will be needed. Mods basically don't
+            exist in this arrangement, but can be added later. This is the expected arrangement that a game will take.
+        */
+        var modifiedSettings = settings.ToList();
+        if (settings.Count == 0)
+        {
+            contentDirectories.Add();
+        }
+        else
+        {
+            /*  Once a singular game-path is added to the list, any root-level directory is rendered completely
+             worthless. To avoid this conundrum, the specific key word "root" was allocated to check and remove. */
+            if (settings.Any(d => d.Path.Contains("root")))
+            {
+                LoadPath rootPath = settings.First(d => d.Path.Contains("root"));
+                modifiedSettings.Remove(rootPath);
+                // Add root path as "officially" accepted path if provided in list. It has its own load-order!
+                contentDirectories.Add("", rootPath.Order);
+            }
+
+            // Ensure that duplicates are not added!
+            foreach (LoadPath gamePath in modifiedSettings)
+            {
+                if (!contentDirectories.Any(d => d.DirectoryTitle.Equals(gamePath.Path)))
+                {
+                    contentDirectories.Add(gamePath.Path, gamePath.Order);
+                }
+            }
+        }
+
+        return contentDirectories;
+    }
+
+    /// Get game settings from file.
+    private static GameSettings LoadSettings()
+    {
+        var settingsPath = GameSettings.SettingsFilePath;
+        var settings = new GameSettings();
+        if (!File.Exists(settingsPath))
+        {
+            GameSettings.ForceCreateDefault(settings);
+        }
+        else
+        {
+            IDeserializer deserializer = new DeserializerBuilder()
+                .WithNamingConvention(UnderscoredNamingConvention.Instance)
+                .IgnoreUnmatchedProperties()
+                .Build();
+            try
+            {
+                var text = File.ReadAllText(settingsPath);
+                settings = deserializer.Deserialize<GameSettings>(text);
+            }
+            catch
+            {
+                settings = null;
+            }
+
+            if (settings is not null) return settings;
+
+            settings = new GameSettings();
+            GameSettings.ForceCreateDefault(settings);
+        }
+
+        return settings;
+    }
+
+    private GumProjectSave? InitializeGum()
+    {
+        if (string.IsNullOrEmpty(GumFile))
+            Log($"No gum project file in Content/Gum in {Title}, {nameof(SSLGame)} Class.", LOG.SYSTEM_WARNING);
+        else
+            GumFile = Path.Combine("Gum", GumFile);
+
+        // Initialize Gum UI Handling (Some projects may choose not to utilize Gum)
+        GumProjectSave? gumProjectSave = null;
+        if (string.IsNullOrEmpty(GumFile) || GumFile.Contains("CHANGE_ME")) return gumProjectSave;
+        Gum = GumService.Default;
+        gumProjectSave = Gum.Initialize(this, GumFile);
+
+        return gumProjectSave;
+    }
+
+    #endregion
 
     /// <summary>
     /// Loads programmer-provided game services and registries.
@@ -213,19 +351,17 @@ public abstract class SSLGame : Game
         return graphicsDeviceManager;
     }
 
-    /// <summary>
-    /// For custom <see cref="StaticGameLoader"/>s, you MUST initialize them before the base.Initialize() an inheritance
-    /// level above this class.
-    /// </summary>
     protected override void Initialize()
     {
-        // Initialize Gum UI Handling (Some projects may choose not to utilize Gum)
-        GumProjectSave? gumSave = null;
-        if (!string.IsNullOrEmpty(GumFile)) gumSave = Gum.Initialize(this, GumFile);
+        GumProjectSave? gumSave = InitializeGum();
+
         SceneManager = new SceneManager(this, _graphicsManager, _spriteBatch, gumSave);
         Components.Add(SceneManager);
 
-        if (UseECS) SystemManager.Initialize();
+        if (UseECS)
+        {
+            SystemManager.Initialize();
+        }
 
         // Continue
         base.Initialize();
@@ -243,8 +379,12 @@ public abstract class SSLGame : Game
     protected override void Draw(GameTime gameTime)
     {
         base.Draw(gameTime);
-        if (UseECS) SystemManager.Draw(gameTime);
-        Gum.Draw(); // Draw Gum UI after game draw.
+        if (UseECS)
+        {
+            SystemManager.Draw(gameTime);
+        }
+
+        Gum?.Draw(); // Draw Gum UI after game draw.
     }
 
     /// <inheritdoc />
@@ -255,7 +395,11 @@ public abstract class SSLGame : Game
         MouseWrapper.HandleForcedPosition();
 
         base.Update(gameTime);
-        if (UseECS) SystemManager.Update(gameTime);
-        Gum.Update(gameTime); // Update Gum UI after game update.
+        if (UseECS)
+        {
+            SystemManager.Update(gameTime);
+        }
+
+        Gum?.Update(gameTime); // Update Gum UI after game update.
     }
 }

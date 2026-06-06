@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <NoWarn>$(NoWarn);SYSLIB0011</NoWarn>
+        <NoWarn>$(NoWarn);SYSLIB0011;CS0108;CS8618;CS8619;NU5100</NoWarn>
         <TargetFramework>net9.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
+        <ImplicitUsings>disable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>SKSSL</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <PackageId>SKSSL</PackageId>
-        <Version>1.8.1</Version>
+        <Version>1.0.0</Version> <!--1.8.2 (Namespaces, Prototype / Entity Refactor)--> <!--Version Auto-Changed-->
         <Authors>LukeZurg22</Authors>
         <Description>Shared general game engine built on Monogame and GumUI.</Description>
         <PackageTags>logging, ecs, yaml, parsing</PackageTags>
@@ -16,9 +16,9 @@
         <IncludeBuildOutput>true</IncludeBuildOutput> <!--For generated classes.-->
 
         <!--For Packaging-->
+        <ExcludeTestAssets>true</ExcludeTestAssets>
         <IsPackable>true</IsPackable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        
         <GenerateLibraryLayout>true</GenerateLibraryLayout>
         <IncludeBuildOutput>true</IncludeBuildOutput>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -26,24 +26,34 @@
 
     <ItemGroup>
         <!--The Ones That Flow-->
-        <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.2.1105" PrivateAssets="All" />
-        <PackageReference Include="FlatRedBall.GumCommon" Version="2025.11.30.1" PrivateAssets="none" />
-        <PackageReference Include="Gum.MonoGame" Version="2025.11.30.1" PrivateAssets="none" />
-        <PackageReference Include="MemoryPack" Version="1.21.4" PrivateAssets="none" />
-        <PackageReference Include="VYaml" Version="1.2.0" PrivateAssets="none" />
-        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1" PrivateAssets="none" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" PrivateAssets="none" />
-        <PackageReference Include="RandN" Version="0.5.0" PrivateAssets="none" />
-        <PackageReference Include="Fluent.Net" Version="1.0.63" PrivateAssets="none" />
+        <PackageReference Include="FlatRedBall.GumCommon" Version="2026.5.31.1" PrivateAssets="none"/>
+        <PackageReference Include="Gum.MonoGame" Version="2026.5.31.1" PrivateAssets="none"/>
+        <PackageReference Include="MemoryPack" Version="1.21.4" PrivateAssets="none"/>
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1" PrivateAssets="none"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" PrivateAssets="none"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.1" PrivateAssets="none"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4"/>
+        <PackageReference Include="RandN" Version="0.5.0" PrivateAssets="none"/>
+        <PackageReference Include="Fluent.Net" Version="1.0.63" PrivateAssets="none"/>
+        <PackageReference Include="ImGui.NET" Version="1.91.6.1" PrivateAssets="none"/>
+        <PackageReference Include="ImGUI.NET.ToolBox" Version="0.1.1" PrivateAssets="none"/>
+        <PackageReference Include="YamlDotNet" Version="18.0.0"/>
 
         <!--Private Ones-->
-        <PackageReference Include="ImGui.NET" Version="1.91.6.1" PrivateAssets="all" />
-        <PackageReference Include="ImGUI.NET.ToolBox" Version="0.1.1" PrivateAssets="all" />
-        <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0" PrivateAssets="all" />
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.1" PrivateAssets="all" />
-        <PackageReference Include="Microsoft.Testing.Platform" Version="1.7.3" PrivateAssets="all" />
-        <PackageReference Include="Microsoft.TestPlatform.TestHost" Version="17.14.1" PrivateAssets="all" />
+        <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" PrivateAssets="All"/>
+        <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" PrivateAssets="All"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.Testing.Platform" Version="1.7.3" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.TestPlatform.TestHost" Version="17.14.1" PrivateAssets="all"/>
+        <PackageReference Include="Tomlyn" Version="2.4.1"/>
+    </ItemGroup>
+
+    <!--Exclude Testhost Stuff-->
+    <ItemGroup>
+        <Content Update="testhost.exe;testhost*.exe;testhost*.dll;testhost*.json"
+                 CopyToOutputDirectory="Never"
+                 CopyToPublishDirectory="Never"/>
     </ItemGroup>
 
     <PropertyGroup>
@@ -53,47 +63,118 @@
 
     <!-- Ignore unwanted built-in generators -->
     <ItemGroup>
-        <CompilerGeneratedFilesToExclude Include="**/*RegexGenerator*" />
-        <CompilerGeneratedFilesToExclude Include="**/*Regex.g.cs" />
-        <CompilerGeneratedFilesToExclude Include="**/*Yaml*" />
-        <CompilerGeneratedFilesToExclude Include="**/*VYaml*" />
-        <CompilerGeneratedFilesToExclude Include="**/*System*" />
-        <CompilerGeneratedFilesToExclude Include="**/*YAMLSerializer*" />
-        <CompilerGeneratedFilesToExclude Include="**/*BaseYaml*" />
+        <CompilerGeneratedFilesToExclude Include="**/*RegexGenerator*"/>
+        <CompilerGeneratedFilesToExclude Include="**/*Regex.g.cs"/>
+        <CompilerGeneratedFilesToExclude Include="**/*Yaml*"/>
+        <CompilerGeneratedFilesToExclude Include="**/*VYaml*"/>
+        <CompilerGeneratedFilesToExclude Include="**/*System*"/>
+        <CompilerGeneratedFilesToExclude Include="**/*YAMLSerializer*"/>
+        <CompilerGeneratedFilesToExclude Include="**/*BaseYaml*"/>
     </ItemGroup>
-    
-    <ItemGroup>
+
+    <ItemGroup> <!--Reference to Source Generator(s)-->
         <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false"/>
     </ItemGroup>
-    
+
     <ItemGroup>
-      <Folder Include="Networking\" />
+        <!-- Explicitly pack the generator DLL (adjust path if needed) -->
+        <None Include="..\SKSSL.Generator\bin\$(Configuration)\netstandard2.0\SKSSL.Generator.dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              Visible="true"/>
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Update="Textures\TextureLoader.MaterialRegistry.cs">
-        <DependentUpon>TextureLoader.cs</DependentUpon>
-      </Compile>
-      <Compile Update="Textures\TextureLoader.HardcodedTextures.cs">
-        <DependentUpon>TextureLoader.cs</DependentUpon>
-      </Compile>
-      <Compile Update="Extensions\EntityExtensions_Clone.cs">
-        <DependentUpon>EntityExtensions.cs</DependentUpon>
-      </Compile>
-      <Compile Update="Extensions\EntityExtensions_Components.cs">
-        <DependentUpon>EntityExtensions.cs</DependentUpon>
-      </Compile>
-      <Compile Update="Extensions\EntityExtensions_Queries.cs">
-        <DependentUpon>EntityExtensions.cs</DependentUpon>
-      </Compile>
-      <Compile Update="ECS\EntitySystem_Interfaces.cs">
-        <DependentUpon>EntitySystem.cs</DependentUpon>
-      </Compile>
-      <Compile Update="ECS\RegisterSystemAttribute.cs">
-        <DependentUpon>EntitySystem.cs</DependentUpon>
-      </Compile>
+        <Folder Include="Networking\"/>
     </ItemGroup>
-    
+
+    <ItemGroup>
+        <Compile Update="Textures\TextureLoader.MaterialRegistry.cs">
+            <DependentUpon>TextureLoader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Textures\TextureLoader.HardcodedTextures.cs">
+            <DependentUpon>TextureLoader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Extensions\EntityExtensions_Clone.cs">
+            <DependentUpon>EntityExtensions.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Extensions\EntityExtensions_Components.cs">
+            <DependentUpon>EntityExtensions.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Extensions\EntityExtensions_Queries.cs">
+            <DependentUpon>EntityExtensions.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\EntitySystem_Interfaces.cs">
+            <DependentUpon>EntitySystem.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\RegisterSystemAttribute.cs">
+            <DependentUpon>EntitySystem.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Textures\TextureLoader.IconRegistry.cs">
+          <DependentUpon>TextureLoader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Textures\TextureLoader.XNAContent.cs">
+          <DependentUpon>TextureLoader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\ECSRegistries\ECSRegistry.Entity.cs">
+          <DependentUpon>ECSRegistry.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\ECSRegistries\ECSRegistry.RawPrototype.cs">
+          <DependentUpon>ECSRegistry.cs</DependentUpon>
+        </Compile>
+        <Compile Update="GameContentLoader\YamlLoader.cs">
+          <DependentUpon>GameContentLoader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="GameContentLoader\ConsQJsonLoader.cs">
+          <DependentUpon>GameContentLoader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="GameContentLoader\IYamlBlock.cs">
+          <DependentUpon>YamlLoader.cs</DependentUpon>
+        </Compile>
+    </ItemGroup>
+
+    <!-- !== ADD THE FOLLOWING TO GAME PROJECTS INHERITING / USING SKSSL AS AN ENGINE !== -->
+    <!--START - Enable Compiler-Generated Code-->
+    <!--<PropertyGroup>
+        <OutputPath>build\binaries\</OutputPath> &lt;!&ndash;Executable Is Here, SKSSL Accomodates 1 Level Above&ndash;&gt;
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+    </PropertyGroup>
+    <Target Name="CleanBuildFolder" BeforeTargets="BeforeBuild">
+        <RemoveDir Directories="build" Condition="Exists(build)"/>
+    </Target>
+    <ItemGroup>
+        <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\SKSSL\SKSSL.Engine.csproj" />
+        <Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
+        <None Include="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
+    </ItemGroup>-->
+    <!-- Add custom game folders here! -->
+    <!--===EXAMPLE (ROOT GAME EXAMPLE)===-->
+    <!--<ItemGroup>
+        <Content Include="prototypes\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\prototypes\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+        <Content Include="textures\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\textures\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+        <Content Include="localization\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+        <Content Include="settings.yaml"> 
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\settings.yaml</Link>
+        </Content>
+    </ItemGroup>-->
+    <!--END - Enable Compiler-Generated Code-->
+
 </Project>

@@ -1,11 +1,12 @@
+using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using SKSSL.Scenes;
-using static SKSSL.DustLogger;
 
+// ReSharper disable UnusedMember.Global
 // ReSharper disable ConvertIfStatementToSwitchStatement
 // ReSharper disable SuspiciousTypeConversion.Global
 // ReSharper disable PossibleMultipleEnumeration
-
 // ReSharper disable RedundantAttributeUsageProperty
 
 namespace SKSSL.ECS;
@@ -13,12 +14,8 @@ namespace SKSSL.ECS;
 /// <summary>
 /// Manages all system draw and update calls. Should be added once per Game instance.
 /// </summary>
-public class SystemManager
+public abstract class SystemManager
 {
-    // TODO: Peel away statics and return to per-world systems.
-    //  Finding a way to physically cull certain systems from worlds might be worth a try.
-    //  Probably not, though.
-
     private static readonly List<int> _updateSystemIndices = [];
     private static readonly List<int> _drawSystemIndices = [];
 
@@ -26,10 +23,12 @@ public class SystemManager
 
     public static IReadOnlyList<EntitySystem> AllSystems => _allSystems.AsReadOnly();
 
+    /// Overload called by source generator.
+    public static void Register<T>() where T : EntitySystem, new() => Register(new T());
+
     /// Called by source generator.
-    public static void Register<T>() where T : EntitySystem, new()
+    public static void Register(EntitySystem system)
     {
-        var system = new T();
         _allSystems.Add(system);
 
         // Add system to Update and/or Draw flow.
@@ -38,8 +37,6 @@ public class SystemManager
         if (system is IDrawSystem)
             _drawSystemIndices.Add(_drawSystemIndices.Count);
     }
-
-    public static void Register(EntitySystem system) => _allSystems.Add(system);
 
     public static void Clear() => _allSystems.Clear();
 
@@ -53,7 +50,7 @@ public class SystemManager
     /// Initializes all systems. Assumes they have been registered beforehand
     /// </summary>
     /// <exception cref="InvalidOperationException">A defined system type doesn't have a valid World constructor.</exception>
-    /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
+    /// <remarks>Called by <see cref="World"/>.Initialize()</remarks>
     public static void Initialize()
     {
         // Read all registered types.

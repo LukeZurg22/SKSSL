@@ -1,8 +1,8 @@
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Sin3D._Camera3D;
 using Sin3D._Model3D;
-using static SKSSL.Mathematics.Floats;
 
 namespace Sin3D._Renderer3D;
 
@@ -133,7 +133,7 @@ public class Renderer3D
         //handling transparency
         _graphicsDevice.BlendState = BlendState.Opaque;
         _graphicsDevice.DepthStencilState = DepthStencilState.Default;
-        if (!AreFloatsEqual(EffectAlpha, 1f))
+        if (!EffectAlpha.Equals(1f, float.Epsilon))
         {
             _graphicsDevice.BlendState = BlendState.AlphaBlend;
             _graphicsDevice.DepthStencilState = DepthStencilState.DepthRead;

@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Reflection;
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedMember.Global
