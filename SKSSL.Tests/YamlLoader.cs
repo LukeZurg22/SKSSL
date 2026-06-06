@@ -10,7 +10,7 @@ using SKSSL.YAML;
 
 namespace SKSSL.Tests;
 
-[TestClass, TestSubject(typeof(SKSSL.YAML.YamlLoader))]
+[TestClass, TestSubject(typeof(SKSSL.YamlLoader))]
 public class YamlLoader
 {
     /*
@@ -23,19 +23,18 @@ public class YamlLoader
     [TestInitialize, UsedImplicitly]
     public void Initialize()
     {
-        var lines = TestYaml.ExpectedOutputSingleEntry.Replace("\r", "").Split('\n');
-        var yml = YAML.YamlLoader.DeserializePrototypesFrom(lines, "Test");
+        var yamlLoader = new SKSSL.YamlLoader();
+        var yml = yamlLoader.Deserialize(TestPrototypes.ExpectedOutputSingleEntry, "Test");
 
         // entity A
         Assert.IsNotEmpty(yml);
         _entities = [];
-        yml.ForEach(prototype=>_entities.AddRange(prototype as Entity));
+        yml.ForEach(prototype => _entities.AddRange(prototype as Entity));
 
-        
+
         // entities B & C
-        lines = TestYaml.ExpectedOutputYamlMultiEntry.Replace("\r", "").Split('\n');
-        yml = YAML.YamlLoader.DeserializePrototypesFrom(lines, "Test");
-        yml.ForEach(prototype=>_entities.AddRange(prototype as Entity));
+        yml = yamlLoader.Deserialize(TestPrototypes.ExpectedOutputSingleEntry, "Test");
+        yml.ForEach(prototype => _entities.AddRange(prototype as Entity));
     }
 
 
@@ -133,27 +132,29 @@ public class YamlLoader
     public void TEST_YAML_COMPONENT_SERIALIZER()
     {
         string output = "";
+        var yamlLoader = new SKSSL.YamlLoader();
         _entities.Clear();
         // Line endings and so-forth aren't important here. All that matters is that the data serializes as expected.
         var testComponent = new ComponentProto { Type = "TestFieldComponent" };
         _entities.Add(_testEntityInstance);
-        output = YAML.YamlLoader.Serialize(_entities);
+        output = yamlLoader.Serialize(_entities);
         _entities.Add(_testInheritedEntityInheritedInstance);
-        output = YAML.YamlLoader.Serialize(_entities);
+        output = yamlLoader.Serialize(_entities);
     }
 
     [TestMethod, UsedImplicitly]
     public void TEST_YAML_ENTITY_SERIALIZER()
     {
+        var yamlLoader = new SKSSL.YamlLoader();
         // [0] must equal an entity
         Entity entityA = _entities[0];
-        var strA = YAML.YamlLoader.Serialize(entityA).ReplaceLineEndings("").Replace(" ", "");
-        var compA = TestYaml.ExpectedOutputSingleEntry;
+        var strA = yamlLoader.Serialize(entityA).ReplaceLineEndings("").Replace(" ", "");
+        var compA = TestPrototypes.ExpectedOutputSingleEntry;
         Assert.IsTrue(strA.Equals(compA));
 
         Entity[] entityBC = [_entities[1], _entities[2]];
-        var strB = YAML.YamlLoader.Serialize(entityBC).ReplaceLineEndings("").Replace(" ", "");
-        var compB = TestYaml.ExpectedOutputYamlMultiEntry;
+        var strB = yamlLoader.Serialize(entityBC).ReplaceLineEndings("").Replace(" ", "");
+        var compB = TestPrototypes.ExpectedOutputYamlMultiEntry;
         Assert.IsTrue(strB.Equals(compB));
     }
 

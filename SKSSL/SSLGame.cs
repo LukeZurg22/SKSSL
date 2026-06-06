@@ -16,38 +16,10 @@ using SKSSL.ECS;
 using SKSSL.Scenes;
 using SKSSL.Textures;
 using SKSSL.Utilities;
-using SKSSL.YAML;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-// ReSharper disable UnusedMember.Global
-// ReSharper disable ConvertToConstant.Global
-// ReSharper disable CollectionNeverQueried.Global
-// ReSharper disable FieldCanBeMadeReadOnly.Global
-// ReSharper disable NotAccessedField.Global
-// ReSharper disable VirtualMemberCallInConstructor
-// ReSharper disable NotAccessedField.Local
-
 namespace SKSSL;
-
-/// <summary>
-/// A toggle for what type of files the game is expected to read from dedicated prototypes folders.
-/// This does not prevent custom handling.
-/// </summary>
-public enum ContentTypeToggle : byte
-{
-    /// The game will not handle prototypes folders whatsoever. Instead, you are obligated to create -your own- loader.
-    NONE = 0,
-
-    /// Load content prototype files as YAML. More legible.
-    YAML,
-
-    /// Load content prototype files as JSON. More memory-efficient.
-    JSON,
-
-    /// Load content prototype files as YAML -OR- JSON. Heavier on bootup.
-    BOTH,
-}
 
 /// <summary>
 /// Game Instances should inherit this class to have Gum and other systems automatically initialized.
@@ -94,13 +66,13 @@ public abstract class SSLGame : Game
     /// </summary>
     public static string GumFile = "CHANGE_ME";
 
-    // TODO: Implement handling for these.
     /// <summary>
-    /// <inheritdoc cref="ContentTypeToggle"/>
+    /// A configurable developer-provided content loader that handles the logic the game uses to search and
+    /// handle its files, whether to Serialize or Deserialize data.
     /// </summary>
-    /// <remarks>Default value is set YAML.</remarks>
-    public static ContentTypeToggle ContentType = ContentTypeToggle.YAML;
-
+    // ReSharper disable once FieldCanBeMadeReadOnly.Global
+    public static GameContentLoader GameContentLoader = new YamlLoader();
+    
     #endregion
 
     #region Fields
@@ -128,7 +100,7 @@ public abstract class SSLGame : Game
     /// Registries and services belonging to the game.
     private readonly IServiceProvider GameServices;
 
-    // TEMP: Consider content managers into contentdirectories wrapper.
+    // TEMP: Consider content managers into content directories wrapper.
 
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
     public readonly GameContentDirectories Directories;
@@ -246,27 +218,17 @@ public abstract class SSLGame : Game
         if (directory.PrototypesFolder != null && UseECS) // Requires ECS to be on.
         {
             Log($"...loading {directory.DirectoryTitle} prototypes.");
-            switch (ContentType)
-            {
-                case ContentTypeToggle.JSON:
-                    throw new NotImplementedException("JSON Prototype parsing not supported yet.");
-                case ContentTypeToggle.YAML:
-                    YamlLoader.Load(directory.PrototypesFolder);
-                    break;
-                case ContentTypeToggle.BOTH:
-                    throw new NotImplementedException("YAML/JSON mixed Prototype parsing not supported yet.");
-                case ContentTypeToggle.NONE:
-                default:
-                    // TODO: Add custom bootstrapping so developer can have their own loader slotted in.
-                    throw new NotImplementedException("Custom Prototype parsing not supported yet.");
-            }
-
+            GameContentLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
+            // TODO: Add custom bootstrapping so developer can have their own loader slotted in.
         }
+
+        Log($"...loaded {GameECSMasterRegistry.Count()} prototypes.");
     }
 
-    /*
-     * Methods that handle ulterior loading outside of simple Monogame stuff. Game Directories, localization, etc.
-     */
+
+/*
+ * Methods that handle ulterior loading outside of simple Monogame stuff. Game Directories, localization, etc.
+ */
 
     #region Utility Methods
 

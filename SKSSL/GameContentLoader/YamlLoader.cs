@@ -7,14 +7,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using SKSSL.ECS;
 using SKSSL.Utilities;
+using SKSSL.YAML;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-// ReSharper disable UnusedMember.Global
-// ReSharper disable UnusedType.Global
-// ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
-
-namespace SKSSL.YAML;
+namespace SKSSL;
 
 /// <summary>
 /// Load all entries in YAML files based on provided types in BULK. Caches data when
@@ -32,8 +29,10 @@ namespace SKSSL.YAML;
 /// // Files read once per type, cached afterward
 /// </code></example>
 /// </summary>
-public static partial class YamlLoader
+public class YamlLoader : GameContentLoader
 {
+    protected override string[] Extensions => [".yml", ".yaml"];
+
     /// YAML Serializer.
     private static readonly ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
@@ -45,216 +44,36 @@ public static partial class YamlLoader
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
-    #region Loading
-
-    /// Using prototype data collected from a Game Directory's provided Prototypes folder, ten load into registries.
-    public static void Load(string prototypesFolder)
-    {
-        if (!SSLGame.UseECS)
-        {
-            Log($"Cannot load prototypes from {prototypesFolder} folder. ECS is not Enabled!", LOG.SYSTEM_WARNING);
-            return;
-        }
-
-        var prototypes = DeserializeDirectory(prototypesFolder);
-
-        // TEMP: add some safety padding here for overrides?
-
-        foreach (var protoDict in prototypes)
-        foreach (Prototype prototype in protoDict.Value)
-        {
-            GameECSMasterRegistry.RegisterLoadedPrototype(protoDict.Key, prototype);
-        }
-    }
-
-    #endregion
-
-    #region Serialization
-
-    /// Serialize provided object and save to specific file path. Overrides existing file if present.
-    public static void SerializeAndSave<T>(string path, T obj, bool @override = true) where T : class
-    {
-        var data = Serialize(obj);
-
-        // Create directory if needed.
-        var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-
-        // If overridden, write over. Otherwise, will create one if it doesn't exist.
-        if (@override || !File.Exists(path))
-            File.WriteAllText(path, data);
-    }
-
     /// <summary>
     /// Serializes an object as either itself, or a list of its provided type.
     /// </summary>
     /// <returns>Serialized form of Object for YAML file save.</returns>
     /// <remarks>Forces object to list of itself for serialization.</remarks>
-    public static string Serialize<T>(T obj) where T : class
+    // WARN: I am worried this will not handle multiple types very well!
+    protected override string SerializeLogicImplement<T>(T obj) where T : class => SKSSLDefaultSerializer.Serialize(obj);
+
+    protected override List<Prototype> DeserializeLogicImplement(string text, string fileTrace = "", params Type[] types)
     {
-        // ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (obj == null)
-            return "";
-
-        // Special handling for collections
-        //return IsCollection(obj) && obj is not string
-        //    ? YamlSerializer.SerializeToString(obj, SerializerOptions)
-        //    : YamlSerializer.SerializeToString(new List<T> { obj }, SerializerOptions);
-
-        // WARN: THIS SUFFICIENT. THIS IS TEMPORARY WHILST SERIALIZING TO STRING IS BEING RESORTED
-        return "";
-
-        // Helper method - Clean way to detect collections
-        bool IsCollection(object? ding) => ding switch
-        {
-            null or string => false,
-            Array _ => true, // Catches T[]
-            IList _ => true, // Catches List<T>, IList<T>, etc.
-            IEnumerable _ => true,
-            _ => false
-        };
-    } // TEMP: I am worried this will not handle multiple types very well!
-
-    #endregion
-
-    #region Deserialization
-
-    /// <summary>
-    /// Searches a directory using provided type definitions and file patterns. Directory defaults to application's if
-    /// not provided.
-    /// </summary>
-    public static Dictionary<Type, List<Prototype>> DeserializeDirectory(string directory, params string[] patterns)
-    {
-        // Get all yaml files.
-        var files = GetFiles(patterns, directory);
-
-        // Forces-load in bulk from all prototype definitions.
-        var types = GameECSMasterRegistry.RegisteredGameProtoTypes;
-
-        // "You can tell its conglomerate- because it's everywhere!"
-        // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
-        // Files should -not- have a type defined within them outside the ones passed through here. If one somehow
-        //  gets passed, it's probably because of a test.
-        var conglomerate = types.ToDictionary(type => type, _ => new List<Prototype>());
-
-        // Process every file with expected types.
-        foreach (var file in files)
-        {
-            // Merging the file's conglomerate with our super conglomerate.
-            var prototypes = DeserializeFile(file, types.ToArray());
-            foreach (Prototype prototype in prototypes)
-            {
-                // Forces only the support of defined types within the system. Since all types have a handle, and that
-                //  every prototype has an explicitly-referenced handle, that handle is used as a reference.
-                if (GameECSMasterRegistry.TryGetRegisteredTypeDefinition(prototype.Type, out Type type))
-                    conglomerate[type].Add(prototype);
-                else // Logging for tracing.
-                    Log($"Unsupported type {prototype.Type} found in {file}.", LOG.FILE_ERROR);
-            }
-        }
-
-        return conglomerate;
-    }
-
-    /// <summary>
-    /// Overload for LoadFile call, feeding only one parameter in available types.
-    /// </summary>
-    /// <param name="file"></param>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
-    public static List<Prototype> DeserializeFile<T>(string file) => DeserializeFile(file, typeof(T));
-
-    /// <summary>
-    /// Searches a directory using provided type definitions and file patterns. Directory defaults to application's if
-    /// not provided.
-    /// </summary>
-    public static List<Prototype> DeserializeFile(string file, params Type[] types)
-    {
-        // Supported types are gotten from Source Generators' output to PrototypeManager, now!
-        if (types.Length == 0)
-            types = GameECSMasterRegistry.TypeDefinitions.Values.ToArray();
-        if (File.Exists(file))
-            return DeserializePrototypesFrom(File.ReadAllLines(file), file, types);
-        Log($"File not found from file path {file}, it's being skipped entirely!");
-        return [];
-    }
-
-    /// <summary>
-    /// Conglomerate and extract yaml data from text.
-    /// </summary>
-    /// <param name="text"></param>
-    /// <param name="fileTrace"></param>
-    /// <param name="types"></param>
-    /// <returns></returns>
-    public static List<Prototype> DeserializePrototypesFrom(
-        string[] text, string fileTrace = "",
-        Type[]? types = null)
-    {
-        // Using source generators to their fullest effectiveness, here!
-        if (types is null || types.Length == 0) types = GameECSMasterRegistry.TypeDefinitions.Values.ToArray();
-
+        // Split up the text into lines.
+        var lines = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
+        
         // "You can tell its conglomerate- because it's everywhere!"
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
         // Files should -not- have a type defined within them outside the ones passed through here. If one somehow
         //  gets passed, it's probably because of a test.
 
         // Read all lines, divide into blocks in accordance to expected types.
-        var yamlBlocks = ConvertLinesToYamlBlocks(text, types, fileTrace);
+        var yamlBlocks = ConvertLinesToYamlBlocks(lines, types, fileTrace);
 
         // Combine yaml blocks of shared declared-types.
         var combined = CombineYamlBlocks(yamlBlocks);
 
         // Deserialize each set of blocks as a list of their corresponding types.
-        var result = DeserializeFillData(combined, fileTrace);
-
-        return result;
+        return DeserializeFillData(combined, fileTrace);
     }
-
-    #endregion
+    
 
     #region Helpers
-
-    /// <summary>
-    /// Returns a distinct set of file paths matching the given patterns, optionally restricted to a base directory.
-    /// </summary>
-    /// <param name="patterns">File patterns (e.g., "*.cs", "src/**/*.txt", "logs/error.log")</param>
-    /// <param name="directory">Optional base-directory to resolve relative patterns against. If null, uses current directory.</param>
-    /// <returns>Distinct file paths (case-insensitive comparison on Windows)</returns>
-    public static IEnumerable<string> GetFiles(IEnumerable<string> patterns, string directory = "")
-    {
-        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        // Force base directory to current directory of application if none is provided.
-        if (string.IsNullOrWhiteSpace(directory))
-            directory = Directory.GetCurrentDirectory();
-
-        foreach (var pattern in patterns)
-        {
-            string dir;
-            string searchPattern;
-
-            // If the pattern is an absolute path, use it directly
-            if (Path.IsPathRooted(pattern))
-            {
-                dir = Path.GetDirectoryName(pattern) ?? directory;
-                searchPattern = Path.GetFileName(pattern);
-            }
-            else
-            {
-                // Relative pattern: resolve against baseDirectory
-                dir = Path.Combine(directory, Path.GetDirectoryName(pattern) ?? "");
-                searchPattern = Path.GetFileName(pattern);
-            }
-
-            // Ensure the directory is normalized and exists
-            if (Directory.Exists(dir))
-                files.UnionWith(Directory.GetFiles(dir, searchPattern, SearchOption.AllDirectories));
-        }
-
-        return files;
-    }
-
 
     /// Reads all lines in a string, and parses them into yaml-blocks.
     private static List<IYamlBlock> ConvertLinesToYamlBlocks(string[] lines, Type[] expectedTypes, string? file = null)

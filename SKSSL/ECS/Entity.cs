@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 using MemoryPack;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Newtonsoft.Json;
 using SKSSL.Scenes;
 using SKSSL.YAML;
 using YamlDotNet.Serialization;
+
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 
 
 // ReSharper disable VirtualMemberCallInConstructor
@@ -32,37 +34,38 @@ namespace SKSSL.ECS;
 ///       field_3: (varies)
 /// # (Note: Component fields vary between component type.)
 /// </code>
+[JsonObject]
 public record Entity : Prototype
 {
     /// <inheritdoc cref="Prototype.Type"/>
-    [YamlMember(Alias = "type")]
+    [YamlMember(Alias = "type"), JsonProperty(nameof(Type))]
     public override string Type { get; set; } = "Entity";
-    
-    [YamlMember(Alias = "abstract")] public bool? Abstract { get; set; } = false;
-    
-    [YamlMember(Alias = "inherit"), JsonInclude, JsonPropertyName("Inherit")]
+
+    [YamlMember(Alias = "abstract"), JsonProperty(nameof(Abstract))]
+    public bool? Abstract { get; set; } = false;
+
+    /// Parentage Field, where the properties of the parent are introduced to the child.
+    /// Child overrides parent properties. This replaces the templating system of olde.
+    [YamlMember(Alias = "inherit"), JsonProperty("Inherit")]
     public string[]? Inherit;
-    
+
     /*
      * All Entities are expected to have name and description keys provided. This isn't as limiting as it seems.
      * Inheriting directly from the root Prototype record allows one to create a new prototype definition which does
      * not need to contain a name.
      */
-
-    // TODO: Add Parentage Field, where the properties of the parent are introduced to the child.
-    //  Child overrides parent properties. This replaces the templating system of olde.
-
+    
     #region Name / Description
 
     /// Non-localized name key.
-    [YamlMember(Alias = "name"), JsonInclude, JsonPropertyName("Name")]
+    [YamlMember(Alias = "name"), JsonProperty("Name")]
     public string? NameKey;
 
     /// <returns>Localized name from Name Key.</returns>
     public void GetName() => Loc.Get(NameKey);
 
     /// Non-localized description key.
-    [YamlMember(Alias = "description"), JsonInclude, JsonPropertyName("Description")]
+    [YamlMember(Alias = "description"), JsonProperty("Description")]
     public string? DescriptionKey;
 
     /// <returns>Localized Description from Description Key.</returns>
@@ -88,19 +91,19 @@ public record Entity : Prototype
     /// For every index, there is a unique component type.
     /// <seealso cref="IterArray{T}"/>
     /// </summary>
-    [MemoryPackIgnore, YamlIgnore, JsonIgnore]
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
     public readonly int[] ComponentIndices = null!;
 
     /// <summary>
     /// Reverse-reference back to the world that this entity inhabits.
     /// </summary>
-    [MemoryPackIgnore, YamlIgnore, JsonIgnore]
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
     public IWorld? World { get; set; }
 
     #region Constructors
 
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
-    [MemoryPackConstructor, JsonConstructor]
+    [MemoryPackConstructor, System.Text.Json.Serialization.JsonConstructor]
     public Entity() : base()
     {
         NameKey = "";

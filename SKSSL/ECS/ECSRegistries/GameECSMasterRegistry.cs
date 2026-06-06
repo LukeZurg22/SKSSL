@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
+
 // ReSharper disable UnusedMember.Global
 
 namespace SKSSL.ECS;
@@ -80,7 +81,7 @@ public abstract class GameECSMasterRegistry
         HandleToType[definition.Handle] = type;
         GetRegistry(type).Register(definition.Handle, definition);
     }
-    
+
     #endregion
 
     #region Utility Methods

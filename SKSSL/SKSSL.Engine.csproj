@@ -124,6 +124,15 @@
         <Compile Update="ECS\ECSRegistries\ECSRegistry.RawPrototype.cs">
           <DependentUpon>ECSRegistry.cs</DependentUpon>
         </Compile>
+        <Compile Update="GameContentLoader\YamlLoader.cs">
+          <DependentUpon>GameContentLoader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="GameContentLoader\ConsQJsonLoader.cs">
+          <DependentUpon>GameContentLoader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="GameContentLoader\IYamlBlock.cs">
+          <DependentUpon>YamlLoader.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <!-- !== ADD THE FOLLOWING TO GAME PROJECTS INHERITING / USING SKSSL AS AN ENGINE !== -->

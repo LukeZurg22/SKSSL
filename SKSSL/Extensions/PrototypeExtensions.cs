@@ -31,7 +31,7 @@ public static class PrototypeExtensions
                 if (!prop.CanRead || !prop.CanWrite)
                     continue;
 
-                if (prop.Name is "Type" or "Parent")
+                if (prop.Name is nameof(Entity.Type) or nameof(Entity.Abstract) or nameof(Entity.Inherit))
                     continue;
 
                 var baseValue = prop.GetValue(baseProto);
@@ -58,7 +58,7 @@ public static class PrototypeExtensions
                 if (!string.Equals(targetComp.Type, baseComp.Type, StringComparison.OrdinalIgnoreCase))
                     continue;
                 found = true;
-                MergeYamlComponent(targetComp, baseComp);
+                MergeProtoComponent(targetComp, baseComp);
                 break;
             }
 
@@ -67,7 +67,7 @@ public static class PrototypeExtensions
         }
     }
 
-    private static void MergeYamlComponent(ComponentProto target, ComponentProto baseComp)
+    private static void MergeProtoComponent(ComponentProto target, ComponentProto baseComp)
     {
         foreach (var kv in baseComp.Entries)
             if (!target.Entries.ContainsKey(kv.Key))

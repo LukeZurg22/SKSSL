@@ -29,8 +29,8 @@ public class ECS
     [TestMethod]
     public void TEST_ENTITY_REGISTRY_SINGLE()
     {
-        var text = TestYaml.TestYamlSingleEntry.Split("\n");
-        var d = SKSSL.YAML.YamlLoader.DeserializePrototypesFrom(text, "Test");
+        var text = TestPrototypes.TestYamlSingleEntry.Split("\n");
+        //var d = SKSSL.YAML.GameContentLoader.DeserializePrototypesFrom(text, "Test");
     }
 
     /// Register multiple types from one file.
