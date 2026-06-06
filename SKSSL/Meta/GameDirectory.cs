@@ -35,10 +35,6 @@ public sealed class GameDirectory : IComparable<GameDirectory>
 
     #region Internal Folder Access
 
-    public void LoadPrototypes()
-    {
-    }
-
     /// <summary>
     /// Returns enumerated files from a specific folder path respectful to the program's executable.
     /// Will attempt to use the Application Context's Base Directory as its root if a directory is not provided.

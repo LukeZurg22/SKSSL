@@ -146,7 +146,7 @@ public static partial class YamlLoader
             foreach (Prototype prototype in prototypes)
             {
                 // Forces only the support of defined types within the system. Since all types have a handle, and that
-                //  every prototype has an explicitely-referenced handle, that handle is used as a reference.
+                //  every prototype has an explicitly-referenced handle, that handle is used as a reference.
                 if (GameECSMasterRegistry.TryGetRegisteredTypeDefinition(prototype.Type, out Type type))
                     conglomerate[type].Add(prototype);
                 else // Logging for tracing.

@@ -7,7 +7,6 @@ using System.Text;
 using Gum.DataTypes;
 using Gum.Wireframe;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -17,9 +16,11 @@ using SKSSL.ECS;
 using SKSSL.Scenes;
 using SKSSL.Textures;
 using SKSSL.Utilities;
+using SKSSL.YAML;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
+// ReSharper disable UnusedMember.Global
 // ReSharper disable ConvertToConstant.Global
 // ReSharper disable CollectionNeverQueried.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Global
@@ -28,6 +29,25 @@ using YamlDotNet.Serialization.NamingConventions;
 // ReSharper disable NotAccessedField.Local
 
 namespace SKSSL;
+
+/// <summary>
+/// A toggle for what type of files the game is expected to read from dedicated prototypes folders.
+/// This does not prevent custom handling.
+/// </summary>
+public enum ContentTypeToggle : byte
+{
+    /// The game will not handle prototypes folders whatsoever. Instead, you are obligated to create -your own- loader.
+    NONE = 0,
+
+    /// Load content prototype files as YAML. More legible.
+    YAML,
+
+    /// Load content prototype files as JSON. More memory-efficient.
+    JSON,
+
+    /// Load content prototype files as YAML -OR- JSON. Heavier on bootup.
+    BOTH,
+}
 
 /// <summary>
 /// Game Instances should inherit this class to have Gum and other systems automatically initialized.
@@ -73,6 +93,13 @@ public abstract class SSLGame : Game
     /// </code>
     /// </summary>
     public static string GumFile = "CHANGE_ME";
+
+    // TODO: Implement handling for these.
+    /// <summary>
+    /// <inheritdoc cref="ContentTypeToggle"/>
+    /// </summary>
+    /// <remarks>Default value is set YAML.</remarks>
+    public static ContentTypeToggle ContentType = ContentTypeToggle.YAML;
 
     #endregion
 
@@ -125,6 +152,21 @@ public abstract class SSLGame : Game
     /// <param name="contents">Additional content managers belonging to attached libraries.</param>
     protected SSLGame(string title, params ContentManager[] contents)
     {
+        #region Settings
+
+        // Load settings, and based on game paths, create directories ordered by load order.
+        GameSettings settings = LoadSettings();
+        // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
+        Directories = GetGameDirectories(settings.GamePaths);
+        Directories.Sort();
+
+        // Init w. language from settings.
+        Loc.InitalizeLocalizationCulture(settings.Language);
+
+        #endregion
+
+        #region Monogame Usuals
+
         Instance = this;
         Window.Title = title;
         Content.RootDirectory = "Content";
@@ -144,45 +186,9 @@ public abstract class SSLGame : Game
         ContentManagers.Add(Content);
         ContentManagers.AddRange(contents);
 
-        // Load settings, and based on game paths, create directories ordered by load order.
-        GameSettings settings = LoadSettings();
-        // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
-        Directories = GetGameDirectories(settings.GamePaths);
-        Directories.Sort();
+        #endregion
 
-        // Init w. language from settings.
-        Loc.InitalizeLocalizationCulture(settings.Language);
-
-        // WIP: Begin loading directories.
-        //  == Textures & Materials
-        //  == Prototypes (check ECS I guess?)
-        //  == Localization (easy-peasy)
-        //  TEMP: Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
-
-        // Assuming there are defined directories to begin with...
-        Log($"Loading {Directories.Count} game directories.");
-        foreach (GameDirectory directory in Directories)
-        {
-            // Localization.
-            if (directory.LocalizationFolder != null)
-                Loc.Load(directory.LocalizationFolder);
-
-            // Textures.
-            if (directory.TexturesFolder != null)
-                TextureLoader.Load(directory.TexturesFolder);
-
-            // Prototypes.
-            if (directory.PrototypesFolder != null)
-                directory.LoadPrototypes();
-
-            Log($"...loaded: {directory.DirectoryTitle}");
-        }
-
-        // If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
-        // In such case, the entire game folder is a game directory.
-
-
-        // WIP: DO NOT FORGET CONTENT LOADING!
+        #region SSLGame Additionals
 
         // Display ECS status. This called after inheritors.
         Log($"ECS status: {(UseECS ? "on" : "off")}");
@@ -203,7 +209,60 @@ public abstract class SSLGame : Game
         GuiRenderer = new ImGuiRenderer(this);
         GuiRenderer.RebuildFontAtlas();
 
-        Log("SSLGame Root Initialized. Proceeding...");
+        // If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
+        //  If there ever is such a case, then the entire game's folder outside of the binaries is its game directory.
+        Log($"Loading {Directories.Count} Game Directories.");
+        foreach (GameDirectory directory in Directories)
+        {
+            LoadGameDirectories(directory);
+            Log($"...finished loading: {directory.DirectoryTitle}");
+        }
+
+        #endregion
+
+        // WIP: loading directories.
+        //  == Textures & Materials
+        //  == Prototypes (check ECS I guess?)
+        //  TEMP: Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
+    }
+
+    private static void LoadGameDirectories(GameDirectory directory)
+    {
+        // Assuming there are defined directories to begin with...
+        // Localization.
+        if (directory.LocalizationFolder != null)
+        {
+            Loc.Load(directory.LocalizationFolder);
+            Log($"...loaded: {directory.DirectoryTitle} localization.");
+        }
+
+        // Textures.
+        if (directory.TexturesFolder != null)
+        {
+            TextureLoader.Load(directory.TexturesFolder);
+            Log($"...loaded: {directory.DirectoryTitle} textures.");
+        }
+
+        // Prototypes.
+        if (directory.PrototypesFolder != null && UseECS) // Requires ECS to be on.
+        {
+            switch (ContentType)
+            {
+                case ContentTypeToggle.JSON:
+                    throw new NotImplementedException("JSON Prototype parsing not supported yet.");
+                case ContentTypeToggle.YAML:
+                    YamlLoader.Load(directory.PrototypesFolder);
+                    break;
+                case ContentTypeToggle.BOTH:
+                    throw new NotImplementedException("YAML/JSON mixed Prototype parsing not supported yet.");
+                case ContentTypeToggle.NONE:
+                default:
+                    // TODO: Add custom bootstrapping so developer can have their own loader slotted in.
+                    throw new NotImplementedException("Custom Prototype parsing not supported yet.");
+            }
+
+            Log($"...loaded: {directory.DirectoryTitle} prototypes.");
+        }
     }
 
     /*

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using YamlDotNet.Serialization;
 
 
@@ -8,10 +9,13 @@ using YamlDotNet.Serialization;
 namespace SKSSL.YAML;
 
 /// Structure for component information contained in YAML files.
-public partial class YamlComponent
+[JsonObject]
+public partial class ComponentProto
 {
     // e.g., "RenderableComponent" but named "Renderable"; it's stripped of the "Component" suffix.
-    [YamlMember(Alias = "type")] public string Type { get; set; }
+    [YamlMember(Alias = "type")]
+    [JsonProperty(PropertyName = "Type")]
+    public string Type { get; set; }
 
     // Dictionary for flexible fields (for varied components)
     /// <summary>

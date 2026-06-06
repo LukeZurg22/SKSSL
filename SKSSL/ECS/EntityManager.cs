@@ -150,7 +150,7 @@ public partial class EntityManager
         entity.World = _world;
 
         // Add default components if provided.
-        foreach (YamlComponent yamlComponent in entity.YamlComponents!)
+        foreach (ComponentProto yamlComponent in entity.YamlComponents!)
         {
             if (ComponentRegistry.TryGetComponentType(yamlComponent.Type, out Type componentType))
             {

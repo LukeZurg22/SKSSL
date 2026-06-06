@@ -32,7 +32,7 @@ public class SceneManager : DrawableGameComponent
     /// Allows developers to initialize world settings / data per-scene.
     /// <remarks>May need improvement later.</remarks>
     /// </summary>
-    protected internal World? CurrentWorld;
+    protected internal World? CurrentWorld; // TEMP: How multiple worlds in a networked game will work- I don't know...
 
     /// <remarks>
     /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context

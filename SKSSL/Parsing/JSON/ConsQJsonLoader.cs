@@ -5,7 +5,7 @@ using System.Text.Json;
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedMember.Global
 
-namespace SKSSL.Parsing.JSON;
+namespace SKSSL.JSON;
 
 /// <summary>
 /// Lifted from "Consequaintances", this is an incredibly simple loader for Json files

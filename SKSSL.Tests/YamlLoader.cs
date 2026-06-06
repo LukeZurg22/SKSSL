@@ -39,7 +39,7 @@ public class YamlLoader
     }
 
 
-    private readonly YamlComponent _testYamlComponent = new()
+    private readonly ComponentProto _testComponentProto = new()
     {
         Type = "TestField",
         Entries =
@@ -54,7 +54,7 @@ public class YamlLoader
     {
         try
         {
-            var component = _testYamlComponent.FromYaml() as TestFieldComponent;
+            var component = _testComponentProto.FromYaml() as TestFieldComponent;
             Assert.IsTrue(component != null, nameof(component) + " != null");
             Assert.IsTrue(component.x == 1 && component.y == 2);
         }
@@ -71,12 +71,12 @@ public class YamlLoader
         try
         {
             // Testing component to yaml.
-            YamlComponent yamlComponent = component.ToYaml();
-            object first = yamlComponent.Entries.Values.First();
+            ComponentProto componentProto = component.ToYaml();
+            object first = componentProto.Entries.Values.First();
             Assert.IsTrue((int)first == 7);
 
             // Testing the reverse after change..
-            component = yamlComponent.FromYaml() as TestFieldComponent;
+            component = componentProto.FromYaml() as TestFieldComponent;
             Assert.IsTrue(component != null, nameof(component) + " != null");
             Assert.IsTrue(component.x == 7);
         }
@@ -94,8 +94,8 @@ public class YamlLoader
         Type = "Entity",
         YamlComponents =
         [
-            new YamlComponent { Type = "TestComponent" },
-            new YamlComponent
+            new ComponentProto { Type = "TestComponent" },
+            new ComponentProto
             {
                 Type = "TestComponent2",
                 Entries =
@@ -114,8 +114,8 @@ public class YamlLoader
         TestString = "my-test-string",
         YamlComponents =
         [
-            new YamlComponent { Type = "TestComponent" },
-            new YamlComponent
+            new ComponentProto { Type = "TestComponent" },
+            new ComponentProto
             {
                 Type = "TestComponent2",
                 Entries =
@@ -135,7 +135,7 @@ public class YamlLoader
         string output = "";
         _entities.Clear();
         // Line endings and so-forth aren't important here. All that matters is that the data serializes as expected.
-        var testComponent = new YamlComponent { Type = "TestFieldComponent" };
+        var testComponent = new ComponentProto { Type = "TestFieldComponent" };
         _entities.Add(_testEntityInstance);
         output = YAML.YamlLoader.Serialize(_entities);
         _entities.Add(_testInheritedEntityInheritedInstance);

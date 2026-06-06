@@ -83,7 +83,7 @@ public record Entity : Prototype
     public bool IsValid => Uid.Id != 0U;
 
     /// [De]serialized component entries part of this prototype.
-    [YamlMember(Alias = "components")] public List<YamlComponent>? YamlComponents = [];
+    [YamlMember(Alias = "components")] public List<ComponentProto>? YamlComponents = [];
 
     /// <summary>
     /// Array of component indices.<br/>

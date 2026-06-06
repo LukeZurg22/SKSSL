@@ -38,12 +38,6 @@ public abstract class EntitySystem
     public static World World => Context.World;
 
     /// <summary>
-    /// Get all active entities in the game.
-    /// </summary>
-    /// <remarks>WARNING! THIS IS VERY DANGEROUS!</remarks>
-    public static List<Entity> ActiveEntities => Context.ActiveEntities;
-
-    /// <summary>
     /// Quick route to SSLGame.ECS().World.Events
     /// </summary>
     public static EventHandler Events => Context.World.Events;
