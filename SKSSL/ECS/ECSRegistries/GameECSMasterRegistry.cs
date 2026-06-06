@@ -74,12 +74,10 @@ public abstract class GameECSMasterRegistry
     /// Automatically registers definitions as a "source:handle" arrangement.
     /// No additional checks are made here, as they are made up the call chain.
     /// </remarks>
-    internal static void RegisterLoadedPrototype(Prototype definition)
+    internal static void RegisterLoadedPrototype(Type type, Prototype definition)
     {
         // For O(1) retrieval.
-        Type type = definition.GetType();
         HandleToType[definition.Handle] = type;
-
         GetRegistry(type).Register(definition.Handle, definition);
     }
     

@@ -60,10 +60,10 @@ public static partial class YamlLoader
 
         // TEMP: add some safety padding here for overrides?
 
-        foreach (var prototypeList in prototypes.Values)
-        foreach (Prototype prototype in prototypeList)
+        foreach (var protoDict in prototypes)
+        foreach (Prototype prototype in protoDict.Value)
         {
-            GameECSMasterRegistry.RegisterLoadedPrototype(prototype);
+            GameECSMasterRegistry.RegisterLoadedPrototype(protoDict.Key, prototype);
         }
     }
 
@@ -143,10 +143,14 @@ public static partial class YamlLoader
         {
             // Merging the file's conglomerate with our super conglomerate.
             var prototypes = DeserializeFile(file, types.ToArray());
-            foreach (var prototype in prototypes)
+            foreach (Prototype prototype in prototypes)
             {
+                // Forces only the support of defined types within the system. Since all types have a handle, and that
+                //  every prototype has an explicitely-referenced handle, that handle is used as a reference.
                 if (GameECSMasterRegistry.TryGetRegisteredTypeDefinition(prototype.Type, out Type type))
                     conglomerate[type].Add(prototype);
+                else // Logging for tracing.
+                    Log($"Unsupported type {prototype.Type} found in {file}.", LOG.FILE_ERROR);
             }
         }
 

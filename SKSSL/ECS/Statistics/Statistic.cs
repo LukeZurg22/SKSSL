@@ -11,7 +11,7 @@ public struct Statistic
     public double MinValue { get; set; }
     public double MaxValue { get; set; }
     
-    // Optional: list of modifiers, or use a separate Modifier component
+    /// List of modifiers.
     public List<StatisticModifier> Modifiers { get; set; }
 }
 

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using SKSSL.Extensions;
+
 // ReSharper disable UnusedType.Global
 
 namespace SKSSL.ECS;
@@ -8,10 +9,10 @@ namespace SKSSL.ECS;
 public sealed class ECSRegistry_Entity : ECSRegistry<Entity>
 {
     /// Individual definitions belonging to all prototype instances loaded from yaml.
-    /// Handle Key, Entity (ID = 0) Value
+    /// The inherited Entries dictionary is the "Raw" list.
+    /// Handle Key, Entity (ID = 0) Value.
+    /// Note that this does NOT indicate active entities in a world! Only registered definitions from file loading!
     public readonly Dictionary<string, Entity> ResolvedGameEntities = [];
-
-    // WIP: Entries dictionary internal is actually the "Raw" list.
 
     public override void Register(string handle, Entity obj)
     {
@@ -49,7 +50,7 @@ public sealed class ECSRegistry_Entity : ECSRegistry<Entity>
         // If theres a handle to an already-resolved entity, then return that.
         if (ResolvedGameEntities.TryGetValue(handle, out Entity? resolved))
             return resolved;
-        
+
         resolved = new Entity
         {
             Source = raw.Source,
