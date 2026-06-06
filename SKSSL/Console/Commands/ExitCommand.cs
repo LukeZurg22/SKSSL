@@ -1,22 +1,17 @@
-﻿using XnaGame = Microsoft.Xna.Framework.Game;
-
+﻿using JetBrains.Annotations;
 
 namespace SKSSL.Console.Commands;
 
+[UsedImplicitly]
 internal class ExitCommand : IConsoleCommand
 {
     public string Command => "exit";
     public string Name => "exit";
     public string Description => "Forcefully exits the game.";
 
-    private readonly XnaGame? game;
-    public ExitCommand(XnaGame? game)
-    {
-        this.game = game;
-    }
     public string Execute(string?[] arguments)
     {
-        game.Exit();
+        GameManager.Exit();
         return "Exiting the game";
     }
 }

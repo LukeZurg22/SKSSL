@@ -20,8 +20,8 @@ public class CommandGenerator : IIncrementalGenerator
         // Find all class declarations.
         var classDeclarations = context.SyntaxProvider
             .CreateSyntaxProvider(
-                predicate: static (node, _) => node is RecordDeclarationSyntax,
-                transform: static (ctx, _) => (RecordDeclarationSyntax)ctx.Node)
+                predicate: static (node, _) => node is ClassDeclarationSyntax,
+                transform: static (ctx, _) => (ClassDeclarationSyntax)ctx.Node)
             .Where(static cls => cls.BaseList != null)
             .Collect();
 
@@ -34,7 +34,7 @@ public class CommandGenerator : IIncrementalGenerator
 
     private static void Execute(
         Compilation compilation,
-        ImmutableArray<RecordDeclarationSyntax> classes,
+        ImmutableArray<ClassDeclarationSyntax> classes,
         SourceProductionContext spc)
     {
         if (classes.IsDefaultOrEmpty) return;
@@ -46,7 +46,7 @@ public class CommandGenerator : IIncrementalGenerator
 
         var commands = new List<INamedTypeSymbol>();
 
-        foreach (RecordDeclarationSyntax? classDecl in classes)
+        foreach (var classDecl in classes)
         {
             SemanticModel semanticModel = compilation.GetSemanticModel(classDecl.SyntaxTree);
 

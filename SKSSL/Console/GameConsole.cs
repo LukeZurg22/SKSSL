@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using JetBrains.Annotations;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using SolKom.Console.Commands;
-// ReSharper disable UnusedMember.Global
+using static Microsoft.Xna.Framework.Color;
 
 namespace SKSSL.Console;
 
@@ -28,14 +28,15 @@ namespace SKSSL.Console;
 /// </summary>
 public class GameConsole
 {
-    public GameConsoleOptions Options => GameConsoleOptions.Options;
+    public static GameConsoleOptions Options => GameConsoleOptions.Options;
 
     public static List<IConsoleCommand> Commands => GameConsoleOptions.Commands;
 
-    public static void AddCommand(IConsoleCommand command)
-    {
-        Commands.Add(command);
-    }
+    /// <summary>
+    /// Adds a new command to the console.
+    /// </summary>
+    [UsedImplicitly] // Called by Source Generator.
+    public static void AddCommand(IConsoleCommand command) => Commands.Add(command);
 
     public bool Enabled { get; set; }
 
@@ -49,7 +50,7 @@ public class GameConsole
     # region Constructors
 
     /// <summary>
-    /// Assigns the Console Options automatically.
+    /// Assigns the Console Options manually.
     /// </summary>
     /// <returns></returns>
     public GameConsole SolKomDefault()
@@ -57,14 +58,15 @@ public class GameConsole
         GameConsoleOptions.Options = new GameConsoleOptions
         {
             ToggleKey = Keys.OemTilde,
+            // WARN: WILL CRASH!
             Font = consoleComponent.Game.Content.Load<SpriteFont>("ConsoleFont"),
-            FontColor = Color.LawnGreen,
+            FontColor = LawnGreen,
             Prompt = "->",
-            PromptColor = Color.Crimson,
-            CursorColor = Color.OrangeRed,
-            BackgroundColor = new Color(Color.Black, 150),
-            PastCommandOutputColor = Color.White,
-            BufferColor = Color.Gold
+            PromptColor = Crimson,
+            CursorColor = OrangeRed,
+            BackgroundColor = new Color(Black, 150),
+            PastCommandOutputColor = White,
+            BufferColor = Gold
         };
         return this;
     }
@@ -120,18 +122,6 @@ public class GameConsole
     /// </summary>
     /// <param name="text"></param>
     public void WriteLine(string text) => consoleComponent.WriteLine(text);
-
-    /// <summary>
-    /// Adds a new command to the console
-    /// </summary>
-    /// <param name="name">Name of the command</param>
-    /// <param name="command"></param>
-    /// <param name="action"></param>
-    /// <param name="description"></param>
-    public static void AddCommand(string name, string command, Func<string[], string> action, string description = "")
-    {
-        Commands.Add(new CustomCommand(name.ToLower(), command.ToLower(), action, description));
-    }
 
     private KeyboardState currentKeyboardState;
     private KeyboardState previousKeyboardState;
@@ -197,13 +187,11 @@ public class GameConsole
         // Check if Backspace is held down and wait for a few ticks to ensure it's still pressed
         if (currentKeyboardState.IsKeyDown(Keys.Back))
         {
-            if (backspacePressTicks < BackspaceDelayTicks)
-            {
-                backspacePressTicks++;
-                return null;
-            }
-
-            return Keys.Back;
+            if (backspacePressTicks >= BackspaceDelayTicks)
+                return Keys.Back;
+            
+            backspacePressTicks++;
+            return null;
         }
 
         // Reset the counter if Backspace is no longer pressed
@@ -213,12 +201,10 @@ public class GameConsole
         }
 
         // Check for other keys being pressed
-        foreach (Keys key in Enum.GetValues(typeof(Keys)))
+        foreach (Keys key in Enum.GetValues<Keys>())
         {
             if (currentKeyboardState.IsKeyDown(key) && !previousKeyboardState.IsKeyDown(key))
-            {
                 return key;
-            }
         }
 
         return null;

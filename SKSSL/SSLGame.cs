@@ -219,33 +219,33 @@ public abstract class SSLGame : Game
         }
 
         #endregion
-
-        // WIP: loading directories.
-        //  == Textures & Materials
-        //  == Prototypes (check ECS I guess?)
-        //  TEMP: Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
     }
 
+    /// WIP: loading directories.
+    ///  == Textures & Materials
+    ///  == Prototypes (check ECS I guess?)
+    ///  TEMP: Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
     private static void LoadGameDirectories(GameDirectory directory)
     {
         // Assuming there are defined directories to begin with...
         // Localization.
         if (directory.LocalizationFolder != null)
         {
+            Log($"...loading {directory.DirectoryTitle} localization.");
             Loc.Load(directory.LocalizationFolder);
-            Log($"...loaded: {directory.DirectoryTitle} localization.");
         }
 
         // Textures.
         if (directory.TexturesFolder != null)
         {
+            Log($"...loading {directory.DirectoryTitle} textures.");
             TextureLoader.Load(directory.TexturesFolder);
-            Log($"...loaded: {directory.DirectoryTitle} textures.");
         }
 
         // Prototypes.
         if (directory.PrototypesFolder != null && UseECS) // Requires ECS to be on.
         {
+            Log($"...loading {directory.DirectoryTitle} prototypes.");
             switch (ContentType)
             {
                 case ContentTypeToggle.JSON:
@@ -261,7 +261,6 @@ public abstract class SSLGame : Game
                     throw new NotImplementedException("Custom Prototype parsing not supported yet.");
             }
 
-            Log($"...loaded: {directory.DirectoryTitle} prototypes.");
         }
     }
 

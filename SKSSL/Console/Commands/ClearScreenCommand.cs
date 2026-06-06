@@ -1,4 +1,6 @@
-﻿namespace SKSSL.Console.Commands;
+﻿using System;
+
+namespace SKSSL.Console.Commands;
 
 internal class ClearScreenCommand: IConsoleCommand
 {
@@ -9,6 +11,13 @@ internal class ClearScreenCommand: IConsoleCommand
     private readonly ConsoleRenderer consoleRenderer;
     public ClearScreenCommand(ConsoleRenderer consoleRenderer) => this.consoleRenderer = consoleRenderer;
 
+    private Action TAs;
+    
+    void Test()
+    {
+        TAs = Test;
+    }
+    
     public string Execute(string?[]? arguments = null)
     {
         consoleRenderer.Clear();
