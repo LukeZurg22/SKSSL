@@ -21,8 +21,8 @@ public abstract class GameContentLoader : IGameContentLoader
 
     /// Using prototype data collected from a Game Directory's provided Prototypes folder, ten load into registries.
     /// Load multiple files containing identical types in a directory.
-    /// Generally expects all files in the directory to be the same type.
-    public void Load(string directory)
+    /// Generally expects all files in the directory to be the same type. Can be overwritten for custom logic.
+    public virtual void Load(string directory)
     {
         if (!SSLGame.UseECS)
         {
