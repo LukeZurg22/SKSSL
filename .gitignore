@@ -23,7 +23,6 @@ Generated/
 
 # Test Projects
 SKSSL.Tests/Generated/
-*.Tests/
 SKSSL.LiveTest/
 **/SKSSL.LiveTest/
 
