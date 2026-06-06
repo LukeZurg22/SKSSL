@@ -93,7 +93,6 @@ public class SceneManager : DrawableGameComponent
     /// </summary>
     public static void ClearScreens()
     {
-        // ERR: Crashes when part of a nuget repo.
         if (GumService.Default.Root.Children.Count != 0)
             GumService.Default.Root.Children.Clear();
     }

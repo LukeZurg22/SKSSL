@@ -53,9 +53,6 @@ public readonly struct EntityContext
      * methods inside the Entity Manager, and Component Registry.
      *
      * Documentation is inherited from the functions-called.
-     * \\TODO: Add more intermediate calls for further convenient interactions w. manager.
-     *      All of the vital methods are still accessible, just from the "long way" and without the safety that an
-     *      "upper-layer" try-catch would offer.
      */
 
     #region Proxy-Methods

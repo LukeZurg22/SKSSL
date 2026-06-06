@@ -41,21 +41,7 @@ public static partial class EntityExtensions
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
     [Pure]
-    public static Entity Clone(this Entity original)
-    {
-        Type type = original.GetType();
-
-        // TODO: Replace this with something more effective?
-
-        if (Activator.CreateInstance(type) is not Entity clone)
-            throw new InvalidCastException($"Type-cast failed to create Entity in {nameof(Clone)}");
-
-        foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-            if (prop.CanRead && prop.CanWrite)
-                prop.SetValue(clone, prop.GetValue(original));
-
-        return clone;
-    }
+    public static Entity Clone(this Entity original) => original with { };
 
     /// <summary>
     /// Creates a shallow clone of the given entity, and type-casts it.

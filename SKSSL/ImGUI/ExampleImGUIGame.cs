@@ -72,7 +72,6 @@ public class ExampleImGUIGame : Game
         // Create a new SpriteBatch, which can be used to draw textures.
         spriteBatch = new SpriteBatch(GraphicsDevice);
 
-        // TODO: use this.Content to load your game content here
         suzanne = Content.Load<Model>("suzanne");
     }
 
@@ -82,7 +81,7 @@ public class ExampleImGUIGame : Game
     /// </summary>
     protected override void UnloadContent()
     {
-        // TODO: Unload any non ContentManager content here
+        // Unload any non ContentManager content here
     }
 
     /// <summary>
@@ -3429,7 +3428,7 @@ public class ExampleImGUIGame : Game
 
                 ImGui.Text($"Mouse wheel: {io.MouseWheel}");
 
-// TODO: Not Supported
+// Not Supported
                 /*
                 ImGui.Text("Keys down:"); for (int i = 0; i < io.KeysDown.Count; i++) if (io.KeysDownDuration[i] >= 0.0f) { ImGui.SameLine(); ImGui.Text(string.Format("{0} ({1}) ({2} secs)", i, i, io.KeysDownDuration[i])); }
                 ImGui.Text("Keys pressed:"); for (int i = 0; i < io.KeysDown.Count; i++) if (ImGui.IsKeyPressed((ImGuiNET.ImGuiKey)i)) { ImGui.SameLine(); ImGui.Text(string.Format("{0} ({1})", i, i)); }
@@ -3446,7 +3445,7 @@ public class ExampleImGUIGame : Game
                 ImGui.Button("Hovering me sets the\nkeyboard capture flag");
                 if (ImGui.IsItemHovered())
                 {
-// TODO: Not Supported
+// Not Supported
                 }
 
                 ImGui.SameLine();
@@ -3454,7 +3453,7 @@ public class ExampleImGUIGame : Game
                 if (ImGui.IsItemActive())
                 {
                 }
-// TODO: Not Supported
+// Not Supported
 //                        ImGui.CaptureKeyboardFromApp(true);
             }
 
@@ -3474,10 +3473,10 @@ public class ExampleImGUIGame : Game
             ImGui.InputText("1", ref buf, 100);
             ImGui.InputText("2", ref buf, 100);
             ImGui.InputText("3", ref buf, 100);
-// TODO: Not Supported
+// Not Supported
 //                    ImGui.PushAllowKeyboardFocus(false);
             ImGui.InputText("4 (tab skip)", ref buf, 100);
-// TODO: Not Supported
+// Not Supported
 //                    ImGui.PopAllowKeyboardFocus();
             ImGui.InputText("5", ref buf, 100);
             ImGui.TreePop();

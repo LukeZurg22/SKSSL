@@ -142,4 +142,5 @@ public record Entity : Prototype
 
     public virtual bool Equals(Entity? other) => other is not null && Uid == other.Uid;
     public override int GetHashCode() => Uid.GetHashCode();
+    
 }

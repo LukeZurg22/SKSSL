@@ -161,49 +161,4 @@ public abstract partial class TextureLoader
             Log($"Texture load failed: {cacheKey} (category: {category}) → error texture", LOG.FILE_WARNING);
             return HardcodedTextures.GetErrorTexture();
         }
-    
-    /// <summary>
-    /// Loads a provided asset name as a <see cref="Texture2D"/>.
-    /// Assumes the folders within the TextureLoader are all texture folders.
-    /// </summary>
-    /// <param name="key">Name of the provided asset without extension. (e.g. "Textures/PlayerSprite")</param>
-    /// <param name="category">Dedicated category.</param>
-    /// <param name="path">Path to asset. Nullable for external calls.</param>
-    /// <returns>Texture asset or Default Error Texture, instead.</returns>
-    public static Texture2D LoadAsset(string key, string? category = null, string? path = null)
-    {
-        // WARN: Loading an item / non-material texture from content repository may be a bit wonky.
-
-        // Fast path: cached lookup
-        if (category != null && _textures.TryGetValue(category, out var dict) &&
-            dict.TryGetValue(key, out Texture2D? cached))
-            return cached;
-
-        // Brute force if no category provided
-        if (category == null)
-        {
-            foreach (var catDict in _textures.Values)
-                if (catDict.TryGetValue(key, out Texture2D? tex))
-                    return tex;
-        }
-
-        // Explicit path provided (useful for one-off loads)
-        if (path != null && File.Exists(path))
-            return LoadFromFileOrContent(path, key, category ?? "unknown");
-
-        Log($"Texture not found: [{category}:{key}]", LOG.FILE_WARNING);
-        return HardcodedTextures.GetErrorTexture();
-    }
-
-    /// <summary>
-    /// Get read-only dictionary for a category.
-    /// </summary>
-    public static IReadOnlyDictionary<string, TTexture> GetCategory<TTexture>(string categoryName)
-    {
-        if (_textures.TryGetValue(categoryName, out var dict))
-            return dict.AsReadOnly() as IReadOnlyDictionary<string, TTexture>
-                   ?? new Dictionary<string, TTexture>().AsReadOnly();
-
-        return new Dictionary<string, TTexture>().AsReadOnly();
-    }
 }

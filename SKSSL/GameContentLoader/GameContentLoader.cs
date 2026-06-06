@@ -59,8 +59,6 @@ public abstract class GameContentLoader : IGameContentLoader
             }
         }
 
-        // TEMP: add some safety padding here for overrides?
-
         foreach (var protoDict in conglomerate)
         foreach (Prototype prototype in protoDict.Value)
         {

@@ -214,7 +214,6 @@ public static class ShuntingYard
                 //  - not an operator
                 //  - not a bracket
                 //  - not a number (this forces all string variables to be Alphabetic-only!)
-                //  TODO: Add support for variables that can have numbers so long as they are after a '_' character. 
                 while (i + 1 < expression.Length &&
                        !expression[i + 1].IsOperator() &&
                        !expression[i + 1].IsBracket() &&

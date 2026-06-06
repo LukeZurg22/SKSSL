@@ -100,11 +100,8 @@ public abstract class SSLGame : Game
     /// Registries and services belonging to the game.
     private readonly IServiceProvider GameServices;
 
-    // TEMP: Consider content managers into content directories wrapper.
-
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
     public readonly GameContentDirectories Directories;
-
 
     // TEMP: Consider just throwing this away. Are they ever accessed outside of this class? Probably not!
 
@@ -196,7 +193,7 @@ public abstract class SSLGame : Game
     /// WIP: loading directories.
     ///  == Textures & Materials
     ///  == Prototypes (check ECS I guess?)
-    ///  TEMP: Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
+        ///  Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
     private static void LoadGameDirectories(GameDirectory directory)
     {
         // Assuming there are defined directories to begin with...
