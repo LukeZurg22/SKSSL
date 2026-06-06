@@ -24,7 +24,7 @@ public class YamlLoader
     public void Initialize()
     {
         var yamlLoader = new SKSSL.YamlLoader();
-        var yml = yamlLoader.Deserialize(TestPrototypes.ExpectedOutputSingleEntry, "Test");
+        var yml = yamlLoader.Deserialize(SKSSL.Tests.TestData.TestPrototypes.ExpectedOutputSingleEntry, "Test");
 
         // entity A
         Assert.IsNotEmpty(yml);
@@ -33,7 +33,7 @@ public class YamlLoader
 
 
         // entities B & C
-        yml = yamlLoader.Deserialize(TestPrototypes.ExpectedOutputSingleEntry, "Test");
+        yml = yamlLoader.Deserialize(SKSSL.Tests.TestData.TestPrototypes.ExpectedOutputSingleEntry, "Test");
         yml.ForEach(prototype => _entities.AddRange(prototype as Entity));
     }
 
@@ -149,12 +149,12 @@ public class YamlLoader
         // [0] must equal an entity
         Entity entityA = _entities[0];
         var strA = yamlLoader.Serialize(entityA).ReplaceLineEndings("").Replace(" ", "");
-        var compA = TestPrototypes.ExpectedOutputSingleEntry;
+        var compA = SKSSL.Tests.TestData.TestPrototypes.ExpectedOutputSingleEntry;
         Assert.IsTrue(strA.Equals(compA));
 
         Entity[] entityBC = [_entities[1], _entities[2]];
         var strB = yamlLoader.Serialize(entityBC).ReplaceLineEndings("").Replace(" ", "");
-        var compB = TestPrototypes.ExpectedOutputYamlMultiEntry;
+        var compB = SKSSL.Tests.TestData.TestPrototypes.ExpectedOutputYamlMultiEntry;
         Assert.IsTrue(strB.Equals(compB));
     }
 

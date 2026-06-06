@@ -1,6 +1,5 @@
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SKSSL.Tests.TestData;
 
 // ReSharper disable RedundantNameQualifier
 
@@ -29,7 +28,7 @@ public class ECS
     [TestMethod]
     public void TEST_ENTITY_REGISTRY_SINGLE()
     {
-        var text = TestPrototypes.TestYamlSingleEntry.Split("\n");
+        var text = SKSSL.Tests.TestData.TestPrototypes.TestYamlSingleEntry.Split("\n");
         //var d = SKSSL.YAML.GameContentLoader.DeserializePrototypesFrom(text, "Test");
     }
 
