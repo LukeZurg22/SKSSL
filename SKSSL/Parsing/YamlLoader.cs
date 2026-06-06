@@ -34,28 +34,36 @@ namespace SKSSL.YAML;
 /// </summary>
 public static partial class YamlLoader
 {
+    /// YAML Serializer.
     private static readonly ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .JsonCompatible()
         .Build();
 
+    /// YAML Deserializer.
     private static readonly IDeserializer SKSSLDefaultDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
     #region Loading
 
-    /// Using prototype data collected from elsewhere, load into registry.
-    public static void LoadGameDirectory(GameDirectory gameDirectory)
+    /// Using prototype data collected from a Game Directory's provided Prototypes folder, ten load into registries.
+    public static void Load(string prototypesFolder)
     {
-        var prototypes = DeserializeDirectory(gameDirectory.PrototypesFolder);
-        
-        // TODO: add some safety padding here for overrides?
-        
+        if (!SSLGame.UseECS)
+        {
+            Log($"Cannot load prototypes from {prototypesFolder} folder. ECS is not Enabled!", LOG.SYSTEM_WARNING);
+            return;
+        }
+
+        var prototypes = DeserializeDirectory(prototypesFolder);
+
+        // TEMP: add some safety padding here for overrides?
+
         foreach (var prototypeList in prototypes.Values)
         foreach (Prototype prototype in prototypeList)
         {
-            PrototypeRegistry.RegisterPrototype(prototype);
+            GameECSMasterRegistry.RegisterLoadedPrototype(prototype);
         }
     }
 
@@ -122,7 +130,7 @@ public static partial class YamlLoader
         var files = GetFiles(patterns, directory);
 
         // Forces-load in bulk from all prototype definitions.
-        var types = PrototypeRegistry.Definitions.Values.ToArray();
+        var types = GameECSMasterRegistry.RegisteredGameProtoTypes;
 
         // "You can tell its conglomerate- because it's everywhere!"
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
@@ -134,11 +142,11 @@ public static partial class YamlLoader
         foreach (var file in files)
         {
             // Merging the file's conglomerate with our super conglomerate.
-            var prototypes = DeserializeFile(file, types);
+            var prototypes = DeserializeFile(file, types.ToArray());
             foreach (var prototype in prototypes)
             {
-                var type = PrototypeRegistry.Definitions[prototype.Type];
-                conglomerate[type].Add(prototype);
+                if (GameECSMasterRegistry.TryGetRegisteredTypeDefinition(prototype.Type, out Type type))
+                    conglomerate[type].Add(prototype);
             }
         }
 
@@ -161,7 +169,7 @@ public static partial class YamlLoader
     {
         // Supported types are gotten from Source Generators' output to PrototypeManager, now!
         if (types.Length == 0)
-            types = PrototypeRegistry.Definitions.Values.ToArray();
+            types = GameECSMasterRegistry.TypeDefinitions.Values.ToArray();
         if (File.Exists(file))
             return DeserializePrototypesFrom(File.ReadAllLines(file), file, types);
         Log($"File not found from file path {file}, it's being skipped entirely!");
@@ -180,7 +188,7 @@ public static partial class YamlLoader
         Type[]? types = null)
     {
         // Using source generators to their fullest effectiveness, here!
-        if (types is null || types.Length == 0) types = PrototypeRegistry.Definitions.Values.ToArray();
+        if (types is null || types.Length == 0) types = GameECSMasterRegistry.TypeDefinitions.Values.ToArray();
 
         // "You can tell its conglomerate- because it's everywhere!"
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
@@ -195,7 +203,7 @@ public static partial class YamlLoader
 
         // Deserialize each set of blocks as a list of their corresponding types.
         var result = DeserializeFillData(combined, fileTrace);
-        
+
         return result;
     }
 

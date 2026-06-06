@@ -30,15 +30,11 @@ namespace SKSSL.ECS;
 ///   description (string)
 /// </code>
 /// </summary>
-//[YamlObjectUnion("!Entity", typeof(Entity))]
 public partial record Prototype
 {
     /// Game content directory key to reverse-trace where this yaml prototype originated.
     [YamlIgnore]
     public virtual string Source { get; set; }
-
-    [YamlMember(Alias = "parent"), JsonInclude, JsonPropertyName("Parent")]
-    public string? Parent;
     
     /// Explicit type definition for this entry. For direct raw-serialization of entities.
     /// Completely unused if prioritizing yaml templates.

@@ -32,12 +32,22 @@ namespace SKSSL.ECS;
 ///       field_3: (varies)
 /// # (Note: Component fields vary between component type.)
 /// </code>
-public partial record Entity : Prototype
+public record Entity : Prototype
 {
     /// <inheritdoc cref="Prototype.Type"/>
     [YamlMember(Alias = "type")]
     public override string Type { get; set; } = "Entity";
+    
+    // WIP: Make abstract entities non-spawnable, but at least they carry data that can be inherited.
+    
+    [YamlMember(Alias = "abstract")] public bool? Abstract { get; set; } = false;
 
+    // WIP: Make it such that generic prototype's CAN'T inherit, but in return the developer can create custom
+    //  Registries that accommodates custom inheritance. They gotta do it themsleves.
+    
+    [YamlMember(Alias = "inherit"), JsonInclude, JsonPropertyName("Inherit")]
+    public string[]? Inherit;
+    
     /*
      * All Entities are expected to have name and description keys provided. This isn't as limiting as it seems.
      * Inheriting directly from the root Prototype record allows one to create a new prototype definition which does
@@ -69,11 +79,12 @@ public partial record Entity : Prototype
     [YamlIgnore, JsonIgnore] public readonly EntityUid Uid = new();
 
     /// <returns>true if ID != 0, else returns false.</returns>
-    [YamlIgnore, JsonIgnore] public bool IsValid => Uid.Id != 0U;
+    [YamlIgnore, JsonIgnore]
+    public bool IsValid => Uid.Id != 0U;
 
     /// [De]serialized component entries part of this prototype.
     [YamlMember(Alias = "components")] public List<YamlComponent>? YamlComponents = [];
-    
+
     /// <summary>
     /// Array of component indices.<br/>
     /// Index = ComponentTypeId&lt;T&gt;.Id,<br/>

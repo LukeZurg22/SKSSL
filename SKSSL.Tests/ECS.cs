@@ -92,8 +92,7 @@ public class ECS
     [TestMethod]
     public void TEST_PROTO_REGISTRY_CLEAR()
     {
-        SKSSL.ECS.PrototypeRegistry.Clear();
-        Assert.IsEmpty(SKSSL.ECS.PrototypeRegistry.Definitions);
-        Assert.IsEmpty(SKSSL.ECS.PrototypeRegistry.RawPrototypes);
+        SKSSL.ECS.GameECSMasterRegistry.Clear();
+        Assert.IsEmpty(SKSSL.ECS.GameECSMasterRegistry.TypeDefinitions);
     }
 }

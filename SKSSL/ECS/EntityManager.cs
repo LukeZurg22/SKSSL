@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using SKSSL.Extensions;
@@ -56,7 +57,7 @@ public partial class EntityManager
     /// <summary>
     /// TryGet wrapper for <see cref="GetEntity(string)"/>
     /// </summary>
-    public bool TryGetEntity(string handle, out Entity? entity)
+    public bool TryGetEntity(string handle, [MaybeNullWhen(false)] out Entity entity)
     {
         entity = GetEntity(handle);
         return entity != null;
@@ -91,26 +92,26 @@ public partial class EntityManager
     /// </summary>
     /// <param name="handle">Reference id to template stored in registry.</param>
     /// <returns>Spawned copy of entity from handle.</returns>
-    public Entity Spawn(string handle)
+    public Entity? Spawn(string handle)
     {
-        if (!PrototypeRegistry.TryGetPrototype(handle, out Prototype? definition) || definition is null)
-            throw new Exception
-                ($"Failed to create entity copy using {handle} handle. Justify with Full Handle instead.");
-        // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
+        if (!GameECSMasterRegistry.TryGetPrototype(handle, out var definition))
+        {
+            Log($"Failed to get entity copy using {handle} handle. Try full handle instead.",
+                LOG.SYSTEM_ERROR);
+            return null;
+        }
 
-        Entity entity;
+        // Assumes all definitions present here are entities. A bit ambiguous, it is.
+        if (definition.GetType() != typeof(Entity))
+        {
+            Log($"Invalid Entity handle \'{handle}\'. Are you attempting to spawn some other non-entity prototype?",
+                LOG.SYSTEM_ERROR);
+            return null;
+        }
+
+        // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
         // Create entity regardless of how it's stored.
-        if (definition.GetType() == typeof(Entity))
-        {
-            entity = Spawn((definition as Entity)!);
-        }
-        else
-            // Assumes all definitions present here are entities. A bit ambiguous, it is. May not be needed!  
-        {
-            throw new Exception($"Invalid handle {handle} to spawn Entity." +
-                                $"Are you attempting to spawn some other non-entity prototype? " +
-                                $"This is an Entity Manager. What are you DOING?");
-        }
+        Entity entity = Spawn((definition as Entity)!);
 
         // Assign world to entity. Will cause some funk if the world is null.
         return entity;

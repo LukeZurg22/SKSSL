@@ -118,6 +118,12 @@
         <Compile Update="Textures\TextureLoader.XNAContent.cs">
           <DependentUpon>TextureLoader.cs</DependentUpon>
         </Compile>
+        <Compile Update="ECS\ECSRegistries\ECSRegistry.Entity.cs">
+          <DependentUpon>ECSRegistry.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\ECSRegistries\ECSRegistry.RawPrototype.cs">
+          <DependentUpon>ECSRegistry.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <!-- !== ADD THE FOLLOWING TO GAME PROJECTS INHERITING / USING SKSSL AS AN ENGINE !== -->
