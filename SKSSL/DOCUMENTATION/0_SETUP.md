@@ -66,7 +66,7 @@ couples into the system. They are provided abstract [De]Serialize methods to ove
 The Content Loaders exclusively handle prototyping, nothing more. Supply your own extensions, and your own logic!
 
     protected override string[] Extensions => [...];
-The Load function may also be overwritten, which will cease any Deserialization calls it would normally make. The sky
+The Load method may also be overwritten, which will cease any Deserialization calls it would normally make. The sky
 is the limit! Overriding the Load call will allow one to circumvent the UsesECS check. Interacting with the prototype
 registries whilst UsesECS is disabled may cause unexpected behaviour, or **crashes**.
 
