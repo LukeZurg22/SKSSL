@@ -20,7 +20,7 @@ public abstract partial class TextureLoader
             if (DefaultError != null)
                 return DefaultError;
 
-            var tex = new Texture2D(_graphicsDevice, width, height);
+            var tex = new Texture2D(SSLGame.Graphics, width, height);
 
             var pixels = new Color[128 * 128];
 

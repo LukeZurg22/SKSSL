@@ -23,19 +23,14 @@ public class IDIterator(uint InitialId = 0, uint Maximum = 0)
 
     #endregion
 
-    /// Initialized uinteger ID value with initial ID from constructor.
+    /// Initialized integer ID value with initial ID from constructor.
     public uint ID = InitialId;
 
-    /// Increments uinternal ID value by one, up to a maximum, if there is any defined.
+    /// Increments internal ID value by one, up to a maximum, if there is any defined.
     public uint Iterate()
-    {
-        return
-            // TODO: Check this.
-            Maximum != 0 && ID > Maximum
-                ? throw new IndexOutOfRangeException("Iterator exceeds maximum value on iterate call!")
-                : Interlocked.Increment(ref ID);
-        
-    }
+        => Maximum != 0 && ID + 1 > Maximum
+            ? throw new IndexOutOfRangeException("Iterator exceeds maximum value on iterate call!")
+            : Interlocked.Increment(ref ID);
 
     /// <inheritdoc cref="System.Object.ToString"/>
     public override string ToString() => ID.ToString();

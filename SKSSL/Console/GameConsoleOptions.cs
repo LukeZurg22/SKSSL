@@ -7,8 +7,8 @@ namespace SKSSL.Console
 {
     public class GameConsoleOptions
     {
-        public Keys ToggleKey { get; set; }
-        public Color BackgroundColor { get; set; }
+        public Keys ToggleKey { get; init; }
+        public Color BackgroundColor { get; init; }
         public Color FontColor
         {
             set => BufferColor = PastCommandColor = PastCommandOutputColor = PromptColor = CursorColor = value;
@@ -21,7 +21,7 @@ namespace SKSSL.Console
         public float AnimationSpeed { get; set; }
         public float CursorBlinkSpeed { get; set; }
         public int Height { get; set; }
-        public string Prompt { get; set; }
+        public string Prompt { get; init; }
         public char Cursor { get; set; }
         public int Padding { get; set; }
         public int Margin { get; set; }
@@ -31,7 +31,7 @@ namespace SKSSL.Console
         public Texture2D RoundedCorner { get; set; }
 
         internal static GameConsoleOptions Options { get; set; }
-        internal static List<IConsoleCommand> Commands { get; set; }
+        internal static List<IConsoleCommand> Commands { get; set; } = [];
 
         public GameConsoleOptions()
         {

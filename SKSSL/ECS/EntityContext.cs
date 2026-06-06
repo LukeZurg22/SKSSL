@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SKSSL.Scenes;
-using static SKSSL.DustLogger;
+// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.ECS;
 
@@ -18,8 +18,8 @@ public readonly struct EntityContext
     /// <inheritdoc cref="SKSSL.ECS.ComponentRegistry"/>
     public readonly ComponentRegistry Components = null!;
 
-    /// <inheritdoc cref="BaseWorld"/>
-    public readonly BaseWorld World = null!;
+    /// <inheritdoc cref="Scenes.World"/>
+    public readonly World World = null!;
     
     public EntityContext(EntityManager entityManager, ComponentRegistry componentRegistry)
     {
@@ -33,14 +33,14 @@ public readonly struct EntityContext
     /// <exception cref="NullReferenceException">Thrown when ECS acquired is null.</exception>
     public EntityContext()
     {
-        EntityContext ecs = SSLGame.ECS();
+        EntityContext ecs = SSLGame.Instance.SceneManager.ECS();
         World = ecs.World;
         EntityManager = ecs.EntityManager;
         Components = ecs.Components;
     }
 
     /// Wrapper Constructor for a <see cref="ECSController"/>.
-    public EntityContext(BaseWorld world)
+    public EntityContext(World world)
     {
         ECSController ecs = world.ECS;
         World = world;
@@ -53,9 +53,6 @@ public readonly struct EntityContext
      * methods inside the Entity Manager, and Component Registry.
      *
      * Documentation is inherited from the functions-called.
-     * \\TODO: Add more intermediate calls for further convenient interactions w. manager.
-     *      All of the vital methods are still accessible, just from the "long way" and without the safety that an
-     *      "upper-layer" try-catch would offer.
      */
 
     #region Proxy-Methods
@@ -64,7 +61,6 @@ public readonly struct EntityContext
     public List<Entity> ActiveEntities => EntityManager.AllEntities.ToList();
 
     /// <seealso cref="EntityManager"/>
-    /// <seealso cref="EntityManager.Spawn"/>
     public Entity? SpawnEntity(string handle)
     {
         Entity? spawnedEntity = null;

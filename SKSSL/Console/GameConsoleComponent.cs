@@ -1,8 +1,5 @@
-﻿using System.Linq;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SolKom.Console.Commands;
-using XnaGame = Microsoft.Xna.Framework.Game;
 
 namespace SKSSL.Console;
 
@@ -14,24 +11,15 @@ internal class GameConsoleComponent : DrawableGameComponent
     internal readonly InputProcessor inputProcesser;
     internal readonly ConsoleRenderer consoleRenderer;
 
-    public GameConsoleComponent(GameConsole console, XnaGame? game, SpriteBatch? spriteBatch) : base(game)
+    public GameConsoleComponent(GameConsole console, Game? game, SpriteBatch? spriteBatch) : base(game)
     {
         this.console = console;
         this.spriteBatch = spriteBatch;
 
         inputProcesser = new InputProcessor(new CommandProcessor());
-
         inputProcesser.Open += (_, _) => consoleRenderer?.Open();
         inputProcesser.Close += (_, _) => consoleRenderer?.Close();
-
         consoleRenderer = new ConsoleRenderer(game, spriteBatch, inputProcesser);
-        var inbuiltCommands = new IConsoleCommand[]
-        {
-            new ClearScreenCommand(consoleRenderer),
-            new ExitCommand(game),
-            new HelpCommand(),
-        }.Concat(CommandFactory.CreateCommands()).ToArray();
-        GameConsoleOptions.Commands.AddRange(inbuiltCommands);
     }
 
     public override void Draw(GameTime gameTime)

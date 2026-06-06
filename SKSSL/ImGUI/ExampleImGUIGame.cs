@@ -55,7 +55,6 @@ public class ExampleImGUIGame : Game
     /// </summary>
     protected override void Initialize()
     {
-        // TODO: Add your initialization logic here
         Window.Title = "MonoGame & ImGui.NET";
 
         GuiRenderer = new ImGuiRenderer(this);
@@ -73,7 +72,6 @@ public class ExampleImGUIGame : Game
         // Create a new SpriteBatch, which can be used to draw textures.
         spriteBatch = new SpriteBatch(GraphicsDevice);
 
-        // TODO: use this.Content to load your game content here
         suzanne = Content.Load<Model>("suzanne");
     }
 
@@ -83,7 +81,7 @@ public class ExampleImGUIGame : Game
     /// </summary>
     protected override void UnloadContent()
     {
-        // TODO: Unload any non ContentManager content here
+        // Unload any non ContentManager content here
     }
 
     /// <summary>
@@ -466,7 +464,7 @@ public class ExampleImGUIGame : Game
 
     #region DebugLog
 
-    static List<string> debug_log = new List<string>();
+    static readonly List<string> debug_log = [];
     static bool AutoScroll = true;
 
     unsafe private struct ImGuiDebugLog
@@ -583,7 +581,7 @@ public class ExampleImGUIGame : Game
         ImGui.Begin("Example: Log");
         if (ImGui.SmallButton("[Debug] Add 5 entries"))
         {
-            string[] words = { "Bumfuzzled", "Cattywampus", "Snickersnee", "Abibliophobia", "Absquatulate" };
+            string[] words = ["Bumfuzzled", "Cattywampus", "Snickersnee", "Abibliophobia", "Absquatulate"];
             foreach (string str in words)
             {
                 log.AddLog("Frame " + ImGui.GetFrameCount() + " [info] Hello, current time is " + ImGui.GetTime() +
@@ -602,11 +600,11 @@ public class ExampleImGUIGame : Game
 
     #region AppConsole
 
-    static List<string> console_log = new List<string>();
-    static List<string> console_history = new List<string>();
+    static readonly List<string> console_log = [];
+    static readonly List<string> console_history = [];
     static bool AutoScroll_Console = true;
 
-    unsafe private struct ImGuiExampleAppConsole
+    private unsafe struct ImGuiExampleAppConsole
     {
         ImGuiTextFilterPtr Filter;
 
@@ -719,29 +717,27 @@ public class ExampleImGUIGame : Game
             {
                 foreach (string str in console_log)
                 {
-                    if (Filter.PassFilter(str))
+                    if (!Filter.PassFilter(str)) continue;
+                    Vec4 color;
+                    bool has_color = false;
+                    if (str.Contains("[error]"))
                     {
-                        Vec4 color;
-                        bool has_color = false;
-                        if (str.IndexOf("[error]") != -1)
-                        {
-                            color = new Vec4(1.0f, 0.4f, 0.4f, 1.0f);
-                            ImGui.PushStyleColor(ImGuiCol.Text, color);
-                            has_color = true;
-                        }
+                        color = new Vec4(1.0f, 0.4f, 0.4f, 1.0f);
+                        ImGui.PushStyleColor(ImGuiCol.Text, color);
+                        has_color = true;
+                    }
 
-                        if (str.IndexOf("# ") == 0)
-                        {
-                            color = new Vec4(1.0f, 0.8f, 0.6f, 1.0f);
-                            ImGui.PushStyleColor(ImGuiCol.Text, color);
-                            has_color = true;
-                        }
+                    if (str.StartsWith("# ", StringComparison.Ordinal))
+                    {
+                        color = new Vec4(1.0f, 0.8f, 0.6f, 1.0f);
+                        ImGui.PushStyleColor(ImGuiCol.Text, color);
+                        has_color = true;
+                    }
 
-                        ImGui.TextUnformatted(str);
-                        if (has_color)
-                        {
-                            ImGui.PopStyleColor();
-                        }
+                    ImGui.TextUnformatted(str);
+                    if (has_color)
+                    {
+                        ImGui.PopStyleColor();
                     }
                 }
             }
@@ -751,14 +747,14 @@ public class ExampleImGUIGame : Game
                 {
                     Vec4 color;
                     bool has_color = false;
-                    if (str.IndexOf("[error]") != -1)
+                    if (str.Contains("[error]"))
                     {
                         color = new Vec4(1.0f, 0.4f, 0.4f, 1.0f);
                         ImGui.PushStyleColor(ImGuiCol.Text, color);
                         has_color = true;
                     }
 
-                    if (str.IndexOf("# ") == 0)
+                    if (str.StartsWith("# ", StringComparison.Ordinal))
                     {
                         color = new Vec4(1.0f, 0.8f, 0.6f, 1.0f);
                         ImGui.PushStyleColor(ImGuiCol.Text, color);
@@ -849,7 +845,6 @@ public class ExampleImGUIGame : Game
     {
         string console_window_name = "Example: Console";
         ImGuiExampleAppConsole console = new ImGuiExampleAppConsole();
-
 
         //ImGui.Begin(console_window_name);
         //if (ImGui.SmallButton("[Debug] Add 5 entries"))
@@ -1154,12 +1149,12 @@ public class ExampleImGUIGame : Game
     int item_current_idx_lb = 0;
 
     //Selectables
-    bool[] selection = { false, true, false, false, false };
+    readonly bool[] selection = [false, true, false, false, false];
     int selected = -1;
-    bool[] selection_ms = { false, false, false, false, false };
-    bool[] selected_rend = { false, false, false };
+    readonly bool[] selection_ms = [false, false, false, false, false];
+    readonly bool[] selected_rend = [false, false, false];
 
-    bool[] selected_align = { true, false, true, false, true, false, true, false, true };
+    readonly bool[] selected_align = [true, false, true, false, true, false, true, false, true];
 
     //Text input
     bool flags_ti_first_run = true;
@@ -1176,11 +1171,11 @@ public class ExampleImGUIGame : Game
     bool flags_tabs_first_run = true;
     uint tab_bar_flags = 0;
 
-    bool[] opened = { true, true, true, true };
+    readonly bool[] opened = [true, true, true, true];
 
     //Plots Widgets
     bool animate = true;
-    float[] values = new float[90];
+    readonly float[] values = new float[90];
     int values_offset = 0;
     double refresh_time = 0.0;
     float phase = 0.0f;
@@ -1215,16 +1210,16 @@ public class ExampleImGUIGame : Game
     Vec3 vec3f = new Vec3(0.10f, 0.20f, 0.30f);
     Vec4 vec4f = new Vec4(0.10f, 0.20f, 0.30f, 0.44f);
 
-    int[] vec4i = { 1, 5, 100, 255 };
+    readonly int[] vec4i = [1, 5, 100, 255];
 
     //Vertical Sliders
-    float spacing = 4;
+    readonly float spacing = 4;
     int int_value = 0;
-    float[] values_vert = { 0.0f, 0.60f, 0.35f, 0.9f, 0.70f, 0.20f, 0.0f };
+    readonly float[] values_vert = [0.0f, 0.60f, 0.35f, 0.9f, 0.70f, 0.20f, 0.0f];
     float col_red = 1.0f;
     float col_green = 1.0f;
     float col_blue = 1.0f;
-    float[] values2 = { 0.20f, 0.80f, 0.40f, 0.25f };
+    readonly float[] values2 = [0.20f, 0.80f, 0.40f, 0.25f];
 
     #endregion
 
@@ -1315,7 +1310,7 @@ public class ExampleImGUIGame : Game
             {
                 ImGui.BeginTooltip();
                 ImGui.Text("I am a fancy tooltip");
-                float[] arr = { 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f };
+                float[] arr = [0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f];
                 ImGui.PlotLines("Curve", ref arr[0], arr.Length);
                 ImGui.EndTooltip();
             }
@@ -1392,7 +1387,7 @@ public class ExampleImGUIGame : Game
             ImGui.ColorEdit4("color 2", ref col2);
 
             string[] fruits =
-                { "Apple", "Banana", "Cherry", "Kiwi", "Mango", "Orange", "Pineapple", "Strawberry", "Watermelon" };
+                ["Apple", "Banana", "Cherry", "Kiwi", "Mango", "Orange", "Pineapple", "Strawberry", "Watermelon"];
             ImGui.ListBox("listbox", ref current_fruit, fruits, fruits.Length);
             ImGui.SameLine();
             HelpMarker(
@@ -1717,10 +1712,10 @@ public class ExampleImGUIGame : Game
             }
 
             string[] items =
-            {
+            [
                 "AAAA", "BBBB", "CCCC", "DDDD", "EEEE", "FFFF", "GGGG", "HHHH", "IIII", "JJJJ", "KKKK", "LLLLLLL",
                 "MMMM", "OOOOOOO"
-            };
+            ];
             string combo_label = items[item_current_idx];
             ImGuiComboFlags flags_cf = (ImGuiComboFlags)flags;
             if (ImGui.BeginCombo("combo 1", combo_label, flags_cf))
@@ -1753,10 +1748,10 @@ public class ExampleImGUIGame : Game
         if (ImGui.TreeNode("List boxes"))
         {
             string[] items =
-            {
+            [
                 "AAAA", "BBBB", "CCCC", "DDDD", "EEEE", "FFFF", "GGGG", "HHHH", "IIII", "JJJJ", "KKKK", "LLLLLLL",
                 "MMMM", "OOOOOOO"
-            };
+            ];
             if (ImGui.ListBox("listbox 1", ref item_current_idx_lb, items, items.Length))
             {
             }
@@ -2014,7 +2009,7 @@ public class ExampleImGUIGame : Game
                                        (uint)ImGuiTabBarFlags.FittingPolicyScroll);
                 }
 
-                string[] names = { "Artichoke", "Beetroot", "Celery", "Daikon" };
+                string[] names = ["Artichoke", "Beetroot", "Celery", "Daikon"];
                 for (int n = 0; n < opened.Length; n++)
                 {
                     if (n > 0)
@@ -2062,7 +2057,7 @@ public class ExampleImGUIGame : Game
         {
             ImGui.Checkbox("Animate", ref animate);
 
-            float[] arr = { 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f };
+            float[] arr = [0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f];
             ImGui.PlotLines("Frame Times", ref arr[0], arr.Length);
 
             if (!animate || refresh_time == 0.0)
@@ -2359,7 +2354,7 @@ public class ExampleImGUIGame : Game
                 ImGui.VSliderFloat("##v", new Vec2(18, 160), ref values_vert[i], 0.0f, 1.0f, "");
                 if (ImGui.IsAnyItemActive() || ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip(values_vert[i].ToString());
+                    ImGui.SetTooltip(values_vert[i].ToString(CultureInfo.InvariantCulture));
                 }
 
                 ImGui.PopStyleColor(4);
@@ -2443,10 +2438,10 @@ public class ExampleImGUIGame : Game
     float bf0 = 1.0f;
     float bf1 = 2.0f;
     float bf2 = 3.0f;
-    string[] items = { "AAAA", "BBBB", "CCCC", "DDDD" };
+    readonly string[] items = ["AAAA", "BBBB", "CCCC", "DDDD"];
     int item = -1;
 
-    int[] bselection = { 0, 1, 2, 3 };
+    readonly int[] bselection = [0, 1, 2, 3];
 
     //Scrolling
     int track_item = 50;
@@ -2770,7 +2765,7 @@ public class ExampleImGUIGame : Game
             }
             // Capture the group size and create widgets using the same size
             Vec2 size = ImGui.GetItemRectSize();
-            float[] values = { 0.5f, 0.20f, 0.80f, 0.60f, 0.25f };
+            float[] values = [0.5f, 0.20f, 0.80f, 0.60f, 0.25f];
             ImGui.PlotHistogram("##values", ref values[0], values.Length, 0, null, 0.0f, 1.0f, size);
 
             ImGui.Button("ACTION", new Vec2((size.X - ImGui.GetStyle().ItemSpacing.X) * 0.5f, size.Y));
@@ -2973,7 +2968,7 @@ public class ExampleImGUIGame : Game
             }
 
             ImGui.BeginGroup();
-            string[] names = { "Top", "25%", "Center", "75%", "Bottom" };
+            string[] names = ["Top", "25%", "Center", "75%", "Bottom"];
             ImGui.TextUnformatted(names[i]);
 
             ImGuiWindowFlags child_flags = enable_extra_decorations ? ImGuiWindowFlags.MenuBar : 0;
@@ -3035,7 +3030,7 @@ public class ExampleImGUIGame : Game
                                            (enable_extra_decorations
                                                ? ImGuiWindowFlags.AlwaysVerticalScrollbar
                                                : 0);
-            string[] names = { "Left", "25%", "Center", "75%", "Right" };
+            string[] names = ["Left", "25%", "Center", "75%", "Right"];
             string child_id = names[i];
             bool child_is_visible = ImGui.BeginChild(child_id, new Vec2(-100, child_height),
                 ImGuiChildFlags.Borders,
@@ -3086,7 +3081,7 @@ public class ExampleImGUIGame : Game
     //Popups
     int selected_fish = -1;
 
-    bool[] toggles = { true, false, false, false, false };
+    readonly bool[] toggles = [true, false, false, false, false];
 
     //Context menus
     float value = 0.5f;
@@ -3119,7 +3114,7 @@ public class ExampleImGUIGame : Game
                 "When a popup is active, it inhibits interacting with windows that are behind the popup. " +
                 "Clicking outside the popup closes it.");
 
-            string[] names = { "Bream", "Haddock", "Mackerel", "Pollock", "Tilefish" };
+            string[] names = ["Bream", "Haddock", "Mackerel", "Pollock", "Tilefish"];
 
             if (ImGui.Button("Select.."))
             {
@@ -3433,7 +3428,7 @@ public class ExampleImGUIGame : Game
 
                 ImGui.Text($"Mouse wheel: {io.MouseWheel}");
 
-// TODO: Not Supported
+// Not Supported
                 /*
                 ImGui.Text("Keys down:"); for (int i = 0; i < io.KeysDown.Count; i++) if (io.KeysDownDuration[i] >= 0.0f) { ImGui.SameLine(); ImGui.Text(string.Format("{0} ({1}) ({2} secs)", i, i, io.KeysDownDuration[i])); }
                 ImGui.Text("Keys pressed:"); for (int i = 0; i < io.KeysDown.Count; i++) if (ImGui.IsKeyPressed((ImGuiNET.ImGuiKey)i)) { ImGui.SameLine(); ImGui.Text(string.Format("{0} ({1})", i, i)); }
@@ -3450,7 +3445,7 @@ public class ExampleImGUIGame : Game
                 ImGui.Button("Hovering me sets the\nkeyboard capture flag");
                 if (ImGui.IsItemHovered())
                 {
-// TODO: Not Supported
+// Not Supported
                 }
 
                 ImGui.SameLine();
@@ -3458,7 +3453,7 @@ public class ExampleImGUIGame : Game
                 if (ImGui.IsItemActive())
                 {
                 }
-// TODO: Not Supported
+// Not Supported
 //                        ImGui.CaptureKeyboardFromApp(true);
             }
 
@@ -3478,10 +3473,10 @@ public class ExampleImGUIGame : Game
             ImGui.InputText("1", ref buf, 100);
             ImGui.InputText("2", ref buf, 100);
             ImGui.InputText("3", ref buf, 100);
-// TODO: Not Supported
+// Not Supported
 //                    ImGui.PushAllowKeyboardFocus(false);
             ImGui.InputText("4 (tab skip)", ref buf, 100);
-// TODO: Not Supported
+// Not Supported
 //                    ImGui.PopAllowKeyboardFocus();
             ImGui.InputText("5", ref buf, 100);
             ImGui.TreePop();
@@ -3497,13 +3492,13 @@ public class ExampleImGUIGame : Game
     int select_res = 0;
     int render_model = 1;
 
-    string[] resolution =
-        { "1024x768", "1280x720", "1280x960", "1366x768", "1440x1080", "1680x1050", "1600x1200", "1920x1080" };
+    readonly string[] resolution =
+        ["1024x768", "1280x720", "1280x960", "1366x768", "1440x1080", "1680x1050", "1600x1200", "1920x1080"];
 
-    Vec4 monogame_color = new Vec4(231.0f / 255.0f, 60.0f / 255.0f, 0.0f / 255.0f, 200.0f / 255.0f);
-    Vec4 monogame_framebg = new Vec4(227.0f / 255.0f, 227.0f / 255.0f, 227.0f / 255.0f, 255.0f / 255.0f);
-    Vec4 color_black = new Vec4(0.0f / 255.0f, 0.0f / 0.0f, 0.0f / 255.0f, 200.0f / 255.0f);
-    Vec4 color_white = new Vec4(255.0f / 255.0f, 255.0f / 255.0f, 255.0f / 255.0f, 242.0f / 255.0f);
+    readonly Vec4 monogame_color = new Vec4(231.0f / 255.0f, 60.0f / 255.0f, 0.0f / 255.0f, 200.0f / 255.0f);
+    readonly Vec4 monogame_framebg = new Vec4(227.0f / 255.0f, 227.0f / 255.0f, 227.0f / 255.0f, 255.0f / 255.0f);
+    readonly Vec4 color_black = new Vec4(0.0f / 255.0f, 0.0f / 0.0f, 0.0f / 255.0f, 200.0f / 255.0f);
+    readonly Vec4 color_white = new Vec4(255.0f / 255.0f, 255.0f / 255.0f, 255.0f / 255.0f, 242.0f / 255.0f);
 
     #endregion
 

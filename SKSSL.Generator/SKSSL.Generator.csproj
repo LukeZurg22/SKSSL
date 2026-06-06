@@ -18,10 +18,13 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="*" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
         <PackageReference Include="PolySharp" Version="*">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+        <PackageReference Include="Tomlyn" Version="2.4.1" />
+        <PackageReference Include="YamlDotNet" Version="18.0.0" />
     </ItemGroup>
 
     <!-- This packs the generator DLL into the right folder -->

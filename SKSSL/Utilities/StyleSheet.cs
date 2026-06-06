@@ -1,11 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Xml.Serialization;
-using Microsoft.Xna.Framework;
-using static SKSSL.DustLogger;
+
 // ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Utilities;
@@ -14,7 +11,7 @@ public static class StyleSheet
 {
     public static readonly List<UIStyle> UIColorSheet = [];
 
-    public static readonly string DefaultFilePath = Path.Combine(Environment.CurrentDirectory, "styles.xml");
+    public static readonly string DefaultFilePath = Path.Combine(GameDirectory.RootDirectory, "styles.xml");
 
     private static readonly XmlSerializer Serializer = new(typeof(ResxRoot));
 
@@ -48,9 +45,15 @@ public static class StyleSheet
 
     public static void LoadStyles()
     {
+        const string Default = """
+                               <root xmlns="http://jetbrains.com/rider/schemas/resx">
+                                   <UIStyle Key="default" Background="#ffffff" Foreground="#000000"/>
+                               </root>
+                               """;
+        
         if (!File.Exists(DefaultFilePath))
         {
-            File.Create(DefaultFilePath).Close();
+            File.WriteAllText(DefaultFilePath, Default);
             return;
         }
 

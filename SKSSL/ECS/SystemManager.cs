@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using SKSSL.Scenes;
-using static SKSSL.DustLogger;
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable ConvertIfStatementToSwitchStatement
@@ -51,7 +50,7 @@ public abstract class SystemManager
     /// Initializes all systems. Assumes they have been registered beforehand
     /// </summary>
     /// <exception cref="InvalidOperationException">A defined system type doesn't have a valid World constructor.</exception>
-    /// <remarks>Called by <see cref="BaseWorld"/>.Initialize()</remarks>
+    /// <remarks>Called by <see cref="World"/>.Initialize()</remarks>
     public static void Initialize()
     {
         // Read all registered types.

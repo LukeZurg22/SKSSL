@@ -72,7 +72,7 @@ public class ComponentGenerator : IIncrementalGenerator
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine("using System.Runtime.CompilerServices;");
         sb.AppendLine("using SKSSL.ECS;");
-        sb.AppendLine("using VYaml.Annotations;");
+        sb.AppendLine("");
         sb.AppendLine();
         sb.AppendLine("namespace ComponentRegistrar;");
         sb.AppendLine();

@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics.Contracts;
 using System.Reflection;
 using SKSSL.ECS;
 using SKSSL.YAML;
@@ -11,68 +11,91 @@ namespace SKSSL.Extensions;
 public static class PrototypeExtensions
 {
     private const BindingFlags Flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+
     /// <summary>
-    /// Applies additive inheritance from a base Prototype/Entity into a target.
-    /// Uses Reflection.
+    /// Applies additive inheritance from a base prototype into a targe prototypet. Uses Reflection.
     /// Child values take precedence (override), base only fills missing fields.
     /// Works with both Prototype and Entity (including YamlComponents).
     /// </summary>
     public static void ApplyInheritanceOf(this Prototype target, Prototype? baseProto)
     {
         if (baseProto == null) return;
+        var chain = new Stack<Type>();
+        for (Type? t = baseProto.GetType(); t != null; t = t.BaseType) chain.Push(t);
 
-        var props = baseProto.GetType().GetProperties(Flags);
-
-        foreach (PropertyInfo prop in props)
+        foreach (Type type in chain)
         {
-            if (!prop.CanRead || !prop.CanWrite) continue;
-            if (prop.Name is "Type" or "Parent") continue; // handled specially
-
-            var childValue = prop.GetValue(target);
-            var baseValue = prop.GetValue(baseProto);
-
-            // Additive only: copy only if child doesn't have a meaningful value
-            if (IsDefaultOrEmpty(childValue) && !IsDefaultOrEmpty(baseValue))
+            var props = type.GetProperties(Flags);
+            foreach (PropertyInfo prop in props)
             {
-                prop.SetValue(target, baseValue);
+                if (!prop.CanRead || !prop.CanWrite)
+                    continue;
+
+                if (prop.Name is nameof(Entity.Type) or nameof(Entity.Abstract) or nameof(Entity.Inherit))
+                    continue;
+
+                var baseValue = prop.GetValue(baseProto);
+                var childValue = prop.GetValue(target);
+
+                if (IsUnset(childValue) && !IsUnset(baseValue)) prop.SetValue(target, baseValue);
             }
         }
 
-        // Special handling for YamlComponents (additive)
+        // Additional handling for entities.
         if (baseProto is not Entity baseEntity ||
             target is not Entity targetEntity ||
-            !(baseEntity.YamlComponents?.Count > 0))
-            return;
-
+            !(baseEntity.YamlComponents?.Count > 0)) return;
         targetEntity.YamlComponents ??= [];
 
-        var yamlComponents = new HashSet<string>(targetEntity.YamlComponents.Select(c => c.Type),
-            StringComparer.OrdinalIgnoreCase);
-
-        foreach (YamlComponent comp in baseEntity.YamlComponents)
+        for (int i = 0; i < baseEntity.YamlComponents.Count; i++)
         {
-            if (!yamlComponents.Contains(comp.Type))
-                targetEntity.YamlComponents.Add(CloneYamlComponent(comp));
-            
-            // WIP: If it already contains existing components, inheritance should also override the fields of existing ones.
+            ComponentProto baseComp = baseEntity.YamlComponents[i];
+
+            bool found = false;
+
+            foreach (ComponentProto targetComp in targetEntity.YamlComponents)
+            {
+                if (!string.Equals(targetComp.Type, baseComp.Type, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                found = true;
+                MergeProtoComponent(targetComp, baseComp);
+                break;
+            }
+
+            if (!found)
+                targetEntity.YamlComponents.Add(CloneYamlComponent(baseComp));
         }
     }
 
-    private static bool IsDefaultOrEmpty(object? value)
+    private static void MergeProtoComponent(ComponentProto target, ComponentProto baseComp)
     {
-        return value switch
+        foreach (var kv in baseComp.Entries)
+            if (!target.Entries.ContainsKey(kv.Key))
+                target.Entries[kv.Key] = kv.Value;
+    }
+
+    [Pure]
+    private static bool IsUnset(object? value)
+    {
+        switch (value)
         {
-            null => true,
-            string s => string.IsNullOrEmpty(s),
-            ICollection c => c.Count == 0,
-            _ => false
-        };
+            case null:
+                return true;
+            case string s:
+                return string.IsNullOrEmpty(s);
+            case ICollection c:
+                return c.Count == 0;
+        }
+
+        Type type = value.GetType();
+        return type.IsValueType && Equals(value, Activator.CreateInstance(type));
     }
 
     /// Helper for cloning YamlComponents.
-    private static YamlComponent CloneYamlComponent(YamlComponent source)
+    [Pure]
+    private static ComponentProto CloneYamlComponent(ComponentProto source)
     {
-        return new YamlComponent
+        return new ComponentProto
         {
             Type = source.Type, Entries = source.Entries.Count != 0
                 ? new Dictionary<string, object?>(source.Entries)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading;
@@ -19,6 +20,7 @@ public class ComponentRegistry
 
     private static readonly Dictionary<Type, Func<Component>> _creators = new();
 
+    [Pure]
     internal static Component FastCreate(Type type)
     {
         if (_creators.TryGetValue(type, out var creator))
@@ -85,17 +87,20 @@ public class ComponentRegistry
 
     /// <param name="id">ID of Registered Component</param>
     /// <returns>Null or Type Definition based on provided ID.</returns>
+    [Pure]
     public static Type? GetType(int id) => _idToType.GetValueOrDefault(id);
-    
+
     /// <param name="type">Type of Registered Component</param>
     /// <returns>ID of Component Type based on provided type.</returns>
+    [Pure]
     public static int GetId(Type type) => _typeToId.GetValueOrDefault(type);
-    
+
     #region Get Methods
 
     /// <summary>
     /// Used for extensions that attempt to retrieve a defined component from an entity.
     /// </summary>
+    [Pure]
     private static bool TryGetComponentIndex(Entity entity, Type componentType, out int index)
     {
         if (!_typeToId.TryGetValue(componentType, out var typeId))
@@ -163,9 +168,11 @@ public class ComponentRegistry
     }
 
     /// <inheritdoc cref="GetComponentTypeId"/>
-    public static int GetComponentTypeId<T>() => GetComponentTypeId(typeof(T));
+    [Pure]
+    private static int GetComponentTypeId<T>() => GetComponentTypeId(typeof(T));
 
     /// Safe-ish way to to obtain a registered type definition added here from Source Generator Registrar.
+    [Pure]
     public static bool TryGetComponentType(string shortName, out Type type)
     {
         if (RegisteredHandleComponentTypesDictionary.TryGetValue(shortName, out Type? temp))
@@ -173,6 +180,7 @@ public class ComponentRegistry
             type = temp;
             return true;
         }
+
         type = null!;
         return false;
     }
@@ -213,6 +221,7 @@ public class ComponentRegistry
     /// <returns>The component instance (boxed as ISKComponent), or null if not found (or throws based on preference).</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component or type is invalid.</exception>
     /// <seealso cref="TryGetComponent{T}"/>
+    [Pure]
     public Component? GetComponent(Entity entity, Type componentType)
     {
         if (!typeof(Component).IsAssignableFrom(componentType))
@@ -235,6 +244,7 @@ public class ComponentRegistry
     /// <typeparam name="T">The component type (must implement ISKComponent).</typeparam>
     /// <returns>A reference to the component if found; otherwise throws.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component.</exception>
+    [Pure]
     public ref T GetComponent<T>(Entity entity) where T : Component
     {
         if (!TryGetComponentIndex(entity, typeof(T), out var index))
@@ -320,6 +330,7 @@ public class ComponentRegistry
     /// <param name="component">Component output for use.</param>
     /// <typeparam name="T">Expected Component Type within entity.</typeparam>
     /// <returns>False if a component wasn't found.</returns>
+    [Pure]
     public bool TryGetComponent<T>(Entity entity, out T component) where T : Component
     {
         component = null!;
@@ -337,6 +348,7 @@ public class ComponentRegistry
     /// Attempts to retrieve a component using explicit type.
     /// </summary>
     /// <returns>true if component was found, output is not null. false if not found, output will be null.</returns>
+    [Pure]
     public bool TryGetComponent(Entity entity, Type componentType, out Component component)
     {
         component = null!;
@@ -372,6 +384,7 @@ public class ComponentRegistry
     /// This is intended for debugging, serialization, inspection, or rare runtime needs.
     /// For performance, use <see cref="GetComponent{T}"/> instead.
     /// </remarks>
+    [Pure]
     public ref List<Component> GetAllComponents(Entity entity)
     {
         // Return a ref to a static thread-local list to avoid allocations in hot paths
@@ -401,6 +414,7 @@ public class ComponentRegistry
     {
         [ThreadStatic] private static List<T>? _list;
 
+        [Pure]
         public static ref List<T> GetOrCreate()
         {
             _list ??= new List<T>(8);

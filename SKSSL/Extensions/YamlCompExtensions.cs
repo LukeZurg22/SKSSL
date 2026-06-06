@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Reflection;
 using SKSSL.ECS;
 using SKSSL.YAML;
-using VYaml.Annotations;
+using YamlDotNet.Serialization;
+
 
 namespace SKSSL.Extensions;
 
 public static class YamlCompExtensions
 {
-    public static YamlComponent Clone(this YamlComponent source)
+    public static ComponentProto Clone(this ComponentProto source)
         => new() { Type = source.Type, Entries = new Dictionary<string, object?>(source.Entries) };
 
     private const BindingFlags FieldFlags = BindingFlags.Public |
@@ -18,9 +20,10 @@ public static class YamlCompExtensions
                                             BindingFlags.IgnoreCase;
 
     /// Converts Component to yaml object for serialization.
-    public static YamlComponent ToYaml(this Component component)
+    [Pure]
+    public static ComponentProto ToYaml(this Component component)
     {
-        var result = new YamlComponent
+        var result = new ComponentProto
         {
             Type = ComponentTypeHelper.NormalizeTypeName(component.GetType().Name)
         };
@@ -92,7 +95,8 @@ public static class YamlCompExtensions
     /// Converts yaml component object to actual component object instance. This instance is NOT registered in the
     /// registry, and has no assigned entity due to this.
     /// <seealso cref="ComponentRegistry"/>
-    public static Component FromYaml(this YamlComponent yaml)
+    [Pure]
+    public static Component FromYaml(this ComponentProto yaml)
     {
         string typeName = ComponentTypeHelper.NormalizeTypeName(yaml.Type);
         if (!ComponentRegistry.TryGetComponentType(typeName, out Type? componentType))
