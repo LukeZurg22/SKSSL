@@ -9,5 +9,6 @@ namespace SKSSL.Mathematics;
 public abstract class StatisticsVariables
 {
     /// WARN: Not fully implemented, yet.
+    /// Used by the Mathematics classes, and any additional ones.
     public static Dictionary<string, double> Statistics { get; set; } = new();
 }

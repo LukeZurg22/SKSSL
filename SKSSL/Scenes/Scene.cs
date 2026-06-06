@@ -13,7 +13,7 @@ namespace SKSSL.Scenes;
 /// <remarks>
 /// A Main Menu versus active Gameplay interfaces are good examples of Scenes. Not to be confused with the theatrical.
 /// </remarks>
-public abstract class BaseScene
+public abstract class Scene
 {
     /// Dedicated scene spritebatch for screen rendering.
     protected SpriteBatch _spriteBatch = null!;
@@ -33,12 +33,12 @@ public abstract class BaseScene
     /// Gameworld is passed-through as a reference. A world does NOT need to be updated within a scene, and shouldn't.
     /// The <see cref="SceneManager"/> calls world updates.
     /// </remarks>
-    public IWorld? GameWorld;
+    public World? GameWorld;
 
     /// <summary>
     /// Initializes game world in this scene.
     /// </summary>
-    public void Initialize(GraphicsDeviceManager manager, SpriteBatch gameSpriteBatch, ref IWorld? world)
+    public void Initialize(GraphicsDeviceManager manager, SpriteBatch gameSpriteBatch, ref World? world)
     {
         _spriteBatch = gameSpriteBatch;
         _graphicsManager = manager;

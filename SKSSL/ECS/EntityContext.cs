@@ -18,8 +18,8 @@ public readonly struct EntityContext
     /// <inheritdoc cref="SKSSL.ECS.ComponentRegistry"/>
     public readonly ComponentRegistry Components = null!;
 
-    /// <inheritdoc cref="BaseWorld"/>
-    public readonly BaseWorld World = null!;
+    /// <inheritdoc cref="Scenes.World"/>
+    public readonly World World = null!;
     
     public EntityContext(EntityManager entityManager, ComponentRegistry componentRegistry)
     {
@@ -33,14 +33,14 @@ public readonly struct EntityContext
     /// <exception cref="NullReferenceException">Thrown when ECS acquired is null.</exception>
     public EntityContext()
     {
-        EntityContext ecs = SSLGame.ECS();
+        EntityContext ecs = SSLGame.Instance.SceneManager.ECS();
         World = ecs.World;
         EntityManager = ecs.EntityManager;
         Components = ecs.Components;
     }
 
     /// Wrapper Constructor for a <see cref="ECSController"/>.
-    public EntityContext(BaseWorld world)
+    public EntityContext(World world)
     {
         ECSController ecs = world.ECS;
         World = world;

@@ -3,7 +3,7 @@ using SKSSL.Scenes;
 
 namespace SKSSL.Tests.TestData;
 
-public class TestScene : BaseScene
+public class TestScene : Scene
 {
     public override void LoadContent()
     {

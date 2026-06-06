@@ -7,11 +7,11 @@ namespace SKSSL.Extensions;
 public static partial class EntityExtensions
 {
     /// Gets current Game's EntityContext.
-    private static ComponentRegistry ComponentRegistry => SSLGame.ECS().Components;
+    private static ComponentRegistry ComponentRegistry => SSLGame.Instance.SceneManager.ECS().Components;
 
     /// Retrieves all entities from active EntityContext.
     [Pure]
-    private static IReadOnlyList<Entity> Entities => SSLGame.ECS().EntityManager.AllEntities;
+    private static IReadOnlyList<Entity> Entities => SSLGame.Instance.SceneManager.ECS().EntityManager.AllEntities;
 }
 /*
     You there, yes, you! Welcome!

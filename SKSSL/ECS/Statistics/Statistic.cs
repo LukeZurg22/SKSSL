@@ -12,7 +12,7 @@ public struct Statistic
     public double MaxValue { get; set; }
     
     /// List of modifiers.
-    public List<StatisticModifier> Modifiers { get; set; }
+    public List<StatisticModifier>? Modifiers { get; set; }
 }
 
 public struct StatisticModifier

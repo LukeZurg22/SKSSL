@@ -25,7 +25,7 @@ public abstract class EntitySystem
     /// <remarks>
     /// Will cause a crash if ECS isn't enabled, and Entity Systems are in use.
     /// </remarks>
-    protected static EntityContext Context => SSLGame.ECS();
+    protected static EntityContext Context => SSLGame.Instance.SceneManager.ECS();
 
     /// <summary>
     /// Quick route to SSLGame.ECS().EntityManager.
@@ -35,7 +35,7 @@ public abstract class EntitySystem
     /// <summary>
     /// Quick route to SSLGame.ECS().World for extension methods.
     /// </summary>
-    public static BaseWorld World => Context.World;
+    public static World World => Context.World;
 
     /// <summary>
     /// Quick route to SSLGame.ECS().World.Events

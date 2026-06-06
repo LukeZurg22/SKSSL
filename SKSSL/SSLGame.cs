@@ -113,43 +113,6 @@ public abstract class SSLGame : Game
 
     #endregion
 
-    /// <remarks>
-    /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context
-    /// varies between scenes.
-    /// </remarks>
-    /// <returns>Scene Manager's Current World's Entity Context.</returns>
-    public static EntityContext ECS(BaseWorld? world = null)
-    {
-        string message;
-
-        // If not using ECS, then why? Throw an error!
-        if (!UseECS)
-        {
-            message = "Failed to get Entity Context because ECS is not enabled.";
-            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
-            throw new SettingsException(message);
-        }
-
-        // If the scene manager has a world, then use that world instead of the provided one if this is null.
-        if (world == null && Instance.SceneManager.CurrentWorld is BaseWorld res)
-        {
-            world ??= res; // Reassign world.
-        }
-
-        // Final check to validate that the world (and its ECS) is functioning.
-        if (world?.ECS is null)
-        {
-            message = "Failed to get Entity Context from null world or null World ECS!";
-            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
-            throw new Exception(message);
-        }
-
-        // Return the latest & greatest entity context!
-        // Do NOT instantiate a blank-constructor EntityContext here! It will cause an infinite loop of ECS() calls!
-        var entityContext = new EntityContext(world);
-        return entityContext;
-    }
-
     /// Base constructor runs first.
     protected SSLGame() : this("SSLGame")
     {
