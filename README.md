@@ -19,13 +19,13 @@ Given that this is a library, it has limitations from C# version 9+ and its othe
 This is all a work-in-progress, but don't wait for releases! When I find a system in this library satisfactory enough for my other projects, I stop adding to that system. Contributions to systems no longer actively maintained are welcome.
 
 ## Additional Documentation
-1. [Engine Setup](DOCUMENTATION/0_SETUP.md)
-   1. [Adjusting The .csproj Project File](DOCUMENTATION/0_SETUP.md#csproj-adjustments)
-   2. (Optional) [Attaching GUM UI](DOCUMENTATION/0_SETUP.md#gum)
-   3. [Configuring Game Paths](DOCUMENTATION/0_SETUP.md#settings)<br/>
+1. [Engine Setup](SKSSL/DOCUMENTATION/0_SETUP.md)
+   1. [Adjusting The .csproj Project File](SKSSL/DOCUMENTATION/0_SETUP.md#csproj-adjustments)
+   2. (Optional) [Attaching GUM UI](SKSSL/DOCUMENTATION/0_SETUP.md#gum)
+   3. [Configuring Game Paths](SKSSL/DOCUMENTATION/0_SETUP.md#settings)<br/>
    _Ensure that any pre-defined folders align with the ones mentioned in the `.csproj`!_
-   4. [Creating an SKSSL Game Class](DOCUMENTATION/0_SETUP.md#sslgame)
-2. [Using SKSSL](DOCUMENTATION/1_USAGE.md)
+   4. [Creating an SKSSL Game Class](SKSSL/DOCUMENTATION/0_SETUP.md#sslgame)
+2. [Using SKSSL](SKSSL/DOCUMENTATION/1_USAGE.md)
 
 ---
 
