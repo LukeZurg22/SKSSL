@@ -67,28 +67,6 @@ public partial class EntityManager
 
     #endregion
 
-    #region Spawn Entity
-
-    /// <summary>
-    /// Public generic of <see cref="Spawn(Entity)"/> that creates a new entity w. blank constructor.
-    /// </summary>
-    /// <typeparam name="T">Entity of type Entity</typeparam>
-    /// <returns>Entity instance, which is considered active.</returns>
-    public Entity Spawn<T>() where T : Entity, new() => Spawn(new T());
-
-    /// <summary>
-    /// Creates a copy of an entity instance in its parameter.
-    /// </summary>
-    /// <param name="type">Entity instance to be copied and finalized.</param>
-    /// <returns>New Entity Instance.</returns>
-    public Entity Spawn(Entity type)
-    {
-        // Create entity and hope and pray it's fine.
-        Entity entity = CreateEntity(type);
-        Finalize(ref entity);
-        return entity;
-    }
-
     /// <summary>
     /// Acquires an entity template using a provided reference id, and creates an entity instance using it.
     /// </summary>
@@ -96,7 +74,7 @@ public partial class EntityManager
     /// <returns>Spawned copy of entity from handle.</returns>
     public Entity? Spawn(string handle)
     {
-        if (!GameECSMasterRegistry.TryGetPrototype(handle, out var definition))
+        if (!GameECSMasterRegistry.TryGetPrototype(handle, out Prototype definition))
         {
             Log($"Failed to get entity copy using {handle} handle. Try full handle instead.",
                 LOG.SYSTEM_ERROR);
@@ -104,7 +82,7 @@ public partial class EntityManager
         }
 
         // Assumes all definitions present here are entities. A bit ambiguous, it is.
-        if (definition.GetType() != typeof(Entity))
+        if (definition is not Entity source || source.Abstract == true)
         {
             Log($"Invalid Entity handle \'{handle}\'. Are you attempting to spawn some other non-entity prototype?",
                 LOG.SYSTEM_ERROR);
@@ -113,56 +91,25 @@ public partial class EntityManager
 
         // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
         // Create entity regardless of how it's stored.
-        Entity entity = Spawn((definition as Entity)!);
-
-        // Assign world to entity. Will cause some funk if the world is null.
-        return entity;
-    }
-
-    #endregion
-
-    #region CreateEntity
-
-    /// <summary>
-    /// Create entity using existing raw <see cref="Entity"/> definition. Assumes definition is valid.
-    /// </summary>
-    /// <returns>New cloned entity.</returns>
-    private static Entity CreateEntity(Entity definition)
-    {
-        // Create a copy of this entity.
-        if (definition.CloneEntityAs<Entity>() is not { } entity)
-            throw new Exception("Attempted to create entity from definition, but the definition was not an Entity!");
-        return entity;
-    }
-
-    #endregion
-
-    #region Helpers
-
-    /// <summary>
-    /// Final steps to conduct against an entity before spawning / creating.
-    /// </summary>
-    private void Finalize(ref Entity entity)
-    {
-        // TODO: Last-preemptive registration if this entity's full handle is not present in the registry.
-
+        var entity = source.CloneEntityAs<Entity>();
+        
+        // Final steps to conduct against an entity before spawning / creating.
         // Assign world.
         entity.World = _world;
 
         // Add default components if provided.
-        foreach (ComponentProto yamlComponent in entity.YamlComponents!)
-        {
-            if (ComponentRegistry.TryGetComponentType(yamlComponent.Type, out Type componentType))
-            {
-                entity.AddComponent(componentType);
-            }
-        }
+        if (entity.YamlComponents != null)
+            foreach (ComponentProto yamlComponent in entity.YamlComponents)
+                if (ComponentRegistry.TryGetComponentType(yamlComponent.Type, out Type componentType))
+                    entity.AddComponent(componentType);
 
-        // Initialize the entity.
-        entity.Initialize();
-
+        // Add & Initialize the entity.
         _allEntities.Add(entity);
+        entity.Initialize();
+        return entity;
     }
+
+    #region Helpers
 
     /// <summary>
     /// Remove all entities contained in Entity Manager.

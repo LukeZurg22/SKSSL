@@ -38,12 +38,7 @@ public record Entity : Prototype
     [YamlMember(Alias = "type")]
     public override string Type { get; set; } = "Entity";
     
-    // WIP: Make abstract entities non-spawnable, but at least they carry data that can be inherited.
-    
     [YamlMember(Alias = "abstract")] public bool? Abstract { get; set; } = false;
-
-    // WIP: Make it such that generic prototype's CAN'T inherit, but in return the developer can create custom
-    //  Registries that accommodates custom inheritance. They gotta do it themsleves.
     
     [YamlMember(Alias = "inherit"), JsonInclude, JsonPropertyName("Inherit")]
     public string[]? Inherit;
@@ -125,17 +120,17 @@ public record Entity : Prototype
     /// Systems will automatically act upon an entity's components, this method is a formality for special
     /// alternative behaviour on-creation.
     /// </remarks>
-    public void Initialize()
+    public virtual void Initialize()
     {
     }
 
     /// Special draw instructions per-entity, should a Rendering component not be enough.
-    public void Draw(SpriteBatch spriteBatch)
+    public virtual void Draw(SpriteBatch spriteBatch)
     {
     }
 
     /// Special entity behaviour / status update call, should behavioural components not be enough.
-    public void Update(GameTime gameTime)
+    public virtual void Update(GameTime gameTime)
     {
     }
 
