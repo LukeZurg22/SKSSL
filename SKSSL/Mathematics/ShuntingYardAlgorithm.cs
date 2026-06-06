@@ -15,6 +15,7 @@ namespace SKSSL.Mathematics;
 /// </summary>
 public static class ShuntingYard
 {
+    /// P.E.M.D.A.S.: Parenthesis, exponents, multiplication, division, addition, subtraction. 
     private static readonly Dictionary<string, byte> Precedence = new()
         { { "+", 1 }, { "-", 1 }, { "*", 2 }, { "/", 2 }, { "^", 3 }, { "u-", 4 } };
 
@@ -99,15 +100,14 @@ public static class ShuntingYard
                 }
                 default:
                 {
-                    if (token.IsOperator()) // +, -, *, /, ^, u-, u+
+                    if (token.IsOperator()) // +, -, *, /, ^, u-
                     {
                         string op = token;
 
-                        // Handle unary minus/plus
-                        if (op is "-" or "+" &&
-                            (index == 0 || IsUnaryOperator(tokens[index - 1])))
+                        // Handle unary.
+                        if (op is "-" && (index == 0 || IsUnaryOperator(tokens[index - 1])))
                         {
-                            op = op == "-" ? "u-" : "u+";
+                            op = "u-";
                         }
 
                         while (operators.Count > 0 &&
@@ -151,7 +151,6 @@ public static class ShuntingYard
             // For every character
             char character = expression[i];
 
-            // If character is an expected, add to stack of string operators,
             // If character is an expected, add to stack of string operators,
             if (char.IsDigit(character) || character == '.')
             {

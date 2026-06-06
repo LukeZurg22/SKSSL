@@ -3,6 +3,7 @@
 
 using System;
 using Microsoft.Xna.Framework;
+using YamlDotNet.Core.Tokens;
 
 namespace SKSSL.Mathematics;
 
@@ -28,7 +29,7 @@ public static class CharacterExtensions
     public static bool IsUnaryOperator(string token) => token is "u-" or "u+";
     public static bool IsOperator(this char token) => token is '+' or '-' or '*' or '/' or '^';
     public static bool IsBracket(this char token) => token is '(' or ')' or '{' or '}' or '[' or ']';
-    public static bool IsOperator(this string token) => token is "+" or "-" or "*" or "/" or "^";
+    public static bool IsOperator(this string token) => token is "+" or "-" or "*" or "/" or "^" or "u-";
 }
 
 // ReSharper disable once ConvertIfStatementToReturnStatement
