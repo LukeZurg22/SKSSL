@@ -24,7 +24,7 @@ public abstract class GameContentLoader : IGameContentLoader
     /// Generally expects all files in the directory to be the same type. Can be overwritten for custom logic.
     public virtual void Load(string directory)
     {
-        if (!SSLGame.UseECS)
+        if (!SSLGame.Config.UseECS)
         {
             Log($"Cannot load prototypes from {directory} folder. ECS is not Enabled!", LOG.SYSTEM_WARNING);
             return;

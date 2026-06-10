@@ -19,6 +19,8 @@ using SKSSL.Utilities;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Local
+
 namespace SKSSL;
 
 /// <summary>
@@ -45,35 +47,8 @@ public abstract class SSLGame : Game
 
     #endregion
 
-    /*
-     * Use static constructor for these.
-     */
-
-    #region Engine Config
-
-    /// Ultimate toggle to use ECS service. Enable this at project initialization.
-    /// To use, add the following to the game class inheriting SSLGame:
-    /// <code>
-    /// static MyGameClass() => UseECS = true;
-    /// </code>
-    public static bool UseECS = false;
-
-    /// <summary>
-    /// The Project Gum UI file that will dictate how UI is loaded.
-    /// <code>
-    /// Example: "Gum/SolKom.gumx"
-    /// </code>
-    /// </summary>
-    public static string GumFile = "CHANGE_ME";
-
-    /// <summary>
-    /// A configurable developer-provided content loader that handles the logic the game uses to search and
-    /// handle its files, whether to Serialize or Deserialize data.
-    /// </summary>
-    // ReSharper disable once FieldCanBeMadeReadOnly.Global
-    public static GameContentLoader GameContentLoader = new YamlLoader();
-    
-    #endregion
+    // Use static constructor for this.
+    public static EngineConfig Config { get; set; } = new();
 
     #region Fields
 
@@ -110,9 +85,12 @@ public abstract class SSLGame : Game
     #endregion
 
     /// Base constructor runs first.
+    // ReSharper disable once UnusedMember.Global
     protected SSLGame() : this("SSLGame")
     {
     }
+
+    private readonly string _gumFilePath;
 
     /// <summary>
     /// Constructor for SSLGame. Runs before any inheritors.
@@ -122,6 +100,11 @@ public abstract class SSLGame : Game
     protected SSLGame(string title, params ContentManager[] contents)
     {
         #region Settings
+
+        if (string.IsNullOrEmpty(Config.GumFile))
+            Log($"No gum project file in Content/Gum in {Title}, {nameof(SSLGame)} Class.", LOG.SYSTEM_WARNING);
+        else // Prepend Gum root.
+            _gumFilePath = Path.Combine("Gum", Config.GumFile);
 
         // Load settings, and based on game paths, create directories ordered by load order.
         GameSettings settings = LoadSettings();
@@ -160,8 +143,8 @@ public abstract class SSLGame : Game
         #region SSLGame Additionals
 
         // Display ECS status. This called after inheritors.
-        Log($"ECS status: {(UseECS ? "on" : "off")}");
-        if (UseECS)
+        Log($"ECS status: {(Config.UseECS ? "on" : "off")}");
+        if (Config.UseECS)
         {
             Log($"Source generator accounted for {ComponentRegistry.Count} components:");
             // Print all registered components in a nice list. 
@@ -193,7 +176,7 @@ public abstract class SSLGame : Game
     /// WIP: loading directories.
     ///  == Textures & Materials
     ///  == Prototypes (check ECS I guess?)
-        ///  Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
+    ///  Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
     private static void LoadGameDirectories(GameDirectory directory)
     {
         // Assuming there are defined directories to begin with...
@@ -212,10 +195,10 @@ public abstract class SSLGame : Game
         }
 
         // Prototypes.
-        if (directory.PrototypesFolder != null && UseECS) // Requires ECS to be on.
+        if (directory.PrototypesFolder != null && Config.UseECS) // Requires ECS to be on.
         {
             Log($"...loading {directory.DirectoryTitle} prototypes.");
-            GameContentLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
+            Config.ContentLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
             // TODO: Add custom bootstrapping so developer can have their own loader slotted in.
         }
 
@@ -306,16 +289,12 @@ public abstract class SSLGame : Game
 
     private GumProjectSave? InitializeGum()
     {
-        if (string.IsNullOrEmpty(GumFile))
-            Log($"No gum project file in Content/Gum in {Title}, {nameof(SSLGame)} Class.", LOG.SYSTEM_WARNING);
-        else
-            GumFile = Path.Combine("Gum", GumFile);
-
         // Initialize Gum UI Handling (Some projects may choose not to utilize Gum)
         GumProjectSave? gumProjectSave = null;
-        if (string.IsNullOrEmpty(GumFile) || GumFile.Contains("CHANGE_ME")) return gumProjectSave;
+        if (string.IsNullOrEmpty(_gumFilePath))
+            return gumProjectSave;
         Gum = GumService.Default;
-        gumProjectSave = Gum.Initialize(this, GumFile);
+        gumProjectSave = Gum.Initialize(this, _gumFilePath);
 
         return gumProjectSave;
     }
@@ -358,7 +337,7 @@ public abstract class SSLGame : Game
         SceneManager = new SceneManager(this, _graphicsManager, _spriteBatch, gumSave);
         Components.Add(SceneManager);
 
-        if (UseECS)
+        if (Config.UseECS)
         {
             SystemManager.Initialize();
         }
@@ -379,7 +358,7 @@ public abstract class SSLGame : Game
     protected override void Draw(GameTime gameTime)
     {
         base.Draw(gameTime);
-        if (UseECS)
+        if (Config.UseECS)
         {
             SystemManager.Draw(gameTime);
         }
@@ -395,7 +374,7 @@ public abstract class SSLGame : Game
         MouseWrapper.HandleForcedPosition();
 
         base.Update(gameTime);
-        if (UseECS)
+        if (Config.UseECS)
         {
             SystemManager.Update(gameTime);
         }

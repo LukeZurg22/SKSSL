@@ -44,7 +44,7 @@ public class SceneManager : DrawableGameComponent
         string message;
 
         // If not using ECS, then why? Throw an error!
-        if (!SSLGame.UseECS)
+        if (!SSLGame.Config.UseECS)
         {
             message = "Failed to get Entity Context because ECS is not enabled.";
             Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
