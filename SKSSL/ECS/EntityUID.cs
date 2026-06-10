@@ -30,4 +30,5 @@ public class EntityUid
 
     public static implicit operator uint(EntityUid uid) => uid.Id;
     public static implicit operator Entity(EntityUid uid) => uid.Entity;
+    public EntityUid Empty { get; set; } = new();
 }

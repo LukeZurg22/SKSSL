@@ -29,7 +29,7 @@ namespace SKSSL;
 /// // Files read once per type, cached afterward
 /// </code></example>
 /// </summary>
-public class YamlLoader : GameContentLoader
+public class YamlLoader : PrototypeLoader
 {
     protected override string[] Extensions => [".yml", ".yaml"];
 
@@ -50,13 +50,15 @@ public class YamlLoader : GameContentLoader
     /// <returns>Serialized form of Object for YAML file save.</returns>
     /// <remarks>Forces object to list of itself for serialization.</remarks>
     // WARN: I am worried this will not handle multiple types very well!
-    protected override string SerializeLogicImplement<T>(T obj) where T : class => SKSSLDefaultSerializer.Serialize(obj);
+    protected override string SerializeLogicImplement<T>(T obj) where T : class =>
+        SKSSLDefaultSerializer.Serialize(obj);
 
-    protected override List<Prototype> DeserializeLogicImplement(string text, string fileTrace = "", params Type[] types)
+    protected override List<Prototype> DeserializeLogicImplement(string text, string fileTrace = "",
+        params Type[] types)
     {
         // Split up the text into lines.
         var lines = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
-        
+
         // "You can tell its conglomerate- because it's everywhere!"
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
         // Files should -not- have a type defined within them outside the ones passed through here. If one somehow
@@ -71,7 +73,6 @@ public class YamlLoader : GameContentLoader
         // Deserialize each set of blocks as a list of their corresponding types.
         return DeserializeFillData(combined, fileTrace);
     }
-    
 
     #region Helpers
 

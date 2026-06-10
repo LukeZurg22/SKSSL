@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Drawing;
+using RenderingLibrary.Graphics;
 using Color = Microsoft.Xna.Framework.Color;
 
 namespace SKSSL.Utilities;
@@ -23,14 +25,14 @@ public class UIStyle
     [XmlIgnore]
     public Color Foreground
     {
-        get => ColorConverter.FromHex(ColorHexStringForeground);
+        get => FromHex(ColorHexStringForeground);
         set => ColorHexStringForeground = value.ToString();
     }
     
     [XmlIgnore]
     public Color Background
     {
-        get => ColorConverter.FromHex(ColorHexStringBackground);
+        get => FromHex(ColorHexStringBackground);
         set => ColorHexStringBackground = value.ToString();
     }
 
@@ -45,4 +47,6 @@ public class UIStyle
         };
         return style;
     }
+    
+    public static Color FromHex(string HEX) => ColorTranslator.FromHtml(HEX).ToXNA();
 }

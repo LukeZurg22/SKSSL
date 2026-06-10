@@ -1,5 +1,7 @@
 using System.Diagnostics.Contracts;
 using Microsoft.Xna.Framework;
+// ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedType.Global
 
 namespace SKSSL.Extensions;
 

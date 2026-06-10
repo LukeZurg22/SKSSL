@@ -70,7 +70,7 @@ public class SceneManager : DrawableGameComponent
         var entityContext = new EntityContext(world);
         return entityContext;
     }
-    
+
     /// Active in-use game scene. Class-type specific.
     protected Scene? _currentScene;
 
@@ -136,7 +136,7 @@ public class SceneManager : DrawableGameComponent
         stopwatch.Stop(); // Stop the timer.
         Log($"Scene load complete by {stopwatch.ElapsedMilliseconds}ms");
     }
-    
+
     /// Calls Draw Methods on Current Scene, which innately sends a draw call on the world.
     public override void Draw(GameTime gameTime) => _currentScene?.Draw(gameTime);
 

@@ -8,7 +8,7 @@ using SKSSL.Extensions;
 
 namespace SKSSL.Textures;
 
-public abstract partial class TextureLoader
+public partial class TextureLoader
 {
     private static void LoadTextureMaterial(string file, string folderName)
     {

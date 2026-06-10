@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Textures;
 
-public abstract partial class TextureLoader
+public partial class TextureLoader
 {
     /// <summary>
     /// Programmer-assigned textures for use elsewhere.

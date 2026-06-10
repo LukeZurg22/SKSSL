@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
@@ -9,6 +10,28 @@ using static System.IO.Path;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SKSSL;
+
+/// <summary>
+/// Enumerable wrapper for <see cref="GameDirectory"/> that represents an entire game (or mod) root directory.
+/// </summary>
+public class GameContentDirectories : IEnumerable<GameDirectory>
+{
+    private readonly List<GameDirectory> Directories = [];
+
+    public int Count => Directories.Count;
+    
+    /// <summary>
+    /// Sort internal directories by load order. Lower Order = Higher Priority.
+    /// </summary>
+    public void Sort()
+        => Directories.Sort((a, b) => a.LoadOrder.CompareTo(b.LoadOrder));
+
+    public void Add(string path = "", int? order = null) => Directories.Add(new GameDirectory(path, order));
+
+    public IEnumerator<GameDirectory> GetEnumerator() => ((IEnumerable<GameDirectory>)Directories).GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => Directories.GetEnumerator();
+}
 
 /// <summary>
 /// Wrapper for a game's content folder for getting game prototype, texture, and localization directories.

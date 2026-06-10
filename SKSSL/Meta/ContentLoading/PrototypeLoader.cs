@@ -7,12 +7,7 @@ using SKSSL.ECS;
 
 namespace SKSSL;
 
-public interface IGameContentLoader
-{
-    public void Load(string directory);
-}
-
-public abstract class GameContentLoader : IGameContentLoader
+public abstract class PrototypeLoader : IGameLoader
 {
     /// <summary>
     /// Custom supported extensions provided by developer implementation. OVERRIDE ME!
@@ -87,12 +82,9 @@ public abstract class GameContentLoader : IGameContentLoader
         if (obj == null)
             return "";
 
-        if (IsCollection(obj) && obj is not string)
-        {
-            return SerializeLogicImplement(obj);
-        }
-
-        return SerializeLogicImplement(new List<T> { obj });
+        return IsCollection(obj) && obj is not string
+            ? SerializeLogicImplement(obj)
+            : SerializeLogicImplement(new List<T> { obj });
 
         // Helper method - Clean way to detect collections
         bool IsCollection(object? ding) => ding switch

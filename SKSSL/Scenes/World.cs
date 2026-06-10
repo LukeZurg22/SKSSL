@@ -47,7 +47,6 @@ public abstract class World : IWorld
     
     /// Most worlds use ECS — this depends on overall dictation. If ECS is enabled,
     /// then a world can be forcefully disconnected per its definition. 
-    /// <value>SSLGame.<see cref="SSLGame.UseECS"/></value>
     protected static bool UsesECS => SSLGame.Config.UseECS;
 
     /// Graphics management embedded in this world.

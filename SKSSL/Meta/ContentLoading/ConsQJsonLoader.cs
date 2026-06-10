@@ -14,7 +14,7 @@ namespace SKSSL;
 /// Lifted from "Consequaintances", this is an incredibly simple loader for Json files
 /// using system <see cref="System.Text.Json"/>.
 /// </summary>
-public class ConsQJsonLoader : GameContentLoader
+public class ConsQJsonLoader : PrototypeLoader
 {
     protected override string SerializeLogicImplement<T>(T obj)
         => JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });

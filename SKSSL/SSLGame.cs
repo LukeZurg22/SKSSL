@@ -191,7 +191,7 @@ public abstract class SSLGame : Game
         if (directory.TexturesFolder != null)
         {
             Log($"...loading {directory.DirectoryTitle} textures.");
-            TextureLoader.Load(directory.TexturesFolder);
+            new TextureLoader().Load(directory.TexturesFolder);
         }
 
         // Prototypes.

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Linq;
-using System.Reflection;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
 using SKSSL.YAML;
@@ -38,6 +37,7 @@ public partial class EntityManager
     /// <returns>Null or instance of entity with provided ID.</returns>
     /// <remarks>Requires the user to know the ID of the entity.</remarks>
     [Pure]
+    // ReSharper disable once UnusedMember.Global
     public Entity? GetEntity(int id)
     {
         if (_allEntities.Any(e => e.Uid == id))
@@ -59,7 +59,7 @@ public partial class EntityManager
     /// <summary>
     /// TryGet wrapper for <see cref="GetEntity(string)"/>
     /// </summary>
-    public bool TryGetEntity(string handle, [MaybeNullWhen(false)] out Entity entity)
+    public bool TryGetEntity(string handle, [NotNullWhen(true)] out Entity? entity)
     {
         entity = GetEntity(handle);
         return entity != null;
@@ -92,8 +92,7 @@ public partial class EntityManager
         // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
         // Create entity regardless of how it's stored.
         var entity = source.CloneEntityAs<Entity>();
-        
-        // Final steps to conduct against an entity before spawning / creating.
+
         // Assign world.
         entity.World = _world;
 
@@ -109,8 +108,6 @@ public partial class EntityManager
         return entity;
     }
 
-    #region Helpers
-
     /// <summary>
     /// Remove all entities contained in Entity Manager.
     /// </summary>
@@ -119,31 +116,5 @@ public partial class EntityManager
         // TODO: MIGHT require additional unloading? The list just clears references for the GC. Components these
         //  entities had aren't clear, and created IDs aren't reset back to start from 0.
         _allEntities.Clear();
-    }
-
-    #endregion
-
-    /// <summary>
-    /// Dynamic constructor factory — works with any depth of inheritance
-    /// </summary>
-    /// <param name="yaml"></param>
-    /// <param name="components"></param>
-    /// <returns></returns>
-    public static Entity CreateFromYaml(Prototype yaml, Dictionary<Type, object> components)
-    {
-        if (Activator.CreateInstance(
-                typeof(Entity),
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                null,
-                [yaml, components],
-                null) is not Entity template)
-        {
-            throw new MissingMethodException(
-                $"No suitable constructor found on {nameof(Entity)} " +
-                $"for YAML type {yaml.GetType().Name}. " +
-                "Ensure there is a protected/internal constructor accepting a compatible YAML type.");
-        }
-
-        return template;
     }
 }

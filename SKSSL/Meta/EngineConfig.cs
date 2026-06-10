@@ -21,8 +21,16 @@ public class EngineConfig
     /// handle its files, whether to Serialize or Deserialize data.
     /// </summary>
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
-    public GameContentLoader ContentLoader = new YamlLoader();
+    public PrototypeLoader ContentLoader = new YamlLoader();
 
+    /* // WIP: More dynamic directory loading.
+     * Dictionary<string, GameLoader>() {
+     *  { "textures", new TextureLoader() },
+     *  { "prototypes", new YamlLoader() },
+     *  { "localization", new LocaleLoader() },
+     * }
+     */
+    
     public override string ToString()
     {
         return $"{UseECS};{GumFile};{ContentLoader.GetType().Name}";

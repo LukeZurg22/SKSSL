@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Textures;
 
-public abstract partial class TextureLoader
+public partial class TextureLoader
 {
     /// <remarks>
     /// Icons have additional caching and handling than materials, which are uniquely handled in this method. 

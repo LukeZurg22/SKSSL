@@ -6,7 +6,6 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using static System.IO.Directory;
 using static System.IO.SearchOption;
-using static SKSSL.Textures.TextureLoader.MaterialRegistry;
 
 namespace SKSSL.Textures;
 
@@ -38,8 +37,10 @@ public enum TextureType : byte
 /// Generic texture loader for all game asset categories (objects, items, UI, etc.).
 /// Supports multi-texture maps (diffuse + normal + etc.) and automatic error texture fallback.
 /// </summary>
-public abstract partial class TextureLoader
+public partial class TextureLoader : IGameLoader
 {
+    private static readonly string[] TextureExtensions = [ ".png", ".jpg" ];
+    
     private const string IndicatorMaterial = ".m";
     private const string IndicatorTilemap = ".t"; // TODO: Current unused. Tilemap support would be nice.
     private const string IndicatorIcon = ".i";
@@ -57,7 +58,7 @@ public abstract partial class TextureLoader
     /// </summary>
     /// <param name="directory">A particular game directory's textures folder.</param>
     /// <exception cref="ArgumentNullException"></exception>
-    public static void Load(string directory)
+    public void Load(string directory)
     {
         // Process all folders inside textures folder. 
         var subFolders = GetDirectories(directory, "", AllDirectories);
