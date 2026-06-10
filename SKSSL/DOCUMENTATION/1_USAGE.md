@@ -28,7 +28,7 @@ the name of the folder that holds them. Otherwise, the loader may exhibit unexpe
 2. `<name>.i`<br/>
 _Contains individual image files, which can be any name._
 3. `<name>.t`<br/>
-_Contains a tilemap._ [Work In Progress]
+_Contains a tilemap._ _**[Work In Progress]**_
 
 ## Prototypes
 All prototype files are declared in `.yaml`/`.yml`, `.json`, or whatever file extension(s) your chosen GameContentLoader
