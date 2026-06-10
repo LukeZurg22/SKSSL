@@ -15,16 +15,12 @@ public readonly struct EntityContext
     /// <inheritdoc cref="SKSSL.ECS.EntityManager"/>
     public readonly EntityManager EntityManager = null!;
 
-    /// <inheritdoc cref="SKSSL.ECS.ComponentRegistry"/>
-    public readonly ComponentRegistry Components = null!;
-
     /// <inheritdoc cref="Scenes.World"/>
     public readonly World World = null!;
     
-    public EntityContext(EntityManager entityManager, ComponentRegistry componentRegistry)
+    public EntityContext(EntityManager entityManager)
     {
         EntityManager = entityManager;
-        Components = componentRegistry;
     }
 
     /// <summary>
@@ -36,7 +32,6 @@ public readonly struct EntityContext
         EntityContext ecs = SSLGame.Instance.SceneManager.ECS();
         World = ecs.World;
         EntityManager = ecs.EntityManager;
-        Components = ecs.Components;
     }
 
     /// Wrapper Constructor for a <see cref="ECSController"/>.
@@ -45,7 +40,6 @@ public readonly struct EntityContext
         ECSController ecs = world.ECS;
         World = world;
         EntityManager = ecs.EntityManager;
-        Components = ecs.ComponentRegistry;
     }
 
     /*
@@ -54,8 +48,6 @@ public readonly struct EntityContext
      *
      * Documentation is inherited from the functions-called.
      */
-
-    #region Proxy-Methods
 
     /// <inheritdoc cref="SKSSL.ECS.EntityManager.AllEntities"/>
     public List<Entity> ActiveEntities => EntityManager.AllEntities.ToList();
@@ -75,6 +67,4 @@ public readonly struct EntityContext
 
         return spawnedEntity;
     }
-
-    #endregion
 }

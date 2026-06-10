@@ -1,17 +1,13 @@
-using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using SKSSL.ECS;
 
 namespace SKSSL.Extensions;
 
 public static partial class EntityExtensions
 {
-    /// Gets current Game's EntityContext.
-    private static ComponentRegistry ComponentRegistry => SSLGame.Instance.SceneManager.ECS().Components;
+    private static EntityManager EntityManager => SSLGame.Instance.SceneManager.ECS().EntityManager;
 
-    /// Retrieves all entities from active EntityContext.
-    [Pure]
-    private static IReadOnlyList<Entity> Entities => SSLGame.Instance.SceneManager.ECS().EntityManager.AllEntities;
+    /// Gets current Game's EntityContext.
+    private static ComponentRegistry ComponentRegistry => EntityManager.ComponentRegistry;
 }
 /*
     You there, yes, you! Welcome!

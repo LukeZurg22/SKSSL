@@ -44,7 +44,7 @@ public abstract class World : IWorld
     /// Event handler for this world's systems.
     /// </summary>
     public readonly EventHandler Events = new();
-    
+
     /// Most worlds use ECS — this depends on overall dictation. If ECS is enabled,
     /// then a world can be forcefully disconnected per its definition. 
     protected static bool UsesECS => SSLGame.Config.UseECS;
@@ -61,6 +61,7 @@ public abstract class World : IWorld
         // ReSharper disable once VirtualMemberCallInConstructor
         // Enable ECS if toggled-on.
         if (!UsesECS) return;
+        Log("...initializing world ECS...");
         ECS = new ECSController(this);
     }
 
@@ -68,10 +69,6 @@ public abstract class World : IWorld
     public virtual void Initialize(GraphicsDeviceManager graphics)
     {
         Graphics = graphics;
-
-        if (!UsesECS) return;
-        Log("...initializing ECS...");
-        ECS.Initialize();
     }
 
     /// <inheritdoc cref="IWorld.LoadContent"/>

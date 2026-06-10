@@ -8,9 +8,6 @@ namespace SKSSL.ECS;
 /// Primary Entity-Component system controller present in any given world. Contains static <see cref="EntityContext"/> 
 public class ECSController
 {
-    /// Boolean check to ensure an ECS controller is not initialized more than once.
-    public bool Initialized { get; private set; } = false;
-
     /// Registry of all component instances and definitions.
     public readonly ComponentRegistry ComponentRegistry;
 
@@ -26,20 +23,6 @@ public class ECSController
         EntityManager = new EntityManager(world);
     }
 
-    /// <summary>
-    /// Required method to initialize all ECS systems.
-    /// </summary>
-    public void Initialize()
-    {
-        if (Initialized)
-        {
-            Log("ECSController already initialized!", LOG.GENERAL_WARNING);
-            return;
-        }
-
-        Initialized = true;
-    }
-
     /// Calls system manager update calls.
     public void Update(GameTime gameTime)
     {
@@ -51,5 +34,5 @@ public class ECSController
     }
 
     /// Ensures that this world instance is safely deleted before being replaced.
-    public void Destroy() => EntityManager.MassacreAllEntities();
+    public void Destroy() => EntityManager.DestroyAll();
 }

@@ -44,11 +44,9 @@ public abstract class Scene
         _graphicsManager = manager;
         GameWorld = world;
 
-        if (GameWorld != null)
-        {
-            Log("...initializing world...");
-            GameWorld.Initialize(manager); // GameWorld has its own spritebatch.
-        }
+        if (GameWorld == null) return;
+        Log("...initializing world...");
+        GameWorld.Initialize(manager); // GameWorld has its own spritebatch.
     }
 
     /// The screens and UI elements that are being loaded in this scene.

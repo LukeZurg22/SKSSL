@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
@@ -16,56 +14,33 @@ namespace SKSSL.ECS;
 /// </summary>
 public partial class EntityManager
 {
-    private readonly List<Entity> _allEntities = [];
+    // Component registry per entity manager per world.
+    public readonly ComponentRegistry ComponentRegistry = new();
+
+    /*Struct of Arrays Layout for Entities*/
+    private Entity?[] _entities;
+    private int[] _generations;
+    private int[] _freeList = new int[256];
+    private int _freeCount = 0;
+
     private readonly IWorld _world;
 
     /// <inheritdoc cref="EntityManager"/>
     public EntityManager(IWorld world) => _world = world;
 
     /// Get all Active entities present in the game.
-    internal IReadOnlyList<Entity> AllEntities => _allEntities;
-
-    #region Get Methods
-
-    /// <param name="handle">Full handle ID of entity definition.</param>
-    /// <returns>Null or first entity found within active <see cref="AllEntities"/> list.</returns>
-    /// <remarks>Acts like <see cref="GetEntity(int)"/>, but uses a string reference handle instead.</remarks>
-    public Entity? GetEntity(string handle)
-        => _allEntities.FirstOrDefault(e => e?.GetUniqueInternalRef() == handle, null);
-
-    /// <param name="id">Numeric ID of requested entity.</param>
-    /// <returns>Null or instance of entity with provided ID.</returns>
-    /// <remarks>Requires the user to know the ID of the entity.</remarks>
-    [Pure]
-    // ReSharper disable once UnusedMember.Global
-    public Entity? GetEntity(int id)
-    {
-        if (_allEntities.Any(e => e.Uid == id))
-            return _allEntities[id];
-        Log($"Attempted to retrieve nonexistent entity with ID {id}");
-        return null;
-    }
+    internal IReadOnlyList<Entity> AllEntities => _entities;
 
     /// <summary>
-    /// Get-Method for all Entities of desired type. Does not handle component contents.
+    /// Get-Method for all Entities of desired type. Does not handle components.
     /// </summary>
     /// <typeparam name="T">
     /// Type of entities queried. <see cref="Entity"/> will return all entities, as
     /// all entities inherit that type.
     /// </typeparam>
     /// <returns>Readonly enumerable list of entities that inherit from type T</returns>
-    public IEnumerable<Entity> GetEntities<T>() where T : Entity => AllEntities.OfType<T>();
-
-    /// <summary>
-    /// TryGet wrapper for <see cref="GetEntity(string)"/>
-    /// </summary>
-    public bool TryGetEntity(string handle, [NotNullWhen(true)] out Entity? entity)
-    {
-        entity = GetEntity(handle);
-        return entity != null;
-    }
-
-    #endregion
+    // ReSharper disable once UnusedMember.Global
+    public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => AllEntities.OfType<T>();
 
     /// <summary>
     /// Acquires an entity template using a provided reference id, and creates an entity instance using it.
@@ -96,25 +71,154 @@ public partial class EntityManager
         // Assign world.
         entity.World = _world;
 
+        // Add & Initialize the entity.
+        EntityUid entityUid = CreateUID(entity);
+
+        // Register component indices for this ID.
+        ComponentRegistry.InitializeEntityComponentStorage(entityUid);
+
         // Add default components if provided.
         if (entity.YamlComponents != null)
             foreach (ComponentProto yamlComponent in entity.YamlComponents)
                 if (ComponentRegistry.TryGetComponentType(yamlComponent.Type, out Type componentType))
                     entity.AddComponent(componentType);
 
-        // Add & Initialize the entity.
-        _allEntities.Add(entity);
         entity.Initialize();
         return entity;
     }
 
     /// <summary>
+    /// Dangerous "Get" method to retrieve an entity stored in active entities list.
+    /// </summary>
+    /// <param name="uid"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    // ReSharper disable once UnusedMember.Global
+    public Entity Get(EntityUid uid)
+    {
+        int index = (int)(uid.Value & 0xFFFF);
+        int generation = (int)(uid.Value >> 16);
+
+        if ((uint)index >= (uint)_entities.Length)
+            throw new Exception("Invalid entity index");
+
+        if (_generations[index] != generation)
+            throw new Exception("Stale EntityUid (entity was destroyed or reused)");
+
+        Entity? entity = _entities[index];
+
+        if (entity == null)
+            throw new Exception("Entity slot is empty");
+
+        return entity;
+    }
+
+    /// <summary>
+    /// Safer way to obtain an entity definition using its ID.
+    /// </summary>
+    /// <param name="uid"></param>
+    /// <param name="entity"></param>
+    /// <returns></returns>
+    // ReSharper disable once UnusedMember.Global
+    public bool TryGet(EntityUid uid, out Entity entity)
+    {
+        int index = (int)(uid.Value & 0xFFFF);
+        int generation = (int)(uid.Value >> 16);
+
+        if ((uint)index < (uint)_entities.Length
+            && _generations[index] == generation
+            && (entity = _entities[index]!) != null)
+            return true;
+
+        entity = null!;
+        return false;
+    }
+
+    /// Create unique ID for entity.
+    private EntityUid CreateUID(Entity entity)
+    {
+        int index;
+
+        if (_freeCount > 0)
+        {
+            // Reuse old indices.
+            index = _freeList[--_freeCount];
+        }
+        else
+        {
+            index = _entities.Length;
+
+            // Ensure free list has plenty of space.
+            if (_freeCount >= _freeList.Length) Array.Resize(ref _freeList, _freeList.Length * 2);
+
+            Array.Resize(ref _entities, index + 1);
+            Array.Resize(ref _generations, index + 1);
+        }
+
+        // Assign to "All Entities" list.
+        _entities[index] = entity;
+
+        int generation = _generations[index];
+        return new EntityUid(index, generation);
+    }
+
+    public void Destroy(EntityUid uid)
+    {
+        int index = (int)(uid.Value & 0xFFFF);
+        int generation = (int)(uid.Value >> 16);
+
+        if ((uint)index >= (uint)_entities.Length)
+            return;
+
+        // Validate generation (prevents double-destroy bugs)
+        if (_generations[index] != generation)
+            return;
+
+        if (_entities[index] == null)
+            return;
+
+        // Remove entry.
+        _entities[index] = null;
+
+        // Wipe UID's entry in comp storage. UID presence still means reusable.
+        ComponentRegistry.InitializeEntityComponentStorage(uid);
+
+        // Invalidate old IDs.
+        _generations[index]++;
+
+        // Ensure free list has plenty of space.
+        if (_freeCount >= _freeList.Length) Array.Resize(ref _freeList, _freeList.Length * 2);
+
+        // Add slot back to free list.
+        _freeList[_freeCount++] = index;
+    }
+
+    public bool IsValid(EntityUid uid)
+    {
+        int index = uid.Index;
+
+        if ((uint)index >= (uint)_entities.Length)
+            return false;
+
+        Entity? entity = _entities[index];
+        if (entity == null)
+            return false;
+
+        return _generations[index] == uid.Generation;
+    }
+
+    /// <summary>
     /// Remove all entities contained in Entity Manager.
     /// </summary>
-    public void MassacreAllEntities()
+    public void DestroyAll()
     {
-        // TODO: MIGHT require additional unloading? The list just clears references for the GC. Components these
-        //  entities had aren't clear, and created IDs aren't reset back to start from 0.
-        _allEntities.Clear();
+        Array.Clear(_entities);
+        Array.Clear(_generations);
+        _freeCount = 0;
+        for (int i = 0; i < _entities.Length; i++)
+        {
+            _generations[i]++; // Invalidate all old ID's.
+            _freeList[_freeCount++] = i;
+        }
     }
 }

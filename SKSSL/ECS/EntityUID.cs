@@ -1,34 +1,31 @@
-using System.Collections.Generic;
-using SKSSL.Utilities;
-
 // ReSharper disable UnusedMember.Global
+
+using System;
 
 namespace SKSSL.ECS;
 
-public class EntityUid
+public readonly struct EntityUid : IEquatable<EntityUid>
 {
-    private static readonly IDIterator _idIterator = new();
+    public readonly uint Value;
 
-    public readonly uint Id;
+    public EntityUid(uint value) => Value = value;
 
-    // TODO: Reorg. to SoA
-    public readonly Entity Entity = null!;
-    public EntityUid? Parent = null;
-    public List<EntityUid> Children = [];
+    public EntityUid(int index, int generation) => Value = (uint)(index & 0xFFFF) | ((uint)(generation & 0xFFFF) << 16);
 
-    /// <summary>
-    /// Default constructor initializing Uid to 0 (invalid).
-    /// </summary>
-    public EntityUid() => Id = 0;
+    public int Index => (int)(Value & 0xFFFF);
+    public int Generation => (int)(Value >> 16);
 
-    public EntityUid(Entity entity)
-    {
-        Id = _idIterator.ID; // Assign current iterator ID by value. (Thread safe.)
-        _idIterator.Iterate();
-        Entity = entity;
-    }
+    public bool Equals(EntityUid obj) => Value == obj.Value;
+    public override bool Equals(object? obj) => obj is EntityUid other && Equals(other);
+    public override int GetHashCode() => (int)Value;
 
-    public static implicit operator uint(EntityUid uid) => uid.Id;
-    public static implicit operator Entity(EntityUid uid) => uid.Entity;
-    public EntityUid Empty { get; set; } = new();
+    public static uint Pack(int index, int generation) => (uint)(index & 0xFFFF) | ((uint)(generation & 0xFFFF) << 16);
+    public static int UnpackIndex(uint value) => (int)(value & 0xFFFF);
+    public static int UnpackGeneration(uint value) => (int)(value >> 16);
+
+    public static implicit operator uint(EntityUid uid) => uid.Value;
+    public static implicit operator EntityUid(uint value) => new(value);
+
+    public static bool operator ==(EntityUid left, EntityUid right) => left.Equals(right);
+    public static bool operator !=(EntityUid left, EntityUid right) => !(left == right);
 }

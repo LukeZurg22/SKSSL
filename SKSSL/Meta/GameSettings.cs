@@ -9,6 +9,7 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace SKSSL;
 
+// ReSharper disable once ClassNeverInstantiated.Global
 public class LoadPath
 {
     public string Path { get; set; }

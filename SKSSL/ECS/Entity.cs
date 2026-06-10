@@ -54,7 +54,7 @@ public record Entity : Prototype
      * Inheriting directly from the root Prototype record allows one to create a new prototype definition which does
      * not need to contain a name.
      */
-    
+
     #region Name / Description
 
     /// Non-localized name key.
@@ -74,25 +74,10 @@ public record Entity : Prototype
     #endregion
 
     /// Unique runtime ID. Created on instantiation.
-    [YamlIgnore, JsonIgnore] public readonly EntityUid Uid = new();
-
-    /// <returns>true if ID != 0, else returns false.</returns>
-    [YamlIgnore, JsonIgnore]
-    public bool IsValid => Uid.Id != 0U;
+    [YamlIgnore, JsonIgnore] public EntityUid Uid;
 
     /// [De]serialized component entries part of this prototype.
     [YamlMember(Alias = "components")] public List<ComponentProto>? YamlComponents = [];
-
-    /// <summary>
-    /// Array of component indices.<br/>
-    /// Index = ComponentTypeId&lt;T&gt;.Id,<br/>
-    /// Value = slot in ComponentArray&lt;T&gt; (-1 if missing)
-    /// <br/><br/>
-    /// For every index, there is a unique component type.
-    /// <seealso cref="IterArray{T}"/>
-    /// </summary>
-    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
-    public readonly int[] ComponentIndices = null!;
 
     /// <summary>
     /// Reverse-reference back to the world that this entity inhabits.
@@ -108,8 +93,6 @@ public record Entity : Prototype
     {
         NameKey = "";
         DescriptionKey = "";
-        ComponentIndices = new int[ComponentRegistry.Count];
-        Array.Fill(ComponentIndices, -1); // <- All slots start as "missing"
     }
 
     #endregion
@@ -142,5 +125,4 @@ public record Entity : Prototype
 
     public virtual bool Equals(Entity? other) => other is not null && Uid == other.Uid;
     public override int GetHashCode() => Uid.GetHashCode();
-    
 }
