@@ -4,7 +4,7 @@ using System.Linq;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
 using SKSSL.YAML;
-
+using static SKSSL.SSLGame;
 
 namespace SKSSL.ECS;
 
@@ -17,10 +17,10 @@ public partial class EntityManager
     // Component registry per entity manager per world.
     public readonly ComponentRegistry ComponentRegistry = new();
 
-    /*Struct of Arrays Layout for Entities*/
+    // Struct of Arrays Layout for Entities.
     private Entity?[] _entities;
     private int[] _generations;
-    private int[] _freeList = new int[256];
+    private int[] _freeList = new int[Config.DESTROY_ENTITY_CACHE_LIMIT];
     private int _freeCount = 0;
 
     private readonly IWorld _world;
