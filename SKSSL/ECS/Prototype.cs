@@ -38,12 +38,12 @@ public partial record Prototype
     
     /// Explicit type definition for this entry. For direct raw-serialization of entities.
     /// Completely unused if prioritizing yaml templates.
-    [YamlMember(Alias = "type"), JsonInclude]
+    [YamlMember(Alias = "type", Order = 0), JsonInclude]
     public virtual string Type { get; set; } = "Prototype";
 
     /// Definition's Reference ID to later refer-to when making copies.
     /// Searchable, indexable ID. Virtual for possible nullability change in child classes.
-    [YamlMember(Alias = "id")]
+    [YamlMember(Alias = "id", Order = 3), JsonInclude]
     public virtual string Handle { get; set; }
     
     /// <summary>

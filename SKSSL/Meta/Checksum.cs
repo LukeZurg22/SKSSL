@@ -19,7 +19,7 @@ public class Checksum
     /// <remarks>Not very algorithmically effective. Clash-cases can happen</remarks>
     public static string Generate()
     {
-        int totalRegistryCount = GameECSMasterRegistry.Count();
+        int totalRegistryCount = ECSMasterRegistry.Count();
         byte[] regBytes = Encoding.UTF8.GetBytes($"REG.COUNT:{totalRegistryCount};");
         byte[] configBytes = Encoding.UTF8.GetBytes(SSLGame.Config.ToString());
         byte[] texBytes =

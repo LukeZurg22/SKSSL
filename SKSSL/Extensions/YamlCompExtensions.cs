@@ -11,7 +11,7 @@ namespace SKSSL.Extensions;
 
 public static class YamlCompExtensions
 {
-    public static ComponentProto Clone(this ComponentProto source)
+    public static ComponentYaml Clone(this ComponentYaml source)
         => new() { Type = source.Type, Entries = new Dictionary<string, object?>(source.Entries) };
 
     private const BindingFlags FieldFlags = BindingFlags.Public |
@@ -21,9 +21,9 @@ public static class YamlCompExtensions
 
     /// Converts Component to yaml object for serialization.
     [Pure]
-    public static ComponentProto ToYaml(this Component component)
+    public static ComponentYaml ToYaml(this Component component)
     {
-        var result = new ComponentProto
+        var result = new ComponentYaml
         {
             Type = NormalizeTypeName(component.GetType().Name)
         };
@@ -96,7 +96,7 @@ public static class YamlCompExtensions
     /// registry, and has no assigned entity due to this.
     /// <seealso cref="ComponentRegistry"/>
     [Pure]
-    public static Component FromYaml(this ComponentProto yaml)
+    public static Component FromYaml(this ComponentYaml yaml)
     {
         string typeName = NormalizeTypeName(yaml.Type);
         if (!ComponentRegistry.TryGetComponentType(typeName, out Type? componentType))

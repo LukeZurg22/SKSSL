@@ -38,16 +38,18 @@ namespace SKSSL.ECS;
 public record Entity : Prototype
 {
     /// <inheritdoc cref="Prototype.Type"/>
-    [YamlMember(Alias = "type"), JsonProperty(nameof(Type))]
+    [YamlMember(Alias = "type", Order = 0), JsonProperty(nameof(Type))]
     public override string Type { get; set; } = "Entity";
 
-    [YamlMember(Alias = "abstract"), JsonProperty(nameof(Abstract))]
+    [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool? Abstract { get; set; } = false;
-
+    
     /// Parentage Field, where the properties of the parent are introduced to the child.
     /// Child overrides parent properties. This replaces the templating system of olde.
-    [YamlMember(Alias = "inherit"), JsonProperty("Inherit")]
+    [YamlMember(Alias = "inherit", Order = 2), JsonProperty("Inherit")]
     public string[]? Inherit;
+    
+    // -> Handle (Order 3)
 
     /*
      * All Entities are expected to have name and description keys provided. This isn't as limiting as it seems.
@@ -58,14 +60,14 @@ public record Entity : Prototype
     #region Name / Description
 
     /// Non-localized name key.
-    [YamlMember(Alias = "name"), JsonProperty("Name")]
+    [YamlMember(Alias = "name", Order = 4), JsonProperty("Name")]
     public string? NameKey;
 
     /// <returns>Localized name from Name Key.</returns>
     public void GetName() => Loc.Get(NameKey);
 
     /// Non-localized description key.
-    [YamlMember(Alias = "description"), JsonProperty("Description")]
+    [YamlMember(Alias = "description", Order = 5), JsonProperty("Description")]
     public string? DescriptionKey;
 
     /// <returns>Localized Description from Description Key.</returns>
@@ -73,11 +75,8 @@ public record Entity : Prototype
 
     #endregion
 
-    /// Unique runtime ID. Created on instantiation.
-    [YamlIgnore, JsonIgnore] public EntityUid Uid;
-
-    /// [De]serialized component entries part of this prototype.
-    [YamlMember(Alias = "components")] public List<ComponentProto>? YamlComponents = [];
+    /// [De]serialized component entries part of this prototype. Put on end of order.
+    [YamlMember(Alias = "components", Order = 99)] public List<ComponentYaml>? YamlComponents = [];
 
     /// <summary>
     /// Reverse-reference back to the world that this entity inhabits.
@@ -85,15 +84,32 @@ public record Entity : Prototype
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
     public IWorld? World { get; set; }
 
-    #region Constructors
 
+    #region Constructors & UID
+    
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
     [MemoryPackConstructor, System.Text.Json.Serialization.JsonConstructor]
     public Entity() : base()
     {
-        NameKey = "";
-        DescriptionKey = "";
     }
+    
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    
+    public EntityUid? Uid { get; set; } = null;
+    
+    /// Does not permit more than one set. An entity keeps its UID consistently.
+    public void SetUID(EntityUid entityUid) => Uid ??= entityUid;
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="entity"></param>
+    /// <returns></returns>
+    /// <exception cref="NullReferenceException">
+    /// A null exception occurs when an entity not "properly" initialized is acted-upon by the Component Registry,
+    /// or any system that involves a Uid that may be null.
+    /// </exception>
+    public static implicit operator EntityUid(Entity entity) => (EntityUid)entity.Uid!;
 
     #endregion
 
@@ -120,9 +136,5 @@ public record Entity : Prototype
     {
     }
 
-    /// Implicit operator to convert an entity into its UID.
-    public static implicit operator EntityUid(Entity entity) => entity.Uid;
 
-    public virtual bool Equals(Entity? other) => other is not null && Uid == other.Uid;
-    public override int GetHashCode() => Uid.GetHashCode();
 }

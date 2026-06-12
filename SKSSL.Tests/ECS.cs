@@ -6,10 +6,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.ECS;
 using SKSSL.Extensions;
 using SKSSL.Tests.TestData;
-using SKSSL.YAML;
 
 // ReSharper disable RedundantNameQualifier
-
 // ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Tests;
@@ -20,9 +18,9 @@ public class ECS
 {
     #region Test Entities
 
-    private static readonly ComponentProto _flatComp = new ComponentProto { Type = "TestComponent" };
+    private static readonly ComponentYaml _flatComp = new ComponentYaml { Type = "TestComponent" };
 
-    private static readonly ComponentProto _fieldComp = new()
+    private static readonly ComponentYaml _fieldComp = new()
     {
         Type = "TestField",
         Entries =
@@ -103,12 +101,12 @@ public class ECS
         try
         {
             // Testing component to yaml.
-            ComponentProto componentProto = component.ToYaml();
-            object first = componentProto.Entries.Values.First();
+            ComponentYaml componentYaml = component.ToYaml();
+            object first = componentYaml.Entries.Values.First();
             Assert.IsTrue((int)first == 7);
 
             // Testing the reverse after change..
-            component = componentProto.FromYaml() as TestFieldComponent;
+            component = componentYaml.FromYaml() as TestFieldComponent;
             Assert.IsTrue(component != null, nameof(component) + " != null");
             Assert.IsTrue(component.x == 7);
         }
@@ -125,7 +123,8 @@ public class ECS
         var yamlLoader = new SKSSL.YamlLoader();
         _entities.Clear();
         // Line endings and so-forth aren't important here. All that matters is that the data serializes as expected.
-        var testComponent = new ComponentProto { Type = "TestFieldComponent" };
+        var testComponent = new ComponentYaml { Type = "TestFieldComponent" };
+        
         _entities.Add(_testEntityInstance);
         output = yamlLoader.Serialize(_entities);
         _entities.Add(_testInheritedEntityInheritedInstance);
@@ -218,7 +217,7 @@ public class ECS
     [TestMethod]
     public void TEST_PROTO_REGISTRY_CLEAR()
     {
-        SKSSL.ECS.GameECSMasterRegistry.Clear();
-        Assert.IsEmpty(SKSSL.ECS.GameECSMasterRegistry.TypeDefinitions);
+        SKSSL.ECS.ECSMasterRegistry.Clear();
+        Assert.IsEmpty(SKSSL.ECS.ECSMasterRegistry.TypeDefinitions);
     }
 }

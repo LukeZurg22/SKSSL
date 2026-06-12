@@ -207,7 +207,7 @@ public abstract class SSLGame : Game
             // TODO: Add custom bootstrapping so developer can have their own loader slotted in.
         }
 
-        Log($"...loaded {GameECSMasterRegistry.Count()} prototypes.");
+        Log($"...loaded {ECSMasterRegistry.Count()} prototypes.");
     }
 
 

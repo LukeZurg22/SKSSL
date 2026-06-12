@@ -49,7 +49,7 @@ public partial class EntityManager
     /// <returns>Spawned copy of entity from handle.</returns>
     public Entity? Spawn(string handle)
     {
-        if (!GameECSMasterRegistry.TryGetPrototype(handle, out Prototype definition))
+        if (!ECSMasterRegistry.TryGetPrototype(handle, out Prototype definition))
         {
             Log($"Failed to get entity copy using {handle} handle. Try full handle instead.",
                 LOG.SYSTEM_ERROR);
@@ -73,13 +73,14 @@ public partial class EntityManager
 
         // Add & Initialize the entity.
         EntityUid entityUid = CreateUID(entity);
-
+        entity.SetUID(entityUid);
+        
         // Register component indices for this ID.
         ComponentRegistry.InitializeEntityComponentStorage(entityUid);
 
         // Add default components if provided.
         if (entity.YamlComponents != null)
-            foreach (ComponentProto yamlComponent in entity.YamlComponents)
+            foreach (ComponentYaml yamlComponent in entity.YamlComponents)
                 if (ComponentRegistry.TryGetComponentType(yamlComponent.Type, out Type componentType))
                     entity.AddComponent(componentType);
 

@@ -49,11 +49,11 @@ public static class PrototypeExtensions
 
         for (int i = 0; i < baseEntity.YamlComponents.Count; i++)
         {
-            ComponentProto baseComp = baseEntity.YamlComponents[i];
+            ComponentYaml baseComp = baseEntity.YamlComponents[i];
 
             bool found = false;
 
-            foreach (ComponentProto targetComp in targetEntity.YamlComponents)
+            foreach (ComponentYaml targetComp in targetEntity.YamlComponents)
             {
                 if (!string.Equals(targetComp.Type, baseComp.Type, StringComparison.OrdinalIgnoreCase))
                     continue;
@@ -67,7 +67,7 @@ public static class PrototypeExtensions
         }
     }
 
-    private static void MergeProtoComponent(ComponentProto target, ComponentProto baseComp)
+    private static void MergeProtoComponent(ComponentYaml target, ComponentYaml baseComp)
     {
         foreach (var kv in baseComp.Entries)
             if (!target.Entries.ContainsKey(kv.Key))
@@ -93,9 +93,9 @@ public static class PrototypeExtensions
 
     /// Helper for cloning YamlComponents.
     [Pure]
-    private static ComponentProto CloneYamlComponent(ComponentProto source)
+    private static ComponentYaml CloneYamlComponent(ComponentYaml source)
     {
-        return new ComponentProto
+        return new ComponentYaml
         {
             Type = source.Type, Entries = source.Entries.Count != 0
                 ? new Dictionary<string, object?>(source.Entries)

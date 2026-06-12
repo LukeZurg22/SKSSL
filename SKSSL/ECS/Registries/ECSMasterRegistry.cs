@@ -10,7 +10,7 @@ namespace SKSSL.ECS;
 /// <summary>
 /// Storing all prototype definitions.
 /// </summary>
-public abstract class GameECSMasterRegistry
+public abstract class ECSMasterRegistry
 {
     /*
      * Here's The Pattern:
@@ -47,7 +47,7 @@ public abstract class GameECSMasterRegistry
     [UsedImplicitly]
     public static Dictionary<Type, ECSRegistry> Registries { get; } = new();
 
-    static GameECSMasterRegistry()
+    static ECSMasterRegistry()
     {
         // Scan once via reflection for custom registry types.
         foreach (Type type in AppDomain.CurrentDomain.GetAssemblies().SelectMany(a => a.GetTypes()))

@@ -73,7 +73,4 @@ public abstract class EntitySystem
 
     protected static void RaiseEvent<E>(EntityUid uid, E @event) where E : EntityEvent =>
         Events.Raise(uid, @event);
-
-    protected static void RaiseEvent<E>(Entity ent, E @event) where E : EntityEvent =>
-        Events.Raise(ent.Uid, @event);
 }

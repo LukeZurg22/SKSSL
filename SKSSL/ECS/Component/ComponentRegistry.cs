@@ -91,6 +91,7 @@ public class ComponentRegistry
     /// Number of Component Types in the registry. Gets next available Component ID.
     public static int Count => _nextTypeId;
 
+    // ReSharper disable once UnusedMember.Global
     /// <param name="id">ID of Registered Component</param>
     /// <returns>Null or Type Definition based on provided ID.</returns>
     [System.Diagnostics.Contracts.Pure]
@@ -224,22 +225,22 @@ public class ComponentRegistry
     /// <summary>
     /// Acts like <see cref="GetComponent{T}"/> but expects a provided type directly.
     /// </summary>
-    /// <param name="entity">Entity expected to contain component.</param>
+    /// <param name="uid">Entity expected to contain component.</param>
     /// <param name="componentType">The runtime type of the component (must implement ISKComponent).</param>
     /// <returns>The component instance (boxed as ISKComponent), or null if not found (or throws based on preference).</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component or type is invalid.</exception>
     /// <seealso cref="TryGetComponent{T}"/>
     [System.Diagnostics.Contracts.Pure]
-    public Component? GetComponent(Entity entity, Type componentType)
+    public Component? GetComponent(EntityUid uid, Type componentType)
     {
         if (!typeof(Component).IsAssignableFrom(componentType))
             throw new ArgumentException($"Type {componentType.Name} must implement ISKComponent.",
                 nameof(componentType));
 
-        if (!HasComponent(entity, componentType))
+        if (!HasComponent(uid, componentType))
             return null;
 
-        if (!TryGetComponentIndex(entity, componentType, out var index))
+        if (!TryGetComponentIndex(uid, componentType, out var index))
             return null;
 
         var array = _activeComponentArrays[componentType];
@@ -253,10 +254,10 @@ public class ComponentRegistry
     /// <returns>A reference to the component if found; otherwise throws.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component.</exception>
     [System.Diagnostics.Contracts.Pure]
-    public ref T GetComponent<T>(Entity entity) where T : Component
+    public ref T GetComponent<T>(EntityUid uid) where T : Component
     {
-        if (!TryGetComponentIndex(entity, typeof(T), out var index))
-            throw new InvalidOperationException($"Failed to find expected component type in Entity #{entity.Uid}");
+        if (!TryGetComponentIndex(uid, typeof(T), out var index))
+            throw new InvalidOperationException($"Failed to find expected component type in Entity #{uid}");
         return ref GetOrCreateComponentArray<T>().GetRefAt<T>(index);
     }
 
@@ -269,17 +270,17 @@ public class ComponentRegistry
     /// <summary>
     /// Adds a component of the specified runtime type and returns the new component boxed instance.
     /// </summary>
-    /// <param name="entity">Entity that a component is added to.</param>
+    /// <param name="uid">Entity that a component is added to.</param>
     /// <param name="component">The runtime type of the component to add.</param>
     /// <returns>The newly added component instance (boxed as object).</returns>
     /// <exception cref="ArgumentException">If the type doesn't implement ISKComponent.</exception>
     /// <exception cref="InvalidOperationException">If reflection fails or array is missing.</exception>
-    public Component AddComponent(EntityUid entity, Component component)
+    public Component AddComponent(EntityUid uid, Component component)
     {
         if (component is null)
         {
             throw new ArgumentException(
-                $"Fed invalid component to Entity [{entity}]. " +
+                $"Fed invalid component to Entity [{uid}]. " +
                 $"It likely does not implement \"{nameof(Component)}\".");
         }
 
@@ -290,10 +291,10 @@ public class ComponentRegistry
 
         // Store index of component inside entity, using index of its type.
         var componentIndex = componentArray.Count;
-        _entityUIDToComponentIndices[entity][GetComponentTypeId(componentType)] = componentIndex;
+        _entityUIDToComponentIndices[uid][GetComponentTypeId(componentType)] = componentIndex;
 
         // Assign reference back to parent.
-        component.Entity = entity;
+        component.Entity = uid;
 
         // Set component index in its array to referenced component
         componentArray.Set(componentIndex, component);
@@ -307,18 +308,18 @@ public class ComponentRegistry
 
     #region TryAddComponent
 
-    public bool TryAddComponent<T>(Entity entity, out T? component) where T : Component, new()
+    public bool TryAddComponent<T>(EntityUid uid, out T? component) where T : Component, new()
     {
-        bool output = TryAddComponent(entity, typeof(T), out var compObject);
+        bool output = TryAddComponent(uid, typeof(T), out var compObject);
         component = compObject as T;
         return output;
     }
 
-    public bool TryAddComponent(Entity entity, Type componentType, out object? component)
+    public bool TryAddComponent(EntityUid uid, Type componentType, out object? component)
     {
         try
         {
-            component = AddComponent(entity, FastCreate(componentType));
+            component = AddComponent(uid, FastCreate(componentType));
             return true;
         }
         catch
@@ -337,16 +338,16 @@ public class ComponentRegistry
     /// <summary>
     /// Attempts to safely retrieve a component from an entity.
     /// </summary>
-    /// <param name="entity"></param>
+    /// <param name="uid"></param>
     /// <param name="component">Component output for use.</param>
     /// <typeparam name="T">Expected Component Type within entity.</typeparam>
     /// <returns>False if a component wasn't found.</returns>
     [System.Diagnostics.Contracts.Pure]
-    public bool TryGetComponent<T>(EntityUid entity, out T component) where T : Component
+    public bool TryGetComponent<T>(EntityUid uid, out T component) where T : Component
     {
         component = null!;
         int typeId = GetComponentTypeId<T>();
-        int componentIndex = _entityUIDToComponentIndices[entity][typeId];
+        int componentIndex = _entityUIDToComponentIndices[uid][typeId];
 
         if (componentIndex == -1)
             return false;
@@ -360,7 +361,7 @@ public class ComponentRegistry
     /// </summary>
     /// <returns>true if component was found, output is not null. false if not found, output will be null.</returns>
     [System.Diagnostics.Contracts.Pure]
-    public bool TryGetComponent(EntityUid entity, Type componentType, out Component component)
+    public bool TryGetComponent(EntityUid uid, Type componentType, out Component component)
     {
         component = null!;
 
@@ -368,7 +369,7 @@ public class ComponentRegistry
             return false;
 
         int typeId = GetComponentTypeId(componentType);
-        int componentIndex = _entityUIDToComponentIndices[entity][typeId];
+        int componentIndex = _entityUIDToComponentIndices[uid][typeId];
 
         if (componentIndex == -1)
             return false;
@@ -396,14 +397,14 @@ public class ComponentRegistry
     /// For performance, use <see cref="GetComponent{T}"/> instead.
     /// </remarks>
     [System.Diagnostics.Contracts.Pure]
-    public ref List<Component> GetAllComponents(EntityUid entity)
+    public ref List<Component> GetAllComponents(EntityUid uid)
     {
         // Return a ref to a static thread-local list to avoid allocations in hot paths
         // Still safe since it's ref-local-scoped.
         ref var resultList = ref ThreadLocalList<Component>.GetOrCreate();
 
         resultList.Clear();
-        var indices = _entityUIDToComponentIndices[entity];
+        var indices = _entityUIDToComponentIndices[uid];
 
         foreach ((int typeId, Type? componentType) in _idToType)
         {
@@ -436,8 +437,8 @@ public class ComponentRegistry
     #endregion
 
     /// <returns>true if entity possess an instance of component type, false if not.</returns>
-    public bool HasComponent(EntityUid entity, Type componentType)
-        => _entityUIDToComponentIndices[entity][RegisteredTypeIDDictionary.GetValueOrDefault(componentType, -1)] != -1;
+    public bool HasComponent(EntityUid uid, Type componentType)
+        => _entityUIDToComponentIndices[uid][RegisteredTypeIDDictionary.GetValueOrDefault(componentType, -1)] != -1;
 
     public void InitializeEntityComponentStorage(uint entityUid)
     {
