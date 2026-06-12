@@ -1,46 +1,64 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
 
-  <!--START - Enable Compiler-Generated Code-->
-  <PropertyGroup>
-    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false"/>
-    <ProjectReference Include="..\SKSSL\SKSSL.Engine.csproj" />
-    <Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
-    <None Include="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
-  </ItemGroup>
-  <!--END - Enable Compiler-Generated Code-->
+    <!--START - Enable Compiler-Generated Code-->
+    <PropertyGroup>
+        <OutputPath>build\binaries\</OutputPath> <!--Executable Is Here, SKSSL Accomodates 1 Level Above-->
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+    </PropertyGroup>
+    <Target Name="CleanBuildFolder" BeforeTargets="BeforeBuild">
+        <RemoveDir Directories="build" Condition="Exists(build)"/>
+    </Target>
+    <ItemGroup>
+        <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\SKSSL\SKSSL.Engine.csproj"/>
+        <Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs"/>
+        <None Include="$(CompilerGeneratedFilesOutputPath)/**/*.cs"/>
+    </ItemGroup>
+    <ItemGroup>
+        <!--      <Content Include="prototypes\**\*.*">
+                  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+                  <Link>..\prototypes\%(RecursiveDir)%(Filename)%(Extension)</Link>
+              </Content>
+              <Content Include="textures\**\*.*">
+                  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+                  <Link>..\textures\%(RecursiveDir)%(Filename)%(Extension)</Link>
+              </Content>-->
+        <Content Include="localization\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+        <!--      <Content Include="settings.yaml"> 
+                  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+                  <Link>..\settings.yaml</Link>
+              </Content>-->
+    </ItemGroup>
+    <!-- END - Enable Compiler-Generated Code -->
 
-  <PropertyGroup>
-    <TestingPlatformDotNetTestSupport>true</TestingPlatformDotNetTestSupport>
-     <UseVSTest>true</UseVSTest> 
-  </PropertyGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="Fluent.Net" Version="1.0.63" />
-    <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
-    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" />
-    <PackageReference Include="MSTest.TestAdapter" Version="4.1.0" />
-    <PackageReference Include="MSTest.TestFramework" Version="4.1.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="Tomlyn" Version="2.4.1" />
-    <PackageReference Include="YamlDotNet" Version="18.0.0" />
-  </ItemGroup>
- 
-  <ItemGroup>
-    <Content Include="localization\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  
+    <PropertyGroup>
+        <TestingPlatformDotNetTestSupport>true</TestingPlatformDotNetTestSupport>
+        <UseVSTest>true</UseVSTest>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Fluent.Net" Version="1.0.63"/>
+        <PackageReference Include="JetBrains.Annotations" Version="2025.2.4"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0"/>
+        <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1"/>
+        <PackageReference Include="MSTest.TestAdapter" Version="4.1.0"/>
+        <PackageReference Include="MSTest.TestFramework" Version="4.1.0"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4"/>
+        <PackageReference Include="Tomlyn" Version="2.4.1"/>
+        <PackageReference Include="YamlDotNet" Version="18.0.0"/>
+    </ItemGroup>
+
 </Project>
