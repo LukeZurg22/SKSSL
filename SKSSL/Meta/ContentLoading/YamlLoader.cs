@@ -10,6 +10,7 @@ using SKSSL.Utilities;
 using SKSSL.YAML;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using static YamlDotNet.Serialization.DefaultValuesHandling;
 
 namespace SKSSL;
 
@@ -36,7 +37,7 @@ public class YamlLoader : PrototypeLoader
     /// YAML Serializer.
     private static readonly ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .JsonCompatible()
+        .ConfigureDefaultValuesHandling(OmitNull | OmitDefaults | OmitEmptyCollections)
         .Build();
 
     /// YAML Deserializer.
@@ -54,7 +55,7 @@ public class YamlLoader : PrototypeLoader
         SKSSLDefaultSerializer.Serialize(obj);
 
     protected override List<Prototype> DeserializeLogicImplement(
-        string text, 
+        string text,
         string trace = "",
         params Type[] types)
     {

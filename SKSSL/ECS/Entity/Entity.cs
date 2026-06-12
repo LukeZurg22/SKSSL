@@ -42,12 +42,12 @@ public record Entity : Prototype
     public override string Type { get; set; } = "Entity";
 
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
-    public bool? Abstract { get; set; } = false;
+    public bool Abstract { get; set; } = false;
     
     /// Parentage Field, where the properties of the parent are introduced to the child.
     /// Child overrides parent properties. This replaces the templating system of olde.
     [YamlMember(Alias = "inherit", Order = 2), JsonProperty("Inherit")]
-    public string[]? Inherit;
+    public string[] Inherit = [];
     
     // -> Handle (Order 3)
 
