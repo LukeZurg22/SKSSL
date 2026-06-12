@@ -45,10 +45,10 @@ public abstract class SSLGame : Game
     /// Aspect ratio to render the game.
     public static float AspectRatio => Graphics.Viewport.AspectRatio;
 
-    #endregion
-
     /// Use static constructor for this.
     public static EngineConfig Config { get; set; } = new();
+    
+    #endregion
 
     #region Fields
 
