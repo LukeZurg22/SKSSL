@@ -16,8 +16,6 @@ using SKSSL.ECS;
 using SKSSL.Scenes;
 using SKSSL.Textures;
 using SKSSL.Utilities;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 

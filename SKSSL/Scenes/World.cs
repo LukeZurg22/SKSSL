@@ -15,6 +15,8 @@ namespace SKSSL.Scenes;
 /// </summary>
 public interface IWorld
 {
+    public ECSController ECS { get; }
+
     /// Initializes the Game World.
     void Initialize(GraphicsDeviceManager graphics);
 

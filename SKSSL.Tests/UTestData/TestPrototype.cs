@@ -7,21 +7,21 @@ using SKSSL.ECS;
 
 namespace SKSSL.Tests.TestData;
 
-public record TestPrototypeBlank : Prototype;
+public class TestPrototypeBlank : Prototype;
 
-public record TestPrototypeSingle : Prototype
+public class TestPrototypeSingle : Prototype
 {
     public int FirstField { get; set; }
 }
 
-public record TestPrototypeInherit : TestPrototypeSingle
+public class TestPrototypeInherit : TestPrototypeSingle
 {
     public int SecondField { get; set; }
 }
 
-public partial record TestPrototypeSerialize : Prototype;
+public partial class TestPrototypeSerialize : Prototype;
 
-public record TestPrototypeConstructor : Prototype
+public class TestPrototypeConstructor : Prototype
 {
     public int FirstField;
 
@@ -34,7 +34,7 @@ public record TestPrototypeConstructor : Prototype
     public Type EntityType => typeof(TestEntityInheritedType);
 }
 
-public record TestPrototypeConstructorTwo : TestPrototypeConstructor
+public class TestPrototypeConstructorTwo : TestPrototypeConstructor
 {
     private int SecondField = 0;
 

@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Reflection;
 using SKSSL.ECS;
-using SKSSL.YAML;
 
 namespace SKSSL.Extensions;
 

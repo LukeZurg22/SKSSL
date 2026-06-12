@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
-using SKSSL.YAML;
 using static SKSSL.SSLGame;
 
 namespace SKSSL.ECS;
@@ -42,11 +41,6 @@ public partial class EntityManager
     // ReSharper disable once UnusedMember.Global
     public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => AllEntities.OfType<T>();
 
-    /// <summary>
-    /// Acquires an entity template using a provided reference id, and creates an entity instance using it.
-    /// </summary>
-    /// <param name="handle">Reference id to template stored in registry.</param>
-    /// <returns>Spawned copy of entity from handle.</returns>
     public Entity? Spawn(string handle)
     {
         if (!ECSMasterRegistry.TryGetPrototype(handle, out Prototype definition))
@@ -57,19 +51,28 @@ public partial class EntityManager
         }
 
         // Assumes all definitions present here are entities. A bit ambiguous, it is.
-        if (definition is not Entity source || source.Abstract == true)
+        if (definition is not Entity source || source.Abstract)
         {
             Log($"Invalid Entity handle \'{handle}\'. Are you attempting to spawn some other non-entity prototype?",
                 LOG.SYSTEM_ERROR);
             return null;
         }
-
-        // TODO: Nullability fallbacks may be needed from here and "up the chain" of calls.
-        // Create entity regardless of how it's stored.
-        var entity = source.CloneEntityAs<Entity>();
-
-        // Assign world.
-        entity.World = _world;
+        
+        return Clone(source);
+    }
+    
+    /// <summary>
+    /// Acquires an entity template using a provided reference id, and creates an entity instance using it.
+    /// </summary>
+    /// <param name="source">Entity template to copy from.</param>
+    /// <returns>Spawned copy of entity from handle.</returns>
+    public Entity? Clone(Entity source)
+    {
+        if (source.Abstract)
+            throw new Exception($"Attempted to spawn abstract entity {source.GetUniqueInternalRef()}");
+        
+        // Create entity copy.
+        Entity? entity = new Entity().CopyFrom(source);
 
         // Add & Initialize the entity.
         EntityUid entityUid = CreateUID(entity);
@@ -136,7 +139,7 @@ public partial class EntityManager
     }
 
     /// Create unique ID for entity.
-    private EntityUid CreateUID(Entity entity)
+    private EntityUid CreateUID(Entity? entity)
     {
         int index;
 

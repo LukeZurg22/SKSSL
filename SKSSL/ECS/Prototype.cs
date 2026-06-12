@@ -30,7 +30,7 @@ namespace SKSSL.ECS;
 ///   description (string)
 /// </code>
 /// </summary>
-public partial record Prototype
+public partial class Prototype
 {
     /// Game content directory key to reverse-trace where this yaml prototype originated.
     [YamlIgnore]

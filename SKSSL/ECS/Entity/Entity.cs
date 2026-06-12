@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MemoryPack;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Newtonsoft.Json;
+using SKSSL.Extensions;
 using SKSSL.Scenes;
-using SKSSL.YAML;
 using YamlDotNet.Serialization;
 
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
@@ -22,7 +23,7 @@ namespace SKSSL.ECS;
 
 /// <summary>
 /// Instanced Entity representing an object present within game memory. Entities are contained within a
-/// <see cref="World"/>, and contain <see cref="ComponentIndices"/> for pointing to component arrays.
+/// <see cref="World"/>, and contain <see cref="ComponentRegistry"/> Component Indices for pointing to component arrays.
 /// </summary>
 /// <inheritdoc cref="Prototype"/>
 /// <code>
@@ -35,7 +36,7 @@ namespace SKSSL.ECS;
 /// # (Note: Component fields vary between component type.)
 /// </code>
 [JsonObject]
-public record Entity : Prototype
+public class Entity : Prototype
 {
     /// <inheritdoc cref="Prototype.Type"/>
     [YamlMember(Alias = "type", Order = 0), JsonProperty(nameof(Type))]
@@ -43,12 +44,12 @@ public record Entity : Prototype
 
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool Abstract { get; set; } = false;
-    
+
     /// Parentage Field, where the properties of the parent are introduced to the child.
     /// Child overrides parent properties. This replaces the templating system of olde.
     [YamlMember(Alias = "inherit", Order = 2), JsonProperty("Inherit")]
     public string[] Inherit = [];
-    
+
     // -> Handle (Order 3)
 
     /*
@@ -76,7 +77,8 @@ public record Entity : Prototype
     #endregion
 
     /// [De]serialized component entries part of this prototype. Put on end of order.
-    [YamlMember(Alias = "components", Order = 99)] public List<ComponentYaml>? YamlComponents = [];
+    [YamlMember(Alias = "components", Order = 99)]
+    public List<ComponentYaml>? YamlComponents = [];
 
     /// <summary>
     /// Reverse-reference back to the world that this entity inhabits.
@@ -84,19 +86,18 @@ public record Entity : Prototype
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
     public IWorld? World { get; set; }
 
-
     #region Constructors & UID
-    
+
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
     [MemoryPackConstructor, System.Text.Json.Serialization.JsonConstructor]
     public Entity() : base()
     {
     }
-    
+
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
-    
+
     public EntityUid? Uid { get; set; } = null;
-    
+
     /// Does not permit more than one set. An entity keeps its UID consistently.
     public void SetUID(EntityUid entityUid) => Uid ??= entityUid;
 
@@ -112,6 +113,33 @@ public record Entity : Prototype
     public static implicit operator EntityUid(Entity entity) => (EntityUid)entity.Uid!;
 
     #endregion
+
+    /// <summary>
+    /// Effective cloning from one source, copied into this entity. Override & add base call at top of function
+    /// followed by additional copied-fields for any entity definitions that require their own implementation of
+    /// this method.
+    /// </summary>
+    public virtual Entity CopyFrom(Entity source)
+    {
+        Source = source.Source;
+        Type = source.Type;
+        Abstract = source.Abstract;
+        Inherit = source.Inherit;
+        Handle = source.Handle;
+        NameKey = source.NameKey;
+        DescriptionKey = source.DescriptionKey;
+        World = source.World;
+
+        if (source.YamlComponents != null && YamlComponents != null)
+            YamlComponents = YamlComponents
+                .Select(c => c.Clone())
+                .ToList();
+        else
+            YamlComponents = [];
+
+        return this;
+    }
+
 
     /// <summary>
     /// Special initialization logic for Entity.
@@ -135,6 +163,4 @@ public record Entity : Prototype
     public virtual void Update(GameTime gameTime)
     {
     }
-
-
 }

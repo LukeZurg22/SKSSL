@@ -3,7 +3,7 @@ using YamlDotNet.Serialization;
 
 namespace SKSSL.Tests.TestData;
 
-public record TestEntityInheritedType : Entity
+public class TestEntityInheritedType : Entity
 {
     [YamlMember]
     public string TestString { get; set; }
