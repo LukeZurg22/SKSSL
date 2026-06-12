@@ -41,7 +41,7 @@ public static partial class EntityExtensions
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
     [Pure]
-    public static Entity? Clone(this Entity original) => original.World?.ECS.EntityManager.Clone(original);
+    public static Entity? Clone(this Entity original) => original.World?.EntityManager.Clone(original);
 
     /// <summary>
     /// Creates a shallow clone of the given entity, and type-casts it.

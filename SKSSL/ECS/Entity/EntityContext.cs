@@ -13,16 +13,11 @@ namespace SKSSL.ECS;
 public readonly struct EntityContext
 {
     /// <inheritdoc cref="SKSSL.ECS.EntityManager"/>
-    public readonly EntityManager EntityManager = null!;
+    public EntityManager EntityManager => World.EntityManager;
 
     /// <inheritdoc cref="Scenes.World"/>
     public readonly World World = null!;
     
-    public EntityContext(EntityManager entityManager)
-    {
-        EntityManager = entityManager;
-    }
-
     /// <summary>
     /// Blank constructor that calls method in <see cref="SSLGame"/> to statically get ECS instance.
     /// </summary>
@@ -31,15 +26,12 @@ public readonly struct EntityContext
     {
         EntityContext ecs = SSLGame.Instance.SceneManager.ECS();
         World = ecs.World;
-        EntityManager = ecs.EntityManager;
     }
 
-    /// Wrapper Constructor for a <see cref="ECSController"/>.
+    /// Wrapper for a <see cref="World"/>.
     public EntityContext(World world)
     {
-        ECSController ecs = world.ECS;
         World = world;
-        EntityManager = ecs.EntityManager;
     }
 
     /*

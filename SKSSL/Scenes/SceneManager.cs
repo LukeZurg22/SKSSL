@@ -58,7 +58,7 @@ public class SceneManager : DrawableGameComponent
         }
 
         // Final check to validate that the world (and its ECS) is functioning.
-        if (world?.ECS is null)
+        if (world?.EntityManager is null)
         {
             message = "Failed to get Entity Context from null world or null World ECS!";
             Log(message, LOG.SYSTEM_ERROR, outputToFile: true);

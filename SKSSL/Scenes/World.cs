@@ -15,17 +15,17 @@ namespace SKSSL.Scenes;
 /// </summary>
 public interface IWorld
 {
-    public ECSController ECS { get; }
-
     /// Initializes the Game World.
     void Initialize(GraphicsDeviceManager graphics);
 
     /// LoadContent call to load additional content after Initialize is called.
     void LoadContent();
 
+    // ReSharper disable once UnusedParameter.Global
     /// Update calls made into the game world.
     void Update(GameTime gameTime);
 
+    // ReSharper disable once UnusedParameter.Global
     /// Draw calls made into the game world.
     void Draw(GameTime gameTime);
 
@@ -52,10 +52,11 @@ public abstract class World : IWorld
     protected static bool UsesECS => SSLGame.Config.UseECS;
 
     /// Graphics management embedded in this world.
-    public GraphicsDeviceManager Graphics { get; private set; } = null!;
+    public GraphicsDeviceManager Graphics { get; private set; }
 
-    /// ECS controller unique to this world instance. Left null of no ECS controller.
-    public ECSController ECS { get; } = null!;
+    /// ECS controller unique to this world instance..
+    /// Manages  all active entities in this world.
+    public readonly EntityManager EntityManager = new();
 
     /// Calls ECS Init() (if enabled)
     protected World()
@@ -64,7 +65,7 @@ public abstract class World : IWorld
         // Enable ECS if toggled-on.
         if (!UsesECS) return;
         Log("...initializing world ECS...");
-        ECS = new ECSController(this);
+        EntityManager = new EntityManager();
     }
 
     /// Calls Spacial Initializations as base class method.
@@ -81,21 +82,31 @@ public abstract class World : IWorld
     /// <inheritdoc cref="IWorld.Update"/>
     public virtual void Update(GameTime gameTime)
     {
-        if (!UsesECS) return;
-        ECS.Update(gameTime);
+        /*
+         * Entity definitions come equipped with virtual Update & Draw methods that can be overwritten. They will do
+         * nothing on their own, but if for some reason you feel like overriding this Update call and overriding the
+         * consensus entity-type with your own calls- you can do that.
+         * It Looks something like this:
+            // foreach (var entity in EntityManager.AllEntities) entity.Update(gameTime);
+         */
     }
 
     /// <inheritdoc cref="IWorld.Draw"/>
     public virtual void Draw(GameTime gameTime)
     {
-        if (!UsesECS) return;
-        ECS.Draw(gameTime);
+        /*
+         * Entity definitions come equipped with virtual Update & Draw methods that can be overwritten. They will do
+         * nothing on their own, but if for some reason you feel like overriding this Draw call and overriding the
+         * consensus entity-type with your own calls- you can do that.
+         * It Looks something like this:
+            // foreach (var entity in EntityManager.AllEntities) entity.Update(gameTime);
+         */
     }
 
     /// <inheritdoc cref="IWorld.Destroy"/>
     public virtual void Destroy()
     {
         if (!UsesECS) return;
-        ECS.Destroy();
+        EntityManager.DestroyAll();
     }
 }

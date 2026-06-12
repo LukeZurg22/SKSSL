@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SKSSL.Extensions;
-using SKSSL.Scenes;
 using static SKSSL.SSLGame;
 
 namespace SKSSL.ECS;
@@ -13,7 +12,7 @@ namespace SKSSL.ECS;
 /// </summary>
 public partial class EntityManager
 {
-    // Component registry per entity manager per world.
+    /// Registry of all component instances and definitions per entity manager per world.
     public readonly ComponentRegistry ComponentRegistry = new();
 
     // Struct of Arrays Layout for Entities.
@@ -22,10 +21,10 @@ public partial class EntityManager
     private int[] _freeList = new int[Config.DESTROY_ENTITY_CACHE_LIMIT];
     private int _freeCount = 0;
 
-    private readonly IWorld _world;
-
     /// <inheritdoc cref="EntityManager"/>
-    public EntityManager(IWorld world) => _world = world;
+    public EntityManager()
+    {
+    }
 
     /// Get all Active entities present in the game.
     internal IReadOnlyList<Entity> AllEntities => _entities;
@@ -57,10 +56,10 @@ public partial class EntityManager
                 LOG.SYSTEM_ERROR);
             return null;
         }
-        
+
         return Clone(source);
     }
-    
+
     /// <summary>
     /// Acquires an entity template using a provided reference id, and creates an entity instance using it.
     /// </summary>
@@ -71,14 +70,14 @@ public partial class EntityManager
     {
         if (source.Abstract)
             throw new Exception($"Attempted to spawn abstract entity {source.GetUniqueInternalRef()}");
-        
+
         // Create entity copy.
-        Entity? entity = new Entity().CopyFrom(source);
+        Entity entity = new Entity().CopyFrom(source);
 
         // Add & Initialize the entity.
         EntityUid entityUid = CreateUID(entity);
         entity.SetUID(entityUid);
-        
+
         // Register component indices for this ID.
         ComponentRegistry.PrepareEntityComponentStorage(entityUid);
 

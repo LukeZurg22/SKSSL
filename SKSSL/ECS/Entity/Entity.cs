@@ -84,7 +84,7 @@ public class Entity : Prototype
     /// Reverse-reference back to the world that this entity inhabits.
     /// </summary>
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
-    public IWorld? World { get; set; }
+    public World? World { get; set; }
 
     #region Constructors & UID
 
