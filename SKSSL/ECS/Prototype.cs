@@ -32,10 +32,12 @@ namespace SKSSL.ECS;
 /// </summary>
 public partial class Prototype
 {
+    private const string DefaultSource = "game";
+    
     /// Game content directory key to reverse-trace where this yaml prototype originated.
     [YamlIgnore]
-    public virtual string Source { get; set; }
-    
+    public virtual string Source { get; set; } = DefaultSource;
+
     /// Explicit type definition for this entry. For direct raw-serialization of entities.
     /// Completely unused if prioritizing yaml templates.
     [YamlMember(Alias = "type", Order = 0), JsonInclude]
@@ -45,7 +47,7 @@ public partial class Prototype
     /// Searchable, indexable ID. Virtual for possible nullability change in child classes.
     [YamlMember(Alias = "id", Order = 3), JsonInclude]
     public virtual string Handle { get; set; }
-    
+
     /// <summary>
     /// Internal categorization of this yaml entry. Split into parts:<br/>
     /// 1. Directory (dictated by the folder where this was found)<br/>
@@ -62,7 +64,7 @@ public partial class Prototype
     public Prototype()
     {
         // Auto-generate fallback source if not provided.
-        if (string.IsNullOrEmpty(Source)) Source = "game";
+        if (string.IsNullOrEmpty(Source)) Source = DefaultSource;
     }
 
     /// Constructor for Entity Yaml basic fields and default components. This is for definitions.

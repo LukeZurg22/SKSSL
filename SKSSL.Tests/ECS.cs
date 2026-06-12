@@ -169,7 +169,6 @@ public class ECS
         // Deserialize as a list of prototypes and assume the first entry is the entity put in.
         var prototypes = loader.Deserialize(output, "Test");
         var entry = prototypes[0] as Entity;
-
         /* // Expected values
          * - handle = "test-entity",
          *   type = "Entity",
@@ -179,7 +178,7 @@ public class ECS
          *       _fieldComp
          *   ]
          */
-        Assert.IsTrue(entry != null && entry.Equals(_testEntityInstance));
+        Assert.IsTrue(entry != null && entry == _testEntityInstance);
 
         _entities.Add(_testInheritedEntityInheritedInstance);
         output = loader.Serialize(_entities);

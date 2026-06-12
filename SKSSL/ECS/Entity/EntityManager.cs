@@ -71,12 +71,14 @@ public partial class EntityManager
         if (source.Abstract)
             throw new Exception($"Attempted to spawn abstract entity {source.GetUniqueInternalRef()}");
 
+        // Create unique ID.
+        EntityUid entityUid = CreateUID();
+        
         // Create entity copy.
-        Entity entity = new Entity().CopyFrom(source);
-
-        // Add & Initialize the entity.
-        EntityUid entityUid = CreateUID(entity);
-        entity.SetUID(entityUid);
+        Entity entity = new Entity(entityUid).CopyFrom(source);
+        
+        // Assign to "All Entities" list.
+        _entities[entityUid.Index] = entity;
 
         // Register component indices for this ID.
         ComponentRegistry.PrepareEntityComponentStorage(entityUid);
@@ -111,7 +113,7 @@ public partial class EntityManager
 
         Entity? entity = _entities[index];
 
-        if (entity == null)
+        if (entity is null)
             throw new Exception("Entity slot is empty");
 
         return entity;
@@ -131,7 +133,7 @@ public partial class EntityManager
 
         if ((uint)index < (uint)_entities.Length
             && _generations[index] == generation
-            && (entity = _entities[index]!) != null)
+            && (entity = _entities[index]!) is not null)
             return true;
 
         entity = null!;
@@ -139,7 +141,7 @@ public partial class EntityManager
     }
 
     /// Create unique ID for entity.
-    private EntityUid CreateUID(Entity? entity)
+    private EntityUid CreateUID()
     {
         int index;
 
@@ -159,9 +161,6 @@ public partial class EntityManager
             Array.Resize(ref _generations, index + 1);
         }
 
-        // Assign to "All Entities" list.
-        _entities[index] = entity;
-
         int generation = _generations[index];
         return new EntityUid(index, generation);
     }
@@ -178,7 +177,7 @@ public partial class EntityManager
         if (_generations[index] != generation)
             return;
 
-        if (_entities[index] == null)
+        if (_entities[index] is null)
             return;
 
         // Remove entry.
@@ -205,7 +204,7 @@ public partial class EntityManager
             return false;
 
         Entity? entity = _entities[index];
-        if (entity == null)
+        if (entity is null)
             return false;
 
         return _generations[index] == uid.Generation;

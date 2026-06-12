@@ -94,12 +94,11 @@ public class Entity : Prototype
     {
     }
 
-    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
-
-    public EntityUid? Uid { get; set; } = null;
+    public Entity(EntityUid uid) : base() => Uid = uid;
 
     /// Does not permit more than one set. An entity keeps its UID consistently.
-    public void SetUID(EntityUid entityUid) => Uid ??= entityUid;
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    public readonly EntityUid? Uid = null;
 
     /// <summary>
     /// 
@@ -163,4 +162,35 @@ public class Entity : Prototype
     public virtual void Update(GameTime gameTime)
     {
     }
+
+    #region Operators
+
+    /// <summary>
+    /// Equate Uids, Written-Types, & Handles. More thorough.
+    /// </summary>
+    /// <param name="other"></param>
+    /// <returns></returns>
+    protected bool Equals(Entity other) => Uid != null &&
+                                           Uid.Value == other.Uid &&
+                                           Type.Equals(other.Type) &&
+                                           Handle.Equals(other.Handle);
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is null) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        return obj.GetType() == GetType() && Equals((Entity)obj);
+    }
+
+    public override int GetHashCode() => Uid.GetHashCode();
+
+    /// <summary>
+    /// Equates handles only.
+    /// </summary>
+    public static bool operator ==(Entity? a, Entity? b)
+        => ReferenceEquals(a, b) || a is not null && b is not null && a.Handle == b.Handle;
+
+    public static bool operator !=(Entity? a, Entity? b) => !(a == b);
+
+    #endregion
 }
