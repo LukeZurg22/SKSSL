@@ -46,7 +46,7 @@ public partial class Prototype
     /// Definition's Reference ID to later refer-to when making copies.
     /// Searchable, indexable ID. Virtual for possible nullability change in child classes.
     [YamlMember(Alias = "id", Order = 3), JsonInclude]
-    public virtual string Handle { get; set; }
+    public string Handle { get; set; }
 
     /// <summary>
     /// Internal categorization of this yaml entry. Split into parts:<br/>
