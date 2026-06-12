@@ -57,7 +57,7 @@ public static partial class EntityExtensions
     [Pure]
     public static IEnumerable<Entity> QueryEntitiesWith(this World world, params Type[] componentTypes)
     {
-        foreach (Entity entity in world.ECS.EntityManager.AllEntities)
+        foreach (Entity entity in world.EntityManager.AllEntities)
             if (componentTypes.All(type => entity.HasComponent(type)))
                 yield return entity;
     }
@@ -126,7 +126,7 @@ public static partial class EntityExtensions
     public static IEnumerable<T1> QueryComponents<T1>(this World world)
         where T1 : Component
     {
-        foreach (Entity entity in world.ECS.EntityManager.AllEntities)
+        foreach (Entity entity in world.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) && comp1 != null)
                 yield return comp1;
     }
@@ -142,7 +142,7 @@ public static partial class EntityExtensions
         where T1 : Component
         where T2 : Component
     {
-        foreach (Entity entity in world.ECS.EntityManager.AllEntities)
+        foreach (Entity entity in world.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) &&
                 entity.TryGetComponent(out T2? comp2) &&
                 comp1 != null && comp2 != null)
@@ -162,7 +162,7 @@ public static partial class EntityExtensions
         where T2 : Component
         where T3 : Component
     {
-        foreach (Entity entity in world.ECS.EntityManager.AllEntities)
+        foreach (Entity entity in world.EntityManager.AllEntities)
             if (entity.TryGetComponent(out T1? comp1) &&
                 entity.TryGetComponent(out T2? comp2) &&
                 entity.TryGetComponent(out T3? comp3) &&
@@ -180,7 +180,7 @@ public static partial class EntityExtensions
     [Pure]
     public static IEnumerable<Component> QueryComponents(this World world, params Type[] componentTypes)
     {
-        foreach (Entity entity in world.ECS.EntityManager.AllEntities)
+        foreach (Entity entity in world.EntityManager.AllEntities)
         {
             if (!componentTypes.All(d => entity.HasComponent(d))) continue;
             // Does entity have all components provided?
