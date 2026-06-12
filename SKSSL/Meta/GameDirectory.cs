@@ -79,6 +79,9 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     /// Nullable string to state that the folder may be locally-absent. 
     public string? TexturesFolder => GetSubFolder("textures");
 
+    // TODO: Dedicated folders may not be required if file extensions are exclusive. Exclusive directories are default,
+    //  but making them optional would be nice, assuming directory extensions and file extensions are annotated.
+    
     /// Nullable string to state that the folder may be locally-absent. 
     public string? PrototypesFolder => GetSubFolder("prototypes");
 

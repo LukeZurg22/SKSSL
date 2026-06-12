@@ -152,6 +152,9 @@
         <Compile Update="Meta\LoadPath.cs">
             <DependentUpon>GameSettings.cs</DependentUpon>
         </Compile>
+        <Compile Update="ECS\Component\Default\SpriteLayer.cs">
+          <DependentUpon>SpriteComponents.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <!-- START - !== ADD THE FOLLOWING TO INHERITING PROJECTS USING SKSSL AS AN ENGINE !== -->

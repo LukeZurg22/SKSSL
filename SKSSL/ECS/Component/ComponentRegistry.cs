@@ -65,6 +65,14 @@ public class ComponentRegistry
     /// </summary>
     private readonly Dictionary<uint, int[]> _entityUIDToComponentIndices = new();
 
+    internal void PrepareEntityComponentStorage(uint entityUid)
+    {
+        // Make component indices storage.
+        var arr = new int[Count];
+        Array.Fill(arr, -1);
+        _entityUIDToComponentIndices[entityUid] = arr;
+    }
+    
     /// Called by Source Generator.
     public static void Clear()
     {
@@ -439,12 +447,4 @@ public class ComponentRegistry
     /// <returns>true if entity possess an instance of component type, false if not.</returns>
     public bool HasComponent(EntityUid uid, Type componentType)
         => _entityUIDToComponentIndices[uid][RegisteredTypeIDDictionary.GetValueOrDefault(componentType, -1)] != -1;
-
-    public void InitializeEntityComponentStorage(uint entityUid)
-    {
-        // Make component indices storage.
-        var arr = new int[Count];
-        Array.Fill(arr, -1);
-        _entityUIDToComponentIndices[entityUid] = arr;
-    }
 }

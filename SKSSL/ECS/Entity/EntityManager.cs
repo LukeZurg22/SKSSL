@@ -76,7 +76,7 @@ public partial class EntityManager
         entity.SetUID(entityUid);
         
         // Register component indices for this ID.
-        ComponentRegistry.InitializeEntityComponentStorage(entityUid);
+        ComponentRegistry.PrepareEntityComponentStorage(entityUid);
 
         // Add default components if provided.
         if (entity.YamlComponents != null)
@@ -182,7 +182,7 @@ public partial class EntityManager
         _entities[index] = null;
 
         // Wipe UID's entry in comp storage. UID presence still means reusable.
-        ComponentRegistry.InitializeEntityComponentStorage(uid);
+        ComponentRegistry.PrepareEntityComponentStorage(uid);
 
         // Invalidate old IDs.
         _generations[index]++;
