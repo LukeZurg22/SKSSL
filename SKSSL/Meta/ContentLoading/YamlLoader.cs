@@ -31,7 +31,7 @@ namespace SKSSL;
 /// </summary>
 public class YamlLoader : PrototypeLoader
 {
-    protected override string[] Extensions => [".yml", ".yaml"];
+    public override string[] Extensions => [".yml", ".yaml"];
 
     /// YAML Serializer.
     private static readonly ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
@@ -53,7 +53,9 @@ public class YamlLoader : PrototypeLoader
     protected override string SerializeLogicImplement<T>(T obj) where T : class =>
         SKSSLDefaultSerializer.Serialize(obj);
 
-    protected override List<Prototype> DeserializeLogicImplement(string text, string fileTrace = "",
+    protected override List<Prototype> DeserializeLogicImplement(
+        string text, 
+        string trace = "",
         params Type[] types)
     {
         // Split up the text into lines.
@@ -65,13 +67,13 @@ public class YamlLoader : PrototypeLoader
         //  gets passed, it's probably because of a test.
 
         // Read all lines, divide into blocks in accordance to expected types.
-        var yamlBlocks = ConvertLinesToYamlBlocks(lines, types, fileTrace);
+        var yamlBlocks = ConvertLinesToYamlBlocks(lines, types, trace);
 
         // Combine yaml blocks of shared declared-types.
         var combined = CombineYamlBlocks(yamlBlocks);
 
         // Deserialize each set of blocks as a list of their corresponding types.
-        return DeserializeFillData(combined, fileTrace);
+        return DeserializeFillData(combined, trace);
     }
 
     #region Helpers

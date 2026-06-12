@@ -19,6 +19,8 @@ using SKSSL.Utilities;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
+
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Local
 
 namespace SKSSL;
@@ -47,7 +49,7 @@ public abstract class SSLGame : Game
 
     #endregion
 
-    // Use static constructor for this.
+    /// Use static constructor for this.
     public static EngineConfig Config { get; set; } = new();
 
     #region Fields
@@ -107,8 +109,7 @@ public abstract class SSLGame : Game
             _gumFilePath = Path.Combine("Gum", Config.GumFile);
 
         // Load settings, and based on game paths, create directories ordered by load order.
-        GameSettings settings = LoadSettings();
-        // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
+        GameSettings settings = GameSettings.Load(); // Get game settings from file.
         Directories = GetGameDirectories(settings.GamePaths);
         Directories.Sort();
 
@@ -167,7 +168,11 @@ public abstract class SSLGame : Game
         foreach (GameDirectory directory in Directories)
         {
             LoadGameDirectories(directory);
-            Log($"...finished loading: {directory.DirectoryTitle}");
+            string directoryTitle = directory.DirectoryTitle;
+            if (string.IsNullOrEmpty(directoryTitle))
+                directoryTitle = "root";
+
+            Log($"...finished loading {directoryTitle} directory...");
         }
 
         #endregion
@@ -230,7 +235,7 @@ public abstract class SSLGame : Game
         }
         else
         {
-            /*  Once a singular game-path is added to the list, any root-level directory is rendered completely
+            /*  Once a singular game-path is added to the list, any root-level directory would be rendered completely
              worthless. To avoid this conundrum, the specific key word "root" was allocated to check and remove. */
             if (settings.Any(d => d.Path.Contains("root")))
             {
@@ -251,40 +256,6 @@ public abstract class SSLGame : Game
         }
 
         return contentDirectories;
-    }
-
-    /// Get game settings from file.
-    private static GameSettings LoadSettings()
-    {
-        var settingsPath = GameSettings.SettingsFilePath;
-        var settings = new GameSettings();
-        if (!File.Exists(settingsPath))
-        {
-            GameSettings.ForceCreateDefault(settings);
-        }
-        else
-        {
-            IDeserializer deserializer = new DeserializerBuilder()
-                .WithNamingConvention(UnderscoredNamingConvention.Instance)
-                .IgnoreUnmatchedProperties()
-                .Build();
-            try
-            {
-                var text = File.ReadAllText(settingsPath);
-                settings = deserializer.Deserialize<GameSettings>(text);
-            }
-            catch
-            {
-                settings = null;
-            }
-
-            if (settings is not null) return settings;
-
-            settings = new GameSettings();
-            GameSettings.ForceCreateDefault(settings);
-        }
-
-        return settings;
     }
 
     private GumProjectSave? InitializeGum()

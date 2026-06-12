@@ -39,7 +39,7 @@ public enum TextureType : byte
 /// </summary>
 public partial class TextureLoader : IGameLoader
 {
-    private static readonly string[] TextureExtensions = [ ".png", ".jpg" ];
+    public override string[] Extensions => [".png", ".jpg"];
     
     private const string IndicatorMaterial = ".m";
     private const string IndicatorTilemap = ".t"; // TODO: Current unused. Tilemap support would be nice.
@@ -58,7 +58,7 @@ public partial class TextureLoader : IGameLoader
     /// </summary>
     /// <param name="directory">A particular game directory's textures folder.</param>
     /// <exception cref="ArgumentNullException"></exception>
-    public void Load(string directory)
+    public override void Load(string directory)
     {
         // Process all folders inside textures folder. 
         var subFolders = GetDirectories(directory, "", AllDirectories);
@@ -115,7 +115,7 @@ public partial class TextureLoader : IGameLoader
         /// Core loading logic that attempts to load from a file path, then Content pipeline, before returning an
         /// error texture of nothing was successful. This is generic, working between all kinds of map types.
         /// </summary>
-        internal static Texture2D LoadFromFileOrContent(string filePath, string cacheKey, string category)
+        private static Texture2D LoadFromFileOrContent(string filePath, string cacheKey, string category)
         {
             Texture2D texture;
             // 1. Direct file load (for mod/override support)

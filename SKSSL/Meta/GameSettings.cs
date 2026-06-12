@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
@@ -8,19 +9,6 @@ using YamlDotNet.Serialization.NamingConventions;
 // ReSharper disable UnusedMember.Global
 
 namespace SKSSL;
-
-// ReSharper disable once ClassNeverInstantiated.Global
-public class LoadPath
-{
-    public string Path { get; set; }
-    public int Order { get; set; }
-
-    public LoadPath(string path, int order)
-    {
-        Path = path;
-        Order = order;
-    }
-}
 
 [JsonObject]
 public class GameSettings
@@ -37,7 +25,37 @@ public class GameSettings
     /// Language culture of the game.
     public string Language { get; set; } = "en-US";
 
-    public static string SettingsFilePath = Path.Combine(GameDirectory.RootDirectory, "settings.yaml");
+    private static string SettingsFilePath = Path.Combine(GameDirectory.RootDirectory, "settings.yaml");
+
+    public static GameSettings Load()
+    {
+        var settings = new GameSettings();
+        if (!File.Exists(SettingsFilePath))
+        {
+            ForceCreateDefault(settings);
+            return settings;
+        }
+
+        // Commence the file-loading!
+        IDeserializer deserializer = new DeserializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .IgnoreUnmatchedProperties()
+            .Build();
+
+        // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
+        try
+        {
+            var text = File.ReadAllText(SettingsFilePath);
+            settings = deserializer.Deserialize<GameSettings>(text);
+        }
+        catch (Exception e)
+        {
+            Log($"Failed to load game settings: {e.Message}");
+            return new GameSettings();
+        }
+
+        return settings;
+    }
 
     public static void ForceCreateDefault(GameSettings settings)
     {

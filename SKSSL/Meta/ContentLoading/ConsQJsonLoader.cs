@@ -16,11 +16,13 @@ namespace SKSSL;
 /// </summary>
 public class ConsQJsonLoader : PrototypeLoader
 {
+    public override string[] Extensions => [".json"];
+
     protected override string SerializeLogicImplement<T>(T obj)
         => JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
 
     /// Loads json file at path and returns a list of objects, even if there is only one entry.
-    protected override List<Prototype> DeserializeLogicImplement(string text, string fileTrace = "",
+    protected override List<Prototype> DeserializeLogicImplement(string text, string trace = "",
         params Type[] types)
     {
         List<Prototype> output = [];
@@ -30,7 +32,7 @@ public class ConsQJsonLoader : PrototypeLoader
         Type? target = types.FirstOrDefault(t => t.Name.Equals(n));
         if (target == null)
         {
-            Log($"Failed to deserialize {fileTrace} as JSON!");
+            Log($"Failed to deserialize {trace} as JSON!");
             return [];
         }
 

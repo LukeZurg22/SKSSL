@@ -9,15 +9,10 @@ namespace SKSSL;
 
 public abstract class PrototypeLoader : IGameLoader
 {
-    /// <summary>
-    /// Custom supported extensions provided by developer implementation. OVERRIDE ME!
-    /// </summary>
-    protected virtual string[] Extensions => [];
-
     /// Using prototype data collected from a Game Directory's provided Prototypes folder, ten load into registries.
     /// Load multiple files containing identical types in a directory.
     /// Generally expects all files in the directory to be the same type. Can be overwritten for custom logic.
-    public virtual void Load(string directory)
+    public override void Load(string directory)
     {
         if (!SSLGame.Config.UseECS)
         {
@@ -113,12 +108,12 @@ public abstract class PrototypeLoader : IGameLoader
         return DeserializeLogicImplement(text, fileTrace, types);
     }
 
-    protected abstract List<Prototype> DeserializeLogicImplement(string text, string fileTrace = "",
-        params Type[] types);
-
-    private List<string> GetFiles(string directory)
-        => Directory
-            .EnumerateFiles(directory, "*", SearchOption.AllDirectories)
-            .Where(file => Extensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
-            .ToList();
+    /// <summary>
+    /// User-Developer implementation for deserialization logic for game content.
+    /// </summary>
+    /// <param name="text">Text to deserialize.</param>
+    /// <param name="trace">Filepath passthrough for tracing.</param>
+    /// <param name="types">Explicit types for conversions. (Optional)</param>
+    /// <returns></returns>
+    protected abstract List<Prototype> DeserializeLogicImplement(string text, string trace = "", params Type[] types);
 }
