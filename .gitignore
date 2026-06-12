@@ -22,6 +22,7 @@ Generated/
 **/*.g.cs
 
 # Test Projects
+SKSSL.Tests/build/
 SKSSL.Tests/Generated/
 SKSSL.LiveTest/
 **/SKSSL.LiveTest/
