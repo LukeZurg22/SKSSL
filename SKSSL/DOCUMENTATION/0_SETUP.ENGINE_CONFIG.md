@@ -10,7 +10,7 @@ Content/Gum/`<file name>.gumx`. Change this in your special `Game.cs` class' sta
 > The way a GUM file is loaded may change!
 
 # Game Content Loader
-By default this requires the ECS to be enabled! The GameContentLoader class is an abstract inheritable class that allows a developer to create their own loader that
+By default this requires the ECS to be enabled! The PrototypeLoader class is an abstract inheritable class that allows a developer to create their own loader that
 couples into the system. They are provided abstract [De]Serialize methods to override to turn text into Prototype lists.
 
 The Content Loaders exclusively handle prototyping, nothing more. Supply your own extensions, and your own logic!

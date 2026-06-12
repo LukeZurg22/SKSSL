@@ -1,10 +1,17 @@
 # .CSPROJ Adjustments
+First, Add SKSSL As a Nuget Package Reference (Or as a submodule!)
 
+https://www.nuget.org/packages/SKSSL/
+
+_or add to the `.csproj` directly:_
 ```config
-<!--Add SKSSL As a Nuget Package Reference (Or as a submodule!)-->
 <ItemGroup>
     <PackageReference Include="SKSSL" Version="<!--Enter Version Here-->" />
 </ItemGroup>
+```
+
+Then, adjust the `.csproj` to accomodate the engine.
+```config
 
     <!-- !== ADD THE FOLLOWING TO GAME PROJECTS INHERITING / USING SKSSL AS AN ENGINE !== -->
 <!--START - Enable Compiler-Generated Code-->
@@ -53,7 +60,7 @@
 This is only for a _root_ game directory as an example. A specified directory requires a folder in your project, and
 **only one** of these Directory-centric content inclusions focused on that folder and all of its contents!
 
-# SSLGame
+# SSLGame Engine Config
 Make a game Class that inherits SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs ; Additionally, you will
 need to configure the engine's properties below.
 
@@ -68,7 +75,7 @@ public class MyGame : SSLGame
         {
             UseECS = <bool>,    // Toggles ECS. Defaults to "true"
             GumFile = <string>, // "<name>.gumx" Defaults to "" (ignored)
-            ContentLoader = new <Type of GameContentLoader>(), // Content loader. Defaults to YamlLoader.
+            ContentLoader = new <Type of PrototypeLoader>(), // Content loader. Defaults to YamlLoader.
             //...
             //etc.
         };
