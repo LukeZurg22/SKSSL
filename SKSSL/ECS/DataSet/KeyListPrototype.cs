@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using YamlDotNet.Serialization;
 using static YamlDotNet.Serialization.DefaultValuesHandling;
+
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Local
@@ -36,6 +37,14 @@ public class KeyListPrototype : Prototype
     /// </code>
     /// </example>
     public KeyListValues Values;
+
+    /// <returns>Values Key List, but as a localized set of values as its keys.</returns>
+    // Localization WILL complain if any are explicit but not present.
+    public IEnumerable<string> GetValuesAsLocalized()
+    {
+        foreach (string keyListValue in Values)
+            yield return Loc.Get(keyListValue);
+    }
 }
 
 [YamlSerializable]

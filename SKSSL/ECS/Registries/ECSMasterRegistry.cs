@@ -119,8 +119,8 @@ public abstract class ECSMasterRegistry
             return false;
 
         // Get registry associated with the acquired type, and get prototype directly without a cast.
-        ECSRegistry ecsRegistry = GetRegistry(type);
-        return ((ECSRegistry<T>)ecsRegistry).TryGet(handle, out prototype!);
+        var ecsRegistry = (ECSRegistry<T>)GetRegistry(type);
+        return ecsRegistry.TryGet(handle, out prototype!);
     }
 
     public static bool TryGetPrototype(string handle, out Prototype prototype)
