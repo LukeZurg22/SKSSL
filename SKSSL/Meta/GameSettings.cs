@@ -19,6 +19,9 @@ public class GameSettings
     /// Screen Height
     public uint Height { get; set; } = 1080;
 
+    public bool IsBorderless { get; set; } = false;
+    public bool IsFullScreen { get; set; } = false;
+
     /// Paths to game and mod content folders.
     public List<LoadPath> GamePaths { get; set; } = [];
 
