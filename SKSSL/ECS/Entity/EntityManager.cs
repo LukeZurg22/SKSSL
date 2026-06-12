@@ -66,7 +66,8 @@ public partial class EntityManager
     /// </summary>
     /// <param name="source">Entity template to copy from.</param>
     /// <returns>Spawned copy of entity from handle.</returns>
-    public Entity? Clone(Entity source)
+    /// <exception cref="Exception">Thrown if entity is abstract. Abstract entities should not be instantiated.</exception>
+    public Entity Clone(Entity source)
     {
         if (source.Abstract)
             throw new Exception($"Attempted to spawn abstract entity {source.GetUniqueInternalRef()}");
