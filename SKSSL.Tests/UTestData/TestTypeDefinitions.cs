@@ -1,5 +1,6 @@
 using System;
 using SKSSL.ECS;
+using YamlDotNet.Serialization;
 
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -44,4 +45,10 @@ public class TestPrototypeConstructorTwo : TestPrototypeConstructor
         FirstField = yaml.FirstField;
         SecondField = yaml.SecondField;
     }
+}
+
+public class TestEntityInheritedType : Entity
+{
+    [YamlMember]
+    public string TestString { get; set; }
 }

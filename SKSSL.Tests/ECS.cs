@@ -6,64 +6,13 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.ECS;
 using SKSSL.Extensions;
 using SKSSL.Tests.TestData;
+using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 using static SKSSL.Tests.TestPrototypes;
 
 // ReSharper disable RedundantNameQualifier
 // ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Tests;
-
-public abstract class TestPrototypes
-{
-    public static readonly string ExpectedOutputSingleEntry = $"""
-                                                               - type: Entity
-                                                                 id: testa
-                                                                 name: test-name
-                                                                 description: test-desc
-                                                                 components:
-                                                                 - type: {nameof(TestBlankComponent).Replace("Component", "")}
-                                                               """;
-
-    public static readonly string ExpectedOutputYamlMultiEntry = """
-                                                                 - type: Entity
-                                                                   id: testb
-                                                                   name: test-name
-                                                                   description: test-desc
-
-                                                                 - type: Entity
-                                                                   id: testc       
-                                                                   name: test-name
-                                                                   description: test-desc
-                                                                 """;
-
-    public static readonly string TestYamlSingleEntry = $"""
-                                                         - type: Entity
-                                                           id: testa         
-                                                           name: test-name
-                                                           description: test-desc
-                                                           components:
-                                                           - type: {nameof(TestBlankComponent).Replace("Component", "")}
-                                                         """;
-
-    public const string TestYamlMultiEntry = """
-                                             - type: Entity
-                                               id: testb          
-                                               name: test-name
-                                               description: test-desc
-                                             - type: Entity
-                                               id: testc        
-                                               name: test-name
-                                               description: test-desc
-                                             """;
-
-    public const string TestYamlOverride = """
-                                           # Ensure that test-a has full qualifier
-                                           - type: Entity
-                                             id: game:testa
-                                             name: test-name-override
-                                             description: test-desc-override
-                                           """;
-}
 
 [TestClass, UsedImplicitly]
 [TestSubject(typeof(YamlLoader)), TestSubject(typeof(EntityManager))]
@@ -94,11 +43,13 @@ public class ECS
         ]
     };
 
+    private const string ExpectedTestString = "my-test-string";
+
     private readonly TestEntityInheritedType _testInheritedEntityInheritedInstance = new()
     {
         Handle = "test-entity-inherited",
         Type = "TestEntityType",
-        TestString = "my-test-string",
+        TestString = $"{ExpectedTestString}",
         YamlComponents =
         [
             _flatComp,
@@ -113,61 +64,32 @@ public class ECS
      * Setup is repeated per-tests.
      */
 
-    private List<Entity> _entities;
+    private readonly PrototypeLoader _prototypeLoader = new SKSSL.YamlLoader();
 
-    [TestInitialize, UsedImplicitly]
-    public void Initialize()
+    [TestMethod, UsedImplicitly, TestSubject(typeof(PrototypeLoader))]
+    public void TEST_PROTOTYPE_LOADING()
     {
-        var yamlLoader = new SKSSL.YamlLoader();
-        var yml = yamlLoader.Deserialize(ExpectedOutputSingleEntry, "Test");
+        List<Entity> entities = [];
 
         // entity A
-        Assert.IsNotEmpty(yml);
-        _entities = [];
-        yml.ForEach(prototype => _entities.AddRange(prototype as Entity));
-
+        var yml = _prototypeLoader.Deserialize(TestYamlOutputSingleEntry, "Test");
+        HasCount(1, yml); // Test deserialize. Only one entry expected.
+        IsNotEmpty(yml);
+        yml.ForEach(prototype => entities.AddRange(prototype as Entity));
 
         // entities B & C
-        yml = yamlLoader.Deserialize(ExpectedOutputSingleEntry, "Test");
-        yml.ForEach(prototype => _entities.AddRange(prototype as Entity));
-        Assert.IsNotEmpty(yml);
-    }
+        yml = _prototypeLoader.Deserialize(TestYamlMultiEntry, "Test");
+        HasCount(2, yml);
+        yml.ForEach(prototype => entities.AddRange(prototype as Entity));
 
-    [TestMethod, UsedImplicitly, TestSubject(typeof(YamlLoader))]
-    public void TEST_COMPONENT_CONVERSIONS()
-    {
-        var component = new TestFieldComponent { x = 7 };
-        try
-        {
-            // Testing component to yaml.
-            ComponentYaml componentYaml = component.ToYaml();
-            object first = componentYaml.Entries.Values.First();
-            Assert.IsTrue((int)first == 7);
-
-            // Testing the reverse after change..
-            component = componentYaml.FromYaml() as TestFieldComponent;
-            Assert.IsTrue(component != null, nameof(component) + " != null");
-            Assert.IsTrue(component.x == 7);
-        }
-        catch (Exception e)
-        {
-            Assert.Fail(e.Message);
-        }
-    }
-
-    [TestMethod, UsedImplicitly, TestSubject(typeof(YamlLoader))]
-    public void TEST_YAML_SERIALIZER()
-    {
-        var loader = new SKSSL.YamlLoader();
-
-        // Test serializing one entity.
-        _entities.Clear();
-        _entities.Add(_testEntityInstance);
-        string output = loader.Serialize(_entities);
-        Assert.IsFalse(string.IsNullOrEmpty(output), nameof(output) + " != null");
+        // Test serializing and de-serializing in one breath.
+        entities.Clear();
+        entities.Add(_testEntityInstance);
+        string output = _prototypeLoader.Serialize(entities);
+        IsFalse(string.IsNullOrEmpty(output), nameof(output) + " != null");
 
         // Deserialize as a list of prototypes and assume the first entry is the entity put in.
-        var prototypes = loader.Deserialize(output, "Test");
+        var prototypes = _prototypeLoader.Deserialize(output, "Test");
         var entry = prototypes[0] as Entity;
         /* // Expected values
          * - handle = "test-entity",
@@ -178,26 +100,47 @@ public class ECS
          *       _fieldComp
          *   ]
          */
-        Assert.IsTrue(entry != null && entry == _testEntityInstance);
+        IsTrue(entry != null && entry == _testEntityInstance);
 
-        _entities.Add(_testInheritedEntityInheritedInstance);
-        output = loader.Serialize(_entities);
-        Assert.IsFalse(string.IsNullOrEmpty(output), nameof(output) + " != null");
+        // Test special inherited type.
+        entities.Add(_testInheritedEntityInheritedInstance);
+        output = _prototypeLoader.Serialize(entities);
+        Contains(ExpectedTestString, output); // Ensure that an expected variable is contained.
+    }
+
+
+    [TestMethod, UsedImplicitly, TestSubject(typeof(YamlLoader))]
+    public void TEST_COMPONENT_CONVERSIONS()
+    {
+        var component = new TestFieldComponent { x = 7 };
+        try
+        {
+            // Testing component to yaml.
+            ComponentYaml componentYaml = component.ToYaml();
+            object first = componentYaml.Entries.Values.First();
+            AreEqual(7, (int)first);
+
+            // Testing the reverse after change..
+            component = componentYaml.FromYaml() as TestFieldComponent;
+            IsTrue(component != null, nameof(component) + " != null");
+            AreEqual(7, component.x);
+        }
+        catch (Exception e)
+        {
+            Fail(e.Message);
+        }
     }
 
     // TODO: The same but for JSON format.
 
-    /// Source Generator yields the expectation that one of the Test Systems are present.
+    /// Source Generator yields the expectation that one of the Test Systems are present. Easy!
     [TestMethod]
-    public void TEST_SYSTEM_REGISTRY() => Assert.IsNotEmpty(SKSSL.ECS.SystemManager.AllSystems);
-
-    [TestMethod]
-    public void TEST_COMPONENT_REGISTRY()
+    public void TEST_REGISTRY_COUNTS()
     {
-        // There should be more than zero components registered, given the test components exist from Source Gen.
-        Assert.IsGreaterThan(0, SKSSL.ECS.ComponentRegistry.Count);
-        Assert.IsGreaterThan(0, SKSSL.ECS.ComponentRegistry.RegisteredTypeIDDictionary.Count);
-        Assert.IsGreaterThan(0, SKSSL.ECS.ComponentRegistry.RegisteredHandleComponentTypesDictionary.Count);
+        IsNotEmpty(SKSSL.ECS.SystemManager.AllSystems);
+        IsGreaterThan(0, SKSSL.ECS.ComponentRegistry.Count);
+        IsGreaterThan(0, SKSSL.ECS.ComponentRegistry.RegisteredTypeIDDictionary.Count);
+        IsGreaterThan(0, SKSSL.ECS.ComponentRegistry.RegisteredHandleComponentTypesDictionary.Count);
     }
 
     /// Register entity from single file, single entry.
@@ -206,10 +149,14 @@ public class ECS
     [TestMethod]
     public void TEST_ENTITY_REGISTRY()
     {
-        var text = TestYamlSingleEntry.Split("\n");
-        //var d = SKSSL.YAML.GameContentLoader.DeserializePrototypesFrom(text, "Test");
-        // Assert single.
-
+        List<Entity> entities = [];
+        const string TestEntHandle  = "TestEntity";
+        
+        // Assert single register.
+        TestEntityInheritedType testEnt = new TestEntityInheritedType { Handle = TestEntHandle };
+        ECSMasterRegistry.RegisterLoadedPrototype(testEnt.GetType(), testEnt);
+        IsTrue(ECSMasterRegistry.TryGetPrototype(TestEntHandle, out _));
+        
         // Assert multiple.
 
         // Assert override as expected.
@@ -256,6 +203,6 @@ public class ECS
     public void TEST_PROTO_REGISTRY_CLEAR()
     {
         SKSSL.ECS.ECSMasterRegistry.Clear();
-        Assert.IsEmpty(SKSSL.ECS.ECSMasterRegistry.TypeDefinitions);
+        IsEmpty(SKSSL.ECS.ECSMasterRegistry.TypeDefinitions);
     }
 }
