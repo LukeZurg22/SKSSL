@@ -31,7 +31,7 @@ public abstract class PrototypeLoader : IGameLoader
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
         // Files should -not- have a type defined within them outside the ones passed through here. If one somehow
         //  gets passed, it's probably because of a test.
-        var conglomerate = types.ToDictionary(type => type, _ => new List<Prototype>());
+        // --> Update: The Conglomerate list was removed. This note is left here for nostalgic reasons only.
 
         // Process every file with expected types.
         foreach (var file in files)
@@ -44,17 +44,13 @@ public abstract class PrototypeLoader : IGameLoader
                 // Forces only the support of defined types within the system. Since all types have a handle, and that
                 //  every prototype has an explicitly-referenced handle, that handle is used as a reference.
                 if (MasterRegistryManager.TryGetRegisteredTypeDefinition(prototype.Type, out Type type))
-                    conglomerate[type].Add(prototype);
+                {
+                    // Handle registrations
+                    MasterRegistryManager.RegisterLoadedPrototype(type, prototype);
+                }
                 else // Logging for tracing.
                     Log($"Unsupported type {prototype.Type} found in {file}.", LOG.FILE_ERROR);
             }
-        }
-
-
-        foreach (var protoDict in conglomerate)
-        foreach (Prototype prototype in protoDict.Value)
-        {
-            MasterRegistryManager.RegisterLoadedPrototype(protoDict.Key, prototype);
         }
     }
 

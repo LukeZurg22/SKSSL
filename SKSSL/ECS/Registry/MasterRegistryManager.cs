@@ -19,11 +19,16 @@ public abstract class MasterRegistryManager
      * File loading stores and loads in the order of Type -> Registry -> Operations.
      */
 
-    #region TypeDef (One-And-Done w. SourceGen Calls!)
+    #region TypeDef & Registries (One-And-Done w. SourceGen Calls!)
 
     /// Raw class type-definitions in development environment -only-. These are used in inheritance rules and are
     /// project-specific. Used for deserialization, and is filled-out by the Source Generator.
     [UsedImplicitly] public static readonly Dictionary<string, Type> TypeDefinitions = new();
+
+    /// Every custom entity / prototype type may have a custom registry that handles how it is loaded!
+    /// This particular property is assigned directly from Source Generator.
+    [UsedImplicitly]
+    public static Dictionary<Type, Registry> Registries { get; } = new();
 
     public static IReadOnlyList<Type> RegisteredGameProtoTypes => TypeDefinitions.Values.ToList().AsReadOnly();
 
@@ -58,21 +63,22 @@ public abstract class MasterRegistryManager
         Registries[type] = RawPrototypeRegistry.Instance;
     }
 
+    /// <summary>
+    /// Get expected runtime Type.
+    /// </summary>
+    /// <param name="typeName">Sanitized handle of Type class.</param>
+    /// <param name="type">Runtime Type of handle.</param>
+    /// <returns>True if found; false if not!</returns>
     [Pure]
     public static bool TryGetRegisteredTypeDefinition(string typeName, out Type type)
         => TypeDefinitions.TryGetValue(typeName, out type!);
 
-    /// Handles / IDs MUST be unique per-prototype, else there may be some conflicts!
-    private static readonly Dictionary<string, Type> HandleToType = new();
-
     #endregion
 
-    #region Registry Onboarding
+    #region Prototype Onboarding
 
-    /// Every custom entity / prototype type may have a custom registry that handles how it is loaded!
-    /// This particular property is assigned directly from Source Generator.
-    [UsedImplicitly]
-    public static Dictionary<Type, Registry> Registries { get; } = new();
+    /// Unique per-prototype Handles-Types dictionary to avoid conflicts.
+    private static readonly Dictionary<string, Type> PrototypeHandleToType = new();
 
     /// <summary>
     /// Register a prototype entry dynamically to a register based on its type, defaulting to the generic prototypes
@@ -85,8 +91,10 @@ public abstract class MasterRegistryManager
     public static void RegisterLoadedPrototype(Type type, Prototype definition)
     {
         // For O(1) retrieval. Register handle with unique ref.
-        HandleToType[definition.GetFullHandle()] = type;
-        GetRegistry(type).Register(definition.Handle, definition);
+        PrototypeHandleToType[definition.GetFullHandle()] = type;
+        
+        // Because type is explicitly provided, assume it's 100% valid. 
+        Registries[type].Register(definition.Handle, definition);
     }
 
     #endregion
@@ -138,7 +146,7 @@ public abstract class MasterRegistryManager
     {
         // Check that the handle has a corresponding type definition.
         prototype = default!;
-        if (!HandleToType.TryGetValue(handle, out Type? type))
+        if (!PrototypeHandleToType.TryGetValue(handle, out Type? type))
             return false;
 
         // Get registry associated with the acquired type, and get prototype directly without a cast.
@@ -150,7 +158,7 @@ public abstract class MasterRegistryManager
     {
         // Check that the handle has a corresponding type definition.
         prototype = default!;
-        if (!HandleToType.TryGetValue(handle, out Type? type))
+        if (!PrototypeHandleToType.TryGetValue(handle, out Type? type))
             return false;
 
         // Get registry associated with the acquired type.
