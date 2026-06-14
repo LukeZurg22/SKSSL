@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using SKSSL.ECS;
+using SKSSL.ECS.Registry;
 
 namespace SKSSL;
 
@@ -24,7 +25,7 @@ public abstract class PrototypeLoader : IGameLoader
         var files = GetFiles(directory);
 
         // Forces-load in bulk from all prototype definitions.
-        var types = ECSMasterRegistry.RegisteredGameProtoTypes;
+        var types = MasterRegistryManager.RegisteredGameProtoTypes;
 
         // "You can tell its conglomerate- because it's everywhere!"
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
@@ -42,17 +43,18 @@ public abstract class PrototypeLoader : IGameLoader
             {
                 // Forces only the support of defined types within the system. Since all types have a handle, and that
                 //  every prototype has an explicitly-referenced handle, that handle is used as a reference.
-                if (ECSMasterRegistry.TryGetRegisteredTypeDefinition(prototype.Type, out Type type))
+                if (MasterRegistryManager.TryGetRegisteredTypeDefinition(prototype.Type, out Type type))
                     conglomerate[type].Add(prototype);
                 else // Logging for tracing.
                     Log($"Unsupported type {prototype.Type} found in {file}.", LOG.FILE_ERROR);
             }
         }
 
+
         foreach (var protoDict in conglomerate)
         foreach (Prototype prototype in protoDict.Value)
         {
-            ECSMasterRegistry.RegisterLoadedPrototype(protoDict.Key, prototype);
+            MasterRegistryManager.RegisterLoadedPrototype(protoDict.Key, prototype);
         }
     }
 
@@ -104,7 +106,7 @@ public abstract class PrototypeLoader : IGameLoader
     {
         // Additional fallback. Typically for testing.
         if (types.Length == 0)
-            types = ECSMasterRegistry.RegisteredGameProtoTypes.ToArray();
+            types = MasterRegistryManager.RegisteredGameProtoTypes.ToArray();
         return DeserializeLogicImplement(text, fileTrace, types);
     }
 

@@ -8,9 +8,9 @@ using System.Diagnostics.Contracts;
 
 // ReSharper disable VirtualMemberNeverOverridden.Global
 
-namespace SKSSL.ECS;
+namespace SKSSL.ECS.Registry;
 
-public interface ECSRegistry
+public interface Registry
 {
     public int Count();
     public void Clear();
@@ -23,7 +23,7 @@ public interface ECSRegistry
 /// <summary>
 /// Specialized registry for handling different prototype definitions within the confines of the ECS and Content Loader.
 /// </summary>
-public abstract class ECSRegistry<T> : ECSRegistry where T : class, new()
+public abstract class Registry<T> : Registry where T : class, new()
 {
     /// <summary>
     /// Key = Handle, T = Definition Instance. These are non-processed instances, and are Individual definitions

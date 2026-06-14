@@ -2,6 +2,7 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using SKSSL.ECS;
+using SKSSL.ECS.Registry;
 using SKSSL.Textures;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
@@ -19,7 +20,7 @@ public class Checksum
     /// <remarks>Not very algorithmically effective. Clash-cases can happen</remarks>
     public static string Generate()
     {
-        int totalRegistryCount = ECSMasterRegistry.Count();
+        int totalRegistryCount = MasterRegistryManager.Count();
         byte[] regBytes = Encoding.UTF8.GetBytes($"REG.COUNT:{totalRegistryCount};");
         byte[] configBytes = Encoding.UTF8.GetBytes(SSLGame.Config.ToString());
         byte[] texBytes =

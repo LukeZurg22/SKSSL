@@ -13,6 +13,7 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoGame.ImGuiNet;
 using MonoGameGum;
 using SKSSL.ECS;
+using SKSSL.ECS.Registry;
 using SKSSL.Scenes;
 using SKSSL.Textures;
 using SKSSL.Utilities;
@@ -209,7 +210,7 @@ public abstract class SSLGame : Game
             // TODO: Add custom bootstrapping so developer can have their own loader slotted in.
         }
 
-        Log($"...loaded {ECSMasterRegistry.Count()} prototypes.");
+        Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
     }
 
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
 using static SKSSL.SSLGame;
 
@@ -42,7 +43,7 @@ public partial class EntityManager
 
     public Entity? Spawn(string handle)
     {
-        if (!ECSMasterRegistry.TryGetPrototype(handle, out Prototype definition))
+        if (!MasterRegistryManager.TryGetPrototype(handle, out Prototype definition))
         {
             Log($"Failed to get entity copy using {handle} handle. Try full handle instead.",
                 LOG.SYSTEM_ERROR);
@@ -69,7 +70,7 @@ public partial class EntityManager
     public Entity Clone(Entity source)
     {
         if (source.Abstract)
-            throw new Exception($"Attempted to spawn abstract entity {source.GetUniqueInternalRef()}");
+            throw new Exception($"Attempted to spawn abstract entity {source.GetFullHandle()}");
 
         // Create unique ID.
         EntityUid entityUid = CreateUID();

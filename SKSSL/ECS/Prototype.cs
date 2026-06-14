@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using YamlDotNet.Serialization;
+// ReSharper disable UnusedMethodReturnValue.Global
 
 
 // ReSharper disable VirtualMemberCallInConstructor
@@ -33,7 +34,7 @@ namespace SKSSL.ECS;
 public partial class Prototype
 {
     private const string DefaultSource = "game";
-    
+
     /// Game content directory key to reverse-trace where this yaml prototype originated.
     [YamlIgnore]
     public virtual string Source { get; set; } = DefaultSource;
@@ -55,7 +56,7 @@ public partial class Prototype
     /// </summary>
     /// <returns>"<see cref="Source"/>:<see cref="Handle"/>"</returns>
     /// <returns>Fully-justified handle combining source, and short handle.</returns>
-    public string GetUniqueInternalRef(string? key = null)
+    public string GetFullHandle(string? key = null)
         => $"{key ?? Source}:{Handle}";
 
     /// Blank constructor for Common Entity root. Avoid using this unless absolutely necessary.
@@ -75,5 +76,13 @@ public partial class Prototype
 
         // Name and description may be absent / null, so handle them here.
         Type = yaml.Type;
+    }
+
+    public virtual Prototype CopyFrom(Prototype source)
+    {
+        Source = source.Source;
+        Type = source.Type;
+        Handle = source.Handle;
+        return this;
     }
 }

@@ -120,15 +120,12 @@ public class Entity : Prototype
     /// </summary>
     public virtual Entity CopyFrom(Entity source)
     {
-        Source = source.Source;
-        Type = source.Type;
+        base.CopyFrom(source); // Copy base-prototype stuff.
         Abstract = source.Abstract;
         Inherit = source.Inherit;
-        Handle = source.Handle;
         NameKey = source.NameKey;
         DescriptionKey = source.DescriptionKey;
         World = source.World;
-
         if (source.YamlComponents != null && YamlComponents != null)
             YamlComponents = YamlComponents
                 .Select(c => c.Clone())

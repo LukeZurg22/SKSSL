@@ -5,12 +5,12 @@ using JetBrains.Annotations;
 
 // ReSharper disable UnusedMember.Global
 
-namespace SKSSL.ECS;
+namespace SKSSL.ECS.Registry;
 
 /// <summary>
 /// Storing all prototype definitions.
 /// </summary>
-public abstract class ECSMasterRegistry
+public abstract class MasterRegistryManager
 {
     /*
      * Here's The Pattern:
@@ -27,9 +27,36 @@ public abstract class ECSMasterRegistry
 
     public static IReadOnlyList<Type> RegisteredGameProtoTypes => TypeDefinitions.Values.ToList().AsReadOnly();
 
-    /// Called directly from Source Generator.
+    /// Registers a sanitized type handle to a definitions dictionary, and populates the Type to Registry
+    /// dictionary. /// Called directly from Source Generator.
     [UsedImplicitly]
-    public static void RegisterTypeDefinition(string handle, Type type) => TypeDefinitions[handle] = type;
+    public static void RegisterTypeDefinition(string handle, Type type)
+    {
+        TypeDefinitions[handle] = type;
+
+        Type? rootType = type;
+        while (rootType != null)
+        {
+            Type? registryType = AppDomain.CurrentDomain
+                .GetAssemblies()
+                .SelectMany(a => a.GetTypes())
+                .FirstOrDefault(t =>
+                    t.BaseType?.IsGenericType == true &&
+                    t.BaseType.GetGenericTypeDefinition() == typeof(Registry<>) &&
+                    t.BaseType.GetGenericArguments()[0] == rootType);
+
+            if (registryType != null)
+            {
+                Registries[type] = (Registry)Activator.CreateInstance(registryType)!;
+                return;
+            }
+
+            rootType = rootType.BaseType;
+        }
+
+        // Default to raw prototype.
+        Registries[type] = RawPrototypeRegistry.Instance;
+    }
 
     [Pure]
     public static bool TryGetRegisteredTypeDefinition(string typeName, out Type type)
@@ -45,27 +72,7 @@ public abstract class ECSMasterRegistry
     /// Every custom entity / prototype type may have a custom registry that handles how it is loaded!
     /// This particular property is assigned directly from Source Generator.
     [UsedImplicitly]
-    public static Dictionary<Type, ECSRegistry> Registries { get; } = new();
-
-    static ECSMasterRegistry()
-    {
-        // Scan once via reflection for custom registry types.
-        foreach (Type type in AppDomain.CurrentDomain.GetAssemblies().SelectMany(a => a.GetTypes()))
-        {
-            Type? baseType = type.BaseType;
-
-            if (baseType?.IsGenericType != true)
-                continue;
-
-            if (baseType.GetGenericTypeDefinition() != typeof(ECSRegistry<>))
-                continue;
-
-            Type targetType = baseType.GetGenericArguments()[0];
-
-            Registries[targetType] =
-                (ECSRegistry)Activator.CreateInstance(type)!;
-        }
-    }
+    public static Dictionary<Type, Registry> Registries { get; } = new();
 
     /// <summary>
     /// Register a prototype entry dynamically to a register based on its type, defaulting to the generic prototypes
@@ -77,8 +84,8 @@ public abstract class ECSMasterRegistry
     /// </remarks>
     public static void RegisterLoadedPrototype(Type type, Prototype definition)
     {
-        // For O(1) retrieval.
-        HandleToType[definition.Handle] = type;
+        // For O(1) retrieval. Register handle with unique ref.
+        HandleToType[definition.GetFullHandle()] = type;
         GetRegistry(type).Register(definition.Handle, definition);
     }
 
@@ -91,15 +98,20 @@ public abstract class ECSMasterRegistry
     public static void Clear()
     {
         TypeDefinitions.Clear();
-        foreach (ECSRegistry registry in Registries.Values) registry.Clear();
+        foreach (Registry registry in Registries.Values) registry.Clear();
     }
 
     /// <returns>Sum total of all registry entry values.</returns>
     // ReSharper disable once UnusedMember.Global
     public static int Count() => Registries.Values.Sum(registry => registry.Count());
 
+    /// <summary>
+    /// Retrieve a dedicated registry in the system.
+    /// </summary>
+    /// <param name="targetType"></param>
+    /// <returns></returns>
     [Pure]
-    private static ECSRegistry GetRegistry(Type targetType)
+    public static Registry GetRegistry(Type targetType)
     {
         Type? current = targetType;
 
@@ -108,13 +120,13 @@ public abstract class ECSMasterRegistry
         //  unique type. Seems fair!
         while (current != null)
         {
-            if (Registries.TryGetValue(current, out ECSRegistry? registry))
+            if (Registries.TryGetValue(current, out Registry? registry))
                 return registry;
 
             current = current.BaseType;
         }
 
-        return ECSRegistry_RawPrototype.Instance;
+        return RawPrototypeRegistry.Instance;
     }
 
     #endregion
@@ -130,7 +142,7 @@ public abstract class ECSMasterRegistry
             return false;
 
         // Get registry associated with the acquired type, and get prototype directly without a cast.
-        var ecsRegistry = (ECSRegistry<T>)GetRegistry(type);
+        var ecsRegistry = (Registry<T>)GetRegistry(type);
         return ecsRegistry.TryGet(handle, out prototype!);
     }
 
@@ -142,8 +154,8 @@ public abstract class ECSMasterRegistry
             return false;
 
         // Get registry associated with the acquired type.
-        ECSRegistry ecsRegistry = GetRegistry(type);
-        if (!ecsRegistry.TryGet(handle, out var thing))
+        Registry registry = GetRegistry(type);
+        if (!registry.TryGet(handle, out var thing))
             return false;
 
         // Return an acquired entry from the registry and cast.

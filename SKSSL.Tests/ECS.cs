@@ -4,6 +4,7 @@ using System.Linq;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.ECS;
+using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
 using SKSSL.Tests.TestData;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
@@ -154,8 +155,8 @@ public class ECS
         
         // Assert single register.
         TestEntityInheritedType testEnt = new TestEntityInheritedType { Handle = TestEntHandle };
-        ECSMasterRegistry.RegisterLoadedPrototype(testEnt.GetType(), testEnt);
-        IsTrue(ECSMasterRegistry.TryGetPrototype(TestEntHandle, out _));
+        MasterRegistryManager.RegisterLoadedPrototype(testEnt.GetType(), testEnt);
+        IsTrue(MasterRegistryManager.TryGetPrototype(TestEntHandle, out _));
         
         // Assert multiple.
 
@@ -202,7 +203,7 @@ public class ECS
     [TestMethod]
     public void TEST_PROTO_REGISTRY_CLEAR()
     {
-        SKSSL.ECS.ECSMasterRegistry.Clear();
-        IsEmpty(SKSSL.ECS.ECSMasterRegistry.TypeDefinitions);
+        MasterRegistryManager.Clear();
+        IsEmpty(MasterRegistryManager.TypeDefinitions);
     }
 }

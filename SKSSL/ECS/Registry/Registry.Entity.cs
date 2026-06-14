@@ -4,9 +4,13 @@ using SKSSL.Extensions;
 
 // ReSharper disable UnusedType.Global
 
-namespace SKSSL.ECS;
+namespace SKSSL.ECS.Registry;
 
-public sealed class ECSRegistry_Entity : ECSRegistry<Entity>
+/// <remarks>
+/// Use this Registry type, and any inheriting kinds only if the ECS is enabled. There may be unexpected behaviour,
+/// otherwise.
+/// </remarks>
+public sealed class EntityRegistry : Registry<Entity>
 {
     /// Individual definitions belonging to all prototype instances loaded from yaml.
     /// The inherited Entries dictionary is the "Raw" list.
@@ -16,7 +20,7 @@ public sealed class ECSRegistry_Entity : ECSRegistry<Entity>
 
     public override void Register(string handle, Entity obj)
     {
-        // Register prototype as part of "raw" list, rather than make a new list.
+        // Register prototype as part of RegistryEntries "raw" list, rather than make a new list.
         base.Register(handle, obj);
 
         // If a provided object's handle is already contained, then it is reasonable to assume that the existing one-
