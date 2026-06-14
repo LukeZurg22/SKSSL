@@ -13,11 +13,11 @@ namespace SKSSL;
 [JsonObject]
 public class GameSettings
 {
-    /// Screen Width
-    public uint Width { get; set; } = 1920;
+    /// Screen Width. Defaults to monitor if -1.
+    public int Width { get; set; } = -1;
 
-    /// Screen Height
-    public uint Height { get; set; } = 1080;
+    /// Screen Height. Defaults to monitor if -1.
+    public int Height { get; set; } = -1;
 
     public bool IsBorderless { get; set; } = false;
     public bool IsFullScreen { get; set; } = false;

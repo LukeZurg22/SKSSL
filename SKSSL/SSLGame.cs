@@ -47,7 +47,7 @@ public abstract class SSLGame : Game
 
     /// Use static constructor for this.
     public static EngineConfig Config { get; set; } = new();
-    
+
     #endregion
 
     #region Fields
@@ -118,12 +118,16 @@ public abstract class SSLGame : Game
 
         #region Monogame Usuals
 
+        // WIP: Add IsBorderless & IsFullScreen option handling here, plus screen Width & Height if windowed.
+        //  Borderless = False assumes windowed.
+
         Instance = this;
         Window.Title = title;
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
-        Window.ClientSizeChanged += HandleClientSizeChanged;
-        _graphicsManager = HandleGraphicsDesignManager(new GraphicsDeviceManager(this));
+        Window.ClientSizeChanged += HandleClientSizeChanged; // TEMP: Something tells me this doesn't work...!
+        Window.IsBorderless = settings.IsBorderless; // Set to settings' borderless value.
+        _graphicsManager = HandleGraphicsManager(new GraphicsDeviceManager(this), settings);
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _currentScreenGue.UpdateLayout(); // UI Behaviour when dragged
         MouseHandler = new MouseWrapper(_graphicsManager);
@@ -289,10 +293,21 @@ public abstract class SSLGame : Game
         GraphicalUiElement.CanvasHeight = _graphicsManager.GraphicsDevice.Viewport.Height;
     }
 
-    private static GraphicsDeviceManager HandleGraphicsDesignManager(GraphicsDeviceManager graphicsDeviceManager)
+    private static GraphicsDeviceManager HandleGraphicsManager(GraphicsDeviceManager graphicsDeviceManager,
+        GameSettings settings)
     {
-        var monitorWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
-        var monitorHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+        int monitorWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+        int monitorHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+        
+        // Assign settings to heights and etc.
+        if (settings.Width != -1)
+            monitorWidth = settings.Width;
+        if (settings.Height != -1)
+            monitorWidth = settings.Height;
+
+        // Fullscreen?
+        graphicsDeviceManager.IsFullScreen = settings.IsFullScreen;
+
         graphicsDeviceManager.PreferredBackBufferWidth = monitorWidth; // Set preferred width
         graphicsDeviceManager.PreferredBackBufferHeight = monitorHeight; // Set preferred height
         graphicsDeviceManager.ApplyChanges();
