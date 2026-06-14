@@ -16,7 +16,7 @@ public sealed class ECSRegistry_Entity : ECSRegistry<Entity>
 
     public override void Register(string handle, Entity obj)
     {
-        // Register "raw" prototype.
+        // Register prototype as part of "raw" list, rather than make a new list.
         base.Register(handle, obj);
 
         // If a provided object's handle is already contained, then it is reasonable to assume that the existing one-
@@ -76,7 +76,8 @@ public sealed class ECSRegistry_Entity : ECSRegistry<Entity>
         }
 
         //@formatter:off
-        if (current.Inherit != null) foreach (var inherit in current.Inherit)
+        if (current.Inherit.Length > 0)
+        foreach (var inherit in current.Inherit)
         {
             Entity? baseProto = GetResolvedPrototype(inherit);
             if (baseProto != null)

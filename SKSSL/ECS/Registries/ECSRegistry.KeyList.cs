@@ -1,5 +1,7 @@
 using System.Collections.Generic;
-using SKSSL.ECS.DataSet;
+
+// ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedType.Global
 
 namespace SKSSL.ECS;
 
@@ -12,19 +14,17 @@ public class ECSRegistry_KeyList : ECSRegistry<KeyListPrototype>
 {
     /// <summary>
     /// Works like the typical TryGet for the prototype entry, but calls
-    /// <see cref="KeyListPrototype.GetValuesAsLocalized"/>.
+    /// <see cref="KeyListPrototype.ValuesAsLocalized"/>.
     /// </summary>
     /// <param name="handle"></param>
     /// <param name="localizations"></param>
     /// <returns></returns>
-    public bool TryGetAsLocalizedList(string handle, out IEnumerable<string> localizations)
+    public bool TryGetLocalized(string handle, out IEnumerable<string> localizations)
     {
         localizations = [];
-        if (!TryGet(handle, out KeyListPrototype? prototype))
-            return false;
-
-        // WIP: Test this! Test test test!
-        localizations = prototype.GetValuesAsLocalized();
-        return true;
+        bool result = TryGet(handle, out KeyListPrototype? prototype);
+        if (prototype != null)
+            localizations = prototype.ValuesAsLocalized();
+        return result;
     }
 }

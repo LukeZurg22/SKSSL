@@ -69,13 +69,13 @@ public abstract class ECSMasterRegistry
 
     /// <summary>
     /// Register a prototype entry dynamically to a register based on its type, defaulting to the generic prototypes
-    /// registry.
+    /// registry. Do NOT call this manually unless you know what you are doing!
     /// </summary>
     /// <remarks>
     /// Automatically registers definitions as a "source:handle" arrangement.
     /// No additional checks are made here, as they are made up the call chain.
     /// </remarks>
-    internal static void RegisterLoadedPrototype(Type type, Prototype definition)
+    public static void RegisterLoadedPrototype(Type type, Prototype definition)
     {
         // For O(1) retrieval.
         HandleToType[definition.Handle] = type;
@@ -101,9 +101,20 @@ public abstract class ECSMasterRegistry
     [Pure]
     private static ECSRegistry GetRegistry(Type targetType)
     {
-        return Registries.TryGetValue(targetType, out ECSRegistry? registry)
-            ? registry
-            : ECSRegistry_RawPrototype.Instance; // Default to basic prototypes. What can I say?
+        Type? current = targetType;
+
+        // Get registry, or continue up inheritance chain until one is found; defaulting to Prototypes
+        //  if all else fails. This means the optimal scenario is when a custom registry type is created for every
+        //  unique type. Seems fair!
+        while (current != null)
+        {
+            if (Registries.TryGetValue(current, out ECSRegistry? registry))
+                return registry;
+
+            current = current.BaseType;
+        }
+
+        return ECSRegistry_RawPrototype.Instance;
     }
 
     #endregion

@@ -8,7 +8,7 @@ using static YamlDotNet.Serialization.DefaultValuesHandling;
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Local
 
-namespace SKSSL.ECS.DataSet;
+namespace SKSSL.ECS;
 
 public class KeyListPrototype : Prototype
 {
@@ -40,10 +40,9 @@ public class KeyListPrototype : Prototype
 
     /// <returns>Values Key List, but as a localized set of values as its keys.</returns>
     // Localization WILL complain if any are explicit but not present.
-    public IEnumerable<string> GetValuesAsLocalized()
+    public IEnumerable<string> ValuesAsLocalized()
     {
-        foreach (string keyListValue in Values)
-            yield return Loc.Get(keyListValue);
+        foreach (string keyListValue in Values) yield return Loc.Get(keyListValue);
     }
 }
 
