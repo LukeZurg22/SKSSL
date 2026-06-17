@@ -10,7 +10,7 @@ using static YamlDotNet.Serialization.DefaultValuesHandling;
 
 namespace SKSSL.ECS;
 
-public class KeyListPrototype : Prototype
+public class KeyList : Prototype
 {
     // ->+ type
     public override string Type { get; set; } = "KeyList";

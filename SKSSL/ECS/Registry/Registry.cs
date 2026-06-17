@@ -3,9 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 
 // ReSharper disable MemberCanBeProtected.Global
-
 // ReSharper disable UnusedMember.Global
-
 // ReSharper disable VirtualMemberNeverOverridden.Global
 
 namespace SKSSL.ECS.Registry;
@@ -16,7 +14,6 @@ public interface Registry
     public void Clear();
     public void Register(string handle, object obj);
     public bool Contains(string handle);
-
     public bool TryGet(string handle, [MaybeNullWhen(false)] out object definition);
 }
 

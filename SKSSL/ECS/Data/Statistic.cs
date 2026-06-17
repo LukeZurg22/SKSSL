@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace SKSSL.ECS.Statistics;
+namespace SKSSL.ECS;
 
 public struct Statistic
 {

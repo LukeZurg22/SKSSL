@@ -10,11 +10,11 @@ namespace SKSSL.ECS.Registry;
 /// This works 1:1 with the raw registry with the added benefit of being isolated into their own, and with
 /// special handling for localized key-list lists.
 /// </remarks>
-public class KeyListRegistry : Registry<KeyListPrototype>
+public class KeyListRegistry : Registry<KeyList>
 {
     /// <summary>
     /// Works like the typical TryGet for the prototype entry, but calls
-    /// <see cref="KeyListPrototype.ValuesAsLocalized"/>.
+    /// <see cref="KeyList.ValuesAsLocalized"/>.
     /// </summary>
     /// <param name="handle"></param>
     /// <param name="localizations"></param>
@@ -22,7 +22,7 @@ public class KeyListRegistry : Registry<KeyListPrototype>
     public bool TryGetLocalized(string handle, out IEnumerable<string> localizations)
     {
         localizations = [];
-        bool result = TryGet(handle, out KeyListPrototype? prototype);
+        bool result = TryGet(handle, out KeyList? prototype);
         if (prototype != null)
             localizations = prototype.ValuesAsLocalized();
         return result;
