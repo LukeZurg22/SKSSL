@@ -2,17 +2,20 @@ using System.Collections.Generic;
 
 namespace SKSSL.ECS;
 
+/// <summary>
+/// Statistic object to deserialize.
+/// </summary>
 public struct Statistic
 {
-    public string ID { get; set; }
-    public string Name { get; set; }
-    public double BaseValue { get; set; }
-    public double CurrentValue { get; set; }
-    public double MinValue { get; set; }
-    public double MaxValue { get; set; }
-    
+    public string ID;
+    public string Name;
+    public double BaseValue;
+    public double CurrentValue;
+    public double MinValue;
+    public double MaxValue;
+
     /// List of modifiers.
-    public List<StatisticModifier>? Modifiers { get; set; }
+    public List<StatisticModifier>? Modifiers;
 }
 
 public struct StatisticModifier
