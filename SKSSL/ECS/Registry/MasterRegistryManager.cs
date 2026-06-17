@@ -88,13 +88,17 @@ public abstract class MasterRegistryManager
     /// Automatically registers definitions as a "source:handle" arrangement.
     /// No additional checks are made here, as they are made up the call chain.
     /// </remarks>
-    public static void RegisterLoadedPrototype(Type type, Prototype definition)
+    public static bool TryRegisterPrototype(string typeName, Prototype prototype)
     {
+        bool has = TypeDefinitions.TryGetValue(typeName, out Type? type);
+        if (!has) return false;
+
         // For O(1) retrieval. Register handle with unique ref.
-        PrototypeHandleToType[definition.GetFullHandle()] = type;
+        PrototypeHandleToType[prototype.GetFullHandle()] = type!;
 
         // Because type is explicitly provided, assume it's 100% valid. 
-        Registries[type].Register(definition.Handle, definition);
+        Registries[type!].Register(prototype.Handle, prototype);
+        return has;
     }
 
     #endregion

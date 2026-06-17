@@ -155,7 +155,7 @@ public class ECS
         
         // Assert single register.
         TestEntityInheritedType testEnt = new TestEntityInheritedType { Handle = TestEntHandle };
-        MasterRegistryManager.RegisterLoadedPrototype(testEnt.GetType(), testEnt);
+        // WIP: Fix this call. MasterRegistryManager.TryRegisterPrototype(testEnt.GetType(), testEnt);
         IsTrue(MasterRegistryManager.TryGetPrototype(TestEntHandle, out _));
         
         // Assert multiple.
