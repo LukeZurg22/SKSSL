@@ -4,6 +4,7 @@ using System.Linq;
 using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
 using static SKSSL.SSLGame;
+using static SKSSL.ECS.UidPacker;
 
 namespace SKSSL.ECS;
 
@@ -18,7 +19,7 @@ public partial class EntityManager
 
     // Struct of Arrays Layout for Entities.
     private Entity?[] _entities;
-    private int[] _generations;
+    private int[] _generations = new int[1024];
     private int[] _freeList = new int[Config.DESTROY_ENTITY_CACHE_LIMIT];
     private int _freeCount = 0;
 
@@ -103,8 +104,8 @@ public partial class EntityManager
     // ReSharper disable once UnusedMember.Global
     public Entity Get(EntityUid uid)
     {
-        int index = (int)(uid.Value & 0xFFFF);
-        int generation = (int)(uid.Value >> 16);
+        int index = UnpackIndex(uid);
+        int generation = UnpackGeneration(uid);
 
         if ((uint)index >= (uint)_entities.Length)
             throw new Exception("Invalid entity index");
@@ -129,8 +130,8 @@ public partial class EntityManager
     // ReSharper disable once UnusedMember.Global
     public bool TryGet(EntityUid uid, out Entity entity)
     {
-        int index = (int)(uid.Value & 0xFFFF);
-        int generation = (int)(uid.Value >> 16);
+        int index = UnpackIndex(uid);
+        int generation = UnpackGeneration(uid);
 
         if ((uint)index < (uint)_entities.Length
             && _generations[index] == generation
@@ -168,8 +169,8 @@ public partial class EntityManager
 
     public void Destroy(EntityUid uid)
     {
-        int index = (int)(uid.Value & 0xFFFF);
-        int generation = (int)(uid.Value >> 16);
+        int index = UnpackIndex(uid);
+        int generation = UnpackGeneration(uid);
 
         if ((uint)index >= (uint)_entities.Length)
             return;

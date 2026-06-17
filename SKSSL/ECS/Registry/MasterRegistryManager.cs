@@ -92,7 +92,7 @@ public abstract class MasterRegistryManager
     {
         // For O(1) retrieval. Register handle with unique ref.
         PrototypeHandleToType[definition.GetFullHandle()] = type;
-        
+
         // Because type is explicitly provided, assume it's 100% valid. 
         Registries[type].Register(definition.Handle, definition);
     }
@@ -136,6 +136,30 @@ public abstract class MasterRegistryManager
 
         return RawPrototypeRegistry.Instance;
     }
+
+    /// <summary>
+    /// Dangerous Generic-Typed call and cast for GetRegistry.
+    /// </summary>
+    /// <typeparam name="T">Expected Type that a registry contains / handles.</typeparam>
+    /// <returns>Registry of casted type.</returns>
+    /// <exception cref="InvalidCastException">
+    /// Thrown if expected type T does not have a registry.
+    /// This usually is the fault of the user, or the Source Generators.
+    /// </exception>
+    public static Registry<T> GetRegistry<T>() where T : class, new() => (GetRegistry(typeof(T)) as Registry<T>)!;
+
+    /// <summary>
+    /// Hyper-specific overload for GetRegistry for when you know precisely what registry class derivative, and what
+    /// registry-handled type is being used. This could crash. 
+    /// </summary>
+    /// <exception cref="InvalidCastException">
+    /// Thrown if expected type T does not have a registry.
+    /// This usually is the fault of the user, or the Source Generators.
+    /// </exception>
+    public static TRegistry GetRegistry<T, TRegistry>()
+        where T : class, new()
+        where TRegistry : Registry<T>
+        => (TRegistry)Registries[typeof(T)];
 
     #endregion
 

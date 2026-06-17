@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
+using SKSSL.ECS;
+using SKSSL.ECS.Registry;
 using static SKSSL.Extensions.StringHelpers;
 using static SKSSL.Mathematics.CharacterExtensions;
 
@@ -272,11 +274,21 @@ public static class ShuntingYard
         return string.IsNullOrEmpty(faultyVariables);
     }
 
-    /// Using the <see cref="StatisticsVariables"/> class, this attempts to get a value from a string.
+    /// Using statistics registry class, this attempts to get a value from a string.
+    /// <remarks>
+    /// This assumes that the registry was populated with variable statistics based on the
+    /// <see cref="StatisticPrototype"/> type, which is converted to a referential <see cref="Statistic"/>
+    /// for actual reading, as the prototype is deserialized into SoA format.
+    /// </remarks>
     private static bool GetStringVariableValue(string variable, out double value)
     {
-        if (StatisticsVariables.Statistics.TryGetValue(variable, out value))
+        StatisticRegistry registry = MasterRegistryManager.GetRegistry<StatisticPrototype, StatisticRegistry>();
+        if (registry.TryGet(variable, out Statistic statistic))
+        {
+            value = statistic.CurrentValue;
             return true;
+        }
+
         value = 0;
         return false;
     }

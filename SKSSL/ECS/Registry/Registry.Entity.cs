@@ -8,7 +8,7 @@ namespace SKSSL.ECS.Registry;
 
 /// <remarks>
 /// Use this Registry type, and any inheriting kinds only if the ECS is enabled. There may be unexpected behaviour,
-/// otherwise.
+/// otherwise. Used for entity Definitions, NOT active entities.
 /// </remarks>
 public sealed class EntityRegistry : Registry<Entity>
 {
@@ -16,9 +16,9 @@ public sealed class EntityRegistry : Registry<Entity>
     /// The inherited Entries dictionary is the "Raw" list.
     /// Handle Key, Entity (ID = 0) Value.
     /// Note that this does NOT indicate active entities in a world! Only registered definitions from file loading!
-    public readonly Dictionary<string, Entity> ResolvedGameEntities = [];
+    public readonly Dictionary<string, Entity> ResolvedGameEntityDefinitions = [];
 
-    public override void Register(string handle, Entity obj)
+    public override object? Register(string handle, Entity obj)
     {
         // Register prototype as part of RegistryEntries "raw" list, rather than make a new list.
         base.Register(handle, obj);
@@ -31,10 +31,12 @@ public sealed class EntityRegistry : Registry<Entity>
         // Recursive resolution via raw entities.
         foreach (var entityType in RegistryEntries.Keys)
             GetResolvedPrototype(entityType);
+
+        return null;
     }
 
     /// Only count the resolved game entities. Raw ones will not suffice.
-    public override int Count() => ResolvedGameEntities.Count;
+    public override int Count() => ResolvedGameEntityDefinitions.Count;
 
     /// <summary>
     /// Retrieve resolved entities instead of raw.
@@ -43,7 +45,7 @@ public sealed class EntityRegistry : Registry<Entity>
     /// <param name="definition"></param>
     /// <returns></returns>
     public override bool TryGet(string handle, [MaybeNullWhen(false)] out Entity definition)
-        => ResolvedGameEntities.TryGetValue(handle, out definition);
+        => ResolvedGameEntityDefinitions.TryGetValue(handle, out definition);
 
     private Entity? GetResolvedPrototype(string handle)
     {
@@ -52,7 +54,7 @@ public sealed class EntityRegistry : Registry<Entity>
             return null;
 
         // If theres a handle to an already-resolved entity, then return that.
-        if (ResolvedGameEntities.TryGetValue(handle, out Entity? resolved))
+        if (ResolvedGameEntityDefinitions.TryGetValue(handle, out Entity? resolved))
             return resolved;
 
         resolved = new Entity
@@ -67,7 +69,7 @@ public sealed class EntityRegistry : Registry<Entity>
         var visited = new HashSet<string>(); // Cycle detection
         ResolveInheritanceRecursive(raw, resolved, visited);
 
-        ResolvedGameEntities[handle] = resolved;
+        ResolvedGameEntityDefinitions[handle] = resolved;
         return resolved;
     }
 
