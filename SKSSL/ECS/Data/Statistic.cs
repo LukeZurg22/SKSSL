@@ -47,6 +47,7 @@ public readonly struct Statistic
     /// </summary>
     public void Recalculate()
     {
+        // WIP: Doing this.
         double value = BaseValue;
 
         /*// Handle = (set) modifiers (last one wins)

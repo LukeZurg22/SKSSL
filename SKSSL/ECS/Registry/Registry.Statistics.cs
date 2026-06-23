@@ -4,6 +4,7 @@ using System.Linq;
 using static SKSSL.ECS.UidPacker;
 using static SKSSL.SSLGame;
 
+// ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable UseCollectionExpression
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
@@ -41,6 +42,15 @@ public class StatisticRegistry : Registry<StatisticPrototype>
     private int[] _generations = new int[1024];
     private int[] _freeList = new int[Config.DESTROY_STATISTIC_CACHE_LIMIT];
     private int _freeCount = 0;
+
+    // WIP:
+    //  Add string parsing for statistics, which all begin with an [op] followed by a string.
+    //      -> Remove the operator/
+    //      -> Once statistics are stored, that does NOT mean they should initialize or begin updating.
+    //          Some init() method or whatever is needed to force cross-reference updates -is needed.
+    //          Recursive statistic calls is a danger to us all! Some kind of precaution is needed.
+    //              Circular check? Simply store ID and pass-down. If the ID is ever called again, then it's circular.
+    //  Add the ability to recalculate / re-parse statistics.
 
     /// Like the TryGet(uid), except much more unreliable and failure-prone.
     public bool TryGet(string handle, out Statistic statistic)
@@ -88,10 +98,10 @@ public class StatisticRegistry : Registry<StatisticPrototype>
             || _handles[index] == null)
             return false;
 
-        
+
         // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         _modifiers[index] ??= new List<StatisticModifier>();
-        
+
         // Fill out real statistic reference.
         var statistica = new Statistic
         {

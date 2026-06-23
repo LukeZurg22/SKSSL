@@ -4,7 +4,7 @@ using static SKSSL.ECS.UidPacker;
 namespace SKSSL.ECS;
 
 /// <summary>
-/// Copy of <see cref="EntityUid"/> but for statistics.
+/// Copy of <see cref="EntityUid"/>, but for statistics.
 /// </summary>
 public readonly struct StatisticUid : IEquatable<StatisticUid>
 {
