@@ -22,9 +22,9 @@ public static class GameManager
     public static void ResetGame() => SSLGame.ResetGame();
 
     /// Run the game instance.
-    public static void Run<T>(string gameName) where T : SSLGame, new()
+    public static void Run<T>(string name) where T : SSLGame, new()
     {
-        GameName = gameName;
+        GameName = name;
         
         // Safely run.
         using var Game = new T();

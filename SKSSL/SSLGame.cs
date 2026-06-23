@@ -13,11 +13,14 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoGame.ImGuiNet;
 using MonoGameGum;
 using SKSSL.ECS;
+using SKSSL.ECS.Registry;
 using SKSSL.Scenes;
 using SKSSL.Textures;
 using SKSSL.Utilities;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
+
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
+
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Local
 
 namespace SKSSL;
 
@@ -43,36 +46,9 @@ public abstract class SSLGame : Game
     /// Aspect ratio to render the game.
     public static float AspectRatio => Graphics.Viewport.AspectRatio;
 
-    #endregion
+    /// Use static constructor for this.
+    public static EngineConfig Config { get; set; } = new();
 
-    /*
-     * Use static constructor for these.
-     */
-
-    #region Engine Config
-
-    /// Ultimate toggle to use ECS service. Enable this at project initialization.
-    /// To use, add the following to the game class inheriting SSLGame:
-    /// <code>
-    /// static MyGameClass() => UseECS = true;
-    /// </code>
-    public static bool UseECS = false;
-
-    /// <summary>
-    /// The Project Gum UI file that will dictate how UI is loaded.
-    /// <code>
-    /// Example: "Gum/SolKom.gumx"
-    /// </code>
-    /// </summary>
-    public static string GumFile = "CHANGE_ME";
-
-    /// <summary>
-    /// A configurable developer-provided content loader that handles the logic the game uses to search and
-    /// handle its files, whether to Serialize or Deserialize data.
-    /// </summary>
-    // ReSharper disable once FieldCanBeMadeReadOnly.Global
-    public static GameContentLoader GameContentLoader = new YamlLoader();
-    
     #endregion
 
     #region Fields
@@ -110,9 +86,12 @@ public abstract class SSLGame : Game
     #endregion
 
     /// Base constructor runs first.
+    // ReSharper disable once UnusedMember.Global
     protected SSLGame() : this("SSLGame")
     {
     }
+
+    private readonly string _gumFilePath;
 
     /// <summary>
     /// Constructor for SSLGame. Runs before any inheritors.
@@ -123,9 +102,13 @@ public abstract class SSLGame : Game
     {
         #region Settings
 
+        if (string.IsNullOrEmpty(Config.GumFile))
+            Log($"No gum project file in Content/Gum in {Title}, {nameof(SSLGame)} Class.", LOG.SYSTEM_WARNING);
+        else // Prepend Gum root.
+            _gumFilePath = Path.Combine("Gum", Config.GumFile);
+
         // Load settings, and based on game paths, create directories ordered by load order.
-        GameSettings settings = LoadSettings();
-        // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
+        GameSettings settings = GameSettings.Load(); // Get game settings from file.
         Directories = GetGameDirectories(settings.GamePaths);
         Directories.Sort();
 
@@ -136,12 +119,16 @@ public abstract class SSLGame : Game
 
         #region Monogame Usuals
 
+        // WIP: Add IsBorderless & IsFullScreen option handling here, plus screen Width & Height if windowed.
+        //  Borderless = False assumes windowed.
+
         Instance = this;
         Window.Title = title;
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
-        Window.ClientSizeChanged += HandleClientSizeChanged;
-        _graphicsManager = HandleGraphicsDesignManager(new GraphicsDeviceManager(this));
+        Window.ClientSizeChanged += HandleClientSizeChanged; // TEMP: Something tells me this doesn't work...!
+        Window.IsBorderless = settings.IsBorderless; // Set to settings' borderless value.
+        _graphicsManager = HandleGraphicsManager(new GraphicsDeviceManager(this), settings);
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _currentScreenGue.UpdateLayout(); // UI Behaviour when dragged
         MouseHandler = new MouseWrapper(_graphicsManager);
@@ -160,8 +147,8 @@ public abstract class SSLGame : Game
         #region SSLGame Additionals
 
         // Display ECS status. This called after inheritors.
-        Log($"ECS status: {(UseECS ? "on" : "off")}");
-        if (UseECS)
+        Log($"ECS status: {(Config.UseECS ? "on" : "off")}");
+        if (Config.UseECS)
         {
             Log($"Source generator accounted for {ComponentRegistry.Count} components:");
             // Print all registered components in a nice list. 
@@ -184,7 +171,11 @@ public abstract class SSLGame : Game
         foreach (GameDirectory directory in Directories)
         {
             LoadGameDirectories(directory);
-            Log($"...finished loading: {directory.DirectoryTitle}");
+            string directoryTitle = directory.DirectoryTitle;
+            if (string.IsNullOrEmpty(directoryTitle))
+                directoryTitle = "root";
+
+            Log($"...finished loading {directoryTitle} directory...");
         }
 
         #endregion
@@ -193,7 +184,7 @@ public abstract class SSLGame : Game
     /// WIP: loading directories.
     ///  == Textures & Materials
     ///  == Prototypes (check ECS I guess?)
-        ///  Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
+    ///  Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
     private static void LoadGameDirectories(GameDirectory directory)
     {
         // Assuming there are defined directories to begin with...
@@ -208,18 +199,18 @@ public abstract class SSLGame : Game
         if (directory.TexturesFolder != null)
         {
             Log($"...loading {directory.DirectoryTitle} textures.");
-            TextureLoader.Load(directory.TexturesFolder);
+            new TextureLoader().Load(directory.TexturesFolder);
         }
 
         // Prototypes.
-        if (directory.PrototypesFolder != null && UseECS) // Requires ECS to be on.
+        if (directory.PrototypesFolder != null && Config.UseECS) // Requires ECS to be on.
         {
             Log($"...loading {directory.DirectoryTitle} prototypes.");
-            GameContentLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
+            Config.ContentLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
             // TODO: Add custom bootstrapping so developer can have their own loader slotted in.
         }
 
-        Log($"...loaded {GameECSMasterRegistry.Count()} prototypes.");
+        Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
     }
 
 
@@ -247,7 +238,7 @@ public abstract class SSLGame : Game
         }
         else
         {
-            /*  Once a singular game-path is added to the list, any root-level directory is rendered completely
+            /*  Once a singular game-path is added to the list, any root-level directory would be rendered completely
              worthless. To avoid this conundrum, the specific key word "root" was allocated to check and remove. */
             if (settings.Any(d => d.Path.Contains("root")))
             {
@@ -270,52 +261,14 @@ public abstract class SSLGame : Game
         return contentDirectories;
     }
 
-    /// Get game settings from file.
-    private static GameSettings LoadSettings()
-    {
-        var settingsPath = GameSettings.SettingsFilePath;
-        var settings = new GameSettings();
-        if (!File.Exists(settingsPath))
-        {
-            GameSettings.ForceCreateDefault(settings);
-        }
-        else
-        {
-            IDeserializer deserializer = new DeserializerBuilder()
-                .WithNamingConvention(UnderscoredNamingConvention.Instance)
-                .IgnoreUnmatchedProperties()
-                .Build();
-            try
-            {
-                var text = File.ReadAllText(settingsPath);
-                settings = deserializer.Deserialize<GameSettings>(text);
-            }
-            catch
-            {
-                settings = null;
-            }
-
-            if (settings is not null) return settings;
-
-            settings = new GameSettings();
-            GameSettings.ForceCreateDefault(settings);
-        }
-
-        return settings;
-    }
-
     private GumProjectSave? InitializeGum()
     {
-        if (string.IsNullOrEmpty(GumFile))
-            Log($"No gum project file in Content/Gum in {Title}, {nameof(SSLGame)} Class.", LOG.SYSTEM_WARNING);
-        else
-            GumFile = Path.Combine("Gum", GumFile);
-
         // Initialize Gum UI Handling (Some projects may choose not to utilize Gum)
         GumProjectSave? gumProjectSave = null;
-        if (string.IsNullOrEmpty(GumFile) || GumFile.Contains("CHANGE_ME")) return gumProjectSave;
+        if (string.IsNullOrEmpty(_gumFilePath))
+            return gumProjectSave;
         Gum = GumService.Default;
-        gumProjectSave = Gum.Initialize(this, GumFile);
+        gumProjectSave = Gum.Initialize(this, _gumFilePath);
 
         return gumProjectSave;
     }
@@ -341,10 +294,21 @@ public abstract class SSLGame : Game
         GraphicalUiElement.CanvasHeight = _graphicsManager.GraphicsDevice.Viewport.Height;
     }
 
-    private static GraphicsDeviceManager HandleGraphicsDesignManager(GraphicsDeviceManager graphicsDeviceManager)
+    private static GraphicsDeviceManager HandleGraphicsManager(GraphicsDeviceManager graphicsDeviceManager,
+        GameSettings settings)
     {
-        var monitorWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
-        var monitorHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+        int monitorWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+        int monitorHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+        
+        // Assign settings to heights and etc.
+        if (settings.Width != -1)
+            monitorWidth = settings.Width;
+        if (settings.Height != -1)
+            monitorWidth = settings.Height;
+
+        // Fullscreen?
+        graphicsDeviceManager.IsFullScreen = settings.IsFullScreen;
+
         graphicsDeviceManager.PreferredBackBufferWidth = monitorWidth; // Set preferred width
         graphicsDeviceManager.PreferredBackBufferHeight = monitorHeight; // Set preferred height
         graphicsDeviceManager.ApplyChanges();
@@ -358,7 +322,7 @@ public abstract class SSLGame : Game
         SceneManager = new SceneManager(this, _graphicsManager, _spriteBatch, gumSave);
         Components.Add(SceneManager);
 
-        if (UseECS)
+        if (Config.UseECS)
         {
             SystemManager.Initialize();
         }
@@ -379,7 +343,7 @@ public abstract class SSLGame : Game
     protected override void Draw(GameTime gameTime)
     {
         base.Draw(gameTime);
-        if (UseECS)
+        if (Config.UseECS)
         {
             SystemManager.Draw(gameTime);
         }
@@ -395,7 +359,7 @@ public abstract class SSLGame : Game
         MouseWrapper.HandleForcedPosition();
 
         base.Update(gameTime);
-        if (UseECS)
+        if (Config.UseECS)
         {
             SystemManager.Update(gameTime);
         }

@@ -19,8 +19,8 @@ public class PrototypeGenerator : IIncrementalGenerator
         // Find all class declarations.
         var classDeclarations = context.SyntaxProvider
             .CreateSyntaxProvider(
-                predicate: static (node, _) => node is RecordDeclarationSyntax,
-                transform: static (ctx, _) => (RecordDeclarationSyntax)ctx.Node)
+                predicate: static (node, _) => node is ClassDeclarationSyntax,
+                transform: static (ctx, _) => (ClassDeclarationSyntax)ctx.Node)
             .Where(static cls => cls.BaseList != null)
             .Collect();
 
@@ -33,7 +33,7 @@ public class PrototypeGenerator : IIncrementalGenerator
 
     private static void Execute(
         Compilation compilation,
-        ImmutableArray<RecordDeclarationSyntax> classes,
+        ImmutableArray<ClassDeclarationSyntax> classes,
         SourceProductionContext spc)
     {
         if (classes.IsDefaultOrEmpty) return;
@@ -45,7 +45,7 @@ public class PrototypeGenerator : IIncrementalGenerator
 
         var prototypes = new List<INamedTypeSymbol>();
 
-        foreach (RecordDeclarationSyntax? classDecl in classes)
+        foreach (ClassDeclarationSyntax? classDecl in classes)
         {
             SemanticModel semanticModel = compilation.GetSemanticModel(classDecl.SyntaxTree);
 
@@ -82,9 +82,9 @@ public class PrototypeGenerator : IIncrementalGenerator
         sb.AppendLine("      public static void Initialize()");
         sb.AppendLine("      {");
         sb.AppendLine("            // Wipe any pre-existing prototype / entity definitions.");
-        sb.AppendLine("            SKSSL.ECS.GameECSMasterRegistry.Clear();");
+        sb.AppendLine("            SKSSL.ECS.Registry.MasterRegistryManager.Clear();");
         // Accommodating base-entity type, which can exist out in the wild. Base-prototype, however, cannot!
-        sb.AppendLine($"            SKSSL.ECS.GameECSMasterRegistry.RegisterTypeDefinition(\"Entity\", typeof(global::SKSSL.ECS.Entity));");
+        sb.AppendLine($"            SKSSL.ECS.Registry.MasterRegistryManager.RegisterTypeDefinition(\"Entity\", typeof(global::SKSSL.ECS.Entity));");
         foreach (INamedTypeSymbol? proto in prototypes)
         {
             var fullName = proto.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -93,8 +93,7 @@ public class PrototypeGenerator : IIncrementalGenerator
                 shortName = shortName[..^9];
             
             if (string.IsNullOrWhiteSpace(shortName)) continue;
-            //sb.AppendLine($"            SKSSL.ECS.PrototypeRegistry.Definitions[\"{shortName}\"] = typeof({fullName});");
-            sb.AppendLine($"            SKSSL.ECS.GameECSMasterRegistry.RegisterTypeDefinition(\"{shortName}\", typeof({fullName}));");
+            sb.AppendLine($"            SKSSL.ECS.Registry.MasterRegistryManager.RegisterTypeDefinition(\"{shortName}\", typeof({fullName}));");
         }
         sb.AppendLine("      }");
         sb.AppendLine("}");

@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using YamlDotNet.Serialization;
+// ReSharper disable UnusedMethodReturnValue.Global
 
 
 // ReSharper disable VirtualMemberCallInConstructor
@@ -30,22 +31,24 @@ namespace SKSSL.ECS;
 ///   description (string)
 /// </code>
 /// </summary>
-public partial record Prototype
+public partial class Prototype
 {
+    private const string DefaultSource = "game";
+
     /// Game content directory key to reverse-trace where this yaml prototype originated.
     [YamlIgnore]
-    public virtual string Source { get; set; }
-    
+    public virtual string Source { get; set; } = DefaultSource;
+
     /// Explicit type definition for this entry. For direct raw-serialization of entities.
     /// Completely unused if prioritizing yaml templates.
-    [YamlMember(Alias = "type"), JsonInclude]
+    [YamlMember(Alias = "type", Order = 0), JsonInclude]
     public virtual string Type { get; set; } = "Prototype";
 
     /// Definition's Reference ID to later refer-to when making copies.
     /// Searchable, indexable ID. Virtual for possible nullability change in child classes.
-    [YamlMember(Alias = "id")]
-    public virtual string Handle { get; set; }
-    
+    [YamlMember(Alias = "id", Order = 3), JsonInclude]
+    public string Handle { get; set; }
+
     /// <summary>
     /// Internal categorization of this yaml entry. Split into parts:<br/>
     /// 1. Directory (dictated by the folder where this was found)<br/>
@@ -53,7 +56,7 @@ public partial record Prototype
     /// </summary>
     /// <returns>"<see cref="Source"/>:<see cref="Handle"/>"</returns>
     /// <returns>Fully-justified handle combining source, and short handle.</returns>
-    public string GetUniqueInternalRef(string? key = null)
+    public string GetFullHandle(string? key = null)
         => $"{key ?? Source}:{Handle}";
 
     /// Blank constructor for Common Entity root. Avoid using this unless absolutely necessary.
@@ -62,7 +65,7 @@ public partial record Prototype
     public Prototype()
     {
         // Auto-generate fallback source if not provided.
-        if (string.IsNullOrEmpty(Source)) Source = "game";
+        if (string.IsNullOrEmpty(Source)) Source = DefaultSource;
     }
 
     /// Constructor for Entity Yaml basic fields and default components. This is for definitions.
@@ -73,5 +76,13 @@ public partial record Prototype
 
         // Name and description may be absent / null, so handle them here.
         Type = yaml.Type;
+    }
+
+    public virtual Prototype CopyFrom(Prototype source)
+    {
+        Source = source.Source;
+        Type = source.Type;
+        Handle = source.Handle;
+        return this;
     }
 }

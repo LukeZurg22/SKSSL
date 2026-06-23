@@ -44,7 +44,7 @@ public class SceneManager : DrawableGameComponent
         string message;
 
         // If not using ECS, then why? Throw an error!
-        if (!SSLGame.UseECS)
+        if (!SSLGame.Config.UseECS)
         {
             message = "Failed to get Entity Context because ECS is not enabled.";
             Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
@@ -58,7 +58,7 @@ public class SceneManager : DrawableGameComponent
         }
 
         // Final check to validate that the world (and its ECS) is functioning.
-        if (world?.ECS is null)
+        if (world?.EntityManager is null)
         {
             message = "Failed to get Entity Context from null world or null World ECS!";
             Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
@@ -70,7 +70,7 @@ public class SceneManager : DrawableGameComponent
         var entityContext = new EntityContext(world);
         return entityContext;
     }
-    
+
     /// Active in-use game scene. Class-type specific.
     protected Scene? _currentScene;
 
@@ -136,7 +136,7 @@ public class SceneManager : DrawableGameComponent
         stopwatch.Stop(); // Stop the timer.
         Log($"Scene load complete by {stopwatch.ElapsedMilliseconds}ms");
     }
-    
+
     /// Calls Draw Methods on Current Scene, which innately sends a draw call on the world.
     public override void Draw(GameTime gameTime) => _currentScene?.Draw(gameTime);
 

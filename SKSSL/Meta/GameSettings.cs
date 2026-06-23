@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
@@ -12,11 +13,14 @@ namespace SKSSL;
 [JsonObject]
 public class GameSettings
 {
-    /// Screen Width
-    public uint Width { get; set; } = 1920;
+    /// Screen Width. Defaults to monitor if -1.
+    public int Width { get; set; } = -1;
 
-    /// Screen Height
-    public uint Height { get; set; } = 1080;
+    /// Screen Height. Defaults to monitor if -1.
+    public int Height { get; set; } = -1;
+
+    public bool IsBorderless { get; set; } = false;
+    public bool IsFullScreen { get; set; } = false;
 
     /// Paths to game and mod content folders.
     public List<LoadPath> GamePaths { get; set; } = [];
@@ -24,7 +28,37 @@ public class GameSettings
     /// Language culture of the game.
     public string Language { get; set; } = "en-US";
 
-    public static string SettingsFilePath = Path.Combine(GameDirectory.RootDirectory, "settings.yaml");
+    private static string SettingsFilePath = Path.Combine(GameDirectory.RootDirectory, "settings.yaml");
+
+    public static GameSettings Load()
+    {
+        var settings = new GameSettings();
+        if (!File.Exists(SettingsFilePath))
+        {
+            ForceCreateDefault(settings);
+            return settings;
+        }
+
+        // Commence the file-loading!
+        IDeserializer deserializer = new DeserializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .IgnoreUnmatchedProperties()
+            .Build();
+
+        // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
+        try
+        {
+            var text = File.ReadAllText(SettingsFilePath);
+            settings = deserializer.Deserialize<GameSettings>(text);
+        }
+        catch (Exception e)
+        {
+            Log($"Failed to load game settings: {e.Message}");
+            return new GameSettings();
+        }
+
+        return settings;
+    }
 
     public static void ForceCreateDefault(GameSettings settings)
     {

@@ -1,6 +1,18 @@
 # .CSPROJ Adjustments
+First, Add SKSSL As a Nuget Package Reference (Or as a submodule!)
 
+https://www.nuget.org/packages/SKSSL/
+
+_or add to the `.csproj` directly:_
 ```config
+<ItemGroup>
+    <PackageReference Include="SKSSL" Version="<!--Enter Version Here-->" />
+</ItemGroup>
+```
+
+Then, adjust the `.csproj` to accomodate the engine.
+```config
+
     <!-- !== ADD THE FOLLOWING TO GAME PROJECTS INHERITING / USING SKSSL AS AN ENGINE !== -->
 <!--START - Enable Compiler-Generated Code-->
 <PropertyGroup>
@@ -48,46 +60,26 @@
 This is only for a _root_ game directory as an example. A specified directory requires a folder in your project, and
 **only one** of these Directory-centric content inclusions focused on that folder and all of its contents!
 
-# SSLGame
+# SSLGame Engine Config
+Make a game Class that inherits SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs ; Additionally, you will
+need to configure the engine's properties below.
 
-Make game Class inherit SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs<br/>
-
-## GUM
-
-A Gum project file name can be overridden in the Static variable "GumFile", which assumes the file is located in
-Content/Gum/\<file name + extension\>. Change this in your special `Game.cs` class' static constructor, much like
-`UsesECS`.
-> The way a GUM file is loaded may change!
-
-## Game Content Loader
-By default this requires the ECS to be enabled! The GameContentLoader class is an abstract inheritable class that allows a developer to create their own loader that
-couples into the system. They are provided abstract [De]Serialize methods to override to turn text into Prototype lists.
-
-The Content Loaders exclusively handle prototyping, nothing more. Supply your own extensions, and your own logic!
-
-    protected override string[] Extensions => [...];
-The Load function may also be overwritten, which will cease any Deserialization calls it would normally make. The sky
-is the limit! Overriding the Load call will allow one to circumvent the UsesECS check. Interacting with the prototype
-registries whilst UsesECS is disabled may cause unexpected behaviour, or **crashes**.
-
-## Example Class
+## <i>[(SEE ENGINE CONFIG)](0_SETUP.ENGINE_CONFIG.md)</i>
 
 ```csharp
-public class MyGameClass : SSLGame
+public class MyGame : SSLGame
 {
-    static MyGameClass()
+    static MyGame()
     {
-        // Each of these are optional!
-        UseECS = true;
-        // Neglecting GUM has no consequences.
-        //  It used to, though...
-        GumFile = "MyGumFile.gumx";
-        // The YAMLLoader from SolKom is default
-        //  if this is not assigned.
-        GameContentLoader = new MyContentLoader();
+        Config = new EngineConfig()
+        {
+            UseECS = <bool>,    // Toggles ECS. Defaults to "true"
+            GumFile = <string>, // "<name>.gumx" Defaults to "" (ignored)
+            ContentLoader = new <Type of PrototypeLoader>(), // Content loader. Defaults to YamlLoader.
+            //...
+            //etc.
+        };
     }
-    
-    ... /*remaining game / class logic*/
 }
 ```
 

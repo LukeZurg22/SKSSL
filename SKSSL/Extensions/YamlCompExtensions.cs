@@ -3,15 +3,14 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Reflection;
 using SKSSL.ECS;
-using SKSSL.YAML;
 using YamlDotNet.Serialization;
-
+using static System.StringComparison;
 
 namespace SKSSL.Extensions;
 
 public static class YamlCompExtensions
 {
-    public static ComponentProto Clone(this ComponentProto source)
+    public static ComponentYaml Clone(this ComponentYaml source)
         => new() { Type = source.Type, Entries = new Dictionary<string, object?>(source.Entries) };
 
     private const BindingFlags FieldFlags = BindingFlags.Public |
@@ -21,11 +20,11 @@ public static class YamlCompExtensions
 
     /// Converts Component to yaml object for serialization.
     [Pure]
-    public static ComponentProto ToYaml(this Component component)
+    public static ComponentYaml ToYaml(this Component component)
     {
-        var result = new ComponentProto
+        var result = new ComponentYaml
         {
-            Type = ComponentTypeHelper.NormalizeTypeName(component.GetType().Name)
+            Type = NormalizeTypeName(component.GetType().Name)
         };
 
         Type type = component.GetType();
@@ -96,22 +95,22 @@ public static class YamlCompExtensions
     /// registry, and has no assigned entity due to this.
     /// <seealso cref="ComponentRegistry"/>
     [Pure]
-    public static Component FromYaml(this ComponentProto yaml)
+    public static Component FromYaml(this ComponentYaml yaml)
     {
-        string typeName = ComponentTypeHelper.NormalizeTypeName(yaml.Type);
+        string typeName = NormalizeTypeName(yaml.Type);
         if (!ComponentRegistry.TryGetComponentType(typeName, out Type? componentType))
             throw new Exception($"Failed to retrieve component type {yaml.Type} from registry.");
 
-        Component? instance = ComponentRegistry.FastCreate(componentType!);
+        Component? instance = ComponentRegistry.FastCreate(componentType);
 
         if (instance is null)
-            throw new Exception($"Type {componentType!.Name} is not a Component from {nameof(FromYaml)} call.");
+            throw new Exception($"Type {componentType.Name} is not a Component from {nameof(FromYaml)} call.");
 
         // For every yaml entry, deserialize as a field or a property, whichever works.
         foreach (var yamlField in yaml.Entries)
         {
             // Handle fields.
-            FieldInfo? field = componentType!.GetField(yamlField.Key, FieldFlags);
+            FieldInfo? field = componentType.GetField(yamlField.Key, FieldFlags);
             if (field != null)
             {
                 object? value = YamlStringToValue(yamlField.Value, field.FieldType);
@@ -144,5 +143,16 @@ public static class YamlCompExtensions
             return Enum.Parse(targetType, value.ToString()!, true);
 
         return Convert.ChangeType(value, targetType);
+    }
+    
+    /// <summary>
+    /// Strips "Component" suffix for YAML tags (e.g. RenderableComponent → Renderable)
+    /// </summary>
+    public static string NormalizeTypeName(string typeName)
+    {
+        if (string.IsNullOrEmpty(typeName))
+            return string.Empty;
+        const string suffix = "Component";
+        return typeName.EndsWith(suffix, OrdinalIgnoreCase) ? typeName[..^suffix.Length] : typeName;
     }
 }

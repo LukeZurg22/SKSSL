@@ -12,7 +12,7 @@ namespace SKSSL.Extensions;
 /// </summary>
 public static partial class EntityExtensions
 {
-    [Pure]
+    [Pure, Obsolete("Use direct entity cloning instead!")]
     public static T Clone<T>(this T val) where T : struct => val;
 
     /// <summary>
@@ -20,7 +20,7 @@ public static partial class EntityExtensions
     /// </summary>
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
-    [Pure]
+    [Pure, Obsolete("Don't use this! Use direct entity cloning instead!")]
     public static object? Clone(object original)
     {
         Type type = original.GetType();
@@ -41,7 +41,7 @@ public static partial class EntityExtensions
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
     [Pure]
-    public static Entity Clone(this Entity original) => original with { };
+    public static Entity? Clone(this Entity original) => original.World?.EntityManager.Clone(original);
 
     /// <summary>
     /// Creates a shallow clone of the given entity, and type-casts it.
@@ -51,5 +51,5 @@ public static partial class EntityExtensions
     /// <param name="original">The existing record instance to clone.</param>
     /// <returns>A new instance with all properties copied, or null if type cast T wasn't successful.</returns>
     [Pure]
-    public static T CloneEntityAs<T>(this Entity original) where T : Entity => (T)Clone(original);
+    public static T? CloneEntityAs<T>(this Entity original) where T : Entity => Clone(original) as T;
 }

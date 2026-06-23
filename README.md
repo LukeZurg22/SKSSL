@@ -6,7 +6,7 @@ This is a shared library turned game engine. "SKSSL" stands for "SolKom Shared S
 - Developer OS: Windows 10
 - Intended OS('s): Windows & Linux (MacOS Untested.)
 - Framework: Monogame DesktopGL 3.4.2+
-- Language(s): CS, YAML / YML, FTL
+- Language(s): C# v13.0
 
 ## Program Goal
 The goal is to establish a library built on top of Monogame and Gum that acts as a general framework for my other projects. 

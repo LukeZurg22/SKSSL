@@ -45,7 +45,7 @@ public static partial class EntityExtensions
         => (T)ComponentRegistry.AddComponent(entity, ComponentRegistry.FastCreate(typeof(T)));
 
     /// Use AddComponent(component instance) or the generic method instead! This is more dangerous!
-    public static Component AddComponent(this Entity entity, Type type)
+    public static Component AddComponent(this Entity? entity, Type type)
         => ComponentRegistry.AddComponent(entity, ComponentRegistry.FastCreate(type));
 
     public static Component AddComponent(this Entity entity, Component comp)
@@ -58,7 +58,7 @@ public static partial class EntityExtensions
     /// <inheritdoc cref="ComponentRegistry.HasComponent"/>
     [Pure]
     public static bool HasComponent<T>(this Entity entity) where T : Component
-        => HasComponent(entity, typeof(T));
+        => ComponentRegistry.HasComponent(entity, typeof(T));
 
     /// <inheritdoc cref="ComponentRegistry.HasComponent"/>
     [Pure]

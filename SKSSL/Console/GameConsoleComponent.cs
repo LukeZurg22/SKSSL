@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Console;
 
+// WARN: DOES NOT WORK CORRECTMY AT THE MOMENT
 internal class GameConsoleComponent : DrawableGameComponent
 {
     public bool IsOpen => consoleRenderer.IsOpen;
