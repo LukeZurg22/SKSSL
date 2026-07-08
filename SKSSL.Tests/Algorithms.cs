@@ -29,12 +29,20 @@ public class Algorithms
         // Bad Delimiter.
         const string badDelimiterFormula = "(5/3--6"; // -> ERROR
         Assert.IsFalse(ShuntingYard.Evaluate(badDelimiterFormula, out double result));
-        // CONSOLE ERRORS ARE NORMAL HERE! DO NOT MIND THE ERRORS FROM DUST-LOGGER IF THEY SHOW UP, IT'S DOING ITS JOB!
 
         // Bad Variable.
         const string badVariableFormula = "(5+3*invalid_statistic)/3--6"; // -> ERROR
-        Assert.IsFalse(ShuntingYard.Evaluate(badVariableFormula, out result));
-        // CONSOLE ERRORS ARE NORMAL HERE! DO NOT MIND THE ERRORS FROM DUST-LOGGER IF THEY SHOW UP, IT'S DOING ITS JOB!
+        bool good = false;
+        try
+        {
+            ShuntingYard.Evaluate(badVariableFormula, out result);
+            good = true;
+        }
+        catch
+        {
+            // ignored
+        }
+        Assert.IsFalse(good);
 
         /*
          * (5 + 3 * test_statistic) / 3 - -6
