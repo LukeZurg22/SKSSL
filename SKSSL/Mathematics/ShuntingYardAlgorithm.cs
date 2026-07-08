@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
 using SKSSL.ECS;
 using SKSSL.ECS.Registry;
 using static SKSSL.Mathematics.CharacterExtensions;
@@ -247,7 +246,6 @@ public static class ShuntingYard
                             op = "u-";
                         }
 
-
                         while (operators.Count > 0 &&
                                operators.Peek() != "(" &&
                                ShouldPop(operators.Peek(), op))
@@ -267,28 +265,37 @@ public static class ShuntingYard
             bool ShouldPop(string top, string current)
             {
                 bool topFound = false, currentFound = false;
+                var topValue = 0;
+                var currentValue = 0;
+
+                // Loop through the entire list once, and mark them as we find them.
                 foreach ((string OPERATOR, byte PRECEDENCE) precedence in Precedences)
                 {
                     if (precedence.OPERATOR.Equals(top))
                     {
                         topFound = true;
+                        topValue = precedence.PRECEDENCE;
                         if (currentFound) break; // Short-Circuit.
                     }
 
-                    if (!precedence.OPERATOR.Equals(current)) continue; // Short-circuit.
+                    if (!precedence.OPERATOR.Equals(current)) continue; // Short-Circuit.
                     currentFound = true;
+                    currentValue = precedence.PRECEDENCE;
                     if (topFound) break; // Short-Circuit.
                 }
 
-                if (!topFound && !currentFound)
-                    return false;
-
-                var topValue = Precedences.First(d => d.OPERATOR.Equals(top)).PRECEDENCE;
-                var currentValue = Precedences.First(d => d.OPERATOR.Equals(current)).PRECEDENCE;
-                if (current is "^" or "u-") // right-associative
-                    return topValue > currentValue;
-
-                return topValue >= currentValue;
+                return topFound switch
+                {
+                    // If not found either value, simply return false.
+                    false when !currentFound => false,
+                    _ => current switch
+                    {
+                        // Right-Associative return that top precedence is above the current in matters of special unary
+                        // operators.
+                        "^" or "u-" => topValue > currentValue,
+                        _ => topValue >= currentValue
+                    }
+                };
             }
         }
     }
