@@ -1,6 +1,7 @@
-
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable UnusedMember.Global
+
+using System.Globalization;
 
 namespace SKSSL.ECS;
 
@@ -79,4 +80,8 @@ public readonly struct Statistic
 
         //CurrentValue = Math.Clamp(value, MinValue, MaxValue);
     }
+
+    public double GetValue() => BaseValue; // WIP: Improve this?
+
+    public string GetValueAsString() => GetValue().ToString(CultureInfo.InvariantCulture);
 }

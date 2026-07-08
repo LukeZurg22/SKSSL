@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Globalization;
-using System.Text;
+using System.Data;
+using System.Linq;
 using SKSSL.ECS;
 using SKSSL.ECS.Registry;
-using static SKSSL.Extensions.StringHelpers;
 using static SKSSL.Mathematics.CharacterExtensions;
 
 namespace SKSSL.Mathematics;
@@ -17,10 +15,6 @@ namespace SKSSL.Mathematics;
 /// </summary>
 public static class ShuntingYard
 {
-    /// P.E.M.D.A.S.: Parenthesis, exponents, multiplication, division, addition, subtraction. 
-    private static readonly Dictionary<string, byte> Precedence = new()
-        { { "+", 1 }, { "-", 1 }, { "*", 2 }, { "/", 2 }, { "^", 3 }, { "u-", 4 } };
-
     /// <summary>
     /// Interpret, Parse, and Evaluate a string expression and output a final result, with logging.
     /// </summary>
@@ -38,114 +32,64 @@ public static class ShuntingYard
         string location = string.IsNullOrEmpty(source) ? "an unknown source" : source;
 
         // Check to make sure the brackets are good.
-        if (!EvaluateDelimiters(expression))
+        if (!CheckDelimiters())
         {
+            // TEMP: Logging in mathematical expression. Output errors instead.
             Log($"Invalid expression \"{expression}\" from {location}. Please check delimiters.", LOG.GENERAL_ERROR);
             return false;
         }
 
         // Evaluate string variables.
-        var parserOutput = ParseExpression(expression);
-        if (!EvaluateExpressionStringVariables(parserOutput.StringIndices, parserOutput.Tokens, out var faulty))
-        {
-            Log($"Failed to evaluate \"{faulty}\" expression \"{expression}\" from {location}.", LOG.GENERAL_ERROR);
-            return false;
-        }
+        var tokens = CreateTokensFromExpression(expression);
 
         // Calculate final result.
-        result = Evaluate(parserOutput.Tokens);
+        result = EvaluateTokens(tokens);
         return true;
-    }
 
-    private static double Evaluate(string[] tokens)
-    {
-        if (tokens.Length == 0)
-            return 0;
-
-        var output = new Queue<string>(); // RPN output
-        var operators = new Stack<string>(); // Operator stack
-
-        for (int i = 0; i < tokens.Length; i++)
+        // Determines if a provided string expression contains an adequate number of brackets of any kind.
+        bool CheckDelimiters()
         {
-            string token = tokens[i];
-
-            // Number
-            if (double.TryParse(token, out _)) output.Enqueue(token);
-            else ParseSpecialToken(token, i);
-        }
-
-        // Pop remaining operators
-        while (operators.Count > 0)
-        {
-            string op = operators.Pop();
-            if (op != "(") output.Enqueue(op);
-        }
-
-        return EvaluateRPN(output);
-
-        // Parse all proper tokens that aren't immediately recognised as doubles. 
-        void ParseSpecialToken(string token, int index)
-        {
-            switch (token)
+            var stack = new Stack<char>();
+            foreach (char c in expression)
             {
-                case "(":
-                    operators.Push(token);
-                    break;
-                case ")":
+                if (!c.IsBracket())
+                    continue;
+
+                switch (c)
                 {
-                    while (operators.Count > 0 && operators.Peek() != "(")
-                        output.Enqueue(operators.Pop());
+                    case '(':
+                    case '[':
+                    case '{':
+                        stack.Push(c);
+                        break;
 
-                    if (operators.Count > 0 && operators.Peek() == "(")
-                        operators.Pop(); // discard '('
-                    break;
-                }
-                default:
-                {
-                    if (token.IsOperator()) // +, -, *, /, ^, u-
-                    {
-                        string op = token;
+                    case ')':
+                        if (stack.Count == 0 || stack.Pop() != '(')
+                            return false;
+                        break;
 
-                        // Handle unary.
-                        if (op is "-" && (index == 0 || IsUnaryOperator(tokens[index - 1])))
-                        {
-                            op = "u-";
-                        }
+                    case ']':
+                        if (stack.Count == 0 || stack.Pop() != '[')
+                            return false;
+                        break;
 
-                        while (operators.Count > 0 &&
-                               operators.Peek() != "(" &&
-                               ShouldPop(operators.Peek(), op))
-                        {
-                            output.Enqueue(operators.Pop());
-                        }
-
-                        operators.Push(op);
-                    }
-
-                    break;
+                    case '}':
+                        if (stack.Count == 0 || stack.Pop() != '{')
+                            return false;
+                        break;
                 }
             }
+
+            return stack.Count == 0;
         }
-    }
-
-    private static bool ShouldPop(string top, string current)
-    {
-        if (!Precedence.TryGetValue(top, out byte topValue) || !Precedence.TryGetValue(current, out byte currentValue))
-            return false;
-
-        if (current is "^" or "u-") // right-associative
-            return topValue > currentValue;
-
-        return topValue >= currentValue;
     }
 
     /// <summary>
     /// Parse an expression into a series of tokens, and a set of indices of detected string-variables.
     /// </summary>
-    private static (string[] Tokens, List<int> StringIndices) ParseExpression(string expression)
+    private static string[] CreateTokensFromExpression(string expression)
     {
         List<string> tokens = [];
-        List<int> stringVarIndices = [];
 
         //  Split string expression into parts.
         for (int i = 0; i < expression.Length; i++)
@@ -209,7 +153,6 @@ public static class ShuntingYard
             else
             {
                 int start = i;
-                int tokenIndex = tokens.Count;
 
                 // Continue reading the entire string, and hope that it is:
                 //  - not cut off early
@@ -224,73 +167,130 @@ public static class ShuntingYard
                     i++;
                 }
 
+                // Create the full string variable.
                 string variable = expression[start..(i + 1)];
-                tokens.Add(variable);
 
-                // Store token index to work on later.
-                stringVarIndices.Add(tokenIndex);
-
-                // TODO: STEPS
-                //  When reading a character that -is- expected, attempt to evalulate the string.
-                //  If the string evaluates, pop it from its little stack.
+                // Evaluate string valuable right here, right now. Hope it's valid!
+                StatisticRegistry registry = MasterRegistryManager.GetRegistry<StatisticPrototype, StatisticRegistry>();
+                if (!registry.TryGet(variable, out Statistic statistic))
+                    throw new EvaluateException("Attempted to evaluate string as a statistic not present in registry.");
+                tokens.Add(statistic.GetValueAsString());
             }
         }
 
-        return (tokens.ToArray(), stringVarIndices);
+        return tokens.ToArray();
     }
 
-    /// Evaluates a set of tokens using a set of indices pointing to tokens that happen to be string variables.
-    /// <returns>true if all string variables were evaluated correctly; false if otherwise.</returns>
-    private static bool EvaluateExpressionStringVariables(
-        List<int> stringVarIndices, string[] tokens, out string faultyVariables)
+    // P.E.M.D.A.S.: Parenthesis, exponents, multiplication, division, addition, subtraction. 
+    private static readonly (string OPERATOR, byte PRECEDENCE)[] Precedences =
+    [
+        ("+", 1),
+        ("-", 1),
+        ("*", 2),
+        ("/", 2),
+        ("^", 3),
+        ("u-", 4)
+    ];
+
+    private static double EvaluateTokens(string[] tokens)
     {
-        StringBuilder stringBuilder = new();
-        faultyVariables = string.Empty;
-        int stringVarCount = stringVarIndices.Count; // Counter for string builder.
+        if (tokens.Length == 0)
+            return 0;
 
-        // Evaluate all string variable indices.
-        var indices = stringVarIndices.ToImmutableArray();
-        foreach (int stringIndex in indices)
+        var output = new Queue<string>(); // RPN output
+        var operators = new Stack<string>(); // Operator stack
+
+        for (int i = 0; i < tokens.Length; i++)
         {
-            --stringVarCount; // Decrement the "handled these" counter.
-            string variable = tokens[stringIndex];
+            string token = tokens[i];
 
-            if (GetStringVariableValue(variable, out double value))
-            {
-                // Replace original variable's token entry with numerical value.
-                tokens[stringIndex] = value.ToString(CultureInfo.InvariantCulture);
-            }
-            else
-            {
-                // Add to "faulty variables" list. Can clutter the console / logs if there are too many. How can this
-                //  be fixed you may ask? Simple! Don't feed this thing stupid expressions with hundreds of undefined
-                //  variables, and you will be fine! -Z
-                stringBuilder.Append(variable);
-                if (stringVarCount > 0) stringBuilder.Append(", ");
-            }
+            // Number
+            if (double.TryParse(token, out _)) output.Enqueue(token);
+            else ParseToken(token, i);
         }
 
-        faultyVariables = stringBuilder.ToString();
-        return string.IsNullOrEmpty(faultyVariables);
-    }
-
-    /// Using statistics registry class, this attempts to get a value from a string.
-    /// <remarks>
-    /// This assumes that the registry was populated with variable statistics based on the
-    /// <see cref="StatisticPrototype"/> type, which is converted to a referential <see cref="Statistic"/>
-    /// for actual reading, as the prototype is deserialized into SoA format.
-    /// </remarks>
-    private static bool GetStringVariableValue(string variable, out double value)
-    {
-        StatisticRegistry registry = MasterRegistryManager.GetRegistry<StatisticPrototype, StatisticRegistry>();
-        if (registry.TryGet(variable, out Statistic statistic))
+        // Pop remaining operators
+        while (operators.Count > 0)
         {
-            value = statistic.CurrentValue;
-            return true;
+            string op = operators.Pop();
+            if (op != "(") output.Enqueue(op);
         }
 
-        value = 0;
-        return false;
+        return EvaluateRPN(output);
+
+        // Parse all proper tokens that aren't immediately recognised as doubles. 
+        void ParseToken(string token, int index)
+        {
+            switch (token)
+            {
+                case "(":
+                    operators.Push(token);
+                    break;
+                case ")":
+                {
+                    while (operators.Count > 0 && operators.Peek() != "(")
+                        output.Enqueue(operators.Pop());
+
+                    if (operators.Count > 0 && operators.Peek() == "(")
+                        operators.Pop(); // discard '('
+                    break;
+                }
+                default:
+                {
+                    if (token.IsOperator()) // +, -, *, /, ^, u-
+                    {
+                        string op = token;
+
+                        // Handle unary.
+                        if (op is "-" && (index == 0 || IsUnaryOperator(tokens[index - 1])))
+                        {
+                            op = "u-";
+                        }
+
+
+                        while (operators.Count > 0 &&
+                               operators.Peek() != "(" &&
+                               ShouldPop(operators.Peek(), op))
+                        {
+                            output.Enqueue(operators.Pop());
+                        }
+
+                        operators.Push(op);
+                    }
+
+                    break;
+                }
+            }
+
+            return;
+
+            bool ShouldPop(string top, string current)
+            {
+                bool topFound = false, currentFound = false;
+                foreach ((string OPERATOR, byte PRECEDENCE) precedence in Precedences)
+                {
+                    if (precedence.OPERATOR.Equals(top))
+                    {
+                        topFound = true;
+                        if (currentFound) break; // Short-Circuit.
+                    }
+
+                    if (!precedence.OPERATOR.Equals(current)) continue; // Short-circuit.
+                    currentFound = true;
+                    if (topFound) break; // Short-Circuit.
+                }
+
+                if (!topFound && !currentFound)
+                    return false;
+
+                var topValue = Precedences.First(d => d.OPERATOR.Equals(top)).PRECEDENCE;
+                var currentValue = Precedences.First(d => d.OPERATOR.Equals(current)).PRECEDENCE;
+                if (current is "^" or "u-") // right-associative
+                    return topValue > currentValue;
+
+                return topValue >= currentValue;
+            }
+        }
     }
 
     /// Read a set tokens, organize into a mathematically calculable stack ordered by importance, and evaluate.
