@@ -32,11 +32,7 @@ public static class ShuntingYard
 
         // Check to make sure the brackets are good.
         if (!CheckDelimiters())
-        {
-            // TEMP: Logging in mathematical expression. Output errors instead.
-            Log($"Invalid expression \"{expression}\" from {location}. Please check delimiters.", LOG.GENERAL_ERROR);
-            return false;
-        }
+            throw new EvaluateException($"Invalid expression \"{expression}\" from {location}. Check delimiters.");
 
         // Evaluate string variables.
         var tokens = CreateTokensFromExpression(expression);
@@ -191,6 +187,7 @@ public static class ShuntingYard
         ("u-", 4)
     ];
 
+    // WIP: Merge this into CreateTokens for one big single-pass algorithm.
     private static double EvaluateTokens(string[] tokens)
     {
         if (tokens.Length == 0)
