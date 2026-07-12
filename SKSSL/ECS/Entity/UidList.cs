@@ -2,8 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using JetBrains.Annotations;
 using static System.Math;
+
+// ReSharper disable UnusedMethodReturnValue.Global
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UseCollectionExpression
@@ -36,7 +37,6 @@ public sealed class UidList<T> : IEnumerable<T> where T : class
     private readonly List<T> _denseEntries = new();
 
     /// Public-Access list to entries contained in this UidList, which cannot be modified directly.
-    [UsedImplicitly]
     public IReadOnlyList<T> Entries => _denseEntries;
 
     // Per-slot handle metadata.
@@ -85,10 +85,14 @@ public sealed class UidList<T> : IEnumerable<T> where T : class
         }
     }
 
+    /// <inheritdoc cref="Get(PackableUid)"/>
+    public T Get(int index, int generation) => Get(new GenericUid(index, generation));
+
     /// <summary>
     /// Fast access. Throws on invalid/stale UID.
     /// Use <see cref="TryGet"/> for safer access.
     /// </summary>
+    [System.Diagnostics.Contracts.Pure]
     public T Get(PackableUid uid)
     {
         if (!TryGet(uid, out T? item))

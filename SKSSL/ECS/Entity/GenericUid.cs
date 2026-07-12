@@ -23,6 +23,7 @@ public readonly struct GenericUid : PackableUid, IEquatable<GenericUid>
     public GenericUid(int index, int generation)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(generation, 0);
         Packed = Pack(index, generation);
         Index = index;
         Generation = generation;
