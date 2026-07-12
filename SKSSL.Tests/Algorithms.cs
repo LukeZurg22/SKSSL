@@ -1,8 +1,10 @@
 using System;
+using System.Data;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.ECS;
 using SKSSL.Mathematics;
+
 // ReSharper disable RedundantNameQualifier
 
 namespace SKSSL.Tests;
@@ -24,9 +26,7 @@ public class Algorithms
     {
         SKSSL.ECS.Registry.StatisticRegistry registry = SKSSL.ECS.Registry.MasterRegistryManager
             .GetRegistry<SKSSL.ECS.StatisticPrototype, SKSSL.ECS.Registry.StatisticRegistry>();
-        
-        registry.Clear();
-        
+
         // Force a prototype for testing.
         StatisticPrototype pseudoPrototype = new()
         {
@@ -37,27 +37,31 @@ public class Algorithms
             InitialValue = 9,
             Source = "game",
         };
-        
+
         // Register the prototype.
         registry.Register("test_statistic", pseudoPrototype);
+        registry.TryGet("test_statistic", out StatisticPrototype statistic);
+        Assert.IsNotNull(statistic); // Re-testing the retrieval anyway.
+        
+        // Create a place to store statistics with Uids.
+        var statisticsStorage = new StatisticsList();
+        statisticsStorage.Set(statistic, statisticsStorage.New());
+        
+        /* WIP:
+         *  So... I have create a place to store statistics outside of the algorithm, and without utilizing the
+         *  registry within the algorithm. Huzzah for decoupling.
+         */
+
+        registry.Clear();
+
 
         // Bad Delimiter.
         const string badDelimiterFormula = "(5/3--6"; // -> ERROR
-        Assert.IsFalse(ShuntingYard.Evaluate(badDelimiterFormula, out double result));
+        Assert.Throws<EvaluateException>(() => ShuntingYard.Evaluate(badDelimiterFormula, out double _));
 
         // Bad Variable.
         const string badVariableFormula = "(5+3*invalid_statistic)/3--6"; // -> ERROR
-        bool good = false;
-        try
-        {
-            ShuntingYard.Evaluate(badVariableFormula, out result);
-            good = true;
-        }
-        catch
-        {
-            // ignored
-        }
-        Assert.IsFalse(good);
+        Assert.Throws<Exception>(() => ShuntingYard.Evaluate(badVariableFormula, out double _));
 
         /*
          * (5 + 3 * test_statistic) / 3 - -6
@@ -70,7 +74,7 @@ public class Algorithms
 
         // Simple.
         const string formulaNormal = "(5+3*9)/3--6"; // -> 16.66666666666667
-        ShuntingYard.Evaluate(formulaNormal, out result);
+        ShuntingYard.Evaluate(formulaNormal, out var result);
         Assert.IsLessThan(0.001, Math.Abs(result - 16.666));
 
         // Variable.

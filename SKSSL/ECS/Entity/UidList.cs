@@ -28,7 +28,7 @@ namespace SKSSL.ECS;
 /// Best used for "Active" lists where dynamacy is a requirement. Definitions lists and registries
 /// should not need Unique IDs.
 /// </remarks>
-public sealed class UidList<T> : IEnumerable<T> where T : class
+public class UidList<T> : IEnumerable<T> where T : class
 {
     /// One handle can be instantiated multiple times.
     private readonly Dictionary<string, HashSet<PackableUid>> _activeHandles = new();

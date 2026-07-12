@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using SKSSL.ECS;
-using SKSSL.ECS.Registry;
 using static SKSSL.Mathematics.CharacterExtensions;
 
 namespace SKSSL.Mathematics;
@@ -20,12 +20,17 @@ public static class ShuntingYard
     /// <param name="expression">string expression to evaluate.</param>
     /// <param name="result">Final expected value.</param>
     /// <param name="source">Optional provided source for tracing.</param>
+    /// <param name="statistics"></param>
     /// <returns>true if expression evaluated completely. false if otherwise.</returns>
     /// <remarks>
     /// Loops over an expression more than once. Conglomerating all of the functions into
     /// one large function is easily doable, but does not read very well.
     /// </remarks>
-    public static bool Evaluate(string expression, out double result, string source = "")
+    public static bool Evaluate(
+        string expression,
+        out double result,
+        string source = "",
+        StatisticsList? statistics = null)
     {
         result = 0;
         string location = string.IsNullOrEmpty(source) ? "an unknown source" : source;
@@ -34,56 +39,11 @@ public static class ShuntingYard
         if (!CheckDelimiters())
             throw new EvaluateException($"Invalid expression \"{expression}\" from {location}. Check delimiters.");
 
+        // Parse an expression into a series of tokens, and a set of indices of detected string-variables.
+
+        #region Parse Tokens
+
         // Evaluate string variables.
-        var tokens = CreateTokensFromExpression(expression);
-
-        // Calculate final result.
-        result = EvaluateTokens(tokens);
-        return true;
-
-        // Determines if a provided string expression contains an adequate number of brackets of any kind.
-        bool CheckDelimiters()
-        {
-            var stack = new Stack<char>();
-            foreach (char c in expression)
-            {
-                if (!c.IsBracket())
-                    continue;
-
-                switch (c)
-                {
-                    case '(':
-                    case '[':
-                    case '{':
-                        stack.Push(c);
-                        break;
-
-                    case ')':
-                        if (stack.Count == 0 || stack.Pop() != '(')
-                            return false;
-                        break;
-
-                    case ']':
-                        if (stack.Count == 0 || stack.Pop() != '[')
-                            return false;
-                        break;
-
-                    case '}':
-                        if (stack.Count == 0 || stack.Pop() != '{')
-                            return false;
-                        break;
-                }
-            }
-
-            return stack.Count == 0;
-        }
-    }
-
-    /// <summary>
-    /// Parse an expression into a series of tokens, and a set of indices of detected string-variables.
-    /// </summary>
-    private static string[] CreateTokensFromExpression(string expression)
-    {
         List<string> tokens = [];
 
         //  Split string expression into parts.
@@ -164,16 +124,57 @@ public static class ShuntingYard
 
                 // Create the full string variable.
                 string variable = expression[start..(i + 1)];
-
-                // Evaluate string valuable right here, right now. Hope it's valid!
-                StatisticRegistry registry = MasterRegistryManager.GetRegistry<StatisticPrototype, StatisticRegistry>();
-                if (!registry.TryGet(variable, out StatisticWrapper statistic))
-                    throw new EvaluateException("Attempted to evaluate string as a statistic not present in registry.");
-                tokens.Add(statistic.GetValueAsString());
+                
+                // If this variable isn't in the statistics provided, then what can one do but explode?
+                if (statistics == null)
+                    throw new NullReferenceException(
+                        $"Shunting Yard found variable \'{variable}\', but no statistics to emplace a value!");
+                tokens.Add(statistics.GetValue(variable).ToString(CultureInfo.InvariantCulture));
             }
         }
 
-        return tokens.ToArray();
+        #endregion
+
+        // Calculate final result.
+        result = EvaluateTokens(tokens.ToArray());
+        return true;
+
+        // Determines if a provided string expression contains an adequate number of brackets of any kind.
+        bool CheckDelimiters()
+        {
+            var stack = new Stack<char>();
+            foreach (char c in expression)
+            {
+                if (!c.IsBracket())
+                    continue;
+
+                switch (c)
+                {
+                    case '(':
+                    case '[':
+                    case '{':
+                        stack.Push(c);
+                        break;
+
+                    case ')':
+                        if (stack.Count == 0 || stack.Pop() != '(')
+                            return false;
+                        break;
+
+                    case ']':
+                        if (stack.Count == 0 || stack.Pop() != '[')
+                            return false;
+                        break;
+
+                    case '}':
+                        if (stack.Count == 0 || stack.Pop() != '{')
+                            return false;
+                        break;
+                }
+            }
+
+            return stack.Count == 0;
+        }
     }
 
     // P.E.M.D.A.S.: Parenthesis, exponents, multiplication, division, addition, subtraction. 

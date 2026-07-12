@@ -54,10 +54,7 @@ public class YamlLoader : PrototypeLoader
     protected override string SerializeLogicImplement<T>(T obj) where T : class =>
         SKSSLDefaultSerializer.Serialize(obj);
 
-    protected override List<Prototype> DeserializeLogicImplement(
-        string text,
-        string trace = "",
-        params Type[] types)
+    protected override List<Prototype> DeserializeLogicImplement(string text, string trace = "", params Type[] types)
     {
         // Split up the text into lines.
         var lines = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using SKSSL.Extensions;
 
 // ReSharper disable ClassNeverInstantiated.Global
@@ -23,18 +24,18 @@ public class StatisticRegistry : Registry<StatisticPrototype>
      */
 
     // SoA format for storing the various parts of Statistics definitions. Makes them difficult to expand upon.
-    private readonly Dictionary<string, uint> _handleToId = new(); // For reverse-searching.
+    private readonly Dictionary<string, int> _handleToIndex = new(); // For reverse-searching.
+    private string[] _sources = Array.Empty<string>();
     private string[] _handles = Array.Empty<string>();
     private string[] _names = Array.Empty<string>(); // Localization keys (name).
     private string[] _descriptions = Array.Empty<string>(); // Localization keys (desc).
     private double[] _baseValues = Array.Empty<double>();
     private double[] _minValues = Array.Empty<double>();
     private double[] _maxValues = Array.Empty<double>();
-    private List<string>[] _modifiers = new List<string>[1024];
+    private HashSet<string>[] _modifierHandles = Array.Empty<HashSet<string>>();
 
     // WIP:
     //  Add string parsing for statistics, which all begin with an [op] followed by a string.
-    //      -> Remove the operator/
     //      -> Once statistics are stored, that does NOT mean they should initialize or begin updating.
     //          Some init() method or whatever is needed to force cross-reference updates -is needed.
     //          Recursive statistic calls is a danger to us all! Some kind of precaution is needed.
@@ -42,14 +43,14 @@ public class StatisticRegistry : Registry<StatisticPrototype>
     //  Add the ability to recalculate / re-parse statistics.
 
     /// Like the TryGet(uid), except much more unreliable and failure-prone.
-    public bool TryGet(string handle, out StatisticWrapper statisticWrapper)
+    public bool TryGet(string handle, [NotNullWhen(true)] out StatisticPrototype? statistic)
     {
         bool found = false;
-        statisticWrapper = default;
+        statistic = default;
 
         // Using handle back to ID, get index, then construct wrapper.
-        if (_handleToId.TryGetValue(handle, out var index))
-            found = TryGet(index, out statisticWrapper);
+        if (_handleToIndex.TryGetValue(handle, out var index))
+            found = TryGet(index, out statistic);
 
         return found;
     }
@@ -58,38 +59,36 @@ public class StatisticRegistry : Registry<StatisticPrototype>
     /// Safer way to obtain an statistic definition using its ID.
     /// </summary>
     /// <param name="index"></param>
-    /// <param name="statisticWrapper"></param>
+    /// <param name="statistic"></param>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
-    public bool TryGet(uint index, out StatisticWrapper statisticWrapper)
+    public bool TryGet(int index, [NotNullWhen(true)] out StatisticPrototype? statistic)
     {
-        statisticWrapper = default; // Fake statistic for compiler.
-
         // Short-circuit.
-        if (index >= _handleToId.Count || _handles[index].IsNullOrEmpty())
-            return false;
-
-        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
-        _modifiers[index] ??= new List<string>();
-
-        // Fill out real statistic reference.
-        var wrapper = new StatisticWrapper
+        if (index >= _handleToIndex.Count || _handles[index].IsNullOrEmpty())
         {
-            Name = _names[index],
+            statistic = default; // Fake statistic for compiler.
+            return false;
+        }
+
+        // Recreates the statistic prototype, which may have been disposed-of earlier.
+        var wrapper = new StatisticPrototype
+        {
+            Source = _sources[index],
             Handle = _handles[index],
-            Description = _descriptions[index],
+            NameKey = _names[index],
+            DescriptionKey = _descriptions[index],
             BaseValue = _baseValues[index],
             MaxValue = _maxValues[index],
             MinValue = _minValues[index],
-            // TODO: Get modifier reference.
-            //Modifiers = _modifiers[index].ToArray()
+            Modifiers = _modifierHandles[index].ToList()
         };
-        statisticWrapper = wrapper;
+        statistic = wrapper;
         return true;
     }
 
     /// Next index in the statistics definitions lists.
-    private uint nextIndex = 0;
+    private int nextIndex = 0;
 
     /// Avoid calling this manually unless you know what you are doing.
     public override object Register(string handle, StatisticPrototype entry)
@@ -97,15 +96,18 @@ public class StatisticRegistry : Registry<StatisticPrototype>
         //@formatter:off
         // Expand all arrays by one.
             int newSize = _handles.Length + 1;
+            Array.Resize(ref _sources, newSize);
             Array.Resize(ref _handles, newSize);
             Array.Resize(ref _names, newSize);
             Array.Resize(ref _descriptions, newSize);
             Array.Resize(ref _baseValues, newSize);
             Array.Resize(ref _minValues, newSize);
             Array.Resize(ref _maxValues, newSize);
+            Array.Resize(ref _modifierHandles, newSize);
         
         // Add entry.
-            _handleToId.Add(handle, nextIndex);
+            _sources[nextIndex] = entry.Source;
+            _handleToIndex.Add(handle, nextIndex);
             _handles[nextIndex] = handle;
             _names[nextIndex] = entry.NameKey;
             _descriptions[nextIndex] = entry.DescriptionKey;
@@ -116,13 +118,6 @@ public class StatisticRegistry : Registry<StatisticPrototype>
         return ++nextIndex;
     }
 
-    /// [ Called by Source Generator ]
-    [UsedImplicitly]
-    public override void Link()
-    {
-        // WIP: Populate modifiers.
-    }
-
     #region Utility
 
     /// <summary>
@@ -131,7 +126,8 @@ public class StatisticRegistry : Registry<StatisticPrototype>
     public override void Clear()
     {
         // Clear SoA. 
-        _handleToId.Clear();
+        _handleToIndex.Clear();
+        Array.Clear(_sources);
         Array.Clear(_handles);
         Array.Clear(_names);
         Array.Clear(_descriptions);
@@ -140,13 +136,8 @@ public class StatisticRegistry : Registry<StatisticPrototype>
         Array.Clear(_maxValues);
 
         // Clean up modifier list's lists first.
-        foreach (var modList in _modifiers)
-        {
-            // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
-            modList?.Clear();
-        }
-
-        Array.Clear(_modifiers); // Finish with the modifier list. 
+        foreach (var modList in _modifierHandles) modList.Clear();
+        Array.Clear(_modifierHandles); // Finish with the modifier list. 
     }
 
     #endregion

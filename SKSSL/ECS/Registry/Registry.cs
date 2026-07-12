@@ -50,7 +50,7 @@ public abstract class Registry<T> : Registry where T : class, new()
         return entry;
     }
 
-    public bool TryGet(string handle, [MaybeNullWhen(false)] out object definition)
+    public bool TryGet(string handle, [NotNullWhen(true)] out object? definition)
     {
         bool output = TryGet(handle, out T? thing);
         definition = thing;
@@ -66,8 +66,5 @@ public abstract class Registry<T> : Registry where T : class, new()
     /// </summary>
     /// <returns>True if was found. False if one was not. The output is also Null if one was not found.</returns>
     public virtual bool TryGet(string handle, [MaybeNullWhen(false)] out T definition)
-    {
-        definition = null;
-        return RegistryEntries.TryGetValue(handle, out definition);
-    }
+        => RegistryEntries.TryGetValue(handle, out definition);
 }

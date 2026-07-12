@@ -95,7 +95,6 @@ public class PrototypeGenerator : IIncrementalGenerator
             if (string.IsNullOrWhiteSpace(shortName)) continue;
             sb.AppendLine($"            SKSSL.ECS.Registry.MasterRegistryManager.RegisterTypeDefinition(\"{shortName}\", typeof({fullName}));");
         }
-        sb.AppendLine("            SKSSL.ECS.Registry.MasterRegistryManager.Link();");
         sb.AppendLine("      }");
         sb.AppendLine("}");
         return sb;

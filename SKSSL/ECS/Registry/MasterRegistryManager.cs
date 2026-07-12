@@ -99,15 +99,6 @@ public abstract class MasterRegistryManager
         return has;
     }
 
-    /// Linkage step that permits this registry to interact with other registries.
-    /// [ Called by Source Generator ]
-    [UsedImplicitly]
-    public static void Link()
-    {
-        foreach (Registry registry in Registries.Values)
-            registry.Link();
-    }
-
     #endregion
 
     #region Utility Methods
