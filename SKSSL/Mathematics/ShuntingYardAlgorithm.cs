@@ -35,22 +35,19 @@ public static class ShuntingYard
         result = 0;
         string location = string.IsNullOrEmpty(source) ? "an unknown source" : source;
 
-        // Check to make sure the brackets are good.
-        if (!CheckDelimiters())
-            throw new EvaluateException($"Invalid expression \"{expression}\" from {location}. Check delimiters.");
-
         // Parse an expression into a series of tokens, and a set of indices of detected string-variables.
 
-        #region Parse Tokens
+        #region Parse Delimiters & Tokens
 
         // Evaluate string variables.
         List<string> tokens = [];
+        var delimiterStack = new Stack<char>();
 
         //  Split string expression into parts.
         for (int i = 0; i < expression.Length; i++)
         {
             // For every character
-            char character = expression[i];
+            char character = expression[i]; // TEMP: Consider replacing this with a byte read, instead.
 
             // If character is an expected, add to stack of string operators,
             if (char.IsDigit(character) || character == '.')
@@ -102,9 +99,38 @@ public static class ShuntingYard
             // Brackets are special characters.
             else if (character.IsBracket())
             {
+                // This checks the brackets to the bracket stack, which is used to verify that the apropriate number of
+                //  brackets are present in the expression.
+                switch (character)
+                {
+                    case '(':
+                    case '[':
+                    case '{':
+                        delimiterStack.Push(character);
+                        break;
+
+                    case ')':
+                        if (delimiterStack.Count == 0 || delimiterStack.Pop() != '(')
+                            return false;
+                        break;
+
+                    case ']':
+                        if (delimiterStack.Count == 0 || delimiterStack.Pop() != '[')
+                            return false;
+                        break;
+
+                    case '}':
+                        if (delimiterStack.Count == 0 || delimiterStack.Pop() != '{')
+                            return false;
+                        break;
+                }
+
                 tokens.Add(character.ToString());
             }
             // Character belongs to a string variable.
+            // This will read the entire variable, turn it into a token, then will attempt to match
+            //  this token with any handles in the Statistics List provided. This being done on-the-fly is for
+            //  performance; avoiding the overhead of string.Replace().
             else
             {
                 int start = i;
@@ -124,7 +150,7 @@ public static class ShuntingYard
 
                 // Create the full string variable.
                 string variable = expression[start..(i + 1)];
-                
+
                 // If this variable isn't in the statistics provided, then what can one do but explode?
                 if (statistics == null)
                     throw new NullReferenceException(
@@ -133,48 +159,15 @@ public static class ShuntingYard
             }
         }
 
+        // Determines if a provided string expression contains an adequate number of brackets of any kind.
+        if (delimiterStack.Count != 0)
+            throw new EvaluateException($"Invalid delimiters in expression \"{expression}\" from {location}.");
+
         #endregion
 
         // Calculate final result.
         result = EvaluateTokens(tokens.ToArray());
         return true;
-
-        // Determines if a provided string expression contains an adequate number of brackets of any kind.
-        bool CheckDelimiters()
-        {
-            var stack = new Stack<char>();
-            foreach (char c in expression)
-            {
-                if (!c.IsBracket())
-                    continue;
-
-                switch (c)
-                {
-                    case '(':
-                    case '[':
-                    case '{':
-                        stack.Push(c);
-                        break;
-
-                    case ')':
-                        if (stack.Count == 0 || stack.Pop() != '(')
-                            return false;
-                        break;
-
-                    case ']':
-                        if (stack.Count == 0 || stack.Pop() != '[')
-                            return false;
-                        break;
-
-                    case '}':
-                        if (stack.Count == 0 || stack.Pop() != '{')
-                            return false;
-                        break;
-                }
-            }
-
-            return stack.Count == 0;
-        }
     }
 
     // P.E.M.D.A.S.: Parenthesis, exponents, multiplication, division, addition, subtraction. 

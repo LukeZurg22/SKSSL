@@ -42,11 +42,11 @@ public class Algorithms
         registry.Register("test_statistic", pseudoPrototype);
         registry.TryGet("test_statistic", out StatisticPrototype statistic);
         Assert.IsNotNull(statistic); // Re-testing the retrieval anyway.
-        
+
         // Create a place to store statistics with Uids.
         var statisticsStorage = new StatisticsList();
-        statisticsStorage.Set(statistic, statisticsStorage.New());
-        
+        statisticsStorage.Set(statistic, statisticsStorage.New(), statistic.Handle);
+
         /* WIP:
          *  So... I have create a place to store statistics outside of the algorithm, and without utilizing the
          *  registry within the algorithm. Huzzah for decoupling.
