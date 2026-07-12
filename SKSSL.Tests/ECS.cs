@@ -151,18 +151,34 @@ public class ECS
     public void TEST_ENTITY_REGISTRY()
     {
         List<Entity> entities = [];
-        const string TestEntHandle  = "TestEntity";
-        
+        const string TestEntHandle = "TestEntity";
+
         // Assert single register.
-        TestEntityInheritedType testEnt = new TestEntityInheritedType { Handle = TestEntHandle };
-        // WIP: Fix this call. MasterRegistryManager.TryRegisterPrototype(testEnt.GetType(), testEnt);
+        TestEntityInheritedType testEnt = new TestEntityInheritedType { Handle = TestEntHandle }; 
+        MasterRegistryManager.TryRegisterPrototype(testEnt.Type, testEnt);
         IsTrue(MasterRegistryManager.TryGetPrototype(TestEntHandle, out _));
-        
+
         // Assert multiple.
 
         // Assert override as expected.
 
         // Assert override w. bad override handle.
+    }
+
+    [TestMethod]
+    public void TEST_UID_GEN()
+    {
+        UidList<object> uids = [];
+
+        // Dummy object for testing.
+        for (int i = 0; i < SSLGame.Config.DESTROY_CACHE_LIMIT * 2; i++)
+        {
+            object dummy = new();
+            string head = $"test_{i%2}";
+            PackableUid uid = uids.New();
+            uids.Set(dummy, uid, head);
+            DustLogger.Log($"Uid:{uid}");
+        }
     }
 
     [TestMethod]

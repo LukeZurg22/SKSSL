@@ -94,13 +94,25 @@ public class StatisticRegistry : Registry<StatisticPrototype>
     /// Avoid calling this manually unless you know what you are doing.
     public override object Register(string handle, StatisticPrototype entry)
     {
-        _handleToId.Add(handle, nextIndex);
-        _handles[nextIndex] = handle;
-        _names[nextIndex] = entry.NameKey;
-        _descriptions[nextIndex] = entry.DescriptionKey;
-        _baseValues[nextIndex] = entry.BaseValue;
-        _minValues[nextIndex] = entry.MinValue;
-        _maxValues[nextIndex] = entry.MaxValue;
+        //@formatter:off
+        // Expand all arrays by one.
+            int newSize = _handles.Length + 1;
+            Array.Resize(ref _handles, newSize);
+            Array.Resize(ref _names, newSize);
+            Array.Resize(ref _descriptions, newSize);
+            Array.Resize(ref _baseValues, newSize);
+            Array.Resize(ref _minValues, newSize);
+            Array.Resize(ref _maxValues, newSize);
+        
+        // Add entry.
+            _handleToId.Add(handle, nextIndex);
+            _handles[nextIndex] = handle;
+            _names[nextIndex] = entry.NameKey;
+            _descriptions[nextIndex] = entry.DescriptionKey;
+            _baseValues[nextIndex] = entry.BaseValue;
+            _minValues[nextIndex] = entry.MinValue;
+            _maxValues[nextIndex] = entry.MaxValue;
+        //@formatter:on
         return ++nextIndex;
     }
 

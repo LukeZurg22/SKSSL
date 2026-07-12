@@ -66,9 +66,9 @@ public class ComponentRegistry
     /// For every index, there is a unique component type.
     /// <seealso cref="ComponentIterArray{T}"/>
     /// </summary>
-    private readonly Dictionary<uint, int[]> _entityUIDToComponentIndices = new();
+    private readonly Dictionary<ulong, int[]> _entityUIDToComponentIndices = new();
 
-    internal void PrepareEntityComponentStorage(uint entityUid)
+    internal void PrepareEntityComponentStorage(ulong entityUid)
     {
         // Make component indices storage.
         var arr = new int[Count];

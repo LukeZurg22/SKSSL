@@ -5,7 +5,7 @@ namespace SKSSL.ECS;
 
 public interface PackableUid
 {
-    uint Value { get; }
+    ulong Packed { get; }
     public int Index { get; }
     public int Generation { get; }
 }
@@ -15,20 +15,25 @@ public interface PackableUid
 /// </summary>
 public readonly struct GenericUid : PackableUid, IEquatable<GenericUid>
 {
-    public GenericUid(uint value) => Value = value;
+    public ulong Packed { get; }
+    public int Index { get; }
+    public int Generation { get; }
+    public GenericUid(ulong packed) => Packed = packed;
 
-    public GenericUid(int index, int generation) => Value = Pack(index, generation);
+    public GenericUid(int index, int generation)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        Packed = Pack(index, generation);
+        Index = index;
+        Generation = generation;
+    }
 
-    public uint Value { get; }
-    public int Index => UnpackIndex(this);
-    public int Generation => UnpackGeneration(this);
-
-    public bool Equals(GenericUid obj) => Value == obj.Value;
+    public bool Equals(GenericUid obj) => Packed == obj.Packed;
     public override bool Equals(object? obj) => obj is GenericUid other && Equals(other);
-    public override int GetHashCode() => (int)Value;
+    public override int GetHashCode() => (int)Packed;
 
-    public static implicit operator uint(GenericUid uid) => uid.Value;
-    public static implicit operator GenericUid(uint value) => new(value);
+    public static implicit operator ulong(GenericUid uid) => uid.Packed;
+    public static implicit operator GenericUid(ulong value) => new(value);
 
     public static bool operator ==(GenericUid left, GenericUid right) => left.Equals(right);
     public static bool operator !=(GenericUid left, GenericUid right) => !(left == right);

@@ -2,75 +2,97 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using JetBrains.Annotations;
+using static System.Math;
 
 // ReSharper disable UnusedMember.Global
-
 // ReSharper disable UseCollectionExpression
 
 namespace SKSSL.ECS;
 
 /// <summary>
 /// A dynamic type of list split in a Struct of Arrays format, which can be inherited and expanded.
+/// Operate using the <see cref="New"/>; <see cref="Set"/>; <see cref="Destroy"/>; <see cref="Clear"/> functions.
 /// </summary>
-/// <typeparam name="T"></typeparam>
+/// <typeparam name="T">Object type that Uids are assigned to. Stored in internal linear list on HEAP.</typeparam>
+/// <code>
+/// (Below is Pseudo-Code)
+/// var uidList = new UidList of type MyObject();
+/// var uid = uidList.New();
+/// object myObject = new();
+/// uidList.Set(myObject, uid);
+/// uidList.Destroy(uid)
+/// </code>
 /// <remarks>
 /// Best used for "Active" lists where dynamacy is a requirement. Definitions lists and registries
 /// should not need Unique IDs.
 /// </remarks>
-public class UidList<T> : IEnumerable<T>
+public sealed class UidList<T> : IEnumerable<T> where T : class
 {
     /// One handle can be instantiated multiple times.
-    private readonly Dictionary<string, List<PackableUid>> _activeHandles = new();
+    private readonly Dictionary<string, HashSet<PackableUid>> _activeHandles = new();
 
-    private IList<T> _items = new List<T>();
-    public ref IList<T> AllEntries => ref _items;
+    /// All objects stored in this UidList which are assigned unique identification numbers.
+    private readonly List<T> _denseEntries = new();
 
+    /// Public-Access list to entries contained in this UidList, which cannot be modified directly.
+    [UsedImplicitly]
+    public IReadOnlyList<T> Entries => _denseEntries;
+
+    // Per-slot handle metadata.
+    /*
+     * Index to Dense maps the Object Uid to a Dense Index.
+     * Dense to Index holds slots for Uids, and the index of the DenseToIndex list allows one to iterate through these
+     *  active Uids.
+     * ──────────────────────────────────────────────────────
+     * |   L I F E S P A N   O F   A   U N I Q U E   I D    |
+     * | State              | Generation    | _indexToDense |
+     * | ────────────────── | ────────────  | ───────────── |
+     * | Never allocated    | 0             | -1            |
+     * | Reserved (New())   | >0            | -1            |
+     * | Alive (Get())      | >0            | >=0           |
+     * | Destroyed          | incremented   | -1            |
+     * ──────────────────────────────────────────────────────
+     */
+    private int[] _indexToDense = Array.Empty<int>(); // Maps stable UID index to actual position in _denseEntries.
+    private int[] _denseToIndex = Array.Empty<int>(); // Reverse Mapping dense index -> UID.Index for swap & destroy.
     private string?[] _idToHandles = Array.Empty<string>();
-    private int[] _generations = new int[1024];
+    private int[] _generations = Array.Empty<int>();
     private int[] _freeList = new int[SSLGame.Config.DESTROY_CACHE_LIMIT];
     private int _freeCount = 0;
+    private int _nextUidIndex = 0;
 
-    public int Count => _items.Count;
 
-    public virtual void Clear()
+    public int Count => _denseEntries.Count;
+
+    #region Operational Methods
+
+    public void Clear()
     {
-        var packableUids = _activeHandles.Values.GetEnumerator().Current;
-        foreach (PackableUid id in packableUids)
-            Destroy(id);
         _activeHandles.Clear();
-
-        // Handle Generational ID stuff.
-        Array.Clear(_generations);
+        _denseEntries.Clear();
         _freeCount = 0;
-        for (int i = 0; i < _items.Count; i++)
+
+        int length = _indexToDense.Length;
+        Array.Clear(_indexToDense, 0, length);
+        Array.Clear(_denseToIndex, 0, length);
+        Array.Clear(_idToHandles, 0, length);
+
+        for (int i = 0; i < length; i++)
         {
-            _generations[i]++; // Invalidate all old ID's.
-            _freeList[_freeCount++] = i;
+            _indexToDense[i] = -1;
+            _generations[i]++;
         }
     }
 
     /// <summary>
-    /// Dangerous fast access. Throws if the UID is invalid or stale.
+    /// Fast access. Throws on invalid/stale UID.
     /// Use <see cref="TryGet"/> for safer access.
     /// </summary>
     public T Get(PackableUid uid)
     {
-        int index = uid.Index;
-        int generation = uid.Generation;
-
-        // Another "IsValid" check, but divided.
-        if (index < 0 || index >= _items.Count)
-            throw new IndexOutOfRangeException($"Invalid UID index: {index}");
-
-        if (_generations[index] != generation)
-            throw new InvalidOperationException(
-                $"Stale UID (generation mismatch). UID was destroyed or reused. Index: {index}");
-
-        T item = _items[index]!;
-
-        if (item == null)
-            throw new InvalidOperationException($"Slot is empty for UID index: {index}");
-
+        if (!TryGet(uid, out T? item))
+            throw new InvalidOperationException($"Invalid or stale UID: {uid}");
         return item;
     }
 
@@ -79,89 +101,193 @@ public class UidList<T> : IEnumerable<T>
     /// </summary>
     public bool TryGet(PackableUid uid, [NotNullWhen(true)] out T? item)
     {
-        int index = uid.Index;
         item = default;
+        if (!IsAlive(uid)) return false;
 
-        if (!IsValid(uid))
-            return false; // Short-Circuit.
-
-        item = _items[index]!;
+        int denseIndex = _indexToDense[uid.Index];
+        item = _denseEntries[denseIndex];
         return true;
     }
 
-    /// Create unique ID for statistic.
-    public PackableUid New(string handle = "")
+    /// <summary>
+    /// Returns all live objects associated with a specific handle.
+    /// Fast enumeration over the handle's UIDs.
+    /// </summary>
+    public IEnumerable<T> GetAll(string handle)
     {
-        int index;
+        if (string.IsNullOrEmpty(handle) || !_activeHandles.TryGetValue(handle, out var uidList))
+            yield break;
 
+        foreach (PackableUid uid in uidList)
+            if (TryGet(uid, out T? item))
+                yield return item;
+    }
+
+    /// <returns>Uid-Object Tuple enumerable using handle.</returns>
+    public IEnumerable<(PackableUid Uid, T Value)> GetAllKVP(string handle)
+    {
+        if (string.IsNullOrEmpty(handle) || !_activeHandles.TryGetValue(handle, out var uidList))
+            yield break;
+
+        foreach (PackableUid uid in uidList)
+            if (TryGet(uid, out T? item))
+                yield return (uid, item);
+    }
+
+    /// Create unique ID for storage. Reserves this Uid for an entity, which is assigned shortly after.
+    public PackableUid New()
+    {
+        int uidIndex;
+        // Reuse a previously destroyed slot.
         if (_freeCount > 0)
         {
-            // Reuse old indices.
-            index = _freeList[--_freeCount];
+            uidIndex = _freeList[--_freeCount];
+        }
+        // Allocate a brand new slot.
+        else
+        {
+            uidIndex = _nextUidIndex++;
+            EnsureCapacity(uidIndex + 1);
+        }
+
+        // Increment generation on first use of a recycled slot.
+        if (_generations[uidIndex] == 0)
+            _generations[uidIndex] = 1;
+
+        return new GenericUid(uidIndex, _generations[uidIndex]);
+    }
+
+    /// <summary>
+    /// Add instance of an object of Type T
+    /// </summary>
+    /// <param name="instance">Instance of the object that is wished to be stored.</param>
+    /// <param name="uid">Uid of the object to assign it.</param>
+    /// <param name="handle">Optional handle to bundle uids under handle groupings.</param>
+    public void Set(T instance, PackableUid uid, string handle = "")
+    {
+        ArgumentNullException.ThrowIfNull(instance);
+        if (!IsReserved(uid)) throw new InvalidOperationException("Invalid UID not reserved");
+
+        int uidIndex = uid.Index;
+        EnsureCapacity(uidIndex + 1);
+
+        // Accomodate for the first time this slot is used.
+        if (_indexToDense[uidIndex] < 0)
+        {
+            int denseIndex = _denseEntries.Count;
+            _denseEntries.Add(instance);
+            _indexToDense[uidIndex] = denseIndex;
+            _denseToIndex[denseIndex] = uidIndex;
         }
         else
         {
-            index = _activeHandles.Count;
-
-            // Ensure free list has plenty of space by doubling it every time it reaches over limit.
-            if (_freeCount >= _freeList.Length)
-                Array.Resize(ref _freeList, _freeList.Length * 2);
-
-            Array.Resize(ref _idToHandles, index + 1);
-            Array.Resize(ref _generations, index + 1);
+            _denseEntries[_indexToDense[uidIndex]] = instance;
         }
 
-        int generation = _generations[index];
+        // Handle grouping.
+        if (!_activeHandles.TryGetValue(handle, out var list))
+        {
+            list = new HashSet<PackableUid>();
+            _activeHandles[handle] = list;
+        }
 
-        var guid = new GenericUid(index, generation);
-        if (!_activeHandles.ContainsKey(handle)) _activeHandles.Add(handle, new List<PackableUid>());
-        _activeHandles[handle].Add(guid);
-        return guid;
+        // Prevent duplicates.
+        list.Add(uid);
+
+        _idToHandles[uidIndex] = string.IsNullOrEmpty(handle) ? null : handle;
     }
 
     public void Destroy(PackableUid uid)
     {
-        int index = uid.Index;
-        int generation = uid.Generation;
+        int uidIndex = uid.Index;
+        if (!IsReserved(uid)) return;
 
-        if (index >= _activeHandles.Count)
-            return;
+        int denseIndex = _indexToDense[uidIndex];
+        if (denseIndex < 0) return;
 
-        // Validate generation (prevent double-destroy bugs)
-        if (_generations[index] != generation)
-            return;
+        // Remove from handle group.
+        var handle = _idToHandles[uidIndex];
+        if (!string.IsNullOrEmpty(handle) && _activeHandles.TryGetValue(handle, out var list))
+        {
+            list.Remove(uid);
+            if (list.Count == 0) _activeHandles.Remove(handle);
+        }
 
-        // Remove this UID from all handles' known IDs.
-        _items.RemoveAt(index);
-        var handle = _idToHandles[index];
-        if (handle == null)
-            return;
+        int lastDenseIndex = _denseEntries.Count - 1;
 
-        // Remove entry handles.
-        _activeHandles[handle].Remove(uid);
-        _idToHandles[index] = string.Empty;
+        if (denseIndex != lastDenseIndex)
+        {
+            // Swap with last element
+            T lastObject = _denseEntries[lastDenseIndex];
+            _denseEntries[denseIndex] = lastObject;
 
-        // Invalidate old IDs.
-        _generations[index]++;
+            int movedUidIndex = _denseToIndex[lastDenseIndex];
 
-        // Ensure free list has plenty of space.
-        if (_freeCount >= _freeList.Length) Array.Resize(ref _freeList, _freeList.Length * 2);
+            // Update mappings for the moved object
+            _indexToDense[movedUidIndex] = denseIndex;
+            _denseToIndex[denseIndex] = movedUidIndex;
+        }
 
-        // Add slot back to free list.
-        _freeList[_freeCount++] = index;
+        // Invalidate the destroyed UID slot.
+        _denseEntries.RemoveAt(lastDenseIndex);
+        _denseToIndex[lastDenseIndex] = -1;
+        _indexToDense[uidIndex] = -1;
+        _generations[uidIndex]++;
+        _idToHandles[uidIndex] = null;
+
+        // Recycle UID index.
+        if (_freeCount >= _freeList.Length)
+            Array.Resize(ref _freeList, Max(32, _freeList.Length * 2));
+
+        _freeList[_freeCount++] = uidIndex;
+    }
+
+    #endregion
+
+    #region Utility Methods
+
+    /// <summary>
+    /// Ensures that internal storage fields have the capacity to hold the objects and their IDs.
+    /// </summary>
+    /// <param name="mandatory">Capacity required to accomodate.</param>
+    /// <remarks>_denseToIndex is only valid up to current dense count.</remarks>
+    private void EnsureCapacity(int mandatory)
+    {
+        if (mandatory <= _indexToDense.Length) return;
+
+        int oldSize = _indexToDense.Length;
+        int newSize = Max(mandatory, Max(64, oldSize == 0 ? 64 : oldSize * 2));
+
+        Array.Resize(ref _indexToDense, newSize);
+        Array.Resize(ref _denseToIndex, newSize);
+        Array.Resize(ref _generations, newSize);
+        Array.Resize(ref _idToHandles, newSize);
+
+        // Initialize only the new slots
+        for (int i = oldSize; i < newSize; i++)
+        {
+            _indexToDense[i] = -1;
+            _denseToIndex[i] = -1;
+            _idToHandles[i] = null;
+            _generations[i] = 0; // Start at generation 0.
+        }
     }
 
     /// <returns>True if Uid is valid; false if not.</returns>
-    public bool IsValid(PackableUid uid)
+    private bool IsReserved(PackableUid uid)
     {
         int index = uid.Index;
-        if (index < 0 || index >= _items.Count)
-            return false;
-
-        return _generations[index] == uid.Generation && _items[index] != null;
+        return index >= 0 && index < _generations.Length && _generations[index] == uid.Generation;
     }
 
-    public IEnumerator<T> GetEnumerator() => _items.GetEnumerator();
+    private bool IsAlive(PackableUid uid)
+    {
+        int index = uid.Index;
+        return _generations[index] > 0 && _indexToDense[index] >= 0;
+    }
 
+    public IEnumerator<T> GetEnumerator() => _denseEntries.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    #endregion
 }

@@ -10,23 +10,22 @@ namespace SKSSL.ECS;
 /// </summary>
 public readonly struct EntityUid : PackableUid, IEquatable<EntityUid>
 {
-    public uint Value { get; }
+    public ulong Packed { get; }
 
-    public EntityUid(uint value) => Value = value;
-
-    public EntityUid(int index, int generation) => Value = Pack(index, generation);
+    public EntityUid(ulong packed) => Packed = packed;
+    public EntityUid(int index, int generation) => Packed = Pack(index, generation);
 
     public int Index => UnpackIndex(this);
     public int Generation => UnpackGeneration(this);
 
-    public bool Equals(EntityUid obj) => Value == obj.Value;
+    public bool Equals(EntityUid obj) => Packed == obj.Packed;
     public override bool Equals(object? obj) => obj is EntityUid other && Equals(other);
-    public override int GetHashCode() => (int)Value;
+    public override int GetHashCode() => (int)Packed;
 
-    public static implicit operator uint(EntityUid uid) => uid.Value;
+    public static implicit operator ulong(EntityUid uid) => uid.Packed;
     public static implicit operator EntityUid(uint value) => new(value);
 
     public static bool operator ==(EntityUid left, EntityUid right) => left.Equals(right);
     public static bool operator !=(EntityUid left, EntityUid right) => !(left == right);
-    public static EntityUid FromPackableUid(PackableUid uid) => new(uid.Value);
+    public static EntityUid FromPackableUid(PackableUid uid) => new(uid.Packed);
 }

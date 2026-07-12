@@ -27,13 +27,11 @@ public class EventHandler
 
     public void Subscribe<TComp, TEvent>(
         Func<EntityUid, bool> hasComponent, Action<EntityUid, TEvent> handler)
-        where TEvent : struct, IEntityEvent
-    {
+        where TEvent : struct, IEntityEvent =>
         Subscribe<TEvent>((uid, ev) =>
         {
             if (hasComponent(uid)) handler(uid, ev);
         });
-    }
 
     public void Raise<T>(EntityUid entityId, T @event) where T : struct, IEntityEvent
     {

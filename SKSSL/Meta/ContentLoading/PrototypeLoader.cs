@@ -21,7 +21,6 @@ public abstract class PrototypeLoader : IGameLoader
             return;
         }
 
-        // WIP: Exclude Non-Loaded files!
         // Get all yaml files.
         var files = GetFiles(directory);
 

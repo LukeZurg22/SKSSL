@@ -16,7 +16,7 @@ public partial class EntityManager
     public readonly ComponentRegistry ComponentRegistry = new();
 
     // Struct of Arrays Layout for all -Active- Entities contained in UidList.
-    public readonly UidList<Entity> EntitiesList = new();
+    public readonly UidList<Entity> EntitiesList = [];
 
     /// <inheritdoc cref="EntityManager"/>
     public EntityManager()
@@ -32,7 +32,7 @@ public partial class EntityManager
     /// </typeparam>
     /// <returns>Readonly enumerable list of entities that inherit from type T</returns>
     // ReSharper disable once UnusedMember.Global
-    public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => EntitiesList.AllEntries.OfType<T>();
+    public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => EntitiesList.Entries.OfType<T>();
 
     public Entity? Spawn(string handle)
     {
@@ -66,14 +66,14 @@ public partial class EntityManager
             throw new Exception($"Attempted to spawn abstract entity {source.GetFullHandle()}");
 
         // Create unique ID.
-        EntityUid uid = EntityUid.FromPackableUid(EntitiesList.New(source.Handle));
+        EntityUid uid = EntityUid.FromPackableUid(EntitiesList.New());
 
         // Create entity copy.
         Entity entity = new Entity(uid).CopyFrom(source);
-
-        // Assign to "All Entities" list.
-        EntitiesList.AllEntries[uid.Index] = entity;
-
+        
+        // Add to "All Entities" list.
+        EntitiesList.Set(entity, uid, source.Handle);
+        
         // Register component indices for this ID.
         ComponentRegistry.PrepareEntityComponentStorage(uid);
 

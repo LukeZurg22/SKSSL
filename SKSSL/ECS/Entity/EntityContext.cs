@@ -42,7 +42,7 @@ public readonly struct EntityContext
      */
 
     /// <inheritdoc cref="ECS.EntityManager.EntitiesList"/>
-    public List<Entity> ActiveEntities => EntityManager.EntitiesList.AllEntries.ToList();
+    public List<Entity> ActiveEntities => EntityManager.EntitiesList.Entries.ToList();
 
     /// <seealso cref="EntityManager"/>
     public Entity? SpawnEntity(string handle)
