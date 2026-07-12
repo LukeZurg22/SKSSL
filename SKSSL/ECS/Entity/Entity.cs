@@ -38,10 +38,6 @@ namespace SKSSL.ECS;
 [JsonObject]
 public class Entity : Prototype
 {
-    /// <inheritdoc cref="Prototype.Type"/>
-    [YamlMember(Alias = "type", Order = 0), JsonProperty(nameof(Type))]
-    public override string Type { get; set; } = "Entity";
-
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool Abstract { get; set; } = false;
 

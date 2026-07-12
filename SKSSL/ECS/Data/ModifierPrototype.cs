@@ -1,15 +1,18 @@
+using SKSSL.Mathematics;
 using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;
 
 public class ModifierPrototype : Prototype
 {
-    [YamlMember(Alias = "type")] public override string Type { get; set; } = "Modifier";
+    //->+ source
+    //->+ type
+    //->+ handle
 
     /// <summary>
     /// The operator that will dictate how this modifier is applied to a variable.
     /// </summary>
-    [YamlMember(Alias = "operator")] public ModifierOperator Operator;
+    [YamlMember(Alias = "operator")] public ModifierOperator Operator = ModifierOperator.Add;
 
     /// <summary>
     /// The step or stage in which this modifier is applied.
@@ -17,7 +20,7 @@ public class ModifierPrototype : Prototype
     [YamlMember(Alias = "step")] public ModifierStep Step = ModifierStep.Final;
 
     /// <summary>
-    /// Modifiers are strings. The shunting yard algorithm is used to decipher them.
+    /// Modifiers are string expressions. The <see cref="ShuntingYard"/> Algorithm is used to expand the expression.
     /// </summary>
-    [YamlMember(Alias = "modifier")] public string Expression;
+    [YamlMember(Alias = "modifier")] public string Expression  = string.Empty;
 }

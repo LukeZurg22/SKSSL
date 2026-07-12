@@ -13,7 +13,6 @@ namespace SKSSL.ECS;
 public class KeyList : Prototype
 {
     // ->+ type
-    public override string Type { get; set; } = "KeyList";
 
     // ->+ handle
     // public string Handle (aka ID)

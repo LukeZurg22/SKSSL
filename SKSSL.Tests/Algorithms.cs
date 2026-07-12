@@ -12,17 +12,10 @@ namespace SKSSL.Tests;
 [TestClass, UsedImplicitly]
 public class Algorithms
 {
+    private ShuntingYard ShuntingYard;
+
     [TestInitialize, UsedImplicitly]
     public void Initialize()
-    {
-        // WIP: Ensure to read any loaded statistics data. Consider involving prototyping system.
-        //  Personal remark: It would be supremely retarded to tie a mathematical algorithm directly to the ECS without
-        //  recourse! It may be best to provide a parameter of defined variables to evaluate the algorithm upon, rather
-        //  than connect to the ECS directly.
-    }
-
-    [TestMethod, UsedImplicitly]
-    public void TEST_SHUNTING_YARD()
     {
         SKSSL.ECS.Registry.StatisticRegistry registry = SKSSL.ECS.Registry.MasterRegistryManager
             .GetRegistry<SKSSL.ECS.StatisticPrototype, SKSSL.ECS.Registry.StatisticRegistry>();
@@ -54,7 +47,13 @@ public class Algorithms
 
         registry.Clear();
 
+        // Huzzah for object instantiation.
+        ShuntingYard = new ShuntingYard(statisticsStorage);
+    }
 
+    [TestMethod, UsedImplicitly]
+    public void TEST_SHUNTING_YARD()
+    {
         // Bad Delimiter.
         const string badDelimiterFormula = "(5/3--6"; // -> ERROR
         Assert.Throws<EvaluateException>(() => ShuntingYard.Evaluate(badDelimiterFormula, out double _));

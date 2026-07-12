@@ -12,8 +12,11 @@ namespace SKSSL.Mathematics;
 /// <a href="https://en.wikipedia.org/wiki/Shunting_yard_algorithm">Shunting Yard Algorithm</a>.
 /// <remarks>This algorithm was manually implemented. This is likely not the most performant implementation!</remarks>
 /// </summary>
-public static class ShuntingYard
+public class ShuntingYard
 {
+    private readonly StatisticsList Statistics;
+    public ShuntingYard(StatisticsList? statistics = null) => Statistics = statistics ?? new StatisticsList();
+
     /// <summary>
     /// Interpret, Parse, and Evaluate a string expression and output a final result, with logging.
     /// </summary>
@@ -26,11 +29,10 @@ public static class ShuntingYard
     /// Loops over an expression more than once. Conglomerating all of the functions into
     /// one large function is easily doable, but does not read very well.
     /// </remarks>
-    public static bool Evaluate(
+    public bool Evaluate(
         string expression,
         out double result,
-        string source = "",
-        StatisticsList? statistics = null)
+        string source = "")
     {
         result = 0;
         string location = string.IsNullOrEmpty(source) ? "an unknown source" : source;
@@ -152,10 +154,10 @@ public static class ShuntingYard
                 string variable = expression[start..(i + 1)];
 
                 // If this variable isn't in the statistics provided, then what can one do but explode?
-                if (statistics == null)
+                if (Statistics == null)
                     throw new NullReferenceException(
                         $"Shunting Yard found variable \'{variable}\', but no statistics to emplace a value!");
-                tokens.Add(statistics.GetValue(variable).ToString(CultureInfo.InvariantCulture));
+                tokens.Add(Statistics.GetValue(variable).ToString(CultureInfo.InvariantCulture));
             }
         }
 

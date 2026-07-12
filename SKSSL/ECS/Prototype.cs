@@ -40,7 +40,8 @@ public partial class Prototype
     public virtual string Source { get; set; } = DefaultSource;
 
     /// Explicit type definition for this entry. For direct raw-serialization of entities.
-    /// Completely unused if prioritizing yaml templates.
+    /// Completely unused if prioritizing yaml templates. Should not require override unless desiring ulterior
+    ///     name to typedef.
     [YamlMember(Alias = "type", Order = 0), JsonInclude]
     public virtual string Type { get; set; } = "Prototype";
 
