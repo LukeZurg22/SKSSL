@@ -15,6 +15,9 @@ public interface Registry
     public object? Register(string handle, object obj);
     public bool Contains(string handle);
     public bool TryGet(string handle, [MaybeNullWhen(false)] out object definition);
+
+    /// Linkage step that permits this registry to interact with other registries.
+    public void Link();
 }
 
 /// <summary>
@@ -53,6 +56,10 @@ public abstract class Registry<T> : Registry where T : class, new()
         definition = thing;
         return output;
     }
+
+    //@formatter:off
+    public virtual void Link() { /**/ }
+    //@formatter:on
 
     /// <summary>
     /// Safe[r] TryGet method to retrieve a definition using a reference id.

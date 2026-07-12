@@ -5,16 +5,19 @@ using static SKSSL.ECS.UidPacker;
 
 namespace SKSSL.ECS;
 
-public readonly struct EntityUid : IEquatable<EntityUid>
+/// <summary>
+/// Specialized PackableUid for exclusive use with entities. This is copied from <see cref="GenericUid"/>.
+/// </summary>
+public readonly struct EntityUid : PackableUid, IEquatable<EntityUid>
 {
-    public readonly uint Value;
+    public uint Value { get; }
 
     public EntityUid(uint value) => Value = value;
 
     public EntityUid(int index, int generation) => Value = Pack(index, generation);
 
-    public int Index => (int)(Value & 0xFFFF);
-    public int Generation => (int)(Value >> 16);
+    public int Index => UnpackIndex(this);
+    public int Generation => UnpackGeneration(this);
 
     public bool Equals(EntityUid obj) => Value == obj.Value;
     public override bool Equals(object? obj) => obj is EntityUid other && Equals(other);
@@ -25,4 +28,5 @@ public readonly struct EntityUid : IEquatable<EntityUid>
 
     public static bool operator ==(EntityUid left, EntityUid right) => left.Equals(right);
     public static bool operator !=(EntityUid left, EntityUid right) => !(left == right);
+    public static EntityUid FromPackableUid(PackableUid uid) => new(uid.Value);
 }

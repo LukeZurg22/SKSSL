@@ -1,7 +1,9 @@
 using System;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SKSSL.ECS;
 using SKSSL.Mathematics;
+// ReSharper disable RedundantNameQualifier
 
 namespace SKSSL.Tests;
 
@@ -24,7 +26,20 @@ public class Algorithms
             .GetRegistry<SKSSL.ECS.StatisticPrototype, SKSSL.ECS.Registry.StatisticRegistry>();
         
         registry.Clear();
-        registry.Register("test_statistic", 9);
+        
+        // Force a prototype for testing.
+        StatisticPrototype pseudoPrototype = new()
+        {
+            Handle = "test_statistic",
+            NameKey = string.Empty, // No custom name. Just leave blank.
+            DescriptionKey = string.Empty, // No custom description, either! 
+            BaseValue = 9,
+            InitialValue = 9,
+            Source = "game",
+        };
+        
+        // Register the prototype.
+        registry.Register("test_statistic", pseudoPrototype);
 
         // Bad Delimiter.
         const string badDelimiterFormula = "(5/3--6"; // -> ERROR

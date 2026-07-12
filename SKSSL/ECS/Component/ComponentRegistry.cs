@@ -8,6 +8,9 @@ using Type = System.Type; // For reflection purposes.
 
 namespace SKSSL.ECS;
 
+/// Iterable array of components.
+public class ComponentIterArray<T> : IterArray<T> where T : Component;
+
 /// Central registry that creates, handles, gets, an deletes components.
 public class ComponentRegistry
 {
@@ -61,7 +64,7 @@ public class ComponentRegistry
     /// Internal Array Value = slot in ComponentArray&lt;T&gt; (-1 if missing)
     /// <br/><br/>
     /// For every index, there is a unique component type.
-    /// <seealso cref="IterArray{T}"/>
+    /// <seealso cref="ComponentIterArray{T}"/>
     /// </summary>
     private readonly Dictionary<uint, int[]> _entityUIDToComponentIndices = new();
 
@@ -133,8 +136,8 @@ public class ComponentRegistry
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    private IterArray<T> GetOrCreateComponentArray<T>() where T : Component
-        => (IterArray<T>)GetOrCreateComponentArray(typeof(T));
+    private ComponentIterArray<T> GetOrCreateComponentArray<T>() where T : Component
+        => (ComponentIterArray<T>)GetOrCreateComponentArray(typeof(T));
 
     /// <summary>
     /// Gets or creates the ComponentArray&lt;T&gt; for the given component type.
@@ -149,7 +152,7 @@ public class ComponentRegistry
         static object CreateComponentArray(Type t)
         {
             // Build ComponentArray<componentType>
-            Type arrayType = typeof(IterArray<>).MakeGenericType(t);
+            Type arrayType = typeof(ComponentIterArray<>).MakeGenericType(t);
 
             // Call the public parameterless constructor
             return Activator.CreateInstance(arrayType)
@@ -157,20 +160,20 @@ public class ComponentRegistry
         }
     }
 
-    /// <param name="array"><see cref="IterArray{T}"/> of Active components.</param>
+    /// <param name="array"><see cref="ComponentIterArray{T}"/> of Active components.</param>
     /// <param name="index">Index of component provided by an <see cref="Entity"/> up the chain.</param>
     /// <returns>
-    /// Gets a component using a <see cref="IterArray{T}"/> and provided index of the component's position
+    /// Gets a component using a <see cref="ComponentIterArray{T}"/> and provided index of the component's position
     /// within the array.
     /// </returns>
     private static Component? GetComponentAt(object array, int index)
     {
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(index);
-        return ((IterArray)array)[index] as Component;
+        return ((ComponentIterArray<Component>)array)[index] as Component;
     }
 
-    internal static ref T GetComponentAt<T>(IterArray<T> array, int index) where T : Component
+    internal static ref T GetComponentAt<T>(ComponentIterArray<T> array, int index) where T : Component
         => ref array.GetRefAt<T>(index);
 
     /// <returns>ID of component defined in type dictionary, or -1.</returns>
@@ -294,11 +297,11 @@ public class ComponentRegistry
 
         Type componentType = component.GetType();
         // Get or create the component array
-        if (GetOrCreateComponentArray(componentType) is not IterArray componentArray)
-            throw new ArgumentException($"Cannot create IterArray of Component {componentType.Name}.");
+        if (GetOrCreateComponentArray(componentType) is not ComponentIterArray<Component> componentArray)
+            throw new ArgumentException($"Cannot create ComponentIterArray of Component {componentType.Name}.");
 
         // Store index of component inside entity, using index of its type.
-        var componentIndex = componentArray.Count;
+        var componentIndex = (int)componentArray.Count;
         _entityUIDToComponentIndices[uid][GetComponentTypeId(componentType)] = componentIndex;
 
         // Assign reference back to parent.
@@ -306,7 +309,6 @@ public class ComponentRegistry
 
         // Set component index in its array to referenced component
         componentArray.Set(componentIndex, component);
-        componentArray.Increment();
         return component; // Fin.
     }
 

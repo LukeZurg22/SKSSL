@@ -41,8 +41,8 @@ public readonly struct EntityContext
      * Documentation is inherited from the functions-called.
      */
 
-    /// <inheritdoc cref="SKSSL.ECS.EntityManager.AllEntities"/>
-    public List<Entity> ActiveEntities => EntityManager.AllEntities.ToList();
+    /// <inheritdoc cref="ECS.EntityManager.EntitiesList"/>
+    public List<Entity> ActiveEntities => EntityManager.EntitiesList.AllEntries.ToList();
 
     /// <seealso cref="EntityManager"/>
     public Entity? SpawnEntity(string handle)

@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
-using static SKSSL.SSLGame;
-using static SKSSL.ECS.UidPacker;
 
 namespace SKSSL.ECS;
 
@@ -17,19 +15,13 @@ public partial class EntityManager
     /// Registry of all component instances and definitions per entity manager per world.
     public readonly ComponentRegistry ComponentRegistry = new();
 
-    // Struct of Arrays Layout for Entities.
-    private Entity?[] _entities;
-    private int[] _generations = new int[1024];
-    private int[] _freeList = new int[Config.DESTROY_ENTITY_CACHE_LIMIT];
-    private int _freeCount = 0;
+    // Struct of Arrays Layout for all -Active- Entities contained in UidList.
+    public readonly UidList<Entity> EntitiesList = new();
 
     /// <inheritdoc cref="EntityManager"/>
     public EntityManager()
     {
     }
-
-    /// Get all Active entities present in the game.
-    internal IReadOnlyList<Entity> AllEntities => _entities;
 
     /// <summary>
     /// Get-Method for all Entities of desired type. Does not handle components.
@@ -40,7 +32,7 @@ public partial class EntityManager
     /// </typeparam>
     /// <returns>Readonly enumerable list of entities that inherit from type T</returns>
     // ReSharper disable once UnusedMember.Global
-    public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => AllEntities.OfType<T>();
+    public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => EntitiesList.AllEntries.OfType<T>();
 
     public Entity? Spawn(string handle)
     {
@@ -74,16 +66,16 @@ public partial class EntityManager
             throw new Exception($"Attempted to spawn abstract entity {source.GetFullHandle()}");
 
         // Create unique ID.
-        EntityUid entityUid = CreateUID();
-        
+        EntityUid uid = EntityUid.FromPackableUid(EntitiesList.New(source.Handle));
+
         // Create entity copy.
-        Entity entity = new Entity(entityUid).CopyFrom(source);
-        
+        Entity entity = new Entity(uid).CopyFrom(source);
+
         // Assign to "All Entities" list.
-        _entities[entityUid.Index] = entity;
+        EntitiesList.AllEntries[uid.Index] = entity;
 
         // Register component indices for this ID.
-        ComponentRegistry.PrepareEntityComponentStorage(entityUid);
+        ComponentRegistry.PrepareEntityComponentStorage(uid);
 
         // Add default components if provided.
         if (entity.YamlComponents != null)
@@ -95,135 +87,31 @@ public partial class EntityManager
         return entity;
     }
 
-    /// <summary>
-    /// Dangerous "Get" method to retrieve an entity stored in active entities list.
-    /// </summary>
-    /// <param name="uid"></param>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
-    // ReSharper disable once UnusedMember.Global
-    public Entity Get(EntityUid uid)
-    {
-        int index = UnpackIndex(uid);
-        int generation = UnpackGeneration(uid);
-
-        if ((uint)index >= (uint)_entities.Length)
-            throw new Exception("Invalid entity index");
-
-        if (_generations[index] != generation)
-            throw new Exception("Stale EntityUid (entity was destroyed or reused)");
-
-        Entity? entity = _entities[index];
-
-        if (entity is null)
-            throw new Exception("Entity slot is empty");
-
-        return entity;
-    }
-
-    /// <summary>
-    /// Safer way to obtain an entity definition using its ID.
-    /// </summary>
-    /// <param name="uid"></param>
-    /// <param name="entity"></param>
-    /// <returns></returns>
-    // ReSharper disable once UnusedMember.Global
     public bool TryGet(EntityUid uid, out Entity entity)
     {
-        int index = UnpackIndex(uid);
-        int generation = UnpackGeneration(uid);
-
-        if ((uint)index < (uint)_entities.Length
-            && _generations[index] == generation
-            && (entity = _entities[index]!) is not null)
-            return true;
-
         entity = null!;
+        if (EntitiesList.TryGet(uid, out entity!))
+        {
+            return true;
+        }
+
         return false;
-    }
-
-    /// Create unique ID for entity.
-    private EntityUid CreateUID()
-    {
-        int index;
-
-        if (_freeCount > 0)
-        {
-            // Reuse old indices.
-            index = _freeList[--_freeCount];
-        }
-        else
-        {
-            index = _entities.Length;
-
-            // Ensure free list has plenty of space.
-            if (_freeCount >= _freeList.Length) Array.Resize(ref _freeList, _freeList.Length * 2);
-
-            Array.Resize(ref _entities, index + 1);
-            Array.Resize(ref _generations, index + 1);
-        }
-
-        int generation = _generations[index];
-        return new EntityUid(index, generation);
     }
 
     public void Destroy(EntityUid uid)
     {
-        int index = UnpackIndex(uid);
-        int generation = UnpackGeneration(uid);
-
-        if ((uint)index >= (uint)_entities.Length)
-            return;
-
-        // Validate generation (prevents double-destroy bugs)
-        if (_generations[index] != generation)
-            return;
-
-        if (_entities[index] is null)
-            return;
-
-        // Remove entry.
-        _entities[index] = null;
-
         // Wipe UID's entry in comp storage. UID presence still means reusable.
         ComponentRegistry.PrepareEntityComponentStorage(uid);
-
-        // Invalidate old IDs.
-        _generations[index]++;
-
-        // Ensure free list has plenty of space.
-        if (_freeCount >= _freeList.Length) Array.Resize(ref _freeList, _freeList.Length * 2);
-
-        // Add slot back to free list.
-        _freeList[_freeCount++] = index;
+        EntitiesList.Destroy(uid);
     }
 
-    public bool IsValid(EntityUid uid)
-    {
-        int index = uid.Index;
-
-        if ((uint)index >= (uint)_entities.Length)
-            return false;
-
-        Entity? entity = _entities[index];
-        if (entity is null)
-            return false;
-
-        return _generations[index] == uid.Generation;
-    }
-
-    /// <summary>
-    /// Remove all entities contained in Entity Manager.
-    /// </summary>
     public void DestroyAll()
     {
-        Array.Clear(_entities);
-        Array.Clear(_generations);
-        _freeCount = 0;
-        for (int i = 0; i < _entities.Length; i++)
+        foreach (var entry in EntitiesList)
         {
-            _generations[i]++; // Invalidate all old ID's.
-            _freeList[_freeCount++] = i;
+            // Asserting that entities present in the super-list all have valid Uids. This assumption is as dangerous
+            //  is it is necessary to avoid some tedious workarounds. -Z
+            Destroy((EntityUid)entry.Uid!);
         }
     }
 }

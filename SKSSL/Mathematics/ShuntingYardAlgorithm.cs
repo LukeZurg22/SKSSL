@@ -167,7 +167,7 @@ public static class ShuntingYard
 
                 // Evaluate string valuable right here, right now. Hope it's valid!
                 StatisticRegistry registry = MasterRegistryManager.GetRegistry<StatisticPrototype, StatisticRegistry>();
-                if (!registry.TryGet(variable, out Statistic statistic))
+                if (!registry.TryGet(variable, out StatisticWrapper statistic))
                     throw new EvaluateException("Attempted to evaluate string as a statistic not present in registry.");
                 tokens.Add(statistic.GetValueAsString());
             }

@@ -21,11 +21,12 @@ public abstract class PrototypeLoader : IGameLoader
             return;
         }
 
+        // WIP: Exclude Non-Loaded files!
         // Get all yaml files.
         var files = GetFiles(directory);
 
         // Forces-load in bulk from all prototype definitions.
-        var types = MasterRegistryManager.RegisteredGameProtoTypes;
+        var types = MasterRegistryManager.RegisteredGameRegistryTypes;
 
         // "You can tell its conglomerate- because it's everywhere!"
         // All yaml entries sharing types between files are stored here. All supported types are instantiated wholesale.
@@ -97,7 +98,7 @@ public abstract class PrototypeLoader : IGameLoader
     {
         // Additional fallback. Typically for testing.
         if (types.Length == 0)
-            types = MasterRegistryManager.RegisteredGameProtoTypes.ToArray();
+            types = MasterRegistryManager.RegisteredGameRegistryTypes.ToArray();
         return DeserializeLogicImplement(text, fileTrace, types);
     }
 

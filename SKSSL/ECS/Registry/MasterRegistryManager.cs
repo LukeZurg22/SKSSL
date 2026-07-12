@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 
-// ReSharper disable UnusedMember.Global
-
 namespace SKSSL.ECS.Registry;
 
 /// <summary>
@@ -30,7 +28,7 @@ public abstract class MasterRegistryManager
     [UsedImplicitly]
     public static Dictionary<Type, Registry> Registries { get; } = new();
 
-    public static IReadOnlyList<Type> RegisteredGameProtoTypes => TypeDefinitions.Values.ToList().AsReadOnly();
+    public static IReadOnlyList<Type> RegisteredGameRegistryTypes => TypeDefinitions.Values.ToList().AsReadOnly();
 
     /// Registers a sanitized type handle to a definitions dictionary, and populates the Type to Registry
     /// dictionary. /// Called directly from Source Generator.
@@ -99,6 +97,15 @@ public abstract class MasterRegistryManager
         // Because type is explicitly provided, assume it's 100% valid. 
         Registries[type!].Register(prototype.Handle, prototype);
         return has;
+    }
+
+    /// Linkage step that permits this registry to interact with other registries.
+    /// [ Called by Source Generator ]
+    [UsedImplicitly]
+    public static void Link()
+    {
+        foreach (Registry registry in Registries.Values)
+            registry.Link();
     }
 
     #endregion

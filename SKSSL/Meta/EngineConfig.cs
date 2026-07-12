@@ -32,16 +32,10 @@ public class EngineConfig
      */
     
     /// <summary>
-    /// The number of entities that can be recycled. This is ignored when recycling more than the expected entity count.
+    /// The number of active objects that can be recycled. This is ignored when recycling more than the expected count.
     /// </summary>
     /// <remarks>Don't touch this unless you know what you're doing. This may affect performance.</remarks>
-    public int DESTROY_ENTITY_CACHE_LIMIT = 256;
-
-    /// <summary>
-    /// The number of statistics that can be recycled. This is ignored when recycling more than the expected statistic count.
-    /// </summary>
-    /// <remarks>Don't touch this unless you know what you're doing. This may affect performance.</remarks>
-    public int DESTROY_STATISTIC_CACHE_LIMIT = 1024;
+    public int DESTROY_CACHE_LIMIT = 1024;
     
     public override string ToString()
     {
