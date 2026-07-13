@@ -9,16 +9,6 @@ using SKSSL.Extensions;
 using SKSSL.Scenes;
 using YamlDotNet.Serialization;
 
-// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
-
-
-// ReSharper disable VirtualMemberCallInConstructor
-// ReSharper disable UnusedAutoPropertyAccessor.Global
-// ReSharper disable VirtualMemberNeverOverridden.Global
-// ReSharper disable UnusedMember.Global
-// ReSharper disable RedundantBaseConstructorCall
-// ReSharper disable ClassNeverInstantiated.Global
-
 namespace SKSSL.ECS;
 
 /// <summary>
@@ -36,7 +26,7 @@ namespace SKSSL.ECS;
 /// # (Note: Component fields vary between component type.)
 /// </code>
 [JsonObject]
-public class Entity : Prototype
+public class Entity : Prototype, InternalUidObject
 {
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool Abstract { get; set; } = false;
@@ -86,15 +76,15 @@ public class Entity : Prototype
 
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
     [MemoryPackConstructor, System.Text.Json.Serialization.JsonConstructor]
-    public Entity() : base()
+    public Entity()
     {
     }
 
-    public Entity(EntityUid uid) : base() => Uid = uid;
+    public Entity(EntityUid uid) => Uid = uid;
 
     /// Does not permit more than one set. An entity keeps its UID consistently.
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
-    public readonly EntityUid? Uid = null;
+    public PackableUid Uid { get; }
 
     /// <summary>
     /// 
@@ -105,7 +95,7 @@ public class Entity : Prototype
     /// A null exception occurs when an entity not "properly" initialized is acted-upon by the Component Registry,
     /// or any system that involves a Uid that may be null.
     /// </exception>
-    public static implicit operator EntityUid(Entity entity) => (EntityUid)entity.Uid!;
+    public static implicit operator EntityUid(Entity entity) => (EntityUid)entity.Uid;
 
     #endregion
 
@@ -164,7 +154,8 @@ public class Entity : Prototype
     /// <param name="other"></param>
     /// <returns></returns>
     protected bool Equals(Entity other) => Uid != null &&
-                                           Uid.Value == other.Uid &&
+                                           other.Uid != null &&
+                                           Uid.Packed == other.Uid.Packed &&
                                            Type.Equals(other.Type) &&
                                            Handle.Equals(other.Handle);
 
@@ -175,7 +166,11 @@ public class Entity : Prototype
         return obj.GetType() == GetType() && Equals((Entity)obj);
     }
 
-    public override int GetHashCode() => Uid.GetHashCode();
+    public override int GetHashCode()
+    {
+        if (Uid != null) return Uid.GetHashCode();
+        return -1; // WARN: No UID means NO HASH. Probably not the best idea, but eh?!
+    }
 
     /// <summary>
     /// Equates handles only.

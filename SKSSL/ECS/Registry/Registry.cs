@@ -12,7 +12,7 @@ public interface Registry
 {
     public int Count();
     public void Clear();
-    public object? Register(string handle, object obj);
+    public void Register(string handle, object obj);
     public bool Contains(string handle);
     public bool TryGet(string handle, [MaybeNullWhen(false)] out object definition);
 
@@ -41,7 +41,7 @@ public abstract class Registry<T> : Registry where T : class, new()
     public virtual void Clear() => RegistryEntries.Clear();
 
     /// Do not override this!
-    object? Registry.Register(string handle, object obj) => Register(handle, (T)obj);
+    void Registry.Register(string handle, object obj) => Register(handle, (T)obj);
 
     /// Override me!
     public virtual object? Register(string handle, T entry)

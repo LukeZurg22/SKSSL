@@ -23,16 +23,12 @@ public class ShuntingYard
     /// <param name="expression">string expression to evaluate.</param>
     /// <param name="result">Final expected value.</param>
     /// <param name="source">Optional provided source for tracing.</param>
-    /// <param name="statistics"></param>
     /// <returns>true if expression evaluated completely. false if otherwise.</returns>
     /// <remarks>
     /// Loops over an expression more than once. Conglomerating all of the functions into
     /// one large function is easily doable, but does not read very well.
     /// </remarks>
-    public bool Evaluate(
-        string expression,
-        out double result,
-        string source = "")
+    public bool Evaluate(string expression, out double result, string source = "")
     {
         result = 0;
         string location = string.IsNullOrEmpty(source) ? "an unknown source" : source;
@@ -157,7 +153,10 @@ public class ShuntingYard
                 if (Statistics == null)
                     throw new NullReferenceException(
                         $"Shunting Yard found variable \'{variable}\', but no statistics to emplace a value!");
-                tokens.Add(Statistics.GetValue(variable).ToString(CultureInfo.InvariantCulture));
+                if (!Statistics.TryGetValue(variable, out double statVar))
+                    throw new Exception($"Failed to extract variable value for {variable} statistic.");
+
+                tokens.Add(statVar.ToString(CultureInfo.InvariantCulture));
             }
         }
 

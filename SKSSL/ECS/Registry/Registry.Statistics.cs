@@ -17,8 +17,6 @@ namespace SKSSL.ECS.Registry;
 /// </remarks>
 public class StatisticRegistry : Registry<StatisticPrototype>
 {
-    //MasterRegistryManager.Registries[typeof(Registry<Statistic>)]
-
     /*
      * Statistics definitions are loaded from files and stored here.
      */
@@ -34,25 +32,13 @@ public class StatisticRegistry : Registry<StatisticPrototype>
     private double[] _maxValues = Array.Empty<double>();
     private HashSet<string>[] _modifierHandles = Array.Empty<HashSet<string>>();
 
-    // WIP:
-    //  Add string parsing for statistics, which all begin with an [op] followed by a string.
-    //      -> Once statistics are stored, that does NOT mean they should initialize or begin updating.
-    //          Some init() method or whatever is needed to force cross-reference updates -is needed.
-    //          Recursive statistic calls is a danger to us all! Some kind of precaution is needed.
-    //              Circular check? Simply store ID and pass-down. If the ID is ever called again, then it's circular.
-    //  Add the ability to recalculate / re-parse statistics.
-
     /// Like the TryGet(uid), except much more unreliable and failure-prone.
+    // ReSharper disable once UnusedMethodReturnValue.Global
     public bool TryGet(string handle, [NotNullWhen(true)] out StatisticPrototype? statistic)
     {
-        bool found = false;
         statistic = default;
-
         // Using handle back to ID, get index, then construct wrapper.
-        if (_handleToIndex.TryGetValue(handle, out var index))
-            found = TryGet(index, out statistic);
-
-        return found;
+        return _handleToIndex.TryGetValue(handle, out var index) && TryGet(index, out statistic);
     }
 
     /// <summary>

@@ -39,12 +39,6 @@ public class Algorithms
         // Create a place to store statistics with Uids.
         var statisticsStorage = new StatisticsList();
         statisticsStorage.Set(statistic, statisticsStorage.New(), statistic.Handle);
-
-        /* WIP:
-         *  So... I have create a place to store statistics outside of the algorithm, and without utilizing the
-         *  registry within the algorithm. Huzzah for decoupling.
-         */
-
         registry.Clear();
 
         // Huzzah for object instantiation.

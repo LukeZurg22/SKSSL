@@ -9,18 +9,18 @@ public class ModifierPrototype : Prototype
     //->+ type
     //->+ handle
 
-    /// <summary>
-    /// The operator that will dictate how this modifier is applied to a variable.
-    /// </summary>
-    [YamlMember(Alias = "operator")] public ModifierOperator Operator = ModifierOperator.Add;
-
-    /// <summary>
     /// The step or stage in which this modifier is applied.
-    /// </summary>
     [YamlMember(Alias = "step")] public ModifierStep Step = ModifierStep.Final;
 
-    /// <summary>
-    /// Modifiers are string expressions. The <see cref="ShuntingYard"/> Algorithm is used to expand the expression.
-    /// </summary>
-    [YamlMember(Alias = "modifier")] public string Expression  = string.Empty;
+    /// The operator that will dictate how this modifier is applied to a variable.
+    [YamlMember(Alias = "operator")] public ModifierOperator Operator = ModifierOperator.Add;
+
+    /// WIP: How long this modifier will persist in game time.
+    [YamlMember(Alias = "duration")] public float Duration = 1000f;
+
+    /// Modifiers are string expressions. These expressions can also refer back to <see cref="StatisticPrototype"/>s,
+    /// which can have more modifiers.
+    /// <seealso cref="ShuntingYard"/>
+    /// <remarks>This is a self-looping, self-made nightmare.</remarks>
+    [YamlMember(Alias = "expression")] public string Expression = string.Empty;
 }

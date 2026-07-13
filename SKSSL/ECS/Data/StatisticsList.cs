@@ -5,7 +5,7 @@ namespace SKSSL.ECS;
 public class StatisticsList : UidList<StatisticPrototype>
 {
     /// <returns>Full value of statistic with respect to its modifiers.</returns>
-    public double GetValue(string variable)
+    public bool TryGetValue(string variable, out double output)
     {
         // WIP: Assume that this list contains valid statistics.
         //  [ ] Throw not found exception if not found.
@@ -15,7 +15,12 @@ public class StatisticsList : UidList<StatisticPrototype>
         //  they also contain base values. There is also a bit of a conflict with uidList, which permits multiple of
         //  the same handle. NOT ideal! Instead it may need a custom type -again- and the handle would be used?
         //  Or set a toggle for one UID per active handle.
-        
+        //  --> After handling Replace for InternalUids (aka Entities), now i must determine if Statistics can be replaced.
+        //      Modifiers can be replaced for sure, but what about resetting a statistic back? Don't see why not.
+        //      The problem comes from finding out -when- to replace it, which may require a "unique" tag for the
+        //          -statistic prototype such that the game will determined if it STACKS, or if it is UNIQUE. It'll-
+        //          -need to be a boolean.
+
         throw new NotImplementedException("This method is not implemented");
         return default;
 

@@ -162,15 +162,20 @@ public class UidList<T> : IEnumerable<T> where T : class
     }
 
     /// <summary>
-    /// Add instance of an object of Type T
+    /// Add instance of an object of Type T.
     /// </summary>
     /// <param name="instance">Instance of the object that is wished to be stored.</param>
     /// <param name="uid">Uid of the object to assign it.</param>
     /// <param name="handle">Optional handle to bundle uids under handle groupings.</param>
-    public void Set(T instance, PackableUid uid, string handle = "")
+    public void Set(T instance, PackableUid? uid = null, string handle = "")
     {
         ArgumentNullException.ThrowIfNull(instance);
-        if (!IsReserved(uid)) throw new InvalidOperationException("Invalid UID not reserved");
+
+        // If there is no explicit Uid provided, then use InternalUidObject Uid, or generate a new one if it is not
+        //  a type that contains an internal Uid.
+        uid ??= instance is InternalUidObject iUidObject ? iUidObject.Uid : New();
+        if (!IsReserved(uid))
+            throw new InvalidOperationException("Invalid UID not reserved");
 
         int uidIndex = uid.Index;
         EnsureCapacity(uidIndex + 1);
@@ -199,6 +204,24 @@ public class UidList<T> : IEnumerable<T> where T : class
         list.Add(uid);
 
         _idToHandles[uidIndex] = string.IsNullOrEmpty(handle) ? null : handle;
+    }
+
+    /// Attempt to replace an existing uid object instance.
+    /// <remarks>This does NOT accomodate objects that have uids of their own.</remarks>
+    public void Replace(T instance, PackableUid uid)
+    {
+        // Objects with internal Uids are a nightmare. You can't easily replace them. One must instead delete, then
+        //  re-add them, or simply replace their internal parts without messing with the thing as a whole.
+        if (instance is InternalUidObject)
+            throw new InvalidOperationException(
+                $"Attempted to call {nameof(UidList<T>)} replace using an object that contains an internal Uid!");
+
+        ArgumentNullException.ThrowIfNull(instance);
+        if (!IsAlive(uid))
+            throw new InvalidOperationException("Attempted to replace UID that was not in active use!");
+
+        int denseIndex = _indexToDense[uid.Index];
+        _denseEntries[denseIndex] = instance;
     }
 
     public void Destroy(PackableUid uid)

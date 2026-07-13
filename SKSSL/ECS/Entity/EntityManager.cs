@@ -72,7 +72,7 @@ public partial class EntityManager
         Entity entity = new Entity(uid).CopyFrom(source);
         
         // Add to "All Entities" list.
-        EntitiesList.Set(entity, uid, source.Handle);
+        EntitiesList.Set(entity, handle: source.Handle);
         
         // Register component indices for this ID.
         ComponentRegistry.PrepareEntityComponentStorage(uid);
@@ -111,7 +111,7 @@ public partial class EntityManager
         {
             // Asserting that entities present in the super-list all have valid Uids. This assumption is as dangerous
             //  is it is necessary to avoid some tedious workarounds. -Z
-            Destroy((EntityUid)entry.Uid!);
+            Destroy((EntityUid)entry.Uid);
         }
     }
 }

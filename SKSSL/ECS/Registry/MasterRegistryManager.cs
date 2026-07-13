@@ -88,15 +88,32 @@ public abstract class MasterRegistryManager
     /// </remarks>
     public static bool TryRegisterPrototype(string typeName, Prototype prototype)
     {
-        bool has = TypeDefinitions.TryGetValue(typeName, out Type? type);
-        if (!has) return false;
+        if (!TypeDefinitions.TryGetValue(typeName, out Type? type))
+            return false;
 
-        // For O(1) retrieval. Register handle with unique ref.
-        PrototypeHandleToType[prototype.GetFullHandle()] = type!;
+        switch (prototype.Replace)
+        {
+            // For O(1) retrieval. Register handle with unique ref.
+            case null:
+                PrototypeHandleToType[prototype.GetFullHandle()] = type;
+                break;
+            // If replace is assigned, then attempt to replace the original prototype handle.
+            default:
+            {
+                var replaceHandle = prototype.GetFullHandle(prototype.Replace);
+                if (PrototypeHandleToType.ContainsKey(replaceHandle))
+                    PrototypeHandleToType[replaceHandle] = type;
+                else
+                    // If the original handle that is being attempted to be replaced doesn't exist... uh oh!
+                    Log($"{prototype.GetFullHandle()} attempted to replace {replaceHandle} which does not exist.",
+                        LOG.FILE_ERROR);
+                break;
+            }
+        }
 
         // Because type is explicitly provided, assume it's 100% valid. 
-        Registries[type!].Register(prototype.Handle, prototype);
-        return has;
+        Registries[type].Register(prototype.Handle, prototype);
+        return true;
     }
 
     #endregion
