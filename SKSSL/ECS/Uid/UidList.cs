@@ -114,7 +114,7 @@ public class UidList<T> : IEnumerable<T> where T : class
     /// <summary>
     /// Feeling brave? Sure you are!
     /// </summary>
-    public T Get(string handle, int index = 0)
+    protected T Get(string handle, int index = 0)
     {
         if (string.IsNullOrEmpty(handle) || !_activeHandles.TryGetValue(handle, out var uidList))
             throw new Exception($"Invalid handle {handle} on attempt to access UidList \'Get\' call.");

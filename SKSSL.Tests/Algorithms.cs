@@ -19,7 +19,8 @@ public class Algorithms
     {
         SKSSL.ECS.Registry.StatisticRegistry registry = SKSSL.ECS.Registry.MasterRegistryManager
             .GetRegistry<SKSSL.ECS.StatisticPrototype, SKSSL.ECS.Registry.StatisticRegistry>();
-
+        registry.Clear();
+        
         // Force a prototype for testing.
         StatisticPrototype pseudoPrototype = new()
         {
@@ -27,8 +28,8 @@ public class Algorithms
             NameKey = string.Empty, // No custom name. Just leave blank.
             DescriptionKey = string.Empty, // No custom description, either! 
             BaseValue = 9,
-            InitialValue = 9,
             Source = "game",
+            Modifiers = [] // No modifiers!
         };
 
         // Register the prototype.
@@ -39,7 +40,6 @@ public class Algorithms
         // Create a place to store statistics with Uids.
         var statisticsStorage = new StatisticsList();
         statisticsStorage.Set(statistic, statisticsStorage.New(), statistic.Handle);
-        registry.Clear();
 
         // Huzzah for object instantiation.
         ShuntingYard = new ShuntingYard(statisticsStorage);
@@ -76,4 +76,6 @@ public class Algorithms
         ShuntingYard.Evaluate(goodFormula, out result);
         Assert.IsLessThan(0.001, Math.Abs(result - 16.666));
     }
+    
+    // WIP: Create and handle modifiers. See StatisticsList.
 }

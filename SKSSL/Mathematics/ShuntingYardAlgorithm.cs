@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using SKSSL.ECS;
+using YamlDotNet.Core;
 
 namespace SKSSL.Mathematics;
 
@@ -41,7 +42,7 @@ public class ShuntingYard
     public bool Evaluate(string expression, out double result, string source = "")
     {
         result = 0;
-        string location = string.IsNullOrEmpty(source) ? "an unknown source" : source;
+        string trace = string.IsNullOrEmpty(source) ? "an unknown source" : source;
 
         var output = new Queue<string>(); // RPN output
         var operators = new Stack<string>(); // Operator stack
@@ -110,7 +111,7 @@ public class ShuntingYard
             // Brackets are special characters.
             else if (character.IsBracket())
             {
-                // This checks the brackets to the bracket stack, which is used to verify that the apropriate number of
+                // This checks the brackets to the bracket stack, which is used to verify that the appropriate number of
                 //  brackets are present in the expression.
                 switch (character)
                 {
@@ -165,17 +166,32 @@ public class ShuntingYard
                 // If this variable isn't in the statistics provided, then what can one do but explode?
                 if (Statistics == null || Statistics.Entries.Count == 0)
                     throw new NullReferenceException(
-                        $"Expression found variable \'{variable}\', but no statistics to get a value of!");
+                        $"Expression found variable \'{variable}\', but no statistics from {trace} exists to get a value of!");
+
+                // Detecting if the {source} does NOT equal the {variable} here. Infinite looping is terrible, and a
+                //  variable who has a modifier that reflects on the variable itself will inevitably cause issues
+                //  with recursive calls. Do not confuse this with {trace}, which is for tracing paths, or from the
+                //  confidence of another expression. This isn't exactly -perfect-, though! The edge case is that of
+                //  a source being named the same as a variable within an expression. Since the source could potentially
+                //  be a folder... it means one cannot name a variable the same name as its own folder, assuming that
+                //  whatever passes this call also passes a file name without an extension. It's not too dangerous, but
+                //  it is noted for whenever this comes up in the future. The solution would be to add some peripheral
+                // checks against the source, or demanding a full Uri path, instead.
+                if (variable.Equals(source))
+                    throw new MaximumRecursionLevelReachedException(
+                        $"Infinitely recursive Shunting Yard algorithm call detected for variable \'{variable}\' in " +
+                        $"expression \'{expression}\'.");
+
                 if (!Statistics.TryGetValue(variable, out double number))
-                    throw new Exception($"Failed to extract variable value for {variable} statistic.");
-                
+                    throw new Exception($"Failed to extract variable value for {variable} statistic from {trace}.");
+
                 output.Enqueue(number.ToString(CultureInfo.InvariantCulture));
             }
         }
 
         // Determines if a provided string expression contains an adequate number of brackets of any kind.
         if (delimiterStack.Count != 0)
-            throw new EvaluateException($"Invalid delimiters in expression \"{expression}\" from {location}.");
+            throw new EvaluateException($"Invalid delimiters in expression \"{expression}\" from {trace}.");
 
         #endregion
 
@@ -193,7 +209,7 @@ public class ShuntingYard
         // Parse all proper tokens that aren't immediately recognised as doubles. 
     }
 
-    private void ParseToken(string token, int index, ref Stack<string> operators, ref Queue<string> output)
+    private static void ParseToken(string token, int index, ref Stack<string> operators, ref Queue<string> output)
     {
         switch (token)
         {
@@ -237,7 +253,7 @@ public class ShuntingYard
         }
     }
 
-    private bool ShouldPop(string top, string current)
+    private static bool ShouldPop(string top, string current)
     {
         bool topFound = false, currentFound = false;
         var topValue = 0;
