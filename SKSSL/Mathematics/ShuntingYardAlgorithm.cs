@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using SKSSL.ECS;
-using static SKSSL.Mathematics.CharacterExtensions;
 
 namespace SKSSL.Mathematics;
 
@@ -16,6 +15,17 @@ public class ShuntingYard
 {
     private readonly StatisticsList Statistics;
     public ShuntingYard(StatisticsList? statistics = null) => Statistics = statistics ?? new StatisticsList();
+
+    // P.E.M.D.A.S.: Parenthesis, exponents, multiplication, division, addition, subtraction. 
+    private static readonly (string OPERATOR, byte PRECEDENCE)[] Precedences =
+    [
+        ("+", 1),
+        ("-", 1),
+        ("*", 2),
+        ("/", 2),
+        ("^", 3),
+        ("u-", 4)
+    ];
 
     /// <summary>
     /// Interpret, Parse, and Evaluate a string expression and output a final result, with logging.
@@ -33,12 +43,14 @@ public class ShuntingYard
         result = 0;
         string location = string.IsNullOrEmpty(source) ? "an unknown source" : source;
 
+        var output = new Queue<string>(); // RPN output
+        var operators = new Stack<string>(); // Operator stack
+
         // Parse an expression into a series of tokens, and a set of indices of detected string-variables.
 
         #region Parse Delimiters & Tokens
 
         // Evaluate string variables.
-        List<string> tokens = [];
         var delimiterStack = new Stack<char>();
 
         //  Split string expression into parts.
@@ -67,7 +79,8 @@ public class ShuntingYard
                 }
 
                 string number = expression[start..(i + 1)];
-                tokens.Add(number);
+                if (double.TryParse(number, out _))
+                    output.Enqueue(number);
             }
             // Character is an operator
             else if (character.IsOperator())
@@ -86,12 +99,12 @@ public class ShuntingYard
                 {
                     // Consume the unary operator
                     string unary = "u" + character;
-                    tokens.Add(unary);
+                    ParseToken(unary, i, ref operators, ref output);
                 }
                 else
                 {
                     // Binary operator
-                    tokens.Add(character.ToString());
+                    ParseToken(character.ToString(), i, ref operators, ref output);
                 }
             }
             // Brackets are special characters.
@@ -123,7 +136,7 @@ public class ShuntingYard
                         break;
                 }
 
-                tokens.Add(character.ToString());
+                ParseToken(character.ToString(), i, ref operators, ref output);
             }
             // Character belongs to a string variable.
             // This will read the entire variable, turn it into a token, then will attempt to match
@@ -150,13 +163,13 @@ public class ShuntingYard
                 string variable = expression[start..(i + 1)];
 
                 // If this variable isn't in the statistics provided, then what can one do but explode?
-                if (Statistics == null)
+                if (Statistics == null || Statistics.Entries.Count == 0)
                     throw new NullReferenceException(
-                        $"Shunting Yard found variable \'{variable}\', but no statistics to emplace a value!");
-                if (!Statistics.TryGetValue(variable, out double statVar))
+                        $"Expression found variable \'{variable}\', but no statistics to get a value of!");
+                if (!Statistics.TryGetValue(variable, out double number))
                     throw new Exception($"Failed to extract variable value for {variable} statistic.");
-
-                tokens.Add(statVar.ToString(CultureInfo.InvariantCulture));
+                
+                output.Enqueue(number.ToString(CultureInfo.InvariantCulture));
             }
         }
 
@@ -166,40 +179,6 @@ public class ShuntingYard
 
         #endregion
 
-        // Calculate final result.
-        result = EvaluateTokens(tokens.ToArray());
-        return true;
-    }
-
-    // P.E.M.D.A.S.: Parenthesis, exponents, multiplication, division, addition, subtraction. 
-    private static readonly (string OPERATOR, byte PRECEDENCE)[] Precedences =
-    [
-        ("+", 1),
-        ("-", 1),
-        ("*", 2),
-        ("/", 2),
-        ("^", 3),
-        ("u-", 4)
-    ];
-
-    // WIP: Merge this into CreateTokens for one big single-pass algorithm.
-    private static double EvaluateTokens(string[] tokens)
-    {
-        if (tokens.Length == 0)
-            return 0;
-
-        var output = new Queue<string>(); // RPN output
-        var operators = new Stack<string>(); // Operator stack
-
-        for (int i = 0; i < tokens.Length; i++)
-        {
-            string token = tokens[i];
-
-            // Number
-            if (double.TryParse(token, out _)) output.Enqueue(token);
-            else ParseToken(token, i);
-        }
-
         // Pop remaining operators
         while (operators.Count > 0)
         {
@@ -207,89 +186,91 @@ public class ShuntingYard
             if (op != "(") output.Enqueue(op);
         }
 
-        return EvaluateRPN(output);
+        // Calculate final result.
+        result = EvaluateRPN(output);
+        return true;
 
         // Parse all proper tokens that aren't immediately recognised as doubles. 
-        void ParseToken(string token, int index)
+    }
+
+    private void ParseToken(string token, int index, ref Stack<string> operators, ref Queue<string> output)
+    {
+        switch (token)
         {
-            switch (token)
+            case "(":
+                operators.Push(token);
+                break;
+            case ")":
             {
-                case "(":
-                    operators.Push(token);
-                    break;
-                case ")":
-                {
-                    while (operators.Count > 0 && operators.Peek() != "(")
-                        output.Enqueue(operators.Pop());
+                while (operators.Count > 0 && operators.Peek() != "(")
+                    output.Enqueue(operators.Pop());
 
-                    if (operators.Count > 0 && operators.Peek() == "(")
-                        operators.Pop(); // discard '('
-                    break;
-                }
-                default:
-                {
-                    if (token.IsOperator()) // +, -, *, /, ^, u-
-                    {
-                        string op = token;
-
-                        // Handle unary.
-                        if (op is "-" && (index == 0 || IsUnaryOperator(tokens[index - 1])))
-                        {
-                            op = "u-";
-                        }
-
-                        while (operators.Count > 0 &&
-                               operators.Peek() != "(" &&
-                               ShouldPop(operators.Peek(), op))
-                        {
-                            output.Enqueue(operators.Pop());
-                        }
-
-                        operators.Push(op);
-                    }
-
-                    break;
-                }
+                if (operators.Count > 0 && operators.Peek() == "(")
+                    operators.Pop(); // discard '('
+                break;
             }
-
-            return;
-
-            bool ShouldPop(string top, string current)
+            default:
             {
-                bool topFound = false, currentFound = false;
-                var topValue = 0;
-                var currentValue = 0;
-
-                // Loop through the entire list once, and mark them as we find them.
-                foreach ((string OPERATOR, byte PRECEDENCE) precedence in Precedences)
+                if (token.IsOperator()) // +, -, *, /, ^, u-
                 {
-                    if (precedence.OPERATOR.Equals(top))
+                    string op = token;
+
+                    // Handle unary.
+                    // If operator is -, but index is also zero, then it is obviously a unary.
+                    if (op is "-" && index == 0)
                     {
-                        topFound = true;
-                        topValue = precedence.PRECEDENCE;
-                        if (currentFound) break; // Short-Circuit.
+                        op = "u-";
                     }
 
-                    if (!precedence.OPERATOR.Equals(current)) continue; // Short-Circuit.
-                    currentFound = true;
-                    currentValue = precedence.PRECEDENCE;
-                    if (topFound) break; // Short-Circuit.
+                    while (operators.Count > 0 &&
+                           operators.Peek() != "(" &&
+                           ShouldPop(operators.Peek(), op))
+                    {
+                        output.Enqueue(operators.Pop());
+                    }
+
+                    operators.Push(op);
                 }
 
-                return topFound switch
-                {
-                    // If not found either value, simply return false.
-                    false when !currentFound => false,
-                    _ => current switch
-                    {
-                        // Right-Associative return that top precedence is above the current in matters of special unary
-                        // operators.
-                        "^" or "u-" => topValue > currentValue,
-                        _ => topValue >= currentValue
-                    }
-                };
+                break;
             }
         }
+    }
+
+    private bool ShouldPop(string top, string current)
+    {
+        bool topFound = false, currentFound = false;
+        var topValue = 0;
+        var currentValue = 0;
+
+        // Loop through the entire list once, and mark them as we find them.
+        foreach ((string OPERATOR, byte PRECEDENCE) precedence in Precedences)
+        {
+            if (precedence.OPERATOR.Equals(top))
+            {
+                topFound = true;
+                topValue = precedence.PRECEDENCE;
+                if (currentFound) break; // Short-Circuit.
+            }
+
+            if (!precedence.OPERATOR.Equals(current)) continue; // Short-Circuit.
+            currentFound = true;
+            currentValue = precedence.PRECEDENCE;
+            if (topFound) break; // Short-Circuit.
+        }
+
+        return topFound switch
+        {
+            // If not found either value, simply return false.
+            false when !currentFound => false,
+            _ => current switch
+            {
+                // Right-Associative return that top precedence is above the current in matters of special unary
+                // operators.
+                "^" or "u-" => topValue > currentValue,
+                _ => topValue >= currentValue
+            }
+        };
     }
 
     /// Read a set tokens, organize into a mathematically calculable stack ordered by importance, and evaluate.

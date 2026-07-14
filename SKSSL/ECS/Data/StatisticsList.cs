@@ -1,12 +1,16 @@
-using System;
-
 namespace SKSSL.ECS;
 
 public class StatisticsList : UidList<StatisticPrototype>
 {
+    // TODO: Expand this into a Struct of Arrays arrangement.
+
     /// <returns>Full value of statistic with respect to its modifiers.</returns>
     public bool TryGetValue(string variable, out double output)
     {
+        StatisticPrototype statistic = Get(variable);
+        
+        // Start with base value.
+        output = statistic.BaseValue; 
         // WIP: Assume that this list contains valid statistics.
         //  [ ] Throw not found exception if not found.
         //  [ ] Handle modifiers, somehow.
@@ -21,8 +25,9 @@ public class StatisticsList : UidList<StatisticPrototype>
         //          -statistic prototype such that the game will determined if it STACKS, or if it is UNIQUE. It'll-
         //          -need to be a boolean.
 
-        throw new NotImplementedException("This method is not implemented");
-        return default;
+        return true;
+    }
+}
 
 //        ModifierPrototype[] modifiers = [];
 //        foreach (var modifierHandle in Modifiers)
@@ -44,5 +49,3 @@ public class StatisticsList : UidList<StatisticPrototype>
 //        foreach (var modifier in modifiers)
 //            modifier.ModifyValue(ref value);
 //        return value;
-    }
-}

@@ -66,12 +66,14 @@ public class Entity : Prototype, InternalUidObject
     [YamlMember(Alias = "components", Order = 99)]
     public List<ComponentYaml>? YamlComponents = [];
 
-    /// <summary>
     /// Reverse-reference back to the world that this entity inhabits.
-    /// </summary>
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
     public World? World { get; set; }
 
+    /// Exclaim if this entity and its components require updating.
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    internal bool IsDirty;
+    
     #region Constructors & UID
 
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
@@ -153,9 +155,7 @@ public class Entity : Prototype, InternalUidObject
     /// </summary>
     /// <param name="other"></param>
     /// <returns></returns>
-    protected bool Equals(Entity other) => Uid != null &&
-                                           other.Uid != null &&
-                                           Uid.Packed == other.Uid.Packed &&
+    protected bool Equals(Entity other) => Uid.Packed == other.Uid.Packed &&
                                            Type.Equals(other.Type) &&
                                            Handle.Equals(other.Handle);
 
@@ -166,15 +166,9 @@ public class Entity : Prototype, InternalUidObject
         return obj.GetType() == GetType() && Equals((Entity)obj);
     }
 
-    public override int GetHashCode()
-    {
-        if (Uid != null) return Uid.GetHashCode();
-        return -1; // WARN: No UID means NO HASH. Probably not the best idea, but eh?!
-    }
+    public override int GetHashCode() => Uid.GetHashCode();
 
-    /// <summary>
     /// Equates handles only.
-    /// </summary>
     public static bool operator ==(Entity? a, Entity? b)
         => ReferenceEquals(a, b) || a is not null && b is not null && a.Handle == b.Handle;
 

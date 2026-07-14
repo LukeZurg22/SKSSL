@@ -23,7 +23,7 @@ public readonly struct EntityUid : PackableUid, IEquatable<EntityUid>
     public override int GetHashCode() => (int)Packed;
 
     public static implicit operator ulong(EntityUid uid) => uid.Packed;
-    public static implicit operator EntityUid(uint value) => new(value);
+    public static implicit operator EntityUid(ulong value) => new(value);
 
     public static bool operator ==(EntityUid left, EntityUid right) => left.Equals(right);
     public static bool operator !=(EntityUid left, EntityUid right) => !(left == right);

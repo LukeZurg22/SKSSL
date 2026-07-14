@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
@@ -13,14 +14,18 @@ namespace SKSSL.ECS;
 public partial class EntityManager
 {
     /// Registry of all component instances and definitions per entity manager per world.
-    public readonly ComponentRegistry ComponentRegistry = new();
+    public readonly ComponentRegistry ComponentRegistry;
 
-    // Struct of Arrays Layout for all -Active- Entities contained in UidList.
+    // All -Active- Entities contained in UidList.
     public readonly UidList<Entity> EntitiesList = [];
+
+    /// Entities that need updating over a network.
+    public readonly List<EntityUid> DirtyEntities = [];
 
     /// <inheritdoc cref="EntityManager"/>
     public EntityManager()
     {
+        ComponentRegistry = new ComponentRegistry(this);
     }
 
     /// <summary>
@@ -70,10 +75,10 @@ public partial class EntityManager
 
         // Create entity copy.
         Entity entity = new Entity(uid).CopyFrom(source);
-        
+
         // Add to "All Entities" list.
         EntitiesList.Set(entity, handle: source.Handle);
-        
+
         // Register component indices for this ID.
         ComponentRegistry.PrepareEntityComponentStorage(uid);
 
@@ -87,15 +92,10 @@ public partial class EntityManager
         return entity;
     }
 
-    public bool TryGet(EntityUid uid, out Entity entity)
+    public bool TryGet(EntityUid uid, [NotNullWhen(true)] out Entity? entity)
     {
-        entity = null!;
-        if (EntitiesList.TryGet(uid, out entity!))
-        {
-            return true;
-        }
-
-        return false;
+        entity = null;
+        return EntitiesList.TryGet(uid, out entity);
     }
 
     public void Destroy(EntityUid uid)
@@ -104,14 +104,25 @@ public partial class EntityManager
         ComponentRegistry.PrepareEntityComponentStorage(uid);
         EntitiesList.Destroy(uid);
     }
-
+    
     public void DestroyAll()
     {
-        foreach (var entry in EntitiesList)
+        foreach (Entity entry in EntitiesList)
         {
             // Asserting that entities present in the super-list all have valid Uids. This assumption is as dangerous
             //  is it is necessary to avoid some tedious workarounds. -Z
             Destroy((EntityUid)entry.Uid);
         }
+    }
+
+    /// Mark certain Entity as "Dirty"; in need of an update.
+    public void DirtyEntity(EntityUid entity)
+    {
+        DirtyEntities.Add(entity);
+    }
+
+    public void CleanEntity(EntityUid entity)
+    {
+        DirtyEntities.Remove(entity);
     }
 }

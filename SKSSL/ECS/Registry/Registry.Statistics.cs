@@ -58,7 +58,7 @@ public class StatisticRegistry : Registry<StatisticPrototype>
         }
 
         // Recreates the statistic prototype, which may have been disposed-of earlier.
-        var wrapper = new StatisticPrototype
+        statistic = new StatisticPrototype
         {
             Source = _sources[index],
             Handle = _handles[index],
@@ -67,14 +67,10 @@ public class StatisticRegistry : Registry<StatisticPrototype>
             BaseValue = _baseValues[index],
             MaxValue = _maxValues[index],
             MinValue = _minValues[index],
-            Modifiers = _modifierHandles[index].ToList()
+            Modifiers = _modifierHandles[index].ToList(),
         };
-        statistic = wrapper;
         return true;
     }
-
-    /// Next index in the statistics definitions lists.
-    private int nextIndex = 0;
 
     /// Avoid calling this manually unless you know what you are doing.
     public override object Register(string handle, StatisticPrototype entry)
@@ -91,17 +87,20 @@ public class StatisticRegistry : Registry<StatisticPrototype>
             Array.Resize(ref _maxValues, newSize);
             Array.Resize(ref _modifierHandles, newSize);
         
-        // Add entry.
-            _sources[nextIndex] = entry.Source;
-            _handleToIndex.Add(handle, nextIndex);
-            _handles[nextIndex] = handle;
-            _names[nextIndex] = entry.NameKey;
-            _descriptions[nextIndex] = entry.DescriptionKey;
-            _baseValues[nextIndex] = entry.BaseValue;
-            _minValues[nextIndex] = entry.MinValue;
-            _maxValues[nextIndex] = entry.MaxValue;
+            newSize -= 1; // For zero-based indexing.
+            // Add entries to flourished structure of arrays .
+            _handleToIndex.Add(handle, newSize);
+            _sources[newSize] = entry.Source;
+            _handles[newSize] = handle;
+            _names[newSize] = entry.NameKey;
+            _descriptions[newSize] = entry.DescriptionKey;
+            _baseValues[newSize] = entry.BaseValue;
+            _minValues[newSize] = entry.MinValue;
+            _maxValues[newSize] = entry.MaxValue;
+            _modifierHandles[newSize] = entry.Modifiers.ToHashSet();
         //@formatter:on
-        return ++nextIndex;
+
+        return entry;
     }
 
     #region Utility

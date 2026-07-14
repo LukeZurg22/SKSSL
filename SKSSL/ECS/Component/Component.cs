@@ -1,7 +1,9 @@
-// ReSharper disable NotAccessedField.Global
-
-
+using MemoryPack;
 using YamlDotNet.Serialization;
+
+// ReSharper disable NotAccessedField.Global
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.ECS;
 
@@ -14,8 +16,33 @@ namespace SKSSL.ECS;
 /// </remarks>
 public partial record Component
 {
-    /// <summary>
+    [YamlIgnore] internal EntityManager? EntityManager;
+
     /// ID reference back to parent entity this control belongs to.
-    /// </summary>
     [YamlIgnore] public EntityUid Entity;
+
+    /*     User Input
+                ↓
+          Game Systems
+                ↓
+             Physics
+                ↓
+  IsDirty Synchronized System(s)
+                ↓
+            Networking
+                ↓
+           Clear Dirty      */
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    public bool IsDirty { get; private set; }
+
+    public void Dirty()
+    {
+        if (IsDirty)
+            return;
+
+        IsDirty = true;
+        EntityManager?.DirtyEntity(Entity);
+    }
+
+    internal void ClearDirty() => IsDirty = false;
 }

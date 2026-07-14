@@ -43,7 +43,7 @@ public class IterArray<T> : IterArray where T : class
     }
 
     /// Private list of contained items.
-    protected T[] _items;
+    protected T?[] _items;
 
     [Pure]
     public ref T1 GetRefAt<T1>(int index) where T1 : class
@@ -59,7 +59,7 @@ public class IterArray<T> : IterArray where T : class
                 "Types must match exactly.");
 
         // This is the only way to safely return ref T1 when T1 == T
-        return ref Unsafe.As<T, T1>(ref _items[index]);
+        return ref Unsafe.As<T, T1>(ref _items[index]!);
     }
 
     /// <summary>
@@ -92,7 +92,6 @@ public class IterArray<T> : IterArray where T : class
     {
         if (IsOutOfRange(index))
             throw new IndexOutOfRangeException($"Index {index} out of bounds (array size: {_items.Length})");
-
         _items[index] = default!;
     }
 
@@ -104,12 +103,14 @@ public class IterArray<T> : IterArray where T : class
     {
         if (IsOutOfRange(index))
             throw new IndexOutOfRangeException($"GetAt index #{index} out of range.");
-        return _items[index];
+        if (_items[index] == null)
+            throw new NullReferenceException($"Object is null as index {index}.");
+        return _items[index]!;
     }
 
     [Pure]
     private bool IsOutOfRange(int index) => index < 0 || index > Count;
 
-    public ref T this[int index] => ref _items[index];
-    object IterArray.this[int index] => _items[index];
+    public ref T this[int index] => ref _items[index]!;
+    object IterArray.this[int index] => _items[index] ?? throw new InvalidOperationException();
 }

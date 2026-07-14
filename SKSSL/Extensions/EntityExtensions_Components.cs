@@ -34,7 +34,7 @@ public static partial class EntityExtensions
 
     /// <inheritdoc cref="ComponentRegistry.GetAllComponents"/>
     [Pure]
-    public static List<Component> GetAllComponents(this Entity entity)
+    public static IEnumerable<Component> GetAllComponents(this Entity entity)
         => ComponentRegistry.GetAllComponents(entity);
 
     #endregion
@@ -45,7 +45,7 @@ public static partial class EntityExtensions
         => (T)ComponentRegistry.AddComponent(entity, ComponentRegistry.FastCreate(typeof(T)));
 
     /// Use AddComponent(component instance) or the generic method instead! This is more dangerous!
-    public static Component AddComponent(this Entity? entity, Type type)
+    public static Component AddComponent(this Entity entity, Type type)
         => ComponentRegistry.AddComponent(entity, ComponentRegistry.FastCreate(type));
 
     public static Component AddComponent(this Entity entity, Component comp)

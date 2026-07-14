@@ -2,10 +2,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using Microsoft.Xna.Framework;
 using static System.Math;
 
 // ReSharper disable UnusedMethodReturnValue.Global
-
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UseCollectionExpression
 
@@ -62,15 +63,12 @@ public class UidList<T> : IEnumerable<T> where T : class
     private int _freeCount = 0;
     private int _nextUidIndex = 0;
 
-
-    public int Count => _denseEntries.Count;
-
     #region Operational Methods
 
     public void Clear()
     {
         _activeHandles.Clear();
-        _denseEntries.Clear();
+        ObjectClear();
         _freeCount = 0;
 
         int length = _indexToDense.Length;
@@ -109,8 +107,18 @@ public class UidList<T> : IEnumerable<T> where T : class
         if (!IsAlive(uid)) return false;
 
         int denseIndex = _indexToDense[uid.Index];
-        item = _denseEntries[denseIndex];
+        item = ObjectConstruct(denseIndex);
         return true;
+    }
+    
+    /// <summary>
+    /// Feeling brave? Sure you are!
+    /// </summary>
+    public T Get(string handle, int index = 0)
+    {
+        if (string.IsNullOrEmpty(handle) || !_activeHandles.TryGetValue(handle, out var uidList))
+            throw new Exception($"Invalid handle {handle} on attempt to access UidList \'Get\' call.");
+        return Get(uidList.ToList()[index]);
     }
 
     /// <summary>
@@ -183,15 +191,12 @@ public class UidList<T> : IEnumerable<T> where T : class
         // Accomodate for the first time this slot is used.
         if (_indexToDense[uidIndex] < 0)
         {
-            int denseIndex = _denseEntries.Count;
-            _denseEntries.Add(instance);
+            int denseIndex = Count;
+            ObjectAddOrSet(instance);
             _indexToDense[uidIndex] = denseIndex;
             _denseToIndex[denseIndex] = uidIndex;
         }
-        else
-        {
-            _denseEntries[_indexToDense[uidIndex]] = instance;
-        }
+        else ObjectAddOrSet(instance, _indexToDense[uidIndex]);
 
         // Handle grouping.
         if (!_activeHandles.TryGetValue(handle, out var list))
@@ -205,6 +210,40 @@ public class UidList<T> : IEnumerable<T> where T : class
 
         _idToHandles[uidIndex] = string.IsNullOrEmpty(handle) ? null : handle;
     }
+
+    #region Modifiable Operative Methods
+
+    /// Overridable way to clear internally-stored entries in this UidList.
+    protected virtual void ObjectClear() => _denseEntries.Clear();
+
+    /// Overridable way to count entries in this UidList.
+    protected virtual int Count => _denseEntries.Count;
+
+    /// Overridable way of returning an object found in this UidList. For specialized constructable objects.
+    protected virtual T ObjectConstruct(int denseIndex) => _denseEntries[denseIndex];
+
+    /// Overridable way of removing an object in the internally-stored list.
+    public virtual void ObjectRemove(int denseIndex) => _denseEntries.RemoveAt(denseIndex);
+
+    /// Overridable way of adding or setting an object in the internally-stored list.
+    protected virtual void ObjectAddOrSet(T @object, int denseIndex = -1)
+    {
+        switch (denseIndex)
+        {
+            case -1:
+                _denseEntries.Add(@object);
+                break;
+            default:
+                _denseEntries[denseIndex] = @object;
+                break;
+        }
+    }
+
+    public virtual void Update(GameTime gameTime)
+    {
+    }
+
+    #endregion
 
     /// Attempt to replace an existing uid object instance.
     /// <remarks>This does NOT accomodate objects that have uids of their own.</remarks>
@@ -221,7 +260,7 @@ public class UidList<T> : IEnumerable<T> where T : class
             throw new InvalidOperationException("Attempted to replace UID that was not in active use!");
 
         int denseIndex = _indexToDense[uid.Index];
-        _denseEntries[denseIndex] = instance;
+        ObjectAddOrSet(instance, denseIndex);
     }
 
     public void Destroy(PackableUid uid)
@@ -240,13 +279,13 @@ public class UidList<T> : IEnumerable<T> where T : class
             if (list.Count == 0) _activeHandles.Remove(handle);
         }
 
-        int lastDenseIndex = _denseEntries.Count - 1;
+        int lastDenseIndex = Count - 1;
 
         if (denseIndex != lastDenseIndex)
         {
             // Swap with last element
-            T lastObject = _denseEntries[lastDenseIndex];
-            _denseEntries[denseIndex] = lastObject;
+            T lastObject = ObjectConstruct(lastDenseIndex);
+            ObjectAddOrSet(lastObject, denseIndex);
 
             int movedUidIndex = _denseToIndex[lastDenseIndex];
 
@@ -256,7 +295,7 @@ public class UidList<T> : IEnumerable<T> where T : class
         }
 
         // Invalidate the destroyed UID slot.
-        _denseEntries.RemoveAt(lastDenseIndex);
+        ObjectRemove(lastDenseIndex);
         _denseToIndex[lastDenseIndex] = -1;
         _indexToDense[uidIndex] = -1;
         _generations[uidIndex]++;
@@ -313,7 +352,9 @@ public class UidList<T> : IEnumerable<T> where T : class
         return _generations[index] > 0 && _indexToDense[index] >= 0;
     }
 
+    /// Enumerator that only works when the UidList data structure for Dense Entries is not changed.
     public IEnumerator<T> GetEnumerator() => _denseEntries.GetEnumerator();
+
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     #endregion
