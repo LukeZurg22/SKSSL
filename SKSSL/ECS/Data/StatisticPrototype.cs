@@ -1,11 +1,12 @@
 using System.Collections.Generic;
+using System.Linq;
 using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;
 
 /// (De)serializable Statistic object.
 [YamlSerializable]
-public class StatisticPrototype : Prototype
+public class StatisticPrototype : Prototype, ICloneable<StatisticPrototype>
 {
     // ->+ Handle ID    
     [YamlMember(Alias = "name")] public string NameKey = string.Empty;
@@ -16,4 +17,19 @@ public class StatisticPrototype : Prototype
 
     /// List of modifier IDs.
     [YamlMember(Alias = "modifiers")] public List<string> Modifiers = [];
+
+    public StatisticPrototype Clone()
+    {
+        var prototype = new StatisticPrototype
+        {
+            NameKey = NameKey,
+            DescriptionKey = DescriptionKey,
+            BaseValue = BaseValue,
+            MinValue = MinValue,
+            MaxValue = MaxValue,
+            Modifiers = Modifiers.ToList(),
+        };
+        prototype.CopyFrom(this);
+        return prototype;
+    }
 }

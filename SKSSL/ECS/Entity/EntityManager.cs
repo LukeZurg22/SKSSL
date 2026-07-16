@@ -13,6 +13,9 @@ namespace SKSSL.ECS;
 /// </summary>
 public partial class EntityManager
 {
+    private readonly IReadOnlyRegistry<Entity> _entityRegistry =
+        MasterRegistryManager.GetRegistry<Entity, EntityRegistry>().AsReadOnly();
+
     /// Registry of all component instances and definitions per entity manager per world.
     public readonly ComponentRegistry ComponentRegistry;
 
@@ -41,22 +44,20 @@ public partial class EntityManager
 
     public Entity? Spawn(string handle)
     {
-        if (!MasterRegistryManager.TryGetPrototype(handle, out Prototype definition))
+        if (!_entityRegistry.TryGet(handle, out Entity? definition))
         {
-            Log($"Failed to get entity copy using {handle} handle. Try full handle instead.",
-                LOG.SYSTEM_ERROR);
+            Log($"Failed to get entity copy using {handle} handle.", LOG.SYSTEM_ERROR);
             return null;
         }
 
         // Assumes all definitions present here are entities. A bit ambiguous, it is.
-        if (definition is not Entity source || source.Abstract)
+        if (definition.Abstract)
         {
-            Log($"Invalid Entity handle \'{handle}\'. Are you attempting to spawn some other non-entity prototype?",
-                LOG.SYSTEM_ERROR);
+            Log($"Unable to spawn abstract Entity \'{handle}\'.", LOG.SYSTEM_ERROR);
             return null;
         }
 
-        return Clone(source);
+        return Clone(definition);
     }
 
     /// <summary>
@@ -74,10 +75,11 @@ public partial class EntityManager
         EntityUid uid = EntityUid.FromPackableUid(EntitiesList.New());
 
         // Create entity copy.
-        Entity entity = new Entity(uid).CopyFrom(source);
-
+        Entity entity = source.Clone();
+        entity.SetUid(uid);
+        
         // Add to "All Entities" list.
-        EntitiesList.Set(entity, handle: source.Handle);
+        EntitiesList.Set(entity, uid, handle: source.Handle);
 
         // Register component indices for this ID.
         ComponentRegistry.PrepareEntityComponentStorage(uid);
@@ -104,14 +106,14 @@ public partial class EntityManager
         ComponentRegistry.PrepareEntityComponentStorage(uid);
         EntitiesList.Destroy(uid);
     }
-    
+
     public void DestroyAll()
     {
         foreach (Entity entry in EntitiesList)
         {
             // Asserting that entities present in the super-list all have valid Uids. This assumption is as dangerous
             //  is it is necessary to avoid some tedious workarounds. -Z
-            Destroy((EntityUid)entry.Uid);
+            Destroy((EntityUid)entry.GetUid());
         }
     }
 

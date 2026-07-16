@@ -32,7 +32,7 @@ namespace SKSSL.ECS;
 ///   description (string)
 /// </code>
 /// </summary>
-public partial class Prototype
+public partial class Prototype : ICloneable<Prototype>
 {
     private const string DefaultSource = "game";
 
@@ -84,6 +84,14 @@ public partial class Prototype
         Type = yaml.Type;
     }
 
+    public Prototype(string source, string? replace, string type, string handle) : this()
+    {
+        Source = source;
+        Replace = replace;
+        Type = type;
+        Handle = handle;
+    }
+
     public virtual Prototype CopyFrom(Prototype source)
     {
         Source = source.Source;
@@ -91,4 +99,6 @@ public partial class Prototype
         Handle = source.Handle;
         return this;
     }
+
+    public Prototype Clone() => new(source: Source, replace: Replace, type: Type, handle: Handle);
 }

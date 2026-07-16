@@ -17,7 +17,7 @@ public class DamageEventSystem
             ref TestFieldComponent health = ref evt.Target.GetComponent<TestFieldComponent>();
             health.y -= evt.Amount;
 
-            Log($"Entity {evt.Target.Uid} took {evt.Amount} damage from {evt.Source?.Uid}");
+            Log($"Entity {evt.Target.GetUid()} took {evt.Amount} damage from {evt.Source?.GetUid()}");
         }
         events.Clear();
     }

@@ -110,15 +110,26 @@ public class UidList<T> : IEnumerable<T> where T : class
         item = ObjectConstruct(denseIndex);
         return true;
     }
-    
+
     /// <summary>
     /// Feeling brave? Sure you are!
     /// </summary>
-    protected T Get(string handle, int index = 0)
+    protected T Get(string handle)
     {
         if (string.IsNullOrEmpty(handle) || !_activeHandles.TryGetValue(handle, out var uidList))
-            throw new Exception($"Invalid handle {handle} on attempt to access UidList \'Get\' call.");
-        return Get(uidList.ToList()[index]);
+            throw new InvalidOperationException(
+                $"Invalid handle \'{handle}\' on attempt to access UidList \'Get\' call.");
+        return Get(uidList.First());
+    }
+
+    protected (PackableUid Uid, T Value) GetKVP(string handle)
+    {
+        if (string.IsNullOrEmpty(handle) || !_activeHandles.TryGetValue(handle, out var uidList))
+            throw new InvalidOperationException(
+                $"Invalid handle {handle} on attempt to access UidList \'GetKVP\' call.");
+        PackableUid packableUid = uidList.First();
+        T value = Get(packableUid);
+        return (packableUid, value);
     }
 
     /// <summary>
@@ -181,7 +192,7 @@ public class UidList<T> : IEnumerable<T> where T : class
 
         // If there is no explicit Uid provided, then use InternalUidObject Uid, or generate a new one if it is not
         //  a type that contains an internal Uid.
-        uid ??= instance is InternalUidObject iUidObject ? iUidObject.Uid : New();
+        uid ??= instance is InternalUidObject iUidObject ? iUidObject.GetUid() : New();
         if (!IsReserved(uid))
             throw new InvalidOperationException("Invalid UID not reserved");
 
@@ -196,7 +207,7 @@ public class UidList<T> : IEnumerable<T> where T : class
             _indexToDense[uidIndex] = denseIndex;
             _denseToIndex[denseIndex] = uidIndex;
         }
-        else ObjectAddOrSet(instance, _indexToDense[uidIndex]);
+        else ObjectAddOrSet(instance, uid);
 
         // Handle grouping.
         if (!_activeHandles.TryGetValue(handle, out var list))
@@ -226,14 +237,15 @@ public class UidList<T> : IEnumerable<T> where T : class
     public virtual void ObjectRemove(int denseIndex) => _denseEntries.RemoveAt(denseIndex);
 
     /// Overridable way of adding or setting an object in the internally-stored list.
-    protected virtual void ObjectAddOrSet(T @object, int denseIndex = -1)
+    protected virtual void ObjectAddOrSet(T @object, PackableUid? uid = null)
     {
-        switch (denseIndex)
+        switch (uid)
         {
-            case -1:
+            case null:
                 _denseEntries.Add(@object);
                 break;
             default:
+                int denseIndex = _indexToDense[uid.Index];
                 _denseEntries[denseIndex] = @object;
                 break;
         }
@@ -259,8 +271,7 @@ public class UidList<T> : IEnumerable<T> where T : class
         if (!IsAlive(uid))
             throw new InvalidOperationException("Attempted to replace UID that was not in active use!");
 
-        int denseIndex = _indexToDense[uid.Index];
-        ObjectAddOrSet(instance, denseIndex);
+        ObjectAddOrSet(instance, uid);
     }
 
     public void Destroy(PackableUid uid)
@@ -285,7 +296,7 @@ public class UidList<T> : IEnumerable<T> where T : class
         {
             // Swap with last element
             T lastObject = ObjectConstruct(lastDenseIndex);
-            ObjectAddOrSet(lastObject, denseIndex);
+            ObjectAddOrSet(lastObject, uid);
 
             int movedUidIndex = _denseToIndex[lastDenseIndex];
 

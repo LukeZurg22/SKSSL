@@ -5,5 +5,6 @@ namespace SKSSL.ECS;
 /// </summary>
 public interface InternalUidObject
 {
-    public PackableUid Uid { get; }
+    internal void SetUid(PackableUid uid);
+    public PackableUid GetUid();
 }

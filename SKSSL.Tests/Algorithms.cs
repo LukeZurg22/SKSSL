@@ -17,9 +17,9 @@ public class Algorithms
     [TestInitialize, UsedImplicitly]
     public void Initialize()
     {
-        SKSSL.ECS.Registry.StatisticRegistry registry = SKSSL.ECS.Registry.MasterRegistryManager
+        SKSSL.ECS.Registry.StatisticRegistry statisticRegistry = SKSSL.ECS.Registry.MasterRegistryManager
             .GetRegistry<SKSSL.ECS.StatisticPrototype, SKSSL.ECS.Registry.StatisticRegistry>();
-        registry.Clear();
+        statisticRegistry.Clear();
         
         // Force a prototype for testing.
         StatisticPrototype pseudoPrototype = new()
@@ -33,8 +33,8 @@ public class Algorithms
         };
 
         // Register the prototype.
-        registry.Register("test_statistic", pseudoPrototype);
-        registry.TryGet("test_statistic", out StatisticPrototype statistic);
+        statisticRegistry.Register("test_statistic", pseudoPrototype);
+        statisticRegistry.TryGet("test_statistic", out StatisticPrototype statistic);
         Assert.IsNotNull(statistic); // Re-testing the retrieval anyway.
 
         // Create a place to store statistics with Uids.

@@ -157,17 +157,6 @@ public abstract class MasterRegistryManager
     }
 
     /// <summary>
-    /// Dangerous Generic-Typed call and cast for GetRegistry.
-    /// </summary>
-    /// <typeparam name="T">Expected Type that a registry contains / handles.</typeparam>
-    /// <returns>Registry of casted type.</returns>
-    /// <exception cref="InvalidCastException">
-    /// Thrown if expected type T does not have a registry.
-    /// This usually is the fault of the user, or the Source Generators.
-    /// </exception>
-    public static Registry<T> GetRegistry<T>() where T : class, new() => (GetRegistry(typeof(T)) as Registry<T>)!;
-
-    /// <summary>
     /// Hyper-specific overload for GetRegistry for when you know precisely what registry class derivative, and what
     /// registry-handled type is being used. This could crash. 
     /// </summary>

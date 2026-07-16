@@ -3,7 +3,7 @@ using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;
 
-public class ModifierPrototype : Prototype
+public class ModifierPrototype : Prototype, ICloneable<ModifierPrototype>
 {
     //->+ source
     //->+ type
@@ -28,4 +28,21 @@ public class ModifierPrototype : Prototype
     [YamlMember(Alias = "expression")] public string Expression = string.Empty;
 
     [YamlIgnore] public double? CachedValue = null;
+
+    public ModifierPrototype Clone()
+    {
+        var prototype = new ModifierPrototype
+        {
+            Source = Source,
+            Type = Type,
+            Step = Step,
+            Operator = Operator,
+            Duration = Duration,
+            Expression = Expression,
+            Stacks = Stacks,
+            CachedValue = CachedValue
+        };
+        prototype.CopyFrom(this); // Copy base data.
+        return prototype;
+    }
 }

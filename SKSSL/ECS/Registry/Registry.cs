@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
@@ -7,6 +8,13 @@ using System.Diagnostics.Contracts;
 // ReSharper disable VirtualMemberNeverOverridden.Global
 
 namespace SKSSL.ECS.Registry;
+
+public interface IReadOnlyRegistry<T>
+{
+    int Count();
+    bool Contains(string handle);
+    bool TryGet(string handle, [NotNullWhen(true)] out T? definition);
+}
 
 public interface Registry
 {
@@ -23,7 +31,7 @@ public interface Registry
 /// <summary>
 /// Specialized registry for handling different prototype definitions within the confines of the ECS and Content Loader.
 /// </summary>
-public abstract class Registry<T> : Registry where T : class, new()
+public abstract class Registry<T> : Registry, IReadOnlyRegistry<T> where T : class, new()
 {
     /// <summary>
     /// Key = Handle, T = Definition Instance. These are non-processed instances, and are Individual definitions
@@ -44,7 +52,8 @@ public abstract class Registry<T> : Registry where T : class, new()
     void Registry.Register(string handle, object obj) => Register(handle, (T)obj);
 
     /// Override me!
-    public virtual object? Register(string handle, T entry)
+    // ReSharper disable once UnusedMethodReturnValue.Global
+    public virtual object Register(string handle, T entry)
     {
         RegistryEntries[handle] = entry;
         return entry;
@@ -67,4 +76,21 @@ public abstract class Registry<T> : Registry where T : class, new()
     /// <returns>True if was found. False if one was not. The output is also Null if one was not found.</returns>
     public virtual bool TryGet(string handle, [MaybeNullWhen(false)] out T definition)
         => RegistryEntries.TryGetValue(handle, out definition);
+
+    /// <returns>This registry as read-only; whose entries cannot be altered.</returns>
+    public IReadOnlyRegistry<T> AsReadOnly() => this;
+
+    public T Clone(string handle)
+    {
+        // Try to get the definition.
+        if (!TryGet(handle, out T? definition))
+            throw new Exception($"Failed to find definition for {handle} in {typeof(Registry<T>).Name}");
+
+        // Try to clone the definition.
+        if (definition is not ICloneable<T> cloneable)
+            throw new Exception($"Registry entry for {handle} cannot be cloned. It does not inherit ICloneable<T>.");
+        
+        // Return the clone and hope it works.
+        return cloneable.Clone();
+    }
 }

@@ -26,7 +26,7 @@ namespace SKSSL.ECS;
 /// # (Note: Component fields vary between component type.)
 /// </code>
 [JsonObject]
-public class Entity : Prototype, InternalUidObject
+public class Entity : Prototype, InternalUidObject, ICloneable<Entity>
 {
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool Abstract { get; set; } = false;
@@ -73,7 +73,7 @@ public class Entity : Prototype, InternalUidObject
     /// Exclaim if this entity and its components require updating.
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
     internal bool IsDirty;
-    
+
     #region Constructors & UID
 
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
@@ -82,11 +82,15 @@ public class Entity : Prototype, InternalUidObject
     {
     }
 
-    public Entity(EntityUid uid) => Uid = uid;
+    public Entity(EntityUid uid) => _uid = uid;
 
-    /// Does not permit more than one set. An entity keeps its UID consistently.
+    /// An entity must keep its UID consistently. Do NOT manually assign this!
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
-    public PackableUid Uid { get; }
+
+    internal PackableUid _uid { get; private set; }
+
+    public void SetUid(PackableUid uid) => _uid = uid;
+    public PackableUid GetUid() => _uid;
 
     /// <summary>
     /// 
@@ -97,7 +101,7 @@ public class Entity : Prototype, InternalUidObject
     /// A null exception occurs when an entity not "properly" initialized is acted-upon by the Component Registry,
     /// or any system that involves a Uid that may be null.
     /// </exception>
-    public static implicit operator EntityUid(Entity entity) => (EntityUid)entity.Uid;
+    public static implicit operator EntityUid(Entity entity) => (EntityUid)entity._uid;
 
     #endregion
 
@@ -124,6 +128,13 @@ public class Entity : Prototype, InternalUidObject
         return this;
     }
 
+    /// <summary>
+    /// Clones an entity. Uid is NOT copied. Do NOT call this directly upon an entity!
+    /// </summary>
+    public Entity Clone()
+    {
+        return new Entity().CopyFrom(this);
+    }
 
     /// <summary>
     /// Special initialization logic for Entity.
@@ -155,7 +166,7 @@ public class Entity : Prototype, InternalUidObject
     /// </summary>
     /// <param name="other"></param>
     /// <returns></returns>
-    protected bool Equals(Entity other) => Uid.Packed == other.Uid.Packed &&
+    protected bool Equals(Entity other) => _uid.Packed == other.GetUid().Packed &&
                                            Type.Equals(other.Type) &&
                                            Handle.Equals(other.Handle);
 
@@ -166,7 +177,7 @@ public class Entity : Prototype, InternalUidObject
         return obj.GetType() == GetType() && Equals((Entity)obj);
     }
 
-    public override int GetHashCode() => Uid.GetHashCode();
+    public override int GetHashCode() => _uid.GetHashCode();
 
     /// Equates handles only.
     public static bool operator ==(Entity? a, Entity? b)
