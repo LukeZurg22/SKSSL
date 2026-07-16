@@ -186,13 +186,12 @@ public class UidList<T> : IEnumerable<T> where T : class
     /// <param name="instance">Instance of the object that is wished to be stored.</param>
     /// <param name="uid">Uid of the object to assign it.</param>
     /// <param name="handle">Optional handle to bundle uids under handle groupings.</param>
-    public void Set(T instance, PackableUid? uid = null, string handle = "")
+    public void Set(T instance, PackableUid uid, string handle = "")
     {
         ArgumentNullException.ThrowIfNull(instance);
 
         // If there is no explicit Uid provided, then use InternalUidObject Uid, or generate a new one if it is not
         //  a type that contains an internal Uid.
-        uid ??= instance is InternalUidObject iUidObject ? iUidObject.GetUid() : New();
         if (!IsReserved(uid))
             throw new InvalidOperationException("Invalid UID not reserved");
 
