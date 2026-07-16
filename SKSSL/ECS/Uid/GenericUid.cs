@@ -1,14 +1,7 @@
 using System;
-using static SKSSL.ECS.UidPacker;
+using static SKSSL.ECS.PackableUid;
 
 namespace SKSSL.ECS;
-
-public interface PackableUid
-{
-    ulong Packed { get; }
-    public int Index { get; }
-    public int Generation { get; }
-}
 
 /// <summary>
 /// Copy of <see cref="EntityUid"/>, but an elaborate generic Uid for use elsewhere; not registries.

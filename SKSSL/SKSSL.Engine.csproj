@@ -155,6 +155,12 @@
         <Compile Update="ECS\Component\Default\SpriteLayer.cs">
           <DependentUpon>SpriteComponents.cs</DependentUpon>
         </Compile>
+        <Compile Update="ECS\Data\ModifierOperator.cs">
+          <DependentUpon>Modifier.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Data\ModifierStep.cs">
+          <DependentUpon>Modifier.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <!-- START - !== ADD THE FOLLOWING TO INHERITING PROJECTS USING SKSSL AS AN ENGINE !== -->

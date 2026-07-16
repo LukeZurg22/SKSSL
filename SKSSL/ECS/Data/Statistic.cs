@@ -6,7 +6,7 @@ namespace SKSSL.ECS;
 
 /// (De)serializable Statistic object.
 [YamlSerializable]
-public class StatisticPrototype : Prototype, ICloneable<StatisticPrototype>
+public class Statistic : Prototype, ICloneable<Statistic>
 {
     // ->+ Handle ID    
     [YamlMember(Alias = "name")] public string NameKey = string.Empty;
@@ -18,9 +18,9 @@ public class StatisticPrototype : Prototype, ICloneable<StatisticPrototype>
     /// List of modifier IDs.
     [YamlMember(Alias = "modifiers")] public List<string> Modifiers = [];
 
-    public StatisticPrototype Clone()
+    public Statistic Clone()
     {
-        var prototype = new StatisticPrototype
+        var clone = new Statistic
         {
             NameKey = NameKey,
             DescriptionKey = DescriptionKey,
@@ -29,7 +29,7 @@ public class StatisticPrototype : Prototype, ICloneable<StatisticPrototype>
             MaxValue = MaxValue,
             Modifiers = Modifiers.ToList(),
         };
-        prototype.CopyFrom(this);
-        return prototype;
+        clone.CopyFrom(this);
+        return clone;
     }
 }

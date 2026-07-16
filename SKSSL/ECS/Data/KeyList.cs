@@ -10,12 +10,10 @@ using static YamlDotNet.Serialization.DefaultValuesHandling;
 
 namespace SKSSL.ECS;
 
-public class KeyList : Prototype
+public class KeyList : Prototype, ICloneable<KeyList>
 {
     // ->+ type
-
     // ->+ handle
-    // public string Handle (aka ID)
 
     /// <example>
     /// <code>
@@ -43,10 +41,17 @@ public class KeyList : Prototype
     {
         foreach (string keyListValue in Values) yield return Loc.Get(keyListValue);
     }
+
+    public KeyList Clone()
+    {
+        base.CopyFrom(this);
+        var list = new KeyList { Values = Values.Clone() };
+        return list;
+    }
 }
 
 [YamlSerializable]
-public sealed partial class KeyListValues : IReadOnlyList<string>
+public sealed partial class KeyListValues : IReadOnlyList<string>, ICloneable<KeyListValues>
 {
     /// <summary>
     /// Expected prefix to key list.
@@ -129,4 +134,6 @@ public sealed partial class KeyListValues : IReadOnlyList<string>
         {
         }
     }
+
+    public KeyListValues Clone() => new() { Prefix = Prefix, Count = Count, Keys = Keys ?? [] };
 }

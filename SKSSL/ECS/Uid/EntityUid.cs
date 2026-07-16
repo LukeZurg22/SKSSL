@@ -1,7 +1,7 @@
 // ReSharper disable UnusedMember.Global
 
 using System;
-using static SKSSL.ECS.UidPacker;
+using static SKSSL.ECS.PackableUid;
 
 namespace SKSSL.ECS;
 

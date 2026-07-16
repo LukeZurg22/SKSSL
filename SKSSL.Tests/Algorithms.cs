@@ -18,11 +18,11 @@ public class Algorithms
     public void Initialize()
     {
         SKSSL.ECS.Registry.StatisticRegistry statisticRegistry = SKSSL.ECS.Registry.MasterRegistryManager
-            .GetRegistry<SKSSL.ECS.StatisticPrototype, SKSSL.ECS.Registry.StatisticRegistry>();
+            .GetRegistry<SKSSL.ECS.Statistic, SKSSL.ECS.Registry.StatisticRegistry>();
         statisticRegistry.Clear();
         
         // Force a prototype for testing.
-        StatisticPrototype pseudoPrototype = new()
+        Statistic pseudo = new()
         {
             Handle = "test_statistic",
             NameKey = string.Empty, // No custom name. Just leave blank.
@@ -33,8 +33,8 @@ public class Algorithms
         };
 
         // Register the prototype.
-        statisticRegistry.Register("test_statistic", pseudoPrototype);
-        statisticRegistry.TryGet("test_statistic", out StatisticPrototype statistic);
+        statisticRegistry.Register("test_statistic", pseudo);
+        statisticRegistry.TryGet("test_statistic", out Statistic statistic);
         Assert.IsNotNull(statistic); // Re-testing the retrieval anyway.
 
         // Create a place to store statistics with Uids.

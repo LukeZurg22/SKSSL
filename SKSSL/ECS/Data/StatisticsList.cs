@@ -3,24 +3,25 @@ using SKSSL.ECS.Registry;
 
 namespace SKSSL.ECS;
 
-public class StatisticsList : UidList<StatisticPrototype>
+public class StatisticsList : UidList<Statistic>
 {
-    private readonly IReadOnlyRegistry<StatisticPrototype> _statisticRegistry =
-        MasterRegistryManager.GetRegistry<StatisticPrototype, StatisticRegistry>().AsReadOnly();
+    private readonly IReadOnlyRegistry<Statistic> _statisticRegistry =
+        MasterRegistryManager.GetRegistry<Statistic, StatisticRegistry>().AsReadOnly();
 
-    private readonly IReadOnlyRegistry<ModifierPrototype> _modifierRegistry =
-        MasterRegistryManager.GetRegistry<ModifierPrototype, ModifierRegistry>().AsReadOnly();
+    private readonly IReadOnlyRegistry<Modifier> _modifierRegistry =
+        MasterRegistryManager.GetRegistry<Modifier, ModifierRegistry>().AsReadOnly();
 
     // TODO: Expand this into a Struct of Arrays arrangement by overriding the base methods. The regular enumerator
     //  won't be very effective.
 
-    // WIP: Add Modifier linkages here.
-    private readonly Dictionary<PackableUid, HashSet<ModifierPrototype>> _statisticToModifiers = [];
+    /// Modifier linking between a statistic Uid and the modifier handles it contains.
+    /// Linking modifier handles to the sets of modifier prototypes contained within.
+    private readonly Dictionary<(PackableUid Statistic, string Handle), HashSet<Modifier>> _statsToModifiers = new();
 
     /// <returns>Full value of statistic with respect to its modifiers.</returns>
     public bool TryGetValue(string variable, out double output)
     {
-        (PackableUid uid, StatisticPrototype? statistic) = GetKVP(variable);
+        (PackableUid uid, Statistic? statistic) = GetKVP(variable);
 
         // Start with base value.
         output = statistic.BaseValue;
@@ -59,36 +60,43 @@ public class StatisticsList : UidList<StatisticPrototype>
         //          -need to be a boolean.
 
         return true;
+        
     }
 
-    protected override void ObjectAddOrSet(StatisticPrototype statisticPrototype, PackableUid? uid = null)
+    /// Merely handling the registration interim, but nary more.
+    protected override void ObjectAddOrSet(Statistic statistic, PackableUid? uid)
     {
         // Base statistics handling in the regular dense list.
-        base.ObjectAddOrSet(statisticPrototype, uid);
+        base.ObjectAddOrSet(statistic, uid);
 
         if (uid == null)
             return;
 
-        foreach (var modifierHandle in statisticPrototype.Modifiers)
+        foreach (var modifierHandle in statistic.Modifiers)
         {
-            if (!_modifierRegistry.TryGet(modifierHandle, out ModifierPrototype? modifier))
+            // Check and ensure that the modifier exists in the registry.
+            if (!_modifierRegistry.Contains(modifierHandle))
+            {
+                Log($"Failed to find modifier handle \'{modifierHandle}\' in registry.", LOG.SYSTEM_WARNING);
                 continue;
+            }
+
+            // Since it exists, it is assumed that it can be cloned as modifiers implement ICloneable<T> by default.
+            Modifier modifier = _modifierRegistry.Clone(modifierHandle);
 
             // Ensure that each statistic always has a modifier set to work with.
-            if (!_statisticToModifiers.ContainsKey(uid))
-                _statisticToModifiers.Add(uid, []);
+            if (!_statsToModifiers.ContainsKey((uid, modifierHandle)))
+                _statsToModifiers[(uid, modifierHandle)] = [];
 
-            // Add clones of the prototypes from the registry.
-            _statisticToModifiers[uid].Add(modifier.Clone());
+            // Add clones of the prototypes from the registry. These clones are fresh!
+            _statsToModifiers[(uid, modifierHandle)].Add(modifier);
         }
-
-
-        // WIP: Handle modifier linkages, here!
     }
 
     public void Clear()
     {
-        _statisticToModifiers.Clear();
+        base.Clear();
+        _statsToModifiers.Clear();
     }
 }
 

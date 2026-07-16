@@ -3,7 +3,7 @@ using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;
 
-public class ModifierPrototype : Prototype, ICloneable<ModifierPrototype>
+public class Modifier : Prototype, ICloneable<Modifier>
 {
     //->+ source
     //->+ type
@@ -21,7 +21,7 @@ public class ModifierPrototype : Prototype, ICloneable<ModifierPrototype>
     /// If this statistic can exist more than once in a list.
     [YamlMember(Alias = "stacks")] public bool Stacks = false;
 
-    /// Modifiers are string expressions. These expressions can also refer back to <see cref="StatisticPrototype"/>s,
+    /// Modifiers are string expressions. These expressions can also refer back to <see cref="Statistic"/>s,
     /// which can have more modifiers.
     /// <remarks>This is a self-looping, self-made nightmare.</remarks>
     /// <seealso cref="ShuntingYard"/>
@@ -29,9 +29,9 @@ public class ModifierPrototype : Prototype, ICloneable<ModifierPrototype>
 
     [YamlIgnore] public double? CachedValue = null;
 
-    public ModifierPrototype Clone()
+    public Modifier Clone()
     {
-        var prototype = new ModifierPrototype
+        var prototype = new Modifier
         {
             Source = Source,
             Type = Type,

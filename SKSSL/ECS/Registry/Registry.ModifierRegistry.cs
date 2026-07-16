@@ -6,7 +6,7 @@ using SKSSL.Mathematics;
 
 namespace SKSSL.ECS.Registry;
 
-public class ModifierRegistry : Registry<ModifierPrototype>
+public class ModifierRegistry : Registry<Modifier>
 {
     private readonly Dictionary<string, int> _handleToIndex = new(); // For reverse-searching.
     private string[] _indexToHandle = [];
@@ -23,19 +23,19 @@ public class ModifierRegistry : Registry<ModifierPrototype>
     /// How long this modifier will persist in game time.
     private float[] _durations = [];
 
-    /// Modifiers are string expressions. These expressions can also refer back to <see cref="StatisticPrototype"/>s,
+    /// Modifiers are string expressions. These expressions can also refer back to <see cref="Statistic"/>s,
     /// which can have more modifiers.
     /// <remarks>This is a self-looping, self-made nightmare.</remarks>
     /// <seealso cref="ShuntingYard"/>
     private string[] _expressions = [];
 
-    public override bool TryGet(string handle, [NotNullWhen(true)] out ModifierPrototype? definition)
+    public override bool TryGet(string handle, [NotNullWhen(true)] out Modifier? definition)
     {
         _handleToIndex.TryGetValue(handle, out var id);
         return TryGet(id, out definition);
     }
 
-    private bool TryGet(int index, [NotNullWhen(true)] out ModifierPrototype? definition)
+    private bool TryGet(int index, [NotNullWhen(true)] out Modifier? definition)
     {
         // Short-circuit.
         if (index >= _handleToIndex.Count || _indexToHandle[index].IsNullOrEmpty())
@@ -44,7 +44,7 @@ public class ModifierRegistry : Registry<ModifierPrototype>
             return false;
         }
 
-        definition = new ModifierPrototype
+        definition = new Modifier
         {
             Step = _steps[index],
             Operator = _operators[index],
@@ -55,7 +55,7 @@ public class ModifierRegistry : Registry<ModifierPrototype>
         return true;
     }
 
-    public override object Register(string handle, ModifierPrototype entry)
+    public override object Register(string handle, Modifier entry)
     {
         // Expand all arrays by one.
         //@formatter:off

@@ -15,7 +15,7 @@ namespace SKSSL.ECS.Registry;
 /// This works 1:1 with the raw registry with the added benefit of being isolated into their own, and with
 /// special handling for localized key-list lists.
 /// </remarks>
-public class StatisticRegistry : Registry<StatisticPrototype>
+public class StatisticRegistry : Registry<Statistic>
 {
     /*
      * Statistics definitions are loaded from files and stored here.
@@ -34,7 +34,7 @@ public class StatisticRegistry : Registry<StatisticPrototype>
 
     /// Like the TryGet(uid), except much more unreliable and failure-prone.
     // ReSharper disable once UnusedMethodReturnValue.Global
-    public bool TryGet(string handle, [NotNullWhen(true)] out StatisticPrototype? statistic)
+    public bool TryGet(string handle, [NotNullWhen(true)] out Statistic? statistic)
     {
         statistic = default;
         // Using handle back to ID, get index, then construct wrapper.
@@ -48,7 +48,7 @@ public class StatisticRegistry : Registry<StatisticPrototype>
     /// <param name="statistic"></param>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
-    public bool TryGet(int index, [NotNullWhen(true)] out StatisticPrototype? statistic)
+    public bool TryGet(int index, [NotNullWhen(true)] out Statistic? statistic)
     {
         // Short-circuit.
         if (index >= _handleToIndex.Count || _handles[index].IsNullOrEmpty())
@@ -58,7 +58,7 @@ public class StatisticRegistry : Registry<StatisticPrototype>
         }
 
         // Recreates the statistic prototype, which may have been disposed-of earlier.
-        statistic = new StatisticPrototype
+        statistic = new Statistic
         {
             Source = _sources[index],
             Handle = _handles[index],
@@ -73,7 +73,7 @@ public class StatisticRegistry : Registry<StatisticPrototype>
     }
 
     /// Avoid calling this manually unless you know what you are doing.
-    public override object Register(string handle, StatisticPrototype entry)
+    public override object Register(string handle, Statistic entry)
     {
         //@formatter:off
         // Expand all arrays by one.

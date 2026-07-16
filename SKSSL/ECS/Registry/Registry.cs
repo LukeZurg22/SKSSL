@@ -13,6 +13,11 @@ public interface IReadOnlyRegistry<T>
 {
     int Count();
     bool Contains(string handle);
+
+    /// Calls TryGet, then aims to call object.Clone() on the entry assuming it implements <see cref="ICloneable{T}"/>.
+    T Clone(string handle);
+
+    /// <returns>Stored registry empty. One should use <see cref="Clone"/> instead.</returns>
     bool TryGet(string handle, [NotNullWhen(true)] out T? definition);
 }
 
@@ -89,7 +94,7 @@ public abstract class Registry<T> : Registry, IReadOnlyRegistry<T> where T : cla
         // Try to clone the definition.
         if (definition is not ICloneable<T> cloneable)
             throw new Exception($"Registry entry for {handle} cannot be cloned. It does not inherit ICloneable<T>.");
-        
+
         // Return the clone and hope it works.
         return cloneable.Clone();
     }
