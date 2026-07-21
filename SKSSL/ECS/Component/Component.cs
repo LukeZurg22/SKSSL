@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using MemoryPack;
 using YamlDotNet.Serialization;
 
@@ -32,7 +33,7 @@ public partial record Component
             Networking
                 ↓
            Clear Dirty      */
-    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    [MemoryPackIgnore, YamlIgnore, JsonIgnore]
     public bool IsDirty { get; private set; }
 
     public void Dirty()

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using static System.Math;
@@ -21,7 +22,7 @@ namespace SKSSL.ECS;
 /// <typeparam name="T">Object type that Uids are assigned to. Stored in internal linear list on HEAP.</typeparam>
 /// <code>
 /// (Below is Pseudo-Code)
-/// var uidList = new UidList of type MyObject();
+/// var uidList = new UidList&lt;MyObjectType&gt;();
 /// var uid = uidList.New();
 /// object myObject = new();
 /// uidList.Set(myObject, uid);
@@ -130,11 +131,11 @@ public class UidList<T> : IEnumerable<T> where T : class
         if (_indexToDense[uidIndex] < 0)
         {
             int denseIndex = Count;
-            ObjectAddOrSet(instance, uid: null);
+            ObjectAdd(instance);
             _indexToDense[uidIndex] = denseIndex;
             _denseToIndex[denseIndex] = uidIndex;
         }
-        else ObjectAddOrSet(instance, uid);
+        else ObjectSet(instance, uid);
 
         // Handle grouping.
         if (!_activeHandles.TryGetValue(handle, out var list))
@@ -149,6 +150,21 @@ public class UidList<T> : IEnumerable<T> where T : class
         _idToHandles[uidIndex] = string.IsNullOrEmpty(handle) ? null : handle;
     }
 
+    /// <summary>
+    /// Retrieves a string handle based on a provided uid.
+    /// </summary>
+    /// <param name="uid">The UID to search, whose index is utilized.</param>
+    /// <returns>A string handle, or null.</returns>
+    public string? GetHandle(PackableUid uid) => _idToHandles[uid.Index];
+
+    /// <summary>
+    /// Checks if the provided handle belong to the Uid.
+    /// </summary>
+    /// <param name="uid">Provided Uid that may or may not have this handle.</param>
+    /// <param name="handle">Handle to search for.</param>
+    /// <returns>True if the uid provided has this handle; false if not.</returns>
+    public bool HasHandle(PackableUid uid, string handle) => (GetHandle(uid) ?? string.Empty).Equals(handle);
+
     #region Modifiable Operative Methods
 
     /// Overridable way to clear internally-stored entries in this UidList.
@@ -161,22 +177,13 @@ public class UidList<T> : IEnumerable<T> where T : class
     protected virtual T ObjectAcquire(int denseIndex) => _denseEntries[denseIndex];
 
     /// Overridable way of removing an object in the internally-stored list.
-    protected virtual void ObjectRemove(int denseIndex) => _denseEntries.RemoveAt(denseIndex);
+    public virtual void ObjectRemove(PackableUid uid, int lastDenseIndex) => _denseEntries.RemoveAt(lastDenseIndex);
+
+    /// Overridable way of adding an object to the internally-stored dense entries list.
+    protected virtual void ObjectAdd(T instance) => _denseEntries.Add(instance);
 
     /// Overridable way of adding or setting an object in the internally-stored list.
-    protected virtual void ObjectAddOrSet(T @object, PackableUid? uid)
-    {
-        switch (uid)
-        {
-            case null:
-                _denseEntries.Add(@object);
-                break;
-            default:
-                int denseIndex = _indexToDense[uid.Index];
-                _denseEntries[denseIndex] = @object;
-                break;
-        }
-    }
+    protected virtual void ObjectSet(T @object, PackableUid uid) => _denseEntries[_indexToDense[uid.Index]] = @object;
 
     public virtual void Update(GameTime gameTime)
     {
@@ -198,13 +205,13 @@ public class UidList<T> : IEnumerable<T> where T : class
         if (!IsAlive(uid))
             throw new InvalidOperationException("Attempted to replace UID that was not in active use!");
 
-        ObjectAddOrSet(instance, uid);
+        ObjectSet(instance, uid);
     }
 
-    public void Destroy(PackableUid uid)
+    public virtual void Destroy(PackableUid statisticUid)
     {
-        int uidIndex = uid.Index;
-        if (!IsReserved(uid)) return;
+        int uidIndex = statisticUid.Index;
+        if (!IsReserved(statisticUid)) return;
 
         int denseIndex = _indexToDense[uidIndex];
         if (denseIndex < 0) return;
@@ -213,17 +220,16 @@ public class UidList<T> : IEnumerable<T> where T : class
         var handle = _idToHandles[uidIndex];
         if (!string.IsNullOrEmpty(handle) && _activeHandles.TryGetValue(handle, out var uidList))
         {
-            uidList.Remove(uid);
+            uidList.Remove(statisticUid);
             if (uidList.Count == 0) _activeHandles.Remove(handle);
         }
 
         int lastDenseIndex = Count - 1;
-
         if (denseIndex != lastDenseIndex)
         {
             // Swap with last element
             T lastObject = ObjectAcquire(lastDenseIndex);
-            ObjectAddOrSet(lastObject, uid);
+            ObjectSet(lastObject, statisticUid);
 
             int movedUidIndex = _denseToIndex[lastDenseIndex];
 
@@ -233,7 +239,7 @@ public class UidList<T> : IEnumerable<T> where T : class
         }
 
         // Invalidate the destroyed UID slot.
-        ObjectRemove(lastDenseIndex);
+        ObjectRemove(statisticUid, lastDenseIndex);
         _denseToIndex[lastDenseIndex] = -1;
         _indexToDense[uidIndex] = -1;
         _generations[uidIndex]++;
@@ -248,7 +254,7 @@ public class UidList<T> : IEnumerable<T> where T : class
 
     #endregion
 
-    #region Get Methods
+    #region Regular Get
 
     /// <inheritdoc cref="Get(PackableUid)"/>
     public T Get(int index, int generation) => Get(new GenericUid(index, generation));
@@ -257,8 +263,8 @@ public class UidList<T> : IEnumerable<T> where T : class
     /// Fast access. Throws on invalid/stale UID.
     /// Use <see cref="TryGet"/> for safer access.
     /// </summary>
-    [System.Diagnostics.Contracts.Pure]
-    private T Get(PackableUid uid)
+    [Pure]
+    public T Get(PackableUid uid)
     {
         if (!IsAlive(uid))
             throw new InvalidOperationException(
@@ -267,6 +273,12 @@ public class UidList<T> : IEnumerable<T> where T : class
         T item = ObjectAcquire(denseIndex);
         return item;
     }
+
+    protected T Get(string handle) => Get(GetUids(handle).First());
+
+    #endregion
+
+    #region TryGet
 
     /// <summary>
     /// Safe way to retrieve an item by UID in a way that can be used for checks.
@@ -282,7 +294,12 @@ public class UidList<T> : IEnumerable<T> where T : class
         return true;
     }
 
-    protected T Get(string handle) => Get(GetUids(handle).First());
+    #endregion
+
+    #region Other Get Methods
+
+    /// <returns>First Uid for list under a particular handle.</returns>
+    protected PackableUid GetUid(string handle) => GetUids(handle).First();
 
     protected (PackableUid Uid, T Value) GetKVP(string handle)
     {
@@ -297,7 +314,7 @@ public class UidList<T> : IEnumerable<T> where T : class
     /// </summary>
     public IEnumerable<T> GetAll(string handle)
     {
-        if (!IsHandleValid(handle))
+        if (!ContainsHandle(handle))
             yield break;
 
         foreach (PackableUid uid in GetUids(handle))
@@ -305,15 +322,14 @@ public class UidList<T> : IEnumerable<T> where T : class
                 yield return item;
     }
 
-    private bool IsHandleValid(string handle) => !string.IsNullOrEmpty(handle) && _activeHandles.ContainsKey(handle);
-
     /// Retrieve the Uid of an internally-stored handle. Assumes handle is unique in parallel to Uid.
-    public IReadOnlyCollection<PackableUid> GetUids(string handle) => _activeHandles[handle];
+    public IReadOnlyCollection<PackableUid> GetUids(string handle)
+        => ContainsHandle(handle) ? _activeHandles[handle] : [];
 
     /// <returns>Uid-Object Tuple enumerable using handle.</returns>
     public IEnumerable<(PackableUid Uid, T Value)> GetAllKVP(string handle)
     {
-        if (!IsHandleValid(handle))
+        if (!ContainsHandle(handle))
             yield break;
 
         foreach (PackableUid uid in GetUids(handle))
@@ -324,6 +340,8 @@ public class UidList<T> : IEnumerable<T> where T : class
     #endregion
 
     #region Utility Methods
+
+    protected bool ContainsHandle(string handle) => !string.IsNullOrEmpty(handle) && _activeHandles.ContainsKey(handle);
 
     /// <summary>
     /// Ensures that internal storage fields have the capacity to hold the objects and their IDs.
@@ -371,4 +389,28 @@ public class UidList<T> : IEnumerable<T> where T : class
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     #endregion
+}
+
+public class UniqueUidList<T> : UidList<T> where T : class
+{
+    private readonly Dictionary<string, PackableUid> _handles = new();
+
+    protected void AddHandle(string handle, PackableUid uid)
+    {
+        if (!_handles.TryAdd(handle, uid))
+            throw new InvalidOperationException(
+                $"Handle '{handle}' is already registered.");
+    }
+
+    protected void RemoveHandle(string handle, PackableUid uid)
+    {
+        _handles.Remove(handle);
+    }
+
+    protected IReadOnlyCollection<PackableUid> GetHandle(string handle)
+    {
+        return _handles.TryGetValue(handle, out PackableUid? uid)
+            ? [uid]
+            : [];
+    }
 }

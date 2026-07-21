@@ -19,7 +19,7 @@ public class Modifier : Prototype, ICloneable<Modifier>
     [YamlMember(Alias = "duration")] public float Duration = 1000f;
 
     /// If this statistic can exist more than once in a list.
-    [YamlMember(Alias = "stacks")] public bool Stacks = false;
+    [YamlMember(Alias = "stacks")] public bool CanStack = false;
 
     /// Modifiers are string expressions. These expressions can also refer back to <see cref="Statistic"/>s,
     /// which can have more modifiers.
@@ -39,7 +39,7 @@ public class Modifier : Prototype, ICloneable<Modifier>
             Operator = Operator,
             Duration = Duration,
             Expression = Expression,
-            Stacks = Stacks,
+            CanStack = CanStack,
             CachedValue = CachedValue
         };
         prototype.CopyFrom(this); // Copy base data.

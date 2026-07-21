@@ -58,6 +58,9 @@ public abstract class World : IWorld
     /// Manages  all active entities in this world.
     public readonly EntityManager EntityManager = new();
 
+    // / Global statistics list. // TODO: Working on making this viable for "global" statistics.
+    //public readonly StatisticsList StatisticsList = new();
+    
     /// Calls ECS Init() (if enabled)
     protected World()
     {
@@ -86,9 +89,8 @@ public abstract class World : IWorld
          * Entity definitions come equipped with virtual Update & Draw methods that can be overwritten. They will do
          * nothing on their own, but if for some reason you feel like overriding this Update call and overriding the
          * consensus entity-type with your own calls- you can do that.
-         * It Looks something like this:
-            // foreach (var entity in EntityManager.AllEntities) entity.Update(gameTime);
          */
+        EntityManager.Update(gameTime);
     }
 
     /// <inheritdoc cref="IWorld.Draw"/>

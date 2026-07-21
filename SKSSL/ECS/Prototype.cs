@@ -19,6 +19,8 @@ using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;
 
+// TODO: Move Source to IInheritable<T> interface.
+
 /// <summary>
 /// Common abstraction for <see cref="Entity"/> and <see cref="Prototype"/> objects.
 /// Allows ECS to store one of either type in its definitions, depending on use-case.

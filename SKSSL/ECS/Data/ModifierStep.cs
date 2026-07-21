@@ -1,5 +1,7 @@
 using YamlDotNet.Serialization;
 
+// ReSharper disable UnusedMember.Global
+
 namespace SKSSL.ECS;
 
 [YamlSerializable]
@@ -15,5 +17,5 @@ public enum ModifierStep : byte
     Multiplicative,
 
     /// Absolute changes, typically very small ones involving addition or low percentages.
-    Final,
+    Final
 }

@@ -82,7 +82,12 @@ public class ModifierRegistry : Registry<Modifier>
         if (double.TryParse(entry.Expression, out double cached))
             _cachedValues[nextId] = cached;
         else
+        {
+            // Value is not a simple number!
             _cachedValues[nextId] = null;
+            // This will need to be calculated sometime during the runtime. There is no "linking" step where modifiers
+            //  are pre-parsed.
+        }
 
         return entry;
     }

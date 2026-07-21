@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using SKSSL.ECS;
 using YamlDotNet.Core;
+using SyntaxErrorException = System.Data.SyntaxErrorException;
 
 namespace SKSSL.Mathematics;
 
@@ -33,16 +35,17 @@ public class ShuntingYard
     /// </summary>
     /// <param name="expression">string expression to evaluate.</param>
     /// <param name="result">Final expected value.</param>
+    /// <param name="context">Optional owning context that allows accurate statistic indexing.</param>
     /// <param name="source">Optional provided source for tracing.</param>
     /// <returns>true if expression evaluated completely. false if otherwise.</returns>
     /// <remarks>
     /// Loops over an expression more than once. Conglomerating all of the functions into
     /// one large function is easily doable, but does not read very well.
     /// </remarks>
-    public bool Evaluate(string expression, out double result, string source = "")
+    public bool Evaluate(string expression, out double result, PackableUid? context = null, PackableUid? source = null)
     {
         result = 0;
-        string trace = string.IsNullOrEmpty(source) ? "an unknown source" : source;
+        string trace = source is null ? "an unknown source" : source.ToString()!;
 
         var output = new Queue<string>(); // RPN output
         var operators = new Stack<string>(); // Operator stack
@@ -177,13 +180,16 @@ public class ShuntingYard
                 //  whatever passes this call also passes a file name without an extension. It's not too dangerous, but
                 //  it is noted for whenever this comes up in the future. The solution would be to add some peripheral
                 // checks against the source, or demanding a full Uri path, instead.
-                if (variable.Equals(source))
+                if (Statistics.CheckStatisticTrace(variable, source))
                     throw new MaximumRecursionLevelReachedException(
                         $"Infinitely recursive Shunting Yard algorithm call detected for variable \'{variable}\' in " +
                         $"expression \'{expression}\'.");
 
-                if (!Statistics.TryGetValue(variable, out double number))
-                    throw new Exception($"Failed to extract variable value for {variable} statistic from {trace}.");
+                // Attempt to nab a statistic. May not be 100% reliable without context.
+                PackableUid statistic = Statistics.GetStatistic(variable, context);
+                if (!Statistics.CalculateValue(statistic, out double number))
+                    throw new EvaluateException(
+                        $"Failed to calculate statistic value for \'{variable}\' from {trace}.");
 
                 output.Enqueue(number.ToString(CultureInfo.InvariantCulture));
             }
@@ -191,7 +197,7 @@ public class ShuntingYard
 
         // Determines if a provided string expression contains an adequate number of brackets of any kind.
         if (delimiterStack.Count != 0)
-            throw new EvaluateException($"Invalid delimiters in expression \"{expression}\" from {trace}.");
+            throw new SyntaxErrorException($"Invalid delimiters in expression \"{expression}\" from {trace}.");
 
         #endregion
 

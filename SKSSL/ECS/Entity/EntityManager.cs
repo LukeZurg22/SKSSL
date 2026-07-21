@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Microsoft.Xna.Framework;
 using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
 
@@ -13,6 +14,7 @@ namespace SKSSL.ECS;
 /// </summary>
 public partial class EntityManager
 {
+    /// Registry of entity definitions.
     private readonly IReadOnlyRegistry<Entity> _entityRegistry =
         MasterRegistryManager.GetRegistry<Entity, EntityRegistry>().AsReadOnly();
 
@@ -21,7 +23,7 @@ public partial class EntityManager
 
     // All -Active- Entities contained in UidList.
     public readonly UidList<Entity> EntitiesList = [];
-
+    
     /// Entities that need updating over a network.
     public readonly List<EntityUid> DirtyEntities = [];
 
@@ -77,7 +79,7 @@ public partial class EntityManager
         // Create entity copy.
         Entity entity = source.Clone();
         entity.SetUid(uid);
-        
+
         // Add to "All Entities" list.
         EntitiesList.Set(entity, uid, handle: source.Handle);
 
@@ -126,5 +128,16 @@ public partial class EntityManager
     public void CleanEntity(EntityUid entity)
     {
         DirtyEntities.Remove(entity);
+    }
+
+    public void Update(GameTime gameTime)
+    {
+        var dirtiedEntities = DirtyEntities.ToList();
+        foreach (EntityUid entity in dirtiedEntities)
+        {
+            // Update the entity through a little update call. Only works if it has special update methods.
+            EntitiesList.Get(entity).Update(gameTime);
+            DirtyEntities.Remove(entity);
+        }
     }
 }

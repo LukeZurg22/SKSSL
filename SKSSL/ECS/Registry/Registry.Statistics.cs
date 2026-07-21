@@ -32,7 +32,9 @@ public class StatisticRegistry : Registry<Statistic>
     private double[] _maxValues = Array.Empty<double>();
     private HashSet<string>[] _modifierHandles = Array.Empty<HashSet<string>>();
 
-    /// Like the TryGet(uid), except much more unreliable and failure-prone.
+    /// <remarks>
+    /// Like the TryGet(uid), except much safer. Utilizes handles, which are not the most optimal, however.
+    /// </remarks>
     // ReSharper disable once UnusedMethodReturnValue.Global
     public bool TryGet(string handle, [NotNullWhen(true)] out Statistic? statistic)
     {
@@ -42,7 +44,7 @@ public class StatisticRegistry : Registry<Statistic>
     }
 
     /// <summary>
-    /// Safer way to obtain an statistic definition using its ID.
+    /// Direct way to obtain an statistic definition using its index.
     /// </summary>
     /// <param name="index"></param>
     /// <param name="statistic"></param>
