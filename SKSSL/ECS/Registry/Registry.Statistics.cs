@@ -36,7 +36,7 @@ public class StatisticRegistry : Registry<Statistic>
     /// Like the TryGet(uid), except much safer. Utilizes handles, which are not the most optimal, however.
     /// </remarks>
     // ReSharper disable once UnusedMethodReturnValue.Global
-    public bool TryGet(string handle, [NotNullWhen(true)] out Statistic? statistic)
+    public override bool TryGet(string handle, [NotNullWhen(true)] out Statistic? statistic)
     {
         statistic = default;
         // Using handle back to ID, get index, then construct wrapper.
@@ -50,7 +50,7 @@ public class StatisticRegistry : Registry<Statistic>
     /// <param name="statistic"></param>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
-    public bool TryGet(int index, [NotNullWhen(true)] out Statistic? statistic)
+    private bool TryGet(int index, [NotNullWhen(true)] out Statistic? statistic)
     {
         // Short-circuit.
         if (index >= _handleToIndex.Count || _handles[index].IsNullOrEmpty())
@@ -106,6 +106,8 @@ public class StatisticRegistry : Registry<Statistic>
     }
 
     #region Utility
+
+    public override bool Contains(string handle) => _handleToIndex.ContainsKey(handle);
 
     /// <summary>
     /// Remove all entities contained in statistic Manager.

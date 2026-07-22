@@ -33,8 +33,6 @@ public class Modifier : Prototype, ICloneable<Modifier>
     {
         var prototype = new Modifier
         {
-            Source = Source,
-            Type = Type,
             Step = Step,
             Operator = Operator,
             Duration = Duration,

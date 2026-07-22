@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Data;
 using JetBrains.Annotations;
@@ -12,15 +13,24 @@ namespace SKSSL.Tests;
 [TestClass, UsedImplicitly]
 public class Algorithms
 {
-    private ShuntingYard ShuntingYard;
+    private ShuntingYard ShuntingYard = null!;
+
+    private readonly SKSSL.ECS.Registry.ModifierRegistry _modifierRegistry = SKSSL.ECS.Registry.MasterRegistryManager
+        .GetRegistry<SKSSL.ECS.Modifier, SKSSL.ECS.Registry.ModifierRegistry>();
+
+    private readonly SKSSL.ECS.Registry.StatisticRegistry _statisticRegistry = SKSSL.ECS.Registry.MasterRegistryManager
+        .GetRegistry<SKSSL.ECS.Statistic, SKSSL.ECS.Registry.StatisticRegistry>();
+
+
+    private PackableUid thisEntityContainer = null!;
 
     [TestInitialize, UsedImplicitly]
     public void Initialize()
     {
-        SKSSL.ECS.Registry.StatisticRegistry statisticRegistry = SKSSL.ECS.Registry.MasterRegistryManager
-            .GetRegistry<SKSSL.ECS.Statistic, SKSSL.ECS.Registry.StatisticRegistry>();
-        statisticRegistry.Clear();
-        
+        _statisticRegistry.Clear();
+
+        #region Regular Statistic
+
         // Force a prototype for testing.
         Statistic pseudo = new()
         {
@@ -33,13 +43,96 @@ public class Algorithms
         };
 
         // Register the prototype.
-        statisticRegistry.Register("test_statistic", pseudo);
-        statisticRegistry.TryGet("test_statistic", out Statistic statistic);
+        _statisticRegistry.Register("test_statistic", pseudo);
+        _statisticRegistry.TryGet("test_statistic", out Statistic? statistic);
         Assert.IsNotNull(statistic); // Re-testing the retrieval anyway.
+
+        #endregion
+
+        #region Recursion
+
+        // Force a prototype for testing.
+        _statisticRegistry.Register("recursive_statistic",
+            new Statistic
+            {
+                Handle = "recursive_statistic",
+                NameKey = string.Empty, // No custom name. Just leave blank.
+                DescriptionKey = string.Empty, // No custom description, either! 
+                BaseValue = 9,
+                Source = "game",
+                Modifiers = ["recursive_modifier"]
+            });
+        _statisticRegistry.TryGet("recursive_statistic", out Statistic? recursiveStatistic);
+        _modifierRegistry.Register("recursive_modifier", new Modifier
+        {
+            Handle = "recursive_modifier",
+            Duration = 1000f,
+            Source = "game",
+            Operator = ModifierOperator.Add,
+            CanStack = true,
+            Expression = "1+recursive_statistic" // Simple recursion.
+        });
+        _modifierRegistry.TryGet("recursive_modifier", out Modifier? modifier);
+        Assert.IsNotNull(modifier); // Re-testing the retrieval anyway.
+
+        #endregion
+
+        #region Indirect Recusion
+
+        _statisticRegistry.Register("recursive_statistic_b",
+            new Statistic
+            {
+                Handle = "recursive_statistic_b",
+                NameKey = string.Empty, // No custom name. Just leave blank.
+                DescriptionKey = string.Empty, // No custom description, either! 
+                BaseValue = 9,
+                Source = "game",
+                Modifiers = ["recursive_modifier_b"]
+            });
+
+        _modifierRegistry.Register("recursive_modifier_b", new Modifier
+        {
+            Handle = "recursive_modifier_b",
+            Duration = 1000f,
+            Source = "game",
+            Operator = ModifierOperator.Add,
+            CanStack = true,
+            Expression = "1+recursive_statistic_c" // Simple recursion.
+        });
+        //_modifierRegistry.TryGet("recursive_modifier_b", out Modifier? _);
+        _statisticRegistry.Register("recursive_statistic_c",
+            new Statistic
+            {
+                Handle = "recursive_statistic_c",
+                NameKey = string.Empty, // No custom name. Just leave blank.
+                DescriptionKey = string.Empty, // No custom description, either! 
+                BaseValue = 9,
+                Source = "game",
+                Modifiers = ["recursive_modifier_c"]
+            });
+        _modifierRegistry.Register("recursive_modifier_c", new Modifier
+        {
+            Handle = "recursive_modifier_c",
+            Duration = 1000f,
+            Source = "game",
+            Operator = ModifierOperator.Add,
+            CanStack = true,
+            Expression = "1+recursive_statistic_b" // Simple recursion.
+        });
+
+        #endregion
 
         // Create a place to store statistics with Uids.
         var statisticsStorage = new StatisticsList();
-        statisticsStorage.Set(statistic, statisticsStorage.New(), statistic.Handle);
+        thisEntityContainer = statisticsStorage.New();
+        statisticsStorage.AddStatistic(thisEntityContainer, statistic.Handle);
+        Assert.Throws<Exception>(()
+            => statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatistic?.Handle!));
+
+        _statisticRegistry.TryGet("recursive_statistic_b", out Statistic? recursiveStatisticB);
+        _statisticRegistry.TryGet("recursive_statistic_c", out Statistic? recursiveStatisticC);
+        statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatisticB?.Handle!);
+        statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatisticC?.Handle!);
 
         // Huzzah for object instantiation.
         ShuntingYard = new ShuntingYard(statisticsStorage);
@@ -50,11 +143,15 @@ public class Algorithms
     {
         // Bad Delimiter.
         const string badDelimiterFormula = "(5/3--6"; // -> ERROR
-        Assert.Throws<EvaluateException>(() => ShuntingYard.Evaluate(badDelimiterFormula, out double _));
+        Assert.Throws<SyntaxErrorException>(() => ShuntingYard.Evaluate(badDelimiterFormula));
 
         // Bad Variable.
         const string badVariableFormula = "(5+3*invalid_statistic)/3--6"; // -> ERROR
-        Assert.Throws<Exception>(() => ShuntingYard.Evaluate(badVariableFormula, out double _));
+        Assert.Throws<MissingStatisticException>(() => ShuntingYard.Evaluate(badVariableFormula));
+
+        // Recursive calls.
+        const string recursiveFormula = "(5+3*recursive_statistic_b)/3--6"; // -> ERROR
+        Assert.Throws<RecursiveEvaluateException>(() => ShuntingYard.Evaluate(recursiveFormula, thisEntityContainer));
 
         /*
          * (5 + 3 * test_statistic) / 3 - -6
@@ -67,15 +164,12 @@ public class Algorithms
 
         // Simple.
         const string formulaNormal = "(5+3*9)/3--6"; // -> 16.66666666666667
-        ShuntingYard.Evaluate(formulaNormal, out var result);
+        var result = ShuntingYard.Evaluate(formulaNormal);
         Assert.IsLessThan(0.001, Math.Abs(result - 16.666));
 
         // Variable.
-
         const string goodFormula = "(5+3*test_statistic)/3--6"; // -> 16.666
-        ShuntingYard.Evaluate(goodFormula, out result);
+        result = ShuntingYard.Evaluate(goodFormula);
         Assert.IsLessThan(0.001, Math.Abs(result - 16.666));
     }
-    
-    // WIP: Create and handle modifiers. See StatisticsList.
 }

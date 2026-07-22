@@ -2,12 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
-using System.Linq;
 using SKSSL.ECS;
-using YamlDotNet.Core;
 using SyntaxErrorException = System.Data.SyntaxErrorException;
 
 namespace SKSSL.Mathematics;
+
+/// <inheritdoc />
+public class EmptyStatisticsListException(string s) : Exception(s);
+
+/// <inheritdoc />
+public class MissingStatisticException(string s) : Exception(s);
+
+/// <inheritdoc />
+public class RecursiveEvaluateException(string s) : Exception(s);
 
 /// <summary>
 /// Algorithmically calculates values based on string input. This class was written to align with the
@@ -34,18 +41,19 @@ public class ShuntingYard
     /// Interpret, Parse, and Evaluate a string expression and output a final result, with logging.
     /// </summary>
     /// <param name="expression">string expression to evaluate.</param>
-    /// <param name="result">Final expected value.</param>
-    /// <param name="context">Optional owning context that allows accurate statistic indexing.</param>
-    /// <param name="source">Optional provided source for tracing.</param>
+    /// <param name="container">Optional owning context that allows accurate statistic indexing.</param>
+    /// <param name="visited">Tracking visited Uids to avoid recursion.</param>
     /// <returns>true if expression evaluated completely. false if otherwise.</returns>
     /// <remarks>
     /// Loops over an expression more than once. Conglomerating all of the functions into
     /// one large function is easily doable, but does not read very well.
     /// </remarks>
-    public bool Evaluate(string expression, out double result, PackableUid? context = null, PackableUid? source = null)
+    public double Evaluate(
+        string expression,
+        PackableUid? container = null,
+        HashSet<PackableUid>? visited = null)
     {
-        result = 0;
-        string trace = source is null ? "an unknown source" : source.ToString()!;
+        string trace = container is null ? "an unknown source" : container.ToString()!;
 
         var output = new Queue<string>(); // RPN output
         var operators = new Stack<string>(); // Operator stack
@@ -118,25 +126,26 @@ public class ShuntingYard
                 //  brackets are present in the expression.
                 switch (character)
                 {
+                    // Determine if expression contains an adequate number of brackets of any kind.
                     case '(':
                     case '[':
                     case '{':
                         delimiterStack.Push(character);
                         break;
-
                     case ')':
                         if (delimiterStack.Count == 0 || delimiterStack.Pop() != '(')
-                            return false;
+                            throw new SyntaxErrorException(
+                                $"Invalid \'()\' delimiters in \"{expression}\" from {trace}.");
                         break;
-
                     case ']':
                         if (delimiterStack.Count == 0 || delimiterStack.Pop() != '[')
-                            return false;
+                            throw new SyntaxErrorException(
+                                $"Invalid \'[]\' delimiters in \"{expression}\" from {trace}.");
                         break;
-
                     case '}':
                         if (delimiterStack.Count == 0 || delimiterStack.Pop() != '{')
-                            return false;
+                            throw new SyntaxErrorException(
+                                $"Invalid \'{{}}\' delimiters in \"{expression}\" from {trace}.");
                         break;
                 }
 
@@ -166,10 +175,11 @@ public class ShuntingYard
                 // Create the full string variable.
                 string variable = expression[start..(i + 1)];
 
-                // If this variable isn't in the statistics provided, then what can one do but explode?
-                if (Statistics == null || Statistics.Entries.Count == 0)
-                    throw new NullReferenceException(
-                        $"Expression found variable \'{variable}\', but no statistics from {trace} exists to get a value of!");
+                // Exception - Statistics list is empty. Don't even bother.
+                if (Statistics.Entries.Count == 0)
+                    throw new EmptyStatisticsListException(
+                        $"Variable \'{variable}\' exists in expression \'{expression}\' from {trace}, " +
+                        $"but there are no statistics stored in the internal statistics list!");
 
                 // Detecting if the {source} does NOT equal the {variable} here. Infinite looping is terrible, and a
                 //  variable who has a modifier that reflects on the variable itself will inevitably cause issues
@@ -180,26 +190,34 @@ public class ShuntingYard
                 //  whatever passes this call also passes a file name without an extension. It's not too dangerous, but
                 //  it is noted for whenever this comes up in the future. The solution would be to add some peripheral
                 // checks against the source, or demanding a full Uri path, instead.
-                if (Statistics.CheckStatisticTrace(variable, source))
-                    throw new MaximumRecursionLevelReachedException(
-                        $"Infinitely recursive Shunting Yard algorithm call detected for variable \'{variable}\' in " +
-                        $"expression \'{expression}\'.");
-
                 // Attempt to nab a statistic. May not be 100% reliable without context.
-                PackableUid statistic = Statistics.GetStatistic(variable, context);
-                if (!Statistics.CalculateValue(statistic, out double number))
+                PackableUid? statistic = Statistics.GetStatistic(variable, container);
+
+                // Exception - Failed to find statistic.
+                if (statistic is null)
+                    throw new MissingStatisticException(
+                        $"Variable \'{variable}\', has no matching statistics from {trace} to get a value of!");
+
+                // Exception - Statistic is recursively being called.
+                visited ??= [];
+                if (!visited.Add(statistic))
+                    throw new RecursiveEvaluateException(
+                        $"Infinite recursion involving statistic ({statistic}) in expression '{expression}'");
+
+                // Exception - Failed to calculate statistic.
+                if (!Statistics.CalculateValue(statistic, out double number, container, visited))
                     throw new EvaluateException(
-                        $"Failed to calculate statistic value for \'{variable}\' from {trace}.");
+                        $"Failed to calculate value for \'{variable}\' statistic from {trace}!");
 
                 output.Enqueue(number.ToString(CultureInfo.InvariantCulture));
             }
         }
 
-        // Determines if a provided string expression contains an adequate number of brackets of any kind.
-        if (delimiterStack.Count != 0)
-            throw new SyntaxErrorException($"Invalid delimiters in expression \"{expression}\" from {trace}.");
-
         #endregion
+
+        // Final checkup on delimiters.
+        if (delimiterStack.Count > 0)
+            throw new SyntaxErrorException($"Invalid Delimiters for expression \'{expression}\'!");
 
         // Pop remaining operators
         while (operators.Count > 0)
@@ -209,12 +227,10 @@ public class ShuntingYard
         }
 
         // Calculate final result.
-        result = EvaluateRPN(output);
-        return true;
-
-        // Parse all proper tokens that aren't immediately recognised as doubles. 
+        return EvaluateRPN(output);
     }
 
+    /// Parse all proper tokens that aren't immediately recognised as doubles. 
     private static void ParseToken(string token, int index, ref Stack<string> operators, ref Queue<string> output)
     {
         switch (token)
