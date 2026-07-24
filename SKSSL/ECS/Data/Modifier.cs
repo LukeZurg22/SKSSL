@@ -27,8 +27,6 @@ public class Modifier : Prototype, ICloneable<Modifier>
     /// <seealso cref="ShuntingYard"/>
     [YamlMember(Alias = "expression")] public string Expression = string.Empty;
 
-    [YamlIgnore] public double? CachedValue = null;
-
     public Modifier Clone()
     {
         var prototype = new Modifier
@@ -38,7 +36,6 @@ public class Modifier : Prototype, ICloneable<Modifier>
             Duration = Duration,
             Expression = Expression,
             CanStack = CanStack,
-            CachedValue = CachedValue
         };
         prototype.CopyFrom(this); // Copy base data.
         return prototype;

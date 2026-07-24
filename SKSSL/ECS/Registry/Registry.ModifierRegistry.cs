@@ -11,9 +11,6 @@ public class ModifierRegistry : Registry<Modifier>
     private readonly Dictionary<string, int> _handleToIndex = new(); // For reverse-searching.
     private string[] _indexToHandle = [];
 
-    /// Storing pre-calculated simple numerical values to avoid expression parsing.
-    private double?[] _cachedValues = [];
-
     /// The step or stage in which this modifier is applied.
     private ModifierStep[] _steps = [];
 
@@ -55,7 +52,6 @@ public class ModifierRegistry : Registry<Modifier>
             Operator = _operators[index],
             Duration = _durations[index],
             Expression = _expressions[index],
-            CachedValue = _cachedValues[index],
             CanStack = _canStack[index]
         };
         return true;
@@ -79,7 +75,6 @@ public class ModifierRegistry : Registry<Modifier>
             Array.Resize(ref _operators, nextId);
             Array.Resize(ref _durations, nextId);
             Array.Resize(ref _expressions, nextId);
-            Array.Resize(ref _cachedValues, nextId);
             Array.Resize(ref _canStack, nextId);
                 // Then, insert the values.
                 nextId -= 1; // For zero-based indexing.
@@ -91,20 +86,6 @@ public class ModifierRegistry : Registry<Modifier>
                 _expressions[nextId] = entry.Expression;
                 _canStack[nextId] = true;
         //@formatter:on
-
-        // Attempt to pre-cache value of this modifier.
-        // TODO: Move to generic parse function that will instead attempt to calculate a string for a constant.
-        //  If there would be any variables, then there can't be any caching.
-        if (double.TryParse(entry.Expression, out double cached))
-            _cachedValues[nextId] = cached;
-        else
-        {
-            // Value is not a simple number!
-            _cachedValues[nextId] = null;
-            // This will need to be calculated sometime during the runtime. There is no "linking" step where modifiers
-            //  are pre-parsed.
-        }
-
         return entry;
     }
 
@@ -118,6 +99,5 @@ public class ModifierRegistry : Registry<Modifier>
         Array.Clear(_durations);
         Array.Clear(_expressions);
         Array.Clear(_canStack);
-        Array.Clear(_cachedValues);
     }
 }
