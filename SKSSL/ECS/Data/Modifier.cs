@@ -5,8 +5,8 @@ namespace SKSSL.ECS;
 
 public class Modifier : Prototype, ICloneable<Modifier>
 {
-    //->+ source
     //->+ type
+    //->+ source
     //->+ handle
 
     /// The step or stage in which this modifier is applied.
@@ -23,9 +23,9 @@ public class Modifier : Prototype, ICloneable<Modifier>
 
     /// Modifiers are string expressions. These expressions can also refer back to <see cref="Statistic"/>s,
     /// which can have more modifiers.
-    /// <remarks>This is a self-looping, self-made nightmare.</remarks>
+    /// <remarks>This could be a self-looping, self-made nightmare.</remarks>
     /// <seealso cref="ShuntingYard"/>
-    [YamlMember(Alias = "expression")] public string Expression = string.Empty;
+    [YamlMember(Alias = "value")] public string Expression = string.Empty;
 
     public Modifier Clone()
     {

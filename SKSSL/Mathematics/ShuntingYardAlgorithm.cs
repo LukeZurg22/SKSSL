@@ -41,7 +41,7 @@ public class ShuntingYard
     /// Interpret, Parse, and Evaluate a string expression and output a final result, with logging.
     /// </summary>
     /// <param name="expression">string expression to evaluate.</param>
-    /// <param name="container">Optional owning context that allows accurate statistic indexing.</param>
+    /// <param name="parent">Optional owning context that allows accurate statistic indexing.</param>
     /// <param name="visited">Tracking visited Uids to avoid recursion.</param>
     /// <returns>true if expression evaluated completely. false if otherwise.</returns>
     /// <remarks>
@@ -50,10 +50,10 @@ public class ShuntingYard
     /// </remarks>
     public double Evaluate(
         string expression,
-        PackableUid? container = null,
+        PackableUid? parent = null,
         HashSet<PackableUid>? visited = null)
     {
-        string trace = container is null ? "an unknown source" : container.ToString()!;
+        string trace = parent is null ? "an unknown source" : parent.ToString();
 
         var output = new Queue<string>(); // RPN output
         var operators = new Stack<string>(); // Operator stack
@@ -191,7 +191,7 @@ public class ShuntingYard
                 //  it is noted for whenever this comes up in the future. The solution would be to add some peripheral
                 // checks against the source, or demanding a full Uri path, instead.
                 // Attempt to nab a statistic. May not be 100% reliable without context.
-                PackableUid? statistic = Statistics.GetStatistic(variable, container);
+                PackableUid? statistic = Statistics.GetStatistic(variable, parent);
 
                 // Exception - Failed to find statistic.
                 if (statistic is null)
@@ -204,10 +204,8 @@ public class ShuntingYard
                     throw new RecursiveEvaluateException(
                         $"Infinite recursion involving statistic ({statistic}) in expression '{expression}'");
 
-                // Exception - Failed to calculate statistic.
-                if (!Statistics.CalculateValue(statistic, out double number, container, visited))
-                    throw new EvaluateException(
-                        $"Failed to calculate value for \'{variable}\' statistic from {trace}!");
+                // Calculate the statistic value.
+                Statistics.CalculateStatisticValue(statistic, out double number, parent, visited);
 
                 output.Enqueue(number.ToString(CultureInfo.InvariantCulture));
             }

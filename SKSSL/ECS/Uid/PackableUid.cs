@@ -14,4 +14,5 @@ public interface PackableUid
 
     public static int UnpackIndex(PackableUid value) => (int)(value.Packed & 0xFFFFFFFFUL);
     public static int UnpackGeneration(PackableUid value) => (int)(value.Packed >> 32);
+    public string ToString() => $"[{Index}:{Generation}][{Packed}]";
 }

@@ -35,13 +35,17 @@ namespace SKSSL.ECS;
 public class UidList<T> : IEnumerable<T> where T : class
 {
     /// One handle can be instantiated multiple times.
-    private readonly Dictionary<string, HashSet<PackableUid>> _activeHandles = new();
+    private readonly Dictionary<string, HashSet<PackableUid>> _handleToActives = new();
+
+    private readonly Dictionary<PackableUid, HashSet<PackableUid>> _ownerToOwned = new();
 
     /// All objects stored in this UidList which are assigned unique identification numbers.
     private readonly List<T> _denseEntries = new();
 
     /// Public-Access list to entries contained in this UidList, which cannot be modified directly.
     public IReadOnlyList<T> Entries => _denseEntries;
+
+    public readonly GenericUid RootUid = new(1, 1);
 
     // Per-slot handle metadata.
     /*
@@ -60,7 +64,8 @@ public class UidList<T> : IEnumerable<T> where T : class
      */
     private int[] _indexToDense = Array.Empty<int>(); // Maps stable UID index to actual position in _denseEntries.
     private int[] _denseToIndex = Array.Empty<int>(); // Reverse Mapping dense index -> UID.Index for swap & destroy.
-    private string?[] _idToHandles = Array.Empty<string>();
+    private string?[] _indexToHandle = Array.Empty<string>();
+    private PackableUid[] _indexToOwner = Array.Empty<PackableUid>();
     private int[] _generations = Array.Empty<int>();
     private int[] _freeList = new int[SSLGame.Config.DESTROY_CACHE_LIMIT];
     private int _freeCount = 0;
@@ -70,14 +75,16 @@ public class UidList<T> : IEnumerable<T> where T : class
 
     public void Clear()
     {
-        _activeHandles.Clear();
+        _handleToActives.Clear();
+        _ownerToOwned.Clear();
         ObjectClear();
         _freeCount = 0;
 
         int length = _indexToDense.Length;
         Array.Clear(_indexToDense, 0, length);
         Array.Clear(_denseToIndex, 0, length);
-        Array.Clear(_idToHandles, 0, length);
+        Array.Clear(_indexToHandle, 0, length);
+        Array.Clear(_indexToOwner, 0, length);
 
         for (int i = 0; i < length; i++)
         {
@@ -115,7 +122,8 @@ public class UidList<T> : IEnumerable<T> where T : class
     /// <param name="instance">Instance of the object that is wished to be stored.</param>
     /// <param name="uid">Uid of the object to assign it.</param>
     /// <param name="handle">Optional handle to bundle uids under handle groupings.</param>
-    public void Set(T instance, PackableUid uid, string handle = "")
+    /// <param name="owner">The container above the current statistic.</param>
+    public void Set(T instance, PackableUid uid, string handle = "", PackableUid? owner = null)
     {
         ArgumentNullException.ThrowIfNull(instance);
 
@@ -138,16 +146,22 @@ public class UidList<T> : IEnumerable<T> where T : class
         else ObjectSet(instance, uid);
 
         // Handle grouping.
-        if (!_activeHandles.TryGetValue(handle, out var list))
+        if (!_handleToActives.TryGetValue(handle, out var list))
         {
             list = new HashSet<PackableUid>();
-            _activeHandles[handle] = list;
+            _handleToActives[handle] = list;
         }
 
         // Prevent duplicates.
         list.Add(uid);
 
-        _idToHandles[uidIndex] = string.IsNullOrEmpty(handle) ? null : handle;
+        owner ??= RootUid;
+        _indexToHandle[uidIndex] = string.IsNullOrEmpty(handle) ? null : handle;
+        _indexToOwner[uidIndex] = owner; // Use default root if otherwise not provided.
+
+        // Populate the ownership tracking.
+        if (!_ownerToOwned.TryGetValue(owner, out var value)) _ownerToOwned[owner] = [uid];
+        else value.Add(uid);
     }
 
     /// <summary>
@@ -155,7 +169,7 @@ public class UidList<T> : IEnumerable<T> where T : class
     /// </summary>
     /// <param name="uid">The UID to search, whose index is utilized.</param>
     /// <returns>A string handle, or null.</returns>
-    public string? GetHandle(PackableUid uid) => _idToHandles[uid.Index];
+    public string? GetHandle(PackableUid uid) => _indexToHandle[uid.Index];
 
     /// <summary>
     /// Checks if the provided handle belong to the Uid.
@@ -185,9 +199,10 @@ public class UidList<T> : IEnumerable<T> where T : class
     /// Overridable way of adding or setting an object in the internally-stored list.
     protected virtual void ObjectSet(T @object, PackableUid uid) => _denseEntries[_indexToDense[uid.Index]] = @object;
 
-    public virtual void Update(GameTime gameTime)
-    {
-    }
+    //@formatter:off
+ // ReSharper disable once UnusedParameter.Global
+    public virtual void Update(GameTime gameTime){}
+    //@formatter:on
 
     #endregion
 
@@ -217,11 +232,11 @@ public class UidList<T> : IEnumerable<T> where T : class
         if (denseIndex < 0) return;
 
         // Remove from handle group.
-        var handle = _idToHandles[uidIndex];
-        if (!string.IsNullOrEmpty(handle) && _activeHandles.TryGetValue(handle, out var uidList))
+        var handle = _indexToHandle[uidIndex];
+        if (!string.IsNullOrEmpty(handle) && _handleToActives.TryGetValue(handle, out var uidList))
         {
             uidList.Remove(statisticUid);
-            if (uidList.Count == 0) _activeHandles.Remove(handle);
+            if (uidList.Count == 0) _handleToActives.Remove(handle);
         }
 
         int lastDenseIndex = Count - 1;
@@ -243,7 +258,8 @@ public class UidList<T> : IEnumerable<T> where T : class
         _denseToIndex[lastDenseIndex] = -1;
         _indexToDense[uidIndex] = -1;
         _generations[uidIndex]++;
-        _idToHandles[uidIndex] = null;
+        _indexToHandle[uidIndex] = null;
+        _indexToOwner[uidIndex] = RootUid;
 
         // Recycle UID index.
         if (_freeCount >= _freeList.Length)
@@ -294,9 +310,28 @@ public class UidList<T> : IEnumerable<T> where T : class
         return true;
     }
 
+    protected bool TryResolve(string handle, PackableUid? owner, [NotNullWhen(true)] out PackableUid? statistic)
+    {
+        owner ??= RootUid; // Default back to artificial root if not provided.
+        var owned = _ownerToOwned[owner]; // Get all the uids owned by the owner.
+        foreach (PackableUid id in owned)
+        {
+            var queriedHandle = _indexToHandle[id.Index] ?? string.Empty;
+            if (!queriedHandle.Equals(handle)) continue; // Search through all handles.
+
+            statistic = id;
+            return true;
+        }
+
+        statistic = null;
+        return false;
+    }
+
     #endregion
 
     #region Other Get Methods
+
+    protected PackableUid GetOwner(PackableUid uid) => _indexToOwner[uid.Index];
 
     /// <returns>First Uid for list under a particular handle.</returns>
     protected PackableUid GetUid(string handle) => GetUids(handle).First();
@@ -324,7 +359,7 @@ public class UidList<T> : IEnumerable<T> where T : class
 
     /// Retrieve the Uid of an internally-stored handle. Assumes handle is unique in parallel to Uid.
     public IReadOnlyCollection<PackableUid> GetUids(string handle)
-        => ContainsHandle(handle) ? _activeHandles[handle] : [];
+        => ContainsHandle(handle) ? _handleToActives[handle] : [];
 
     /// <returns>Uid-Object Tuple enumerable using handle.</returns>
     public IEnumerable<(PackableUid Uid, T Value)> GetAllKVP(string handle)
@@ -341,7 +376,12 @@ public class UidList<T> : IEnumerable<T> where T : class
 
     #region Utility Methods
 
-    protected bool ContainsHandle(string handle) => !string.IsNullOrEmpty(handle) && _activeHandles.ContainsKey(handle);
+    protected bool ContainsHandle(string handle)
+    {
+        if (string.IsNullOrEmpty(handle))
+            return false;
+        return _handleToActives.ContainsKey(handle);
+    }
 
     /// <summary>
     /// Ensures that internal storage fields have the capacity to hold the objects and their IDs.
@@ -358,14 +398,16 @@ public class UidList<T> : IEnumerable<T> where T : class
         Array.Resize(ref _indexToDense, newSize);
         Array.Resize(ref _denseToIndex, newSize);
         Array.Resize(ref _generations, newSize);
-        Array.Resize(ref _idToHandles, newSize);
+        Array.Resize(ref _indexToHandle, newSize);
+        Array.Resize(ref _indexToOwner, newSize);
 
         // Initialize only the new slots
         for (int i = oldSize; i < newSize; i++)
         {
             _indexToDense[i] = -1;
             _denseToIndex[i] = -1;
-            _idToHandles[i] = null;
+            _indexToHandle[i] = null;
+            _indexToOwner[i] = RootUid;
             _generations[i] = 0; // Start at generation 0.
         }
     }
@@ -389,28 +431,4 @@ public class UidList<T> : IEnumerable<T> where T : class
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     #endregion
-}
-
-public class UniqueUidList<T> : UidList<T> where T : class
-{
-    private readonly Dictionary<string, PackableUid> _handles = new();
-
-    protected void AddHandle(string handle, PackableUid uid)
-    {
-        if (!_handles.TryAdd(handle, uid))
-            throw new InvalidOperationException(
-                $"Handle '{handle}' is already registered.");
-    }
-
-    protected void RemoveHandle(string handle, PackableUid uid)
-    {
-        _handles.Remove(handle);
-    }
-
-    protected IReadOnlyCollection<PackableUid> GetHandle(string handle)
-    {
-        return _handles.TryGetValue(handle, out PackableUid? uid)
-            ? [uid]
-            : [];
-    }
 }
