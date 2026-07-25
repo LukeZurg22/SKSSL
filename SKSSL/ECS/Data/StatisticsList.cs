@@ -47,21 +47,18 @@ public class StatisticsList : UidList<Statistic>
 
     // STATISTIC -> MODIFIERS
     /// Stores Modifier Uid values based on a Statistic UID- Modifier Handle pair.
-    private readonly Dictionary<PackableUid, HashSet<PackableUid>> _statUidToModifiers = [];
+    private readonly Dictionary<PackableUid, HashSet<PackableUid>> _statToMods = [];
 
     // STATISTIC -> MODIFIERS (SORTED)
     /// Pre-sorted list of modifiers indexed by the Statistic that owns them.
-    private readonly Dictionary<PackableUid, List<(PackableUid ModUid, Modifier Modifier)>>
-        _sortedModifiersPerStat = new();
+    private readonly Dictionary<PackableUid, List<(PackableUid ModUid, Modifier Modifier)>> _sortedMods = new();
 
     // MODIFIER -> STATISTIC REFERENCES
-    /// <summary>
     /// Modifier UIDs bound to the list of statistics their expressions reference. // TEMP: May not be needed?
-    /// </summary>
-    private readonly Dictionary<PackableUid, HashSet<PackableUid>> _modifiersReferencingStatistics = [];
+    private readonly Dictionary<PackableUid, HashSet<PackableUid>> _statReferencedBy = [];
 
     // MODIFIER -> STATISTIC (PARENT)
-    private readonly Dictionary<PackableUid, PackableUid> _modifierUidToParentStatisticUid = [];
+    private readonly Dictionary<PackableUid, PackableUid> _modToParentStat = [];
 
     // SHUNTING YARD ALGORITHM
     private readonly ShuntingYard _shuntingYard;
@@ -73,26 +70,111 @@ public class StatisticsList : UidList<Statistic>
 
     #region Caching
 
-    /// <summary>
     /// Caching the updated calculated values for a simple O(1) retrieval. Hinges on these values being updated
     /// consistently and elsewhere.
-    /// </summary>
-    private readonly Dictionary<UidPair, double> _cachedModifierValues = new();
+    private readonly Dictionary<UidPair, double> _modifierCache = new();
 
-    /// <summary>
     /// If a statistic can somehow be defined as a constant value, then storing that value for raw O(1) retrieval
     /// will alleviate some of the processing burden.
-    /// </summary>
-    private readonly Dictionary<PackableUid, double> _cachedStatisticValues = new();
+    private readonly Dictionary<PackableUid, double> _statisticCache = new();
 
     /// <summary>
     /// Clean/Dirty listing for statistics.
     /// </summary>
-    private readonly List<PackableUid> _statisticsThatRequireUpdates = [];
+    private readonly HashSet<PackableUid> _dirtiedStatistics = [];
 
     #endregion
 
-    #region Get Statistic
+    #region Adding Statistics & Modifiers
+
+    /// Merely handling the registration interim, but nary more.
+    [UsedImplicitly]
+    public PackableUid? AddStatistic(PackableUid owner, string statisticHandle)
+    {
+        // If the statistic does not exist, don't use it!
+        if (!_statisticRegistry.Contains(statisticHandle))
+        {
+            Log($"Failed to find statistic \'{statisticHandle}\' in registry.", LOG.SYSTEM_WARNING);
+            return null;
+        }
+
+        // Get a copy of the statistic.
+        Statistic statistic = _statisticRegistry.Clone(statisticHandle);
+        PackableUid uid = New();
+
+        // Ownership is tracked internally.
+        Set(statistic, uid, statisticHandle, owner); // Set statistic in internal list.
+        _statToMods[uid] = []; // Create Statistic-Modifier key pair, even if there are no modifiers.
+
+        foreach (var modifierHandle in statistic.Modifiers)
+            AddModifier(uid, modifierHandle);
+
+        // Regardless of modifiers, a statistic on-add will be called for an update at least once.
+        Dirty(uid);
+        return uid;
+    }
+
+
+    public void AddModifier(PackableUid statisticUid, string modifierHandle)
+    {
+        // Since it exists, it is assumed that it can be cloned as modifiers implement ICloneable<T> by default.
+        Modifier modifier = _modifierRegistry.Clone(modifierHandle);
+
+        // Ensure that actually adding this modifier would be fine to add.
+        try
+        {
+            ValidateModifierBeforeAdd(statisticUid, modifier);
+        }
+        catch (Exception innerException)
+        {
+            Log($"Failed to add modifier \'{modifierHandle}\': {innerException.Message}", LOG.SYSTEM_ERROR);
+            return; // Don't even bother adding it or doing any treatment.
+        }
+
+        // Generate new uid for this modifier.
+        PackableUid modifierUid = _modifiers.New();
+        _modifiers.Set(modifier, modifierUid, modifier.Handle); // Store the modifier's unique ID internally.
+        _statToMods[statisticUid].Add(modifierUid); // Add the uid to the statistic. Assume can-stack, or unique.
+        _modToParentStat[modifierUid] = statisticUid; // Assign ownership for quick indexing.
+
+        // Populate reverse map
+        foreach (PackableUid dependency in GetDependenciesFromExpression(modifier.Expression, GetOwner(statisticUid)))
+        {
+            if (!_statReferencedBy.TryGetValue(dependency, out var set))
+                _statReferencedBy[dependency] = set = [];
+            set.Add(modifierUid);
+        }
+
+        RebuildSortedModifiers(statisticUid);
+        Dirty(statisticUid);
+    }
+
+    private void RebuildSortedModifiers(PackableUid statUid)
+    {
+        if (!_statToMods.TryGetValue(statUid, out var modUids))
+        {
+            _sortedMods.Remove(statUid);
+            return;
+        }
+
+        // Sort based on provided step, then operator.
+        var sortedModifiers = new List<(PackableUid ModUid, Modifier Modifier)>(modUids.Count);
+        sortedModifiers.AddRange(from uid in modUids let modifier = _modifiers.Get(uid) select (uid, modifier));
+        sortedModifiers.Sort((a, b) =>
+        {
+            int stepCompare = a.Modifier.Step.CompareTo(b.Modifier.Step);
+            if (stepCompare != 0)
+                return stepCompare;
+            int op = a.Modifier.Operator.CompareTo(b.Modifier.Operator);
+            return op;
+        });
+
+        _sortedMods[statUid] = sortedModifiers;
+    }
+
+    #endregion
+    
+    #region Get Methods
 
     /// <summary>
     /// Acquire a statistic using a handle, and preferably the Uid of its owner.
@@ -117,174 +199,34 @@ public class StatisticsList : UidList<Statistic>
 
     #endregion
 
-    #region Adding Statistics
-
-    /// Merely handling the registration interim, but nary more.
-    [UsedImplicitly]
-    public PackableUid? AddStatistic(PackableUid owner, string statisticHandle)
-    {
-        // If the statistic does not exist, don't use it!
-        if (!_statisticRegistry.Contains(statisticHandle))
-        {
-            Log($"Failed to find statistic \'{statisticHandle}\' in registry.", LOG.SYSTEM_WARNING);
-            return null;
-        }
-
-        // Get a copy of the statistic.
-        Statistic statistic = _statisticRegistry.Clone(statisticHandle);
-        PackableUid uid = New();
-
-        // Ownership is tracked internally.
-        Set(statistic, uid, statisticHandle, owner); // Set statistic in internal list.
-
-        // Create Statistic-Modifier key pair, even if there are no modifiers.
-        if (!_statUidToModifiers.ContainsKey(uid))
-            _statUidToModifiers[uid] = [];
-
-        // Add all of the referenced modifiers to storage.
-        foreach (var modifierHandle in statistic.Modifiers) AddModifier(uid, modifierHandle);
-
-        // Regardless of modifiers, a statistic on-add will be called for an update at least once.
-        DirtyStatistic(uid);
-        return uid;
-    }
-
-    #endregion
-
-    #region Adding Modifiers
-
-    public void AddModifier(PackableUid statisticUid, string modifierHandle)
-    {
-        // Since it exists, it is assumed that it can be cloned as modifiers implement ICloneable<T> by default.
-        Modifier modifier = _modifierRegistry.Clone(modifierHandle);
-
-        // Ensure that actually adding this modifier would be fine to add.
-        try
-        {
-            // This is expecting crashes. Might as well do damage control.
-            TestModifierForWeaknesses(statisticUid, modifier);
-        }
-        catch (Exception innerException)
-        {
-            Log($"Failed to add modifier \'{modifierHandle}\': {innerException.Message}", LOG.SYSTEM_ERROR);
-            return; // Don't even bother adding it or doing any treatment.
-        }
-
-        lock (_statUidToModifiers)
-        lock (_modifierUidToParentStatisticUid)
-        lock (_modifiers)
-        {
-            // Generate new uid for this modifier.
-            PackableUid modifierUid = _modifiers.New();
-
-            // Store the modifier's unique ID internally.
-            _modifiers.Set(modifier, modifierUid, modifier.Handle);
-
-            // Add the uid to the statistic. It's assumed that by now, the modifier either can stack, or is unique.
-            _statUidToModifiers[statisticUid].Add(modifierUid);
-
-            // Assign ownership for quick indexing.
-            _modifierUidToParentStatisticUid[modifierUid] = statisticUid;
-
-            RebuildSortedModifiers(statisticUid);
-
-            // WIP: Populate _modifiersReferencingStatistics.
-
-            // Check the expression. Does it parse into a number as text? If not, then that's bad.
-            if (ExpressionContainsText(modifier.Expression))
-            {
-                // If the expression doesn't loop, what more can one ask for?
-                if (HasCycle(statisticUid))
-                {
-                    // WARN: Racing condition. If a statistic simply doesn't exist, who's to say it is being
-                    //  read? The Cycle check may also need to check the registry for definitions.
-                    var statisticHandle = GetHandle(statisticUid);
-                    throw new BadModifierException(
-                        $"Modifier \'{modifier.Handle}\' expression \'{modifier.Expression}\' " +
-                        $"contains a self-referential loop to \'{statisticHandle}\' ({statisticUid.ToString()})");
-                }
-            }
-
-            // Since a modifier was added, the statistic is now "dirtied".
-            DirtyStatistic(statisticUid);
-        }
-    }
-
-    private void RebuildSortedModifiers(PackableUid statUid)
-    {
-        if (!_statUidToModifiers.TryGetValue(statUid, out var modUids))
-        {
-            _sortedModifiersPerStat.Remove(statUid);
-            return;
-        }
-
-        var sortedModifiers = new List<(PackableUid ModUid, Modifier Modifier)>(modUids.Count);
-        foreach (PackableUid uid in modUids)
-        {
-            Modifier modifier = _modifiers.Get(uid);
-            sortedModifiers.Add((uid, modifier));
-        }
-
-        // Sort based on provided step, then operator.
-        sortedModifiers.Sort((a, b) =>
-        {
-            int stepCompare = a.Modifier.Step.CompareTo(b.Modifier.Step);
-            if (stepCompare != 0)
-                return stepCompare;
-            int op = a.Modifier.Operator.CompareTo(b.Modifier.Operator);
-            return op;
-        });
-
-        _sortedModifiersPerStat[statUid] = sortedModifiers;
-    }
-
-    #endregion
-
     #region Dirtying / Cleaning
 
     /// Mark a the corresponding statistic as "dirty".
-    private void DirtyStatistic(PackableUid statisticUid)
+    private void Dirty(PackableUid statisticUid)
     {
-        lock (_statisticsThatRequireUpdates)
-        {
-            if (_statisticsThatRequireUpdates.Contains(statisticUid))
-                return; // Short-circuit. Already dirtied.
+        if (!_dirtiedStatistics.Add(statisticUid)) return; // Short-circuit. Already dirtied.
 
-            // Add to the "dirty" list.
-            _statisticsThatRequireUpdates.Add(statisticUid);
+        // Invalidate this statistic’s own modifier cache.
+        if (_statToMods.TryGetValue(statisticUid, out var modUids))
+            foreach (PackableUid modUid in modUids)
+                _modifierCache.Remove(new UidPair(statisticUid, modUid));
 
-            // Invalidate this statistic’s own modifier cache.
-            if (_statUidToModifiers.TryGetValue(statisticUid, out var modUids))
-                foreach (PackableUid modUid in modUids)
-                    _cachedModifierValues.Remove(new UidPair(statisticUid, modUid));
-
-            // Propagate to any modifier referencing this statistic.
-            if (_modifiersReferencingStatistics.TryGetValue(statisticUid, out var dependentModifiers))
-                foreach (PackableUid modUid in dependentModifiers)
-                    if (_modifierUidToParentStatisticUid.TryGetValue(modUid, out PackableUid? parentStatistic))
-                        DirtyStatistic(parentStatistic); // Recursive – the early-out above prevents infinite loops.
-        }
-    }
-
-    /// Remove a corresponding statistic from the list of statistics that actively need updates. 
-    private void CleanStatistic(PackableUid statisticUid)
-    {
-        lock (_statisticsThatRequireUpdates)
-            _statisticsThatRequireUpdates.Remove(statisticUid);
+        // Propagate to any modifier referencing this statistic.
+        if (_statReferencedBy.TryGetValue(statisticUid, out var dependentModifiers))
+            foreach (PackableUid modUid in dependentModifiers)
+                if (_modToParentStat.TryGetValue(modUid, out PackableUid? parentStatistic))
+                    Dirty(parentStatistic); // Recursive – the early-out above prevents infinite loops.
     }
 
     public void UpdateStatistic(PackableUid uid)
     {
         // Sort the modifiers.
-        RebuildSortedModifiers(uid);
-
-        CalculateStatisticValue(uid, out double value);
-        _cachedStatisticValues[uid] = value;
-
-        CleanStatistic(uid);
+        CalculateStatisticValue(uid, out double value); // TEMP HANDLE
+        _statisticCache[uid] = value;
+        _dirtiedStatistics.Remove(uid); // "Clean" statistic.
     }
 
-    public bool IsStatisticDirty(PackableUid uid) => _statisticsThatRequireUpdates.Contains(uid);
+    public bool IsDirty(PackableUid statisticUid) => _dirtiedStatistics.Contains(statisticUid);
 
     #endregion
 
@@ -293,14 +235,12 @@ public class StatisticsList : UidList<Statistic>
     /// <returns>Full value of statistic adjusted by its modifiers.</returns>
     public void CalculateStatisticValue(
         PackableUid statisticUid,
-        out double output,
-        PackableUid? parent = null,
-        HashSet<PackableUid>? visited = null)
+        out double value,
+        PackableUid? parent = null, HashSet<PackableUid>? visited = null)
     {
         // If the statistic does not require updates, utilized a cached value.
         // Statistics that are simple numbers are left as-is.
-        if (!_statisticsThatRequireUpdates.Contains(statisticUid) &&
-            _cachedStatisticValues.TryGetValue(statisticUid, out output))
+        if (!_dirtiedStatistics.Contains(statisticUid) && _statisticCache.TryGetValue(statisticUid, out value))
             return;
 
         // Force the shunting yard algorithm to crash if any statistics are self-referential. 
@@ -308,41 +248,34 @@ public class StatisticsList : UidList<Statistic>
 
         // A non-cached statistic means it isn't very cut-and-dry.
         // Sort the modifiers by step, starting from base, then by operator which roughly follows PEMDAS.
-        if (!_sortedModifiersPerStat.TryGetValue(statisticUid, out var sortedModifiers))
+        if (!_sortedMods.TryGetValue(statisticUid, out var sortedModifiers))
         {
             RebuildSortedModifiers(statisticUid);
-            sortedModifiers = _sortedModifiersPerStat[statisticUid];
+            sortedModifiers = _sortedMods[statisticUid];
         }
 
         // Afterwards the process becomes applying all the modifiers available to this statistic.
         Statistic statistic = Get(statisticUid); // Get internally-stored statistic.
-        output = statistic.BaseValue; // Start with base value and go through each of the modifiers.
-        foreach ((PackableUid, Modifier Mod) modKvp in sortedModifiers)
+        value = statistic.BaseValue; // Start with base value and go through each of the modifiers.
+        foreach ((PackableUid ModUid, Modifier Mod) modKvp in sortedModifiers)
         {
-            ApplyModifierValue(ref output, statisticUid, modKvp, parent, visited);
+            ApplyModifierValue(ref value, statisticUid, modKvp.ModUid, modKvp.Mod, parent, visited);
         }
 
         // Enforce the minimum-maximum boundaries.
-        output = Math.Clamp(output, statistic.MinValue, statistic.MaxValue);
+        value = Math.Clamp(value, statistic.MinValue, statistic.MaxValue);
     }
 
     private void ApplyModifierValue(ref double output,
-        PackableUid statUid,
-        (PackableUid Uid, Modifier Mod) modKvp,
-        PackableUid? parent,
-        HashSet<PackableUid>? visited)
+        PackableUid statUid, PackableUid modifierUid, Modifier modifier,
+        PackableUid? parent, HashSet<PackableUid>? visited)
     {
-        // Check if the modifier contains an expression. If it has an expression that is not numerical-only, then
-        //  it MUST be recalculated.
-        PackableUid modifierUid = modKvp.Uid;
-        ref Modifier modifier = ref modKvp.Mod;
-
         // Check if the modifier is cached.
         //  For each modifier and attempt to get a raw cached value.
         var key = new UidPair(statUid, modifierUid);
 
         // Check the cache.
-        if (_cachedModifierValues.TryGetValue(key, out double cachedValue))
+        if (_modifierCache.TryGetValue(key, out double cachedValue))
         {
             // Short-circuit. Cached value is nice.
             ApplyModifierStep(ref output, modifier.Operator, cachedValue);
@@ -368,71 +301,102 @@ public class StatisticsList : UidList<Statistic>
         available statistics simply being present.
          */
         double valueFromExpression = _shuntingYard.Evaluate(modifier.Expression, parent, visited);
-        _cachedModifierValues[key] = valueFromExpression; // Cache the value.
-
+        _modifierCache[key] = valueFromExpression; // Cache the value.
         ApplyModifierStep(ref output, modifier.Operator, valueFromExpression);
-        return;
+    }
 
-        void ApplyModifierStep(ref double output, ModifierOperator @operator, double @out)
+    private static void ApplyModifierStep(ref double output, ModifierOperator @operator, double operand)
+    {
+        switch (@operator)
         {
-            switch (@operator)
-            {
-                case ModifierOperator.NoOperator:
-                    // NoOp - Lmao.
-                    break;
-                case ModifierOperator.Add:
-                    output += @out;
-                    break;
-                case ModifierOperator.Subtract:
-                    output -= @out;
-                    break;
-                case ModifierOperator.Divide:
-                    output /= @out;
-                    break;
-                case ModifierOperator.Multiply:
-                    output *= @out;
-                    break;
-                case ModifierOperator.Power:
-                    output = Math.Pow(output, @out);
-                    break;
-                case ModifierOperator.Override:
-                    output = @out;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(@operator), @operator, null);
-            }
+            case ModifierOperator.NoOperator: /*NoOp - Lmao.*/ break;
+            case ModifierOperator.Add: output += operand; break;
+            case ModifierOperator.Subtract: output -= operand; break;
+            case ModifierOperator.Divide: output /= operand; break;
+            case ModifierOperator.Multiply: output *= operand; break;
+            case ModifierOperator.Power: output = Math.Pow(output, operand); break;
+            case ModifierOperator.Override: output = operand; break;
+            default: throw new ArgumentOutOfRangeException(nameof(@operator), @operator, null);
         }
     }
 
-    private void TestModifierForWeaknesses(PackableUid statisticUid, Modifier modifier)
+    private void ValidateModifierBeforeAdd(PackableUid statisticUid, Modifier modifier)
     {
-        var modifierRegistryCasted = (ModifierRegistry)_modifierRegistry;
+        var concrete = (ModifierRegistry)_modifierRegistry;
 
         // Check and ensure that the modifier exists in the registry.
-        if (!modifierRegistryCasted.Contains(modifier.Handle))
-            throw new ModifierNotFoundException($"Failed to find modifier handle \'{modifier.Handle}\' in registry. " +
-                                                $"Did you forget to add it to the Modifier Registry?");
+        if (!concrete.Contains(modifier.Handle))
+            throw new ModifierNotFoundException($"Modifier '{modifier.Handle}' not in registry.");
 
         // Early stacking check.
-        if (_statUidToModifiers.TryGetValue(statisticUid, out var existingModUids))
-        {
-            bool alreadyHasThisModifier = existingModUids.Any(modUid =>
-                _modifiers.GetHandle(modUid)?.Equals(modifier.Handle, StringComparison.Ordinal) == true);
-
-            // Use the concrete registry or better yet, expose CanStack properly.
-            if (alreadyHasThisModifier && !modifierRegistryCasted.CanStack(modifier.Handle))
-                throw new ModifierCannotStackException(
-                    $"Modifier \'{modifier.Handle}\' cannot stack to statistic ({statisticUid})!");
-        }
+        if (_statToMods.TryGetValue(statisticUid, out var existing) &&
+            existing.Any(u => _modifiers.GetHandle(u) == modifier.Handle) &&
+            !concrete.CanStack(modifier.Handle))
+            throw new ModifierCannotStackException(
+                $"Modifier '{modifier.Handle}' cannot stack on statistic {statisticUid}.");
 
         // The expression is empty.
-        if (string.IsNullOrEmpty(modifier.Expression))
+        if (string.IsNullOrWhiteSpace(modifier.Expression))
             throw new BadModifierException($"Modifier \'{modifier.Handle}\' has a blank expression!");
 
         // If the expression doesn't have text, it might still be usable.
-        if (!ExpressionContainsText(modifier.Expression) && !double.TryParse(modifier.Expression, out double _))
+        if (!ContainsText(modifier.Expression) && !double.TryParse(modifier.Expression, out double _))
             throw new BadModifierException(
                 $"Modifier \'{modifier.Handle}\' has an invalid expression \'{modifier.Expression}\'!");
+
+        // Cycle check *before* permanently adding anything
+        if (ContainsText(modifier.Expression) && WouldCreateCycle(statisticUid, modifier.Expression))
+            throw new BadModifierException(
+                $"Modifier '{modifier.Handle}' would create a cycle with statistic {statisticUid}.");
+    }
+
+    private bool WouldCreateCycle(PackableUid ownerStat, string expression)
+    {
+        var owner = GetOwner(ownerStat);
+        var deps = GetDependenciesFromExpression(expression, owner).ToList();
+
+        // Temporary edge: ownerStat → each dependency
+        // We only need to check whether any dep can already reach ownerStat
+        var visited = new HashSet<PackableUid>();
+        var stack = new HashSet<PackableUid>();
+
+        foreach (var d in deps)
+            if (HasPath(d, ownerStat, visited, stack))
+                return true;
+        return false;
+    }
+
+    private bool HasPath(PackableUid from, PackableUid target,
+        HashSet<PackableUid> visited, HashSet<PackableUid> stack)
+    {
+        if (!visited.Add(from)) return stack.Contains(from);
+        if (Equals(from, target)) return true;
+
+        stack.Add(from);
+        foreach (var next in GetDependencies(from))
+            if (HasPath(next, target, visited, stack))
+                return true;
+        stack.Remove(from);
+        return false;
+    }
+
+    private IEnumerable<PackableUid> GetDependencies(PackableUid statisticUid)
+    {
+        if (!_statToMods.TryGetValue(statisticUid, out var modUids))
+            yield break;
+
+        PackableUid owner = GetOwner(statisticUid);
+        foreach (PackableUid modUid in modUids)
+        foreach (string identifier in EnumerateIdentifiers(_modifiers.Get(modUid).Expression))
+            if (TryResolve(identifier, owner, out PackableUid? dependentUid))
+                yield return dependentUid;
+    }
+
+    private IEnumerable<PackableUid> GetDependenciesFromExpression(string expr, PackableUid owner)
+    {
+        foreach (var id in EnumerateIdentifiers(expr))
+            if (TryResolve(id, owner, out var uid))
+                yield return uid;
     }
 
     private static List<string> EnumerateIdentifiers(string expression)
@@ -464,49 +428,88 @@ public class StatisticsList : UidList<Statistic>
         return identifiers;
     }
 
-    private bool ExpressionContainsText(string expression) => Regex.IsMatch(expression, "[a-zA-Z]+");
+    private static bool ContainsText(string expression) => Regex.IsMatch(expression, "[a-zA-Z]+");
 
     #endregion
 
-
     #region Statistic and Modifier Removal
+
+    /// <summary>
+    /// Removes the first (or owner-scoped) statistic that matches the handle.
+    /// Returns true if something was removed.
+    /// </summary>
+    public bool RemoveStatistic(string handle, PackableUid? owner = null)
+    {
+        PackableUid? uid = GetStatistic(handle, owner);
+        if (uid is null) return false;
+        Destroy(uid);
+        return true;
+    }
 
     public override void Destroy(PackableUid statisticUid)
     {
-        // Clear internal storage.
-        _statisticsThatRequireUpdates.Remove(statisticUid);
-
-        // WIP: Clean up the remaining lists one by one.
-
         // Clean up modifiers.
-        if (_statUidToModifiers.TryGetValue(statisticUid, out var modUids))
+        if (_statToMods.TryGetValue(statisticUid, out var modUids))
         {
-            foreach (PackableUid modUid in modUids)
-                DestroyModifier(modUid);
-
-            _statUidToModifiers.Remove(statisticUid);
+            foreach (PackableUid modUid in modUids) DestroyModifier(modUid);
+            _statToMods.Remove(statisticUid);
         }
 
-        // Clean this statistic from history itself. Ownership is handled internally. Begone!
+        // Remove the statistic from all work.
+        _dirtiedStatistics.Remove(statisticUid);
+        _sortedMods.Remove(statisticUid);
+        _statisticCache.Remove(statisticUid);
+        _dirtiedStatistics.Remove(statisticUid);
         base.Destroy(statisticUid);
-        RebuildSortedModifiers(statisticUid);
+    }
+
+    /// <summary>
+    /// Removes every modifier with the given handle that belongs to the given statistic.
+    /// Returns the number of modifiers removed.
+    /// </summary>
+    public int RemoveModifier(string modifierHandle, PackableUid statisticUid)
+    {
+        if (!_statToMods.TryGetValue(statisticUid, out var modUids))
+            return 0;
+
+        var toRemove = modUids
+            .Where(uid => _modifiers.GetHandle(uid)?.Equals(modifierHandle, StringComparison.Ordinal) == true)
+            .ToList();
+
+        foreach (PackableUid uid in toRemove)
+            DestroyModifier(uid);
+
+        return toRemove.Count;
+    }
+
+    /// <summary>
+    /// Convenience: remove a modifier by handle from a statistic identified by handle.
+    /// </summary>
+    public int RemoveModifier(string modHandle, string statHandle, PackableUid? owner = null)
+    {
+        PackableUid? statisticGuid = GetStatistic(statHandle, owner);
+        return statisticGuid is null ? 0 : RemoveModifier(modHandle, statisticGuid);
     }
 
     /// Destroy / Removal intermediate function needs an override for when a UID becomes invalid.
     public void DestroyModifier(PackableUid modifierUid)
     {
-        PackableUid statisticUid = _modifierUidToParentStatisticUid[modifierUid];
+        if (!_modToParentStat.TryGetValue(modifierUid, out var parent))
+            return;
+
+        PackableUid statisticUid = _modToParentStat[modifierUid];
 
         // Remove this modifier from every reverse set
-        foreach (var statisticReferences in _modifiersReferencingStatistics.Values)
+        foreach (var statisticReferences in _statReferencedBy.Values)
             statisticReferences.Remove(modifierUid);
 
-        _modifierUidToParentStatisticUid.Remove(modifierUid);
-        _cachedModifierValues.Remove(new UidPair(statisticUid, modifierUid));
+        _modToParentStat.Remove(modifierUid);
+        _modifierCache.Remove(new UidPair(statisticUid, modifierUid));
+        _statToMods[parent].Remove(modifierUid);
         _modifiers.Destroy(modifierUid);
 
         RebuildSortedModifiers(statisticUid);
-        DirtyStatistic(statisticUid);
+        Dirty(statisticUid);
     }
 
     #endregion
@@ -521,9 +524,9 @@ public class StatisticsList : UidList<Statistic>
         _modifiers.Replace(replacement, modifierUid);
 
         // Get owner of this modifier Uid and mark that it requires an update.
-        PackableUid parentStatisticUid = _modifierUidToParentStatisticUid[modifierUid];
-        if (!IsStatisticDirty(parentStatisticUid))
-            DirtyStatistic(parentStatisticUid);
+        PackableUid parentStatisticUid = _modToParentStat[modifierUid];
+        if (!IsDirty(parentStatisticUid))
+            Dirty(parentStatisticUid);
     }
 
     #endregion
@@ -531,7 +534,7 @@ public class StatisticsList : UidList<Statistic>
     public override void Update(GameTime gameTime)
     {
         // Updates then cleans.
-        foreach (PackableUid statistic in _statisticsThatRequireUpdates.ToList())
+        foreach (PackableUid statistic in _dirtiedStatistics.ToList())
             UpdateStatistic(statistic);
     }
 
@@ -551,18 +554,6 @@ public class StatisticsList : UidList<Statistic>
 
         recursionStack.Remove(statistic);
         return false;
-    }
-
-    private IEnumerable<PackableUid> GetDependencies(PackableUid statisticUid)
-    {
-        if (!_statUidToModifiers.TryGetValue(statisticUid, out var modUids))
-            yield break;
-
-        PackableUid owner = GetOwner(statisticUid);
-        foreach (PackableUid modUid in modUids)
-        foreach (string identifier in EnumerateIdentifiers(_modifiers.Get(modUid).Expression))
-            if (TryResolve(identifier, owner, out PackableUid? dependentUid))
-                yield return dependentUid;
     }
 
     #endregion
