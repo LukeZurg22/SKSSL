@@ -56,8 +56,7 @@ public class StatisticsList : UidList<Statistic>
 
     // MODIFIER -> STATISTIC REFERENCES
     /// <summary>
-    /// For reverse-tracing of modifiers to statistic references. If a statistic is changed, a modifier referencing
-    /// that statistic is changed which will call for the dirtying of its parent.
+    /// Modifier UIDs bound to the list of statistics their expressions reference. // TEMP: May not be needed?
     /// </summary>
     private readonly Dictionary<PackableUid, HashSet<PackableUid>> _modifiersReferencingStatistics = [];
 
@@ -143,7 +142,7 @@ public class StatisticsList : UidList<Statistic>
             _statUidToModifiers[uid] = [];
 
         // Add all of the referenced modifiers to storage.
-        foreach (var modifierHandle in statistic.Modifiers) AddModifier(uid, modifierHandle, owner);
+        foreach (var modifierHandle in statistic.Modifiers) AddModifier(uid, modifierHandle);
 
         // Regardless of modifiers, a statistic on-add will be called for an update at least once.
         DirtyStatistic(uid);
@@ -154,7 +153,7 @@ public class StatisticsList : UidList<Statistic>
 
     #region Adding Modifiers
 
-    public void AddModifier(PackableUid statisticUid, string modifierHandle, PackableUid owner)
+    public void AddModifier(PackableUid statisticUid, string modifierHandle)
     {
         // Since it exists, it is assumed that it can be cloned as modifiers implement ICloneable<T> by default.
         Modifier modifier = _modifierRegistry.Clone(modifierHandle);
@@ -188,6 +187,23 @@ public class StatisticsList : UidList<Statistic>
             _modifierUidToParentStatisticUid[modifierUid] = statisticUid;
 
             RebuildSortedModifiers(statisticUid);
+
+            // WIP: Populate _modifiersReferencingStatistics.
+
+            // Check the expression. Does it parse into a number as text? If not, then that's bad.
+            if (ExpressionContainsText(modifier.Expression))
+            {
+                // If the expression doesn't loop, what more can one ask for?
+                if (HasCycle(statisticUid))
+                {
+                    // WARN: Racing condition. If a statistic simply doesn't exist, who's to say it is being
+                    //  read? The Cycle check may also need to check the registry for definitions.
+                    var statisticHandle = GetHandle(statisticUid);
+                    throw new BadModifierException(
+                        $"Modifier \'{modifier.Handle}\' expression \'{modifier.Expression}\' " +
+                        $"contains a self-referential loop to \'{statisticHandle}\' ({statisticUid.ToString()})");
+                }
+            }
 
             // Since a modifier was added, the statistic is now "dirtied".
             DirtyStatistic(statisticUid);
@@ -352,6 +368,8 @@ public class StatisticsList : UidList<Statistic>
         available statistics simply being present.
          */
         double valueFromExpression = _shuntingYard.Evaluate(modifier.Expression, parent, visited);
+        _cachedModifierValues[key] = valueFromExpression; // Cache the value.
+
         ApplyModifierStep(ref output, modifier.Operator, valueFromExpression);
         return;
 
@@ -411,24 +429,8 @@ public class StatisticsList : UidList<Statistic>
         if (string.IsNullOrEmpty(modifier.Expression))
             throw new BadModifierException($"Modifier \'{modifier.Handle}\' has a blank expression!");
 
-        // Check the expression. Does it parse into a number as text? If not, then that's bad.
-        if (ExpressionContainsText(modifier.Expression))
-        {
-            // WIP: Check for looping.
-
-            var statisticHandle = GetHandle(statisticUid);
-            var variables = EnumerateIdentifiers(modifier.Expression);
-            foreach (var variable in variables)
-            {
-                // Ensure that this particular variable has no references to the current variable.
-                if (variable.Equals(statisticHandle))
-                    throw new BadModifierException(
-                        $"Modifier \'{modifier.Handle}\' expression \'{modifier.Expression}\' " +
-                        $"contains a self-referential loop to \'{statisticHandle}\' ({statisticUid.ToString()})");
-            }
-        }
         // If the expression doesn't have text, it might still be usable.
-        else if (!double.TryParse(modifier.Expression, out double _))
+        if (!ExpressionContainsText(modifier.Expression) && !double.TryParse(modifier.Expression, out double _))
             throw new BadModifierException(
                 $"Modifier \'{modifier.Handle}\' has an invalid expression \'{modifier.Expression}\'!");
     }
@@ -480,11 +482,7 @@ public class StatisticsList : UidList<Statistic>
         if (_statUidToModifiers.TryGetValue(statisticUid, out var modUids))
         {
             foreach (PackableUid modUid in modUids)
-            {
-                _modifierUidToParentStatisticUid.Remove(modUid);
-                _cachedModifierValues.Remove(new UidPair(statisticUid, modUid));
-                _modifiers.Destroy(modUid);
-            }
+                DestroyModifier(modUid);
 
             _statUidToModifiers.Remove(statisticUid);
         }
@@ -495,13 +493,13 @@ public class StatisticsList : UidList<Statistic>
     }
 
     /// Destroy / Removal intermediate function needs an override for when a UID becomes invalid.
-    public void DestroyModifier(PackableUid statisticUid, PackableUid modifierUid)
+    public void DestroyModifier(PackableUid modifierUid)
     {
-        if (!_statUidToModifiers.TryGetValue(statisticUid, out var modifiers) ||
-            !modifiers.Remove(modifierUid))
-            return;
+        PackableUid statisticUid = _modifierUidToParentStatisticUid[modifierUid];
 
-        // TODO: Walk through the modifier's expression and recursively destroy references, if any.
+        // Remove this modifier from every reverse set
+        foreach (var statisticReferences in _modifiersReferencingStatistics.Values)
+            statisticReferences.Remove(modifierUid);
 
         _modifierUidToParentStatisticUid.Remove(modifierUid);
         _cachedModifierValues.Remove(new UidPair(statisticUid, modifierUid));
@@ -560,21 +558,11 @@ public class StatisticsList : UidList<Statistic>
         if (!_statUidToModifiers.TryGetValue(statisticUid, out var modUids))
             yield break;
 
-        // Resolve handle -> UID under the same owner, or global.
+        PackableUid owner = GetOwner(statisticUid);
         foreach (PackableUid modUid in modUids)
         foreach (string identifier in EnumerateIdentifiers(_modifiers.Get(modUid).Expression))
-        {
-            PackableUid owner = GetOwner(statisticUid);
-
-            // Resolve a handle using a provide downer, outputting a uid of a dependant.
             if (TryResolve(identifier, owner, out PackableUid? dependentUid))
-            {
-                if (!_modifiersReferencingStatistics.TryGetValue(modUid, out var modifierIsReferencing))
-                    _modifiersReferencingStatistics[modUid] = modifierIsReferencing = [];
-                modifierIsReferencing.Add(dependentUid);
                 yield return dependentUid;
-            }
-        }
     }
 
     #endregion
