@@ -84,7 +84,7 @@ public class PrototypeGenerator : IIncrementalGenerator
         sb.AppendLine("            // Wipe any pre-existing prototype / entity definitions.");
         sb.AppendLine("            SKSSL.ECS.Registry.MasterRegistryManager.Clear();");
         // Accommodating base-entity type, which can exist out in the wild. Base-prototype, however, cannot!
-        sb.AppendLine($"            SKSSL.ECS.Registry.MasterRegistryManager.RegisterTypeDefinition(\"Entity\", typeof(global::SKSSL.ECS.Entity));");
+        sb.AppendLine("            SKSSL.ECS.Registry.MasterRegistryManager.RegisterTypeDefinition(\"Entity\", typeof(global::SKSSL.ECS.Entity));");
         foreach (INamedTypeSymbol? proto in prototypes)
         {
             var fullName = proto.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -100,7 +100,6 @@ public class PrototypeGenerator : IIncrementalGenerator
         return sb;
         //@formatter:on
     }
-    
 
     private static INamedTypeSymbol? FindPrototypeInCompilation(Compilation compilation)
     {

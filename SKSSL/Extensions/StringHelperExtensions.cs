@@ -13,46 +13,6 @@ namespace SKSSL.Extensions;
 public static class StringHelpers
 {
     /// <summary>
-    /// Determines if a provided string expression contains an adequate number of brackets of any kind.
-    /// </summary>
-    [Pure]
-    public static bool EvaluateDelimiters(string expression)
-    {
-        var stack = new Stack<char>();
-        foreach (char c in expression)
-        {
-            if (!c.IsBracket())
-                continue;
-
-            switch (c)
-            {
-                case '(':
-                case '[':
-                case '{':
-                    stack.Push(c);
-                    break;
-
-                case ')':
-                    if (stack.Count == 0 || stack.Pop() != '(')
-                        return false;
-                    break;
-
-                case ']':
-                    if (stack.Count == 0 || stack.Pop() != '[')
-                        return false;
-                    break;
-
-                case '}':
-                    if (stack.Count == 0 || stack.Pop() != '{')
-                        return false;
-                    break;
-            }
-        }
-
-        return stack.Count == 0;
-    }
-    
-    /// <summary>
     /// Removes "..._&lt;value&gt;" from the end of a string value.
     /// </summary>
     /// <returns>Provided string value with any endings removed.</returns>

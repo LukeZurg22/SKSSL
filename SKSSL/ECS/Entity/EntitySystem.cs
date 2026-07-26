@@ -68,9 +68,11 @@ public abstract class EntitySystem
     {
     }
 
-    protected static void SubscribeEvent<E>(Action<EntityUid, E> handler) where E : EntityEvent =>
+    protected static void SubscribeEvent<E>(Action<EntityUid, E> handler) where E : struct, IEntityEvent
+    {
         Events.Subscribe(handler);
+    }
 
-    protected static void RaiseEvent<E>(EntityUid uid, E @event) where E : EntityEvent =>
+    protected static void RaiseEvent<E>(EntityUid uid, E @event) where E : struct, IEntityEvent =>
         Events.Raise(uid, @event);
 }

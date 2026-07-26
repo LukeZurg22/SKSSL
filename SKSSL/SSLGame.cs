@@ -170,7 +170,7 @@ public abstract class SSLGame : Game
         Log($"Loading {Directories.Count} Game Directories.");
         foreach (GameDirectory directory in Directories)
         {
-            LoadGameDirectories(directory);
+            LoadGameDirectory(directory);
             string directoryTitle = directory.DirectoryTitle;
             if (string.IsNullOrEmpty(directoryTitle))
                 directoryTitle = "root";
@@ -185,7 +185,7 @@ public abstract class SSLGame : Game
     ///  == Textures & Materials
     ///  == Prototypes (check ECS I guess?)
     ///  Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
-    private static void LoadGameDirectories(GameDirectory directory)
+    private static void LoadGameDirectory(GameDirectory directory)
     {
         // Assuming there are defined directories to begin with...
         // Localization.
@@ -243,6 +243,7 @@ public abstract class SSLGame : Game
             if (settings.Any(d => d.Path.Contains("root")))
             {
                 LoadPath rootPath = settings.First(d => d.Path.Contains("root"));
+
                 modifiedSettings.Remove(rootPath);
                 // Add root path as "officially" accepted path if provided in list. It has its own load-order!
                 contentDirectories.Add("", rootPath.Order);
@@ -251,10 +252,12 @@ public abstract class SSLGame : Game
             // Ensure that duplicates are not added!
             foreach (LoadPath gamePath in modifiedSettings)
             {
+                // Game paths set to -1 are ignored.
+                if (gamePath.Order == -1)
+                    continue;
+
                 if (!contentDirectories.Any(d => d.DirectoryTitle.Equals(gamePath.Path)))
-                {
                     contentDirectories.Add(gamePath.Path, gamePath.Order);
-                }
             }
         }
 
@@ -299,7 +302,7 @@ public abstract class SSLGame : Game
     {
         int monitorWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
         int monitorHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
-        
+
         // Assign settings to heights and etc.
         if (settings.Width != -1)
             monitorWidth = settings.Width;

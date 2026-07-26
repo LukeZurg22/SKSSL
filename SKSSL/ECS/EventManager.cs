@@ -13,7 +13,7 @@ public class EventHandler
 {
     private readonly Dictionary<Type, List<Delegate>> _handlers = new();
 
-    public void Subscribe<T>(Action<EntityUid, T> handler) where T : EntityEvent
+    public void Subscribe<T>(Action<EntityUid, T> handler) where T : struct, IEntityEvent
     {
         Type type = typeof(T);
         if (!_handlers.TryGetValue(type, out var list))
@@ -27,15 +27,13 @@ public class EventHandler
 
     public void Subscribe<TComp, TEvent>(
         Func<EntityUid, bool> hasComponent, Action<EntityUid, TEvent> handler)
-        where TEvent : EntityEvent
-    {
+        where TEvent : struct, IEntityEvent =>
         Subscribe<TEvent>((uid, ev) =>
         {
             if (hasComponent(uid)) handler(uid, ev);
         });
-    }
 
-    public void Raise<T>(EntityUid entityId, T @event) where T : EntityEvent
+    public void Raise<T>(EntityUid entityId, T @event) where T : struct, IEntityEvent
     {
         Type type = typeof(T);
 
@@ -45,9 +43,11 @@ public class EventHandler
         foreach (Delegate handler in list)
         {
             ((Action<EntityUid, T>)handler)(entityId, @event);
-            
+
             // STOP if cancelled
-            if (@event is CancellableEvent cancellableEvent && cancellableEvent.Cancelled)
+            // ReSharper disable once SuspiciousTypeConversion.Global // Suspicious Type Check disabled here as
+            //  developer implement for custom events may inherit ICancellableEvent.
+            if (@event is ICancellableEvent cancellableEvent && cancellableEvent.Cancelled)
                 break;
         }
     }

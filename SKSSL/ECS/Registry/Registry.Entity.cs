@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using SKSSL.Extensions;
 
 // ReSharper disable UnusedType.Global
+// ReSharper disable once ClassNeverInstantiated.Global
 
 namespace SKSSL.ECS.Registry;
 
@@ -18,10 +19,10 @@ public sealed class EntityRegistry : Registry<Entity>
     /// Note that this does NOT indicate active entities in a world! Only registered definitions from file loading!
     public readonly Dictionary<string, Entity> ResolvedGameEntityDefinitions = [];
 
-    public override object? Register(string handle, Entity obj)
+    public override object Register(string handle, Entity obj)
     {
         // Register prototype as part of RegistryEntries "raw" list, rather than make a new list.
-        base.Register(handle, obj);
+        var @object = base.Register(handle, obj);
 
         // If a provided object's handle is already contained, then it is reasonable to assume that the existing one-
         //  -WILL be overwritten!
@@ -32,7 +33,7 @@ public sealed class EntityRegistry : Registry<Entity>
         foreach (var entityType in RegistryEntries.Keys)
             GetResolvedPrototype(entityType);
 
-        return null;
+        return @object;
     }
 
     /// Only count the resolved game entities. Raw ones will not suffice.
@@ -82,7 +83,7 @@ public sealed class EntityRegistry : Registry<Entity>
         }
 
         //@formatter:off
-        if (current.Inherit.Length > 0)
+        if (current.Inherit.Length > 0) 
         foreach (var inherit in current.Inherit)
         {
             Entity? baseProto = GetResolvedPrototype(inherit);

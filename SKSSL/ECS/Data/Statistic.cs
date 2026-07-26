@@ -1,82 +1,35 @@
-
-// ReSharper disable UnusedAutoPropertyAccessor.Global
-// ReSharper disable UnusedMember.Global
+using System.Collections.Generic;
+using System.Linq;
+using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;
 
-/// <summary>
-/// A proper value-centric statistic.
-/// </summary>
-public readonly struct Statistic
+/// (De)serializable Statistic object.
+[YamlSerializable]
+public class Statistic : Prototype, ICloneable<Statistic>
 {
-    /// <summary>
-    /// Creates a view over a statistic spread across multiple arrays
-    /// </summary>
-    public Statistic(
-        string name,
-        double baseValue,
-        double currentValue,
-        double minValue,
-        double maxValue,
-        StatisticModifier[] modifiers)
+    // ->+ Handle ID    
+    [YamlMember(Alias = "name")] public string NameKey = string.Empty;
+    [YamlMember(Alias = "description")] public string DescriptionKey = string.Empty;
+    [YamlMember(Alias = "initial")] public double BaseValue = 0;
+    [YamlMember(Alias = "minimum")] public double MinValue = double.MinValue;
+    [YamlMember(Alias = "maximum")] public double MaxValue = double.MaxValue;
+
+    /// List of modifier IDs.
+    [YamlMember(Alias = "modifiers")] public List<string> Modifiers = [];
+
+    public Statistic Clone()
     {
-        Name = name;
-        BaseValue = baseValue;
-        CurrentValue = currentValue;
-        MinValue = minValue;
-        MaxValue = maxValue;
-        Modifiers = modifiers;
-    }
-
-    #region Fields
-
-    public string Name { get; init; }
-    public string Description { get; init; }
-    public double BaseValue { get; init; }
-    public double CurrentValue { get; init; }
-    public double MinValue { get; init; }
-    public double MaxValue { get; init; }
-
-    /// Modifier data (can be a separate array of structs or multiple arrays)
-    public readonly StatisticModifier[] Modifiers { get; init; }
-
-    #endregion
-
-    /// <summary>
-    /// Recalculate CurrentValue from Base + Modifiers
-    /// </summary>
-    public void Recalculate()
-    {
-        // WIP: Doing this.
-        double value = BaseValue;
-
-        /*// Handle = (set) modifiers (last one wins)
-        StatisticModifier setMod = Modifiers.Last();
-        if (true)
+        var clone = new Statistic
         {
-            value = setMod.ModifierText;
-        }
-        else
-        {
-            double additive = 0;
-            double multiplier = 1;
-
-            foreach (StatisticModifier mod in Modifiers)
-            {
-                switch (mod.Operator)
-                {
-                    case ModifierOperator.Additive:
-                        additive += mod.ModifierText;
-                        break;
-                    case ModifierOperator.Multiplicative:
-                        multiplier *= mod.ModifierText;
-                        break;
-                }
-            }
-
-            value = (value + additive) * multiplier;
-        }*/
-
-        //CurrentValue = Math.Clamp(value, MinValue, MaxValue);
+            NameKey = NameKey,
+            DescriptionKey = DescriptionKey,
+            BaseValue = BaseValue,
+            MinValue = MinValue,
+            MaxValue = MaxValue,
+            Modifiers = Modifiers.ToList(),
+        };
+        clone.CopyFrom(this);
+        return clone;
     }
 }

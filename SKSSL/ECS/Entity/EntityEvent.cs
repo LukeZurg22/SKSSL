@@ -1,20 +1,11 @@
-// ReSharper disable UnusedMember.Global
-
 namespace SKSSL.ECS;
 
-public class EntityEvent;
+public interface IEntityEvent;
 
-public class CancellableEvent : EntityEvent
+public interface ICancellableEvent : IEntityEvent
 {
-    public bool Cancelled { get; private set; }
+    public bool Cancelled { get; set; }
+
+    // ReSharper disable once UnusedMember.Global
     public void Cancel() => Cancelled = true;
-
-    public CancellableEvent()
-    {
-    }
-
-    public CancellableEvent(bool cancelled)
-    {
-        Cancelled = cancelled;
-    }
 }

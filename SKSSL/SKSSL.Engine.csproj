@@ -152,8 +152,29 @@
         <Compile Update="Meta\LoadPath.cs">
             <DependentUpon>GameSettings.cs</DependentUpon>
         </Compile>
-        <Compile Update="ECS\Component\Default\SpriteLayer.cs">
-          <DependentUpon>SpriteComponents.cs</DependentUpon>
+        <Compile Update="ECS\Data\ModifierOperator.cs">
+          <DependentUpon>Modifier.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Data\ModifierStep.cs">
+          <DependentUpon>Modifier.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Component\MeshComponent.cs">
+          <DependentUpon>Component.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Component\SpriteComponents.cs">
+          <DependentUpon>Component.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Component\Transform2DComponent.cs">
+          <DependentUpon>Component.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Component\Transform3DComponent.cs">
+          <DependentUpon>Component.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Component\AnimatedSpriteComponent.cs">
+          <DependentUpon>Component.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Component\StatisticsComponent.cs">
+          <DependentUpon>Component.cs</DependentUpon>
         </Compile>
     </ItemGroup>
 

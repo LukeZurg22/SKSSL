@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 
-// ReSharper disable UnusedMember.Global
-
 namespace SKSSL.ECS.Registry;
 
 /// <summary>
@@ -30,7 +28,7 @@ public abstract class MasterRegistryManager
     [UsedImplicitly]
     public static Dictionary<Type, Registry> Registries { get; } = new();
 
-    public static IReadOnlyList<Type> RegisteredGameProtoTypes => TypeDefinitions.Values.ToList().AsReadOnly();
+    public static IReadOnlyList<Type> RegisteredGameRegistryTypes => TypeDefinitions.Values.ToList().AsReadOnly();
 
     /// Registers a sanitized type handle to a definitions dictionary, and populates the Type to Registry
     /// dictionary. /// Called directly from Source Generator.
@@ -90,15 +88,32 @@ public abstract class MasterRegistryManager
     /// </remarks>
     public static bool TryRegisterPrototype(string typeName, Prototype prototype)
     {
-        bool has = TypeDefinitions.TryGetValue(typeName, out Type? type);
-        if (!has) return false;
+        if (!TypeDefinitions.TryGetValue(typeName, out Type? type))
+            return false;
 
-        // For O(1) retrieval. Register handle with unique ref.
-        PrototypeHandleToType[prototype.GetFullHandle()] = type!;
+        switch (prototype.Replace)
+        {
+            // For O(1) retrieval. Register handle with unique ref.
+            case null:
+                PrototypeHandleToType[prototype.GetFullHandle()] = type;
+                break;
+            // If replace is assigned, then attempt to replace the original prototype handle.
+            default:
+            {
+                var replaceHandle = prototype.GetFullHandle(prototype.Replace);
+                if (PrototypeHandleToType.ContainsKey(replaceHandle))
+                    PrototypeHandleToType[replaceHandle] = type;
+                else
+                    // If the original handle that is being attempted to be replaced doesn't exist... uh oh!
+                    Log($"{prototype.GetFullHandle()} attempted to replace {replaceHandle} which does not exist.",
+                        LOG.FILE_ERROR);
+                break;
+            }
+        }
 
         // Because type is explicitly provided, assume it's 100% valid. 
-        Registries[type!].Register(prototype.Handle, prototype);
-        return has;
+        Registries[type].Register(prototype.Handle, prototype);
+        return true;
     }
 
     #endregion
@@ -140,17 +155,6 @@ public abstract class MasterRegistryManager
 
         return RawPrototypeRegistry.Instance;
     }
-
-    /// <summary>
-    /// Dangerous Generic-Typed call and cast for GetRegistry.
-    /// </summary>
-    /// <typeparam name="T">Expected Type that a registry contains / handles.</typeparam>
-    /// <returns>Registry of casted type.</returns>
-    /// <exception cref="InvalidCastException">
-    /// Thrown if expected type T does not have a registry.
-    /// This usually is the fault of the user, or the Source Generators.
-    /// </exception>
-    public static Registry<T> GetRegistry<T>() where T : class, new() => (GetRegistry(typeof(T)) as Registry<T>)!;
 
     /// <summary>
     /// Hyper-specific overload for GetRegistry for when you know precisely what registry class derivative, and what

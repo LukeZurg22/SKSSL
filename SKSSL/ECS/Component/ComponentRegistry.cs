@@ -4,12 +4,16 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading;
+using JetBrains.Annotations;
 using Type = System.Type; // For reflection purposes.
 
 namespace SKSSL.ECS;
 
+/// Iterable array of components.
+public class ComponentIterArray<T> : IterArray<T> where T : Component;
+
 /// Central registry that creates, handles, gets, an deletes components.
-public class ComponentRegistry
+public class ComponentRegistry(EntityManager EntityManager)
 {
     #region Fast Component Creation
 
@@ -27,7 +31,7 @@ public class ComponentRegistry
         ConstructorInfo? ctor = type.GetConstructor(Type.EmptyTypes);
         if (ctor != null)
         {
-            // Fast path: compile expression tree once
+            // Fast path: compile expression tree once.
             NewExpression newExpr = Expression.New(ctor);
             var lambda = Expression.Lambda<Func<Component>>(newExpr);
             newCreator = lambda.Compile();
@@ -42,7 +46,6 @@ public class ComponentRegistry
 
         // Cache for next time (thread-safe enough)
         _creators[type] = newCreator;
-
         return newCreator();
     }
 
@@ -61,11 +64,14 @@ public class ComponentRegistry
     /// Internal Array Value = slot in ComponentArray&lt;T&gt; (-1 if missing)
     /// <br/><br/>
     /// For every index, there is a unique component type.
-    /// <seealso cref="IterArray{T}"/>
+    /// <seealso cref="ComponentIterArray{T}"/>
     /// </summary>
-    private readonly Dictionary<uint, int[]> _entityUIDToComponentIndices = new();
+    private readonly ConcurrentDictionary<ulong, int[]> _entityUIDToComponentIndices = new();
 
-    internal void PrepareEntityComponentStorage(uint entityUid)
+    private static readonly Lock _registrationLock = new();
+
+    /// Creates a blank, fresh component array for provided entity Uid.
+    internal void PrepareEntityComponentStorage(EntityUid entityUid)
     {
         // Make component indices storage.
         var arr = new int[Count];
@@ -73,7 +79,9 @@ public class ComponentRegistry
         _entityUIDToComponentIndices[entityUid] = arr;
     }
     
+
     /// Called by Source Generator.
+    [UsedImplicitly]
     public static void Clear()
     {
         _typeToId.Clear();
@@ -133,8 +141,8 @@ public class ComponentRegistry
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    private IterArray<T> GetOrCreateComponentArray<T>() where T : Component
-        => (IterArray<T>)GetOrCreateComponentArray(typeof(T));
+    private ComponentIterArray<T> GetOrCreateComponentArray<T>() where T : Component
+        => (ComponentIterArray<T>)GetOrCreateComponentArray(typeof(T));
 
     /// <summary>
     /// Gets or creates the ComponentArray&lt;T&gt; for the given component type.
@@ -149,7 +157,7 @@ public class ComponentRegistry
         static object CreateComponentArray(Type t)
         {
             // Build ComponentArray<componentType>
-            Type arrayType = typeof(IterArray<>).MakeGenericType(t);
+            Type arrayType = typeof(ComponentIterArray<>).MakeGenericType(t);
 
             // Call the public parameterless constructor
             return Activator.CreateInstance(arrayType)
@@ -157,21 +165,18 @@ public class ComponentRegistry
         }
     }
 
-    /// <param name="array"><see cref="IterArray{T}"/> of Active components.</param>
+    /// <param name="array"><see cref="ComponentIterArray{T}"/> of Active components.</param>
     /// <param name="index">Index of component provided by an <see cref="Entity"/> up the chain.</param>
     /// <returns>
-    /// Gets a component using a <see cref="IterArray{T}"/> and provided index of the component's position
+    /// Gets a component using a <see cref="ComponentIterArray{T}"/> and provided index of the component's position
     /// within the array.
     /// </returns>
-    private static Component? GetComponentAt(object array, int index)
+    private static ref Component GetComponentAt(object array, int index)
     {
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(index);
-        return ((IterArray)array)[index] as Component;
+        return ref ((ComponentIterArray<Component>)array)[index];
     }
-
-    internal static ref T GetComponentAt<T>(IterArray<T> array, int index) where T : Component
-        => ref array.GetRefAt<T>(index);
 
     /// <returns>ID of component defined in type dictionary, or -1.</returns>
     /// <exception cref="ArgumentException">Provided type not present in dictionary.</exception>
@@ -213,15 +218,22 @@ public class ComponentRegistry
         if (_typeToId.TryGetValue(type, out int id))
             return id;
 
-        id = Interlocked.Increment(ref _nextTypeId) - 1;
-        // For reverse-checking in entities.
-        _typeToId[type] = id;
-        // For entity ID lists to types.
-        _idToType[id] = type;
-        // For deserializing entities. Renames TestComponent -> Test for deserialization reasons.
-        _registeredComponents[handle] = type;
+        lock (_registrationLock)
+        {
+            if (_typeToId.TryGetValue(type, out id))
+                return id;
 
-        return id;
+            // For reverse-checking in entities.
+            id = Interlocked.Increment(ref _nextTypeId) - 1;
+            _typeToId[type] = id;
+            
+            // For entity ID lists to types.
+            _idToType[id] = type;
+            
+            // For deserializing entities. Renames TestComponent -> Test for deserialization reasons.
+            _registeredComponents[handle] = type;
+            return id;
+        }
     }
 
     #endregion
@@ -268,7 +280,7 @@ public class ComponentRegistry
             throw new InvalidOperationException($"Failed to find expected component type in Entity #{uid}");
         return ref GetOrCreateComponentArray<T>().GetRefAt<T>(index);
     }
-
+    
     #endregion
 
     // ""Unsafe"" add methods.
@@ -294,19 +306,19 @@ public class ComponentRegistry
 
         Type componentType = component.GetType();
         // Get or create the component array
-        if (GetOrCreateComponentArray(componentType) is not IterArray componentArray)
-            throw new ArgumentException($"Cannot create IterArray of Component {componentType.Name}.");
+        if (GetOrCreateComponentArray(componentType) is not ComponentIterArray<Component> componentArray)
+            throw new ArgumentException($"Cannot create ComponentIterArray of Component {componentType.Name}.");
 
         // Store index of component inside entity, using index of its type.
-        var componentIndex = componentArray.Count;
+        var componentIndex = (int)componentArray.Count;
         _entityUIDToComponentIndices[uid][GetComponentTypeId(componentType)] = componentIndex;
 
         // Assign reference back to parent.
         component.Entity = uid;
+        component.EntityManager = EntityManager;
 
         // Set component index in its array to referenced component
         componentArray.Set(componentIndex, component);
-        componentArray.Increment();
         return component; // Fin.
     }
 
@@ -383,7 +395,7 @@ public class ComponentRegistry
             return false;
 
         var array = _activeComponentArrays[componentType];
-        component = GetComponentAt(array, componentIndex)!;
+        component = GetComponentAt(array, componentIndex);
         return true;
     }
 
@@ -405,44 +417,34 @@ public class ComponentRegistry
     /// For performance, use <see cref="GetComponent{T}"/> instead.
     /// </remarks>
     [System.Diagnostics.Contracts.Pure]
-    public ref List<Component> GetAllComponents(EntityUid uid)
+    public IEnumerable<Component> GetAllComponents(EntityUid uid)
     {
-        // Return a ref to a static thread-local list to avoid allocations in hot paths
-        // Still safe since it's ref-local-scoped.
-        ref var resultList = ref ThreadLocalList<Component>.GetOrCreate();
-
-        resultList.Clear();
         var indices = _entityUIDToComponentIndices[uid];
-
-        foreach ((int typeId, Type? componentType) in _idToType)
+        foreach ((int typeId, Type componentType) in _idToType)
         {
-            // Checking to make sure the thing has it.
-            int indexOfComponentEntry = indices[typeId];
-            if (indexOfComponentEntry == -1)
-                continue; // Short-circuit
+            int index = indices[typeId];
+
+            if (index == -1)
+                continue;
 
             var array = _activeComponentArrays[componentType];
-            Component? component = GetComponentAt(array, indexOfComponentEntry);
-            if (component is not null)
-                resultList.Add(component);
-        }
-
-        return ref resultList;
-    }
-
-    private static class ThreadLocalList<T>
-    {
-        [ThreadStatic] private static List<T>? _list;
-
-        [System.Diagnostics.Contracts.Pure]
-        public static ref List<T> GetOrCreate()
-        {
-            _list ??= new List<T>(8);
-            return ref _list;
+            yield return GetComponentAt(array, index);
         }
     }
 
     #endregion
+    
+    public bool RemoveComponent<T>(EntityUid uid) where T : Component
+    {
+        if (!TryGetComponentIndex(uid, typeof(T), out var index) || index == -1)
+            return false;
+
+        var array = GetOrCreateComponentArray<T>();
+        array.RemoveAt(index);
+
+        _entityUIDToComponentIndices[uid][GetComponentTypeId<T>()] = -1;
+        return true;
+    }
 
     /// <returns>true if entity possess an instance of component type, false if not.</returns>
     public bool HasComponent(EntityUid uid, Type componentType)

@@ -151,18 +151,46 @@ public class ECS
     public void TEST_ENTITY_REGISTRY()
     {
         List<Entity> entities = [];
-        const string TestEntHandle  = "TestEntity";
-        
+        const string TestEntHandle = "TestEntity";
+
         // Assert single register.
         TestEntityInheritedType testEnt = new TestEntityInheritedType { Handle = TestEntHandle };
-        // WIP: Fix this call. MasterRegistryManager.TryRegisterPrototype(testEnt.GetType(), testEnt);
+        MasterRegistryManager.TryRegisterPrototype(testEnt.Type, testEnt);
         IsTrue(MasterRegistryManager.TryGetPrototype(TestEntHandle, out _));
-        
+
         // Assert multiple.
 
         // Assert override as expected.
 
         // Assert override w. bad override handle.
+    }
+
+    [TestMethod]
+    public void TEST_UID_GEN()
+    {
+        UidList<object> uids = [];
+        const byte ExpectedEntries = 6;
+
+        // Dummy object for testing.
+        for (int i = 0; i < ExpectedEntries; i++)
+        {
+            object dummy = new();
+            string head = $"test_{i % 2}";
+            PackableUid uid = uids.New();
+            uids.Set(dummy, uid, head);
+        }
+
+        // Asserting with six entries GetAll
+        HasCount(ExpectedEntries, uids);
+        HasCount(ExpectedEntries / 2, uids.GetAll("test_0"));
+        HasCount(ExpectedEntries / 2, uids.GetAll("test_1"));
+
+        // Test removal and replacement.
+        uids.Destroy(new PackableUid(0, 1));
+        PackableUid replace = uids.New();
+        uids.Set(new object(), replace, "test_0");
+        IsTrue(replace.Index == 0 && replace.Generation == 2, nameof(replace) + " invalid index and generation");
+        uids.Clear();
     }
 
     [TestMethod]

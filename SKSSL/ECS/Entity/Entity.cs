@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using MemoryPack;
 using Microsoft.Xna.Framework;
@@ -8,16 +9,6 @@ using Newtonsoft.Json;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
 using YamlDotNet.Serialization;
-
-// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
-
-
-// ReSharper disable VirtualMemberCallInConstructor
-// ReSharper disable UnusedAutoPropertyAccessor.Global
-// ReSharper disable VirtualMemberNeverOverridden.Global
-// ReSharper disable UnusedMember.Global
-// ReSharper disable RedundantBaseConstructorCall
-// ReSharper disable ClassNeverInstantiated.Global
 
 namespace SKSSL.ECS;
 
@@ -36,12 +27,8 @@ namespace SKSSL.ECS;
 /// # (Note: Component fields vary between component type.)
 /// </code>
 [JsonObject]
-public class Entity : Prototype
+public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity>
 {
-    /// <inheritdoc cref="Prototype.Type"/>
-    [YamlMember(Alias = "type", Order = 0), JsonProperty(nameof(Type))]
-    public override string Type { get; set; } = "Entity";
-
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool Abstract { get; set; } = false;
 
@@ -80,25 +67,32 @@ public class Entity : Prototype
     [YamlMember(Alias = "components", Order = 99)]
     public List<ComponentYaml>? YamlComponents = [];
 
-    /// <summary>
     /// Reverse-reference back to the world that this entity inhabits.
-    /// </summary>
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
     public World? World { get; set; }
+
+    /// Exclaim if this entity and its components require updating.
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    internal bool IsDirty;
 
     #region Constructors & UID
 
     /// Constructor for flat "empty" Entity. NOT recommended without special handling for Entity's fields.
     [MemoryPackConstructor, System.Text.Json.Serialization.JsonConstructor]
-    public Entity() : base()
+    public Entity()
     {
     }
 
-    public Entity(EntityUid uid) : base() => Uid = uid;
+    public Entity(EntityUid uid) => _uid = uid;
 
-    /// Does not permit more than one set. An entity keeps its UID consistently.
+    /// An entity must keep its UID consistently. Do NOT manually assign this!
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
-    public readonly EntityUid? Uid = null;
+
+    internal EntityUid _uid { get; private set; }
+
+    public void SetUid(EntityUid uid) => _uid = uid;
+
+    public EntityUid GetUid() => _uid;
 
     /// <summary>
     /// 
@@ -109,7 +103,7 @@ public class Entity : Prototype
     /// A null exception occurs when an entity not "properly" initialized is acted-upon by the Component Registry,
     /// or any system that involves a Uid that may be null.
     /// </exception>
-    public static implicit operator EntityUid(Entity entity) => (EntityUid)entity.Uid!;
+    public static implicit operator EntityUid(Entity entity) => entity._uid;
 
     #endregion
 
@@ -136,6 +130,13 @@ public class Entity : Prototype
         return this;
     }
 
+    /// <summary>
+    /// Clones an entity. Uid is NOT copied. Do NOT call this directly upon an entity!
+    /// </summary>
+    public Entity Clone()
+    {
+        return new Entity().CopyFrom(this);
+    }
 
     /// <summary>
     /// Special initialization logic for Entity.
@@ -167,8 +168,7 @@ public class Entity : Prototype
     /// </summary>
     /// <param name="other"></param>
     /// <returns></returns>
-    protected bool Equals(Entity other) => Uid != null &&
-                                           Uid.Value == other.Uid &&
+    protected bool Equals(Entity other) => _uid.Packed == other.GetUid().Packed &&
                                            Type.Equals(other.Type) &&
                                            Handle.Equals(other.Handle);
 
@@ -179,11 +179,11 @@ public class Entity : Prototype
         return obj.GetType() == GetType() && Equals((Entity)obj);
     }
 
-    public override int GetHashCode() => Uid.GetHashCode();
+    [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
+    public override int GetHashCode() => HashCode.Combine(Handle, Inherit, IsDirty, World, _uid);
 
-    /// <summary>
+
     /// Equates handles only.
-    /// </summary>
     public static bool operator ==(Entity? a, Entity? b)
         => ReferenceEquals(a, b) || a is not null && b is not null && a.Handle == b.Handle;
 

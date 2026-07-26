@@ -2,19 +2,16 @@ using System;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 
-// ReSharper disable UnusedMember.Global
-
 namespace SKSSL.ECS;
 
 /// <summary>
-/// Interface for indexable component array that stores Component IDs.
+/// Interface for indexable array object that stores IDs.
 /// </summary>
 public interface IterArray
 {
     object? this[int index] { get; }
 
     // ReSharper disable once UnusedMethodReturnValue.Global
-    public int Increment();
     public void Set<T>(int index, T value);
 
     [Pure]
@@ -23,8 +20,8 @@ public interface IterArray
     void RemoveAt(int index);
 
     // ReSharper disable once UnusedMemberInSuper.Global
-    ref T1 GetRefAt<T1>(int index) where T1 : Component;
-    int Count { get; }
+    ref T1 GetRefAt<T1>(int index) where T1 : class;
+    uint Count { get; }
 }
 
 /// <summary>
@@ -32,7 +29,7 @@ public interface IterArray
 /// </summary>
 /// <remarks>This list is instantiated. It gets pretty complicated, but is essentially used to store component type data.</remarks>
 /// <typeparam name="T">Type of components being stored in this particular list.</typeparam>
-public class IterArray<T> : IterArray where T : Component
+public class IterArray<T> : IterArray where T : class
 {
     /// <summary>
     /// Constructor of Component Array that creates empty array on instantiation.
@@ -46,43 +43,45 @@ public class IterArray<T> : IterArray where T : Component
     }
 
     /// Private list of contained items.
-    private T[] _items;
+    protected T?[] _items;
 
     [Pure]
-    public ref T1 GetRefAt<T1>(int index) where T1 : Component
+    public ref T1 GetRefAt<T1>(int index) where T1 : class
     {
-        if ((uint)index > (uint)Count)
+        if ((uint)index > Count)
             throw new IndexOutOfRangeException(
                 $"GetRefAt index #{index} out of range in ComponentArray<{typeof(T).Name}>.");
 
         // Enforce that the caller is requesting the correct type for this array
         if (typeof(T1) != typeof(T))
             throw new InvalidCastException(
-                $"Cannot get component of type {typeof(T1).Name} from ComponentArray<{typeof(T).Name}>. " +
+                $"Cannot get object of type {typeof(T1).Name} from IterArray<{typeof(T).Name}>. " +
                 "Types must match exactly.");
 
         // This is the only way to safely return ref T1 when T1 == T
-        return ref Unsafe.As<T, T1>(ref _items[index]);
+        return ref Unsafe.As<T, T1>(ref _items[index]!);
     }
 
     /// <summary>
     /// Number of entries present within the component array.
     /// </summary>
-    public int Count { get; private set; } = 0;
+    public uint Count { get; private set; } = 0;
 
-    /// <summary>
-    /// Expands list of available items.
-    /// </summary>
-    /// <returns>References <see cref="_items"/> slot.</returns>
-    public int Increment()
+    public void Set<T1>(int index, T1 value)
     {
-        // Double item space every time it's over max.
-        if (Count >= _items.Length)
-            Array.Resize(ref _items, _items.Length * 2);
-        return ++Count;
-    }
+        // If the new index is out of the items list's length, then auto-increase it.
+        if (index > _items.Length)
+            Count++;
 
-    public void Set<T1>(int index, T1 value) => _items[index] = (value as T)!; // Casting here anyway.
+        // Automatically expand if needed.
+        if (Count >= _items.Length)
+        {
+            Array.Resize(ref _items, _items.Length * 2);
+        }
+
+        _items[index] = (value as T)!;
+        // Casting here anyway.
+    }
 
     /// <summary>
     /// Removes component by setting it to default (nulls out value).
@@ -93,7 +92,6 @@ public class IterArray<T> : IterArray where T : Component
     {
         if (IsOutOfRange(index))
             throw new IndexOutOfRangeException($"Index {index} out of bounds (array size: {_items.Length})");
-
         _items[index] = default!;
     }
 
@@ -105,11 +103,14 @@ public class IterArray<T> : IterArray where T : Component
     {
         if (IsOutOfRange(index))
             throw new IndexOutOfRangeException($"GetAt index #{index} out of range.");
-        return _items[index];
+        if (_items[index] == null)
+            throw new NullReferenceException($"Object is null as index {index}.");
+        return _items[index]!;
     }
 
     [Pure]
     private bool IsOutOfRange(int index) => index < 0 || index > Count;
-    public ref T this[int index] => ref _items[index];
-    object IterArray.this[int index] => _items[index];
+
+    public ref T this[int index] => ref _items[index]!;
+    object IterArray.this[int index] => _items[index] ?? throw new InvalidOperationException();
 }

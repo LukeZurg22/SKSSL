@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using YamlDotNet.Serialization;
+
 // ReSharper disable UnusedMethodReturnValue.Global
 
 
@@ -18,6 +19,8 @@ using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;
 
+// TODO: Move Source to IInheritable<T> interface.
+
 /// <summary>
 /// Common abstraction for <see cref="Entity"/> and <see cref="Prototype"/> objects.
 /// Allows ECS to store one of either type in its definitions, depending on use-case.
@@ -31,7 +34,7 @@ namespace SKSSL.ECS;
 ///   description (string)
 /// </code>
 /// </summary>
-public partial class Prototype
+public partial class Prototype : ICloneable<Prototype>
 {
     private const string DefaultSource = "game";
 
@@ -39,8 +42,14 @@ public partial class Prototype
     [YamlIgnore]
     public virtual string Source { get; set; } = DefaultSource;
 
+    /// Assignable force-override of existing prototype. To utilize, set the Handle for this prototype to be the
+    /// same as the one it intends to replace, then state the source for the override.
+    [YamlMember(Alias = "override", Order = -1)]
+    public string? Replace = null;
+
     /// Explicit type definition for this entry. For direct raw-serialization of entities.
-    /// Completely unused if prioritizing yaml templates.
+    /// Completely unused if prioritizing yaml templates. Should not require override unless desiring ulterior
+    ///     name to typedef.
     [YamlMember(Alias = "type", Order = 0), JsonInclude]
     public virtual string Type { get; set; } = "Prototype";
 
@@ -56,8 +65,7 @@ public partial class Prototype
     /// </summary>
     /// <returns>"<see cref="Source"/>:<see cref="Handle"/>"</returns>
     /// <returns>Fully-justified handle combining source, and short handle.</returns>
-    public string GetFullHandle(string? key = null)
-        => $"{key ?? Source}:{Handle}";
+    public string GetFullHandle(string? key = null) => $"{key ?? Source}:{Handle}";
 
     /// Blank constructor for Common Entity root. Avoid using this unless absolutely necessary.
     /// Used for creating active <see cref="Entity"/> instances in the ECS, where properties are set elsewhere.
@@ -78,6 +86,14 @@ public partial class Prototype
         Type = yaml.Type;
     }
 
+    public Prototype(string source, string? replace, string type, string handle) : this()
+    {
+        Source = source;
+        Replace = replace;
+        Type = type;
+        Handle = handle;
+    }
+
     public virtual Prototype CopyFrom(Prototype source)
     {
         Source = source.Source;
@@ -85,4 +101,6 @@ public partial class Prototype
         Handle = source.Handle;
         return this;
     }
+
+    public Prototype Clone() => new(source: Source, replace: Replace, type: Type, handle: Handle);
 }

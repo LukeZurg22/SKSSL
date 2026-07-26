@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Microsoft.Xna.Framework;
 using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
-using static SKSSL.SSLGame;
-using static SKSSL.ECS.UidPacker;
 
 namespace SKSSL.ECS;
 
@@ -14,22 +14,24 @@ namespace SKSSL.ECS;
 /// </summary>
 public partial class EntityManager
 {
-    /// Registry of all component instances and definitions per entity manager per world.
-    public readonly ComponentRegistry ComponentRegistry = new();
+    /// Registry of entity definitions.
+    private readonly IReadOnlyRegistry<Entity> _entityRegistry =
+        MasterRegistryManager.GetRegistry<Entity, EntityRegistry>().AsReadOnly();
 
-    // Struct of Arrays Layout for Entities.
-    private Entity?[] _entities;
-    private int[] _generations = new int[1024];
-    private int[] _freeList = new int[Config.DESTROY_ENTITY_CACHE_LIMIT];
-    private int _freeCount = 0;
+    /// Registry of all component instances and definitions per entity manager per world.
+    public readonly ComponentRegistry ComponentRegistry;
+
+    // All -Active- Entities contained in UidList.
+    public readonly UidList<Entity> EntitiesList = [];
+
+    /// Entities that need updating over a network.
+    public readonly List<EntityUid> DirtyEntities = [];
 
     /// <inheritdoc cref="EntityManager"/>
     public EntityManager()
     {
+        ComponentRegistry = new ComponentRegistry(this);
     }
-
-    /// Get all Active entities present in the game.
-    internal IReadOnlyList<Entity> AllEntities => _entities;
 
     /// <summary>
     /// Get-Method for all Entities of desired type. Does not handle components.
@@ -40,26 +42,24 @@ public partial class EntityManager
     /// </typeparam>
     /// <returns>Readonly enumerable list of entities that inherit from type T</returns>
     // ReSharper disable once UnusedMember.Global
-    public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => AllEntities.OfType<T>();
+    public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => EntitiesList.Entries.OfType<T>();
 
     public Entity? Spawn(string handle)
     {
-        if (!MasterRegistryManager.TryGetPrototype(handle, out Prototype definition))
+        if (!_entityRegistry.TryGet(handle, out Entity? definition))
         {
-            Log($"Failed to get entity copy using {handle} handle. Try full handle instead.",
-                LOG.SYSTEM_ERROR);
+            Log($"Failed to get entity copy using {handle} handle.", LOG.SYSTEM_ERROR);
             return null;
         }
 
         // Assumes all definitions present here are entities. A bit ambiguous, it is.
-        if (definition is not Entity source || source.Abstract)
+        if (definition.Abstract)
         {
-            Log($"Invalid Entity handle \'{handle}\'. Are you attempting to spawn some other non-entity prototype?",
-                LOG.SYSTEM_ERROR);
+            Log($"Unable to spawn abstract Entity \'{handle}\'.", LOG.SYSTEM_ERROR);
             return null;
         }
 
-        return Clone(source);
+        return Clone(definition);
     }
 
     /// <summary>
@@ -73,17 +73,15 @@ public partial class EntityManager
         if (source.Abstract)
             throw new Exception($"Attempted to spawn abstract entity {source.GetFullHandle()}");
 
-        // Create unique ID.
-        EntityUid entityUid = CreateUID();
-        
-        // Create entity copy.
-        Entity entity = new Entity(entityUid).CopyFrom(source);
-        
-        // Assign to "All Entities" list.
-        _entities[entityUid.Index] = entity;
+        var uid = EntitiesList.New().As<EntityUid>(); // Create unique ID.
+        Entity entity = source.Clone(); // Create copy of source entity.
+        entity.SetUid(uid);
+
+        // Add to "All Entities" list.
+        EntitiesList.Set(entity, uid.As<PackableUid>(), handle: source.Handle);
 
         // Register component indices for this ID.
-        ComponentRegistry.PrepareEntityComponentStorage(entityUid);
+        ComponentRegistry.PrepareEntityComponentStorage(uid);
 
         // Add default components if provided.
         if (entity.YamlComponents != null)
@@ -95,135 +93,48 @@ public partial class EntityManager
         return entity;
     }
 
-    /// <summary>
-    /// Dangerous "Get" method to retrieve an entity stored in active entities list.
-    /// </summary>
-    /// <param name="uid"></param>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
-    // ReSharper disable once UnusedMember.Global
-    public Entity Get(EntityUid uid)
+    public bool TryGet(EntityUid uid, [NotNullWhen(true)] out Entity? entity)
     {
-        int index = UnpackIndex(uid);
-        int generation = UnpackGeneration(uid);
-
-        if ((uint)index >= (uint)_entities.Length)
-            throw new Exception("Invalid entity index");
-
-        if (_generations[index] != generation)
-            throw new Exception("Stale EntityUid (entity was destroyed or reused)");
-
-        Entity? entity = _entities[index];
-
-        if (entity is null)
-            throw new Exception("Entity slot is empty");
-
-        return entity;
-    }
-
-    /// <summary>
-    /// Safer way to obtain an entity definition using its ID.
-    /// </summary>
-    /// <param name="uid"></param>
-    /// <param name="entity"></param>
-    /// <returns></returns>
-    // ReSharper disable once UnusedMember.Global
-    public bool TryGet(EntityUid uid, out Entity entity)
-    {
-        int index = UnpackIndex(uid);
-        int generation = UnpackGeneration(uid);
-
-        if ((uint)index < (uint)_entities.Length
-            && _generations[index] == generation
-            && (entity = _entities[index]!) is not null)
-            return true;
-
-        entity = null!;
-        return false;
-    }
-
-    /// Create unique ID for entity.
-    private EntityUid CreateUID()
-    {
-        int index;
-
-        if (_freeCount > 0)
-        {
-            // Reuse old indices.
-            index = _freeList[--_freeCount];
-        }
-        else
-        {
-            index = _entities.Length;
-
-            // Ensure free list has plenty of space.
-            if (_freeCount >= _freeList.Length) Array.Resize(ref _freeList, _freeList.Length * 2);
-
-            Array.Resize(ref _entities, index + 1);
-            Array.Resize(ref _generations, index + 1);
-        }
-
-        int generation = _generations[index];
-        return new EntityUid(index, generation);
+        entity = null;
+        return EntitiesList.TryGet(new PackableUid(uid), out entity);
     }
 
     public void Destroy(EntityUid uid)
     {
-        int index = UnpackIndex(uid);
-        int generation = UnpackGeneration(uid);
-
-        if ((uint)index >= (uint)_entities.Length)
-            return;
-
-        // Validate generation (prevents double-destroy bugs)
-        if (_generations[index] != generation)
-            return;
-
-        if (_entities[index] is null)
-            return;
-
-        // Remove entry.
-        _entities[index] = null;
-
         // Wipe UID's entry in comp storage. UID presence still means reusable.
         ComponentRegistry.PrepareEntityComponentStorage(uid);
-
-        // Invalidate old IDs.
-        _generations[index]++;
-
-        // Ensure free list has plenty of space.
-        if (_freeCount >= _freeList.Length) Array.Resize(ref _freeList, _freeList.Length * 2);
-
-        // Add slot back to free list.
-        _freeList[_freeCount++] = index;
+        EntitiesList.Destroy(new PackableUid(uid));
     }
 
-    public bool IsValid(EntityUid uid)
-    {
-        int index = uid.Index;
-
-        if ((uint)index >= (uint)_entities.Length)
-            return false;
-
-        Entity? entity = _entities[index];
-        if (entity is null)
-            return false;
-
-        return _generations[index] == uid.Generation;
-    }
-
-    /// <summary>
-    /// Remove all entities contained in Entity Manager.
-    /// </summary>
     public void DestroyAll()
     {
-        Array.Clear(_entities);
-        Array.Clear(_generations);
-        _freeCount = 0;
-        for (int i = 0; i < _entities.Length; i++)
+        foreach (Entity entry in EntitiesList)
         {
-            _generations[i]++; // Invalidate all old ID's.
-            _freeList[_freeCount++] = i;
+            // Asserting that entities present in the super-list all have valid Uids. This assumption is as dangerous
+            //  is it is necessary to avoid some tedious workarounds. -Z
+            Destroy(entry.GetUid());
+        }
+    }
+
+    /// Mark certain Entity as "Dirty"; in need of an update.
+    public void DirtyEntity(EntityUid entity)
+    {
+        DirtyEntities.Add(entity);
+    }
+
+    public void CleanEntity(EntityUid entity)
+    {
+        DirtyEntities.Remove(entity);
+    }
+
+    public void Update(GameTime gameTime)
+    {
+        var dirtiedEntities = DirtyEntities.ToList();
+        foreach (EntityUid entity in dirtiedEntities)
+        {
+            // Update the entity through a little update call. Only works if it has special update methods.
+            EntitiesList.Get(new PackableUid(entity)).Update(gameTime);
+            DirtyEntities.Remove(entity);
         }
     }
 }
