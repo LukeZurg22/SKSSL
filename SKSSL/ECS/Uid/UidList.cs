@@ -45,7 +45,7 @@ public class UidList<T> : IEnumerable<T> where T : class
     /// Public-Access list to entries contained in this UidList, which cannot be modified directly.
     public IReadOnlyList<T> Entries => _denseEntries;
 
-    public readonly GenericUid RootUid = new(1, 1);
+    public readonly PackableUid RootUid = new(1, 1);
 
     // Per-slot handle metadata.
     /*
@@ -113,7 +113,7 @@ public class UidList<T> : IEnumerable<T> where T : class
         if (_generations[uidIndex] == 0)
             _generations[uidIndex] = 1;
 
-        return new GenericUid(uidIndex, _generations[uidIndex]);
+        return new PackableUid(uidIndex, _generations[uidIndex]);
     }
 
     /// <summary>
@@ -155,12 +155,12 @@ public class UidList<T> : IEnumerable<T> where T : class
         // Prevent duplicates.
         list.Add(uid);
 
-        owner ??= RootUid;
+        var ownerCast = owner ??= RootUid;
         _indexToHandle[uidIndex] = string.IsNullOrEmpty(handle) ? null : handle;
-        _indexToOwner[uidIndex] = owner; // Use default root if otherwise not provided.
+        _indexToOwner[uidIndex] = ownerCast; // Use default root if otherwise not provided.
 
         // Populate the ownership tracking.
-        if (!_ownerToOwned.TryGetValue(owner, out var value)) _ownerToOwned[owner] = [uid];
+        if (!_ownerToOwned.TryGetValue(ownerCast, out var value)) _ownerToOwned[ownerCast] = [uid];
         else value.Add(uid);
     }
 
@@ -212,7 +212,7 @@ public class UidList<T> : IEnumerable<T> where T : class
     {
         // Objects with internal Uids are a nightmare. You can't easily replace them. One must instead delete, then
         //  re-add them, or simply replace their internal parts without messing with the thing as a whole.
-        if (instance is InternalUidObject)
+        if (instance is InternalUidObject<PackableUid>)
             throw new InvalidOperationException(
                 $"Attempted to call {nameof(UidList<T>)} replace using an object that contains an internal Uid!");
 
@@ -273,7 +273,7 @@ public class UidList<T> : IEnumerable<T> where T : class
     #region Regular Get
 
     /// <inheritdoc cref="Get(PackableUid)"/>
-    public T Get(int index, int generation) => Get(new GenericUid(index, generation));
+    public T Get(int index, int generation) => Get(new PackableUid(index, generation));
 
     /// <summary>
     /// Fast access. Throws on invalid/stale UID.
@@ -312,8 +312,8 @@ public class UidList<T> : IEnumerable<T> where T : class
 
     protected bool TryResolve(string handle, PackableUid? owner, [NotNullWhen(true)] out PackableUid? statistic)
     {
-        owner ??= RootUid; // Default back to artificial root if not provided.
-        var owned = _ownerToOwned[owner]; // Get all the uids owned by the owner.
+        PackableUid ownerCasted = owner ?? RootUid; // Default back to artificial root if not provided.
+        var owned = _ownerToOwned[ownerCasted]; // Get all the uids owned by the owner.
         foreach (PackableUid id in owned)
         {
             var queriedHandle = _indexToHandle[id.Index] ?? string.Empty;

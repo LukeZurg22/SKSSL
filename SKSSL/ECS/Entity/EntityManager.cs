@@ -23,7 +23,7 @@ public partial class EntityManager
 
     // All -Active- Entities contained in UidList.
     public readonly UidList<Entity> EntitiesList = [];
-    
+
     /// Entities that need updating over a network.
     public readonly List<EntityUid> DirtyEntities = [];
 
@@ -73,15 +73,12 @@ public partial class EntityManager
         if (source.Abstract)
             throw new Exception($"Attempted to spawn abstract entity {source.GetFullHandle()}");
 
-        // Create unique ID.
-        EntityUid uid = EntityUid.FromPackableUid(EntitiesList.New());
-
-        // Create entity copy.
-        Entity entity = source.Clone();
+        var uid = EntitiesList.New().As<EntityUid>(); // Create unique ID.
+        Entity entity = source.Clone(); // Create copy of source entity.
         entity.SetUid(uid);
 
         // Add to "All Entities" list.
-        EntitiesList.Set(entity, uid, handle: source.Handle);
+        EntitiesList.Set(entity, uid.As<PackableUid>(), handle: source.Handle);
 
         // Register component indices for this ID.
         ComponentRegistry.PrepareEntityComponentStorage(uid);
@@ -99,14 +96,14 @@ public partial class EntityManager
     public bool TryGet(EntityUid uid, [NotNullWhen(true)] out Entity? entity)
     {
         entity = null;
-        return EntitiesList.TryGet(uid, out entity);
+        return EntitiesList.TryGet(new PackableUid(uid), out entity);
     }
 
     public void Destroy(EntityUid uid)
     {
         // Wipe UID's entry in comp storage. UID presence still means reusable.
         ComponentRegistry.PrepareEntityComponentStorage(uid);
-        EntitiesList.Destroy(uid);
+        EntitiesList.Destroy(new PackableUid(uid));
     }
 
     public void DestroyAll()
@@ -115,7 +112,7 @@ public partial class EntityManager
         {
             // Asserting that entities present in the super-list all have valid Uids. This assumption is as dangerous
             //  is it is necessary to avoid some tedious workarounds. -Z
-            Destroy((EntityUid)entry.GetUid());
+            Destroy(entry.GetUid());
         }
     }
 
@@ -136,7 +133,7 @@ public partial class EntityManager
         foreach (EntityUid entity in dirtiedEntities)
         {
             // Update the entity through a little update call. Only works if it has special update methods.
-            EntitiesList.Get(entity).Update(gameTime);
+            EntitiesList.Get(new PackableUid(entity)).Update(gameTime);
             DirtyEntities.Remove(entity);
         }
     }

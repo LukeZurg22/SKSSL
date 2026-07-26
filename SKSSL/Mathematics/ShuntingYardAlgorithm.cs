@@ -190,7 +190,7 @@ public class ShuntingYard
                 //  it is noted for whenever this comes up in the future. The solution would be to add some peripheral
                 // checks against the source, or demanding a full Uri path, instead.
                 // Attempt to nab a statistic. May not be 100% reliable without context.
-                PackableUid? statistic = Statistics.GetStatistic(variable, parent);
+                var statistic = Statistics.GetStatistic(variable, parent);
 
                 // Exception - Failed to find statistic.
                 if (statistic is null)
@@ -199,12 +199,12 @@ public class ShuntingYard
 
                 // Exception - Statistic is recursively being called.
                 visited ??= [];
-                if (!visited.Add(statistic))
+                if (!visited.Add(statistic.Value))
                     throw new RecursiveEvaluateException(
                         $"Infinite recursion involving statistic ({statistic}) in expression '{expression}'");
 
                 // Calculate the statistic value.
-                Statistics.CalculateStatisticValue(statistic, out double number, parent, visited);
+                Statistics.CalculateStatisticValue(statistic.Value, out double number, parent, visited);
 
                 output.Enqueue(number.ToString(CultureInfo.InvariantCulture));
             }

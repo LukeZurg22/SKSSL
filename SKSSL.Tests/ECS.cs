@@ -186,7 +186,7 @@ public class ECS
         HasCount(ExpectedEntries / 2, uids.GetAll("test_1"));
 
         // Test removal and replacement.
-        uids.Destroy(new GenericUid(0, 1));
+        uids.Destroy(new PackableUid(0, 1));
         PackableUid replace = uids.New();
         uids.Set(new object(), replace, "test_0");
         IsTrue(replace.Index == 0 && replace.Generation == 2, nameof(replace) + " invalid index and generation");

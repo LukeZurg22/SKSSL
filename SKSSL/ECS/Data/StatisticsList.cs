@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using JetBrains.Annotations;
-using Microsoft.Xna.Framework;
 using SKSSL.ECS.Registry;
 using SKSSL.Mathematics;
 
@@ -23,9 +22,8 @@ public class BadModifierException(string s, Exception? inner = null) : Exception
 /// </summary>
 /// <remarks>
 ///  Note that for ownership, a UID could just be generated on the fly if a single object owns all of the
-///  statistics involved. Using a <see cref="GenericUid"/> for lazy ownership would make this simple.
+///  statistics involved. Using a <see cref="PackableUid"/> for lazy ownership would make this simple.
 /// </remarks>
-/// <seealso cref="PackableUid"/>
 /// <seealso cref="UidList{T}"/>
 public class StatisticsList : UidList<Statistic>
 {
@@ -44,46 +42,32 @@ public class StatisticsList : UidList<Statistic>
      in the hope that those references don't go stale! Handles are blanket-wide. It is best NOT to get statistics
      using handles if possible.*/
     // -->+ _internal_storage (string to HashSet<Uid>)
+    //@formatter:off
 
     // STATISTIC -> MODIFIERS
     /// Stores Modifier Uid values based on a Statistic UID- Modifier Handle pair.
     private readonly Dictionary<PackableUid, HashSet<PackableUid>> _statToMods = [];
-
     // STATISTIC -> MODIFIERS (SORTED)
     /// Pre-sorted list of modifiers indexed by the Statistic that owns them.
     private readonly Dictionary<PackableUid, List<(PackableUid ModUid, Modifier Modifier)>> _sortedMods = new();
-
     // MODIFIER -> STATISTIC REFERENCES
-    /// Modifier UIDs bound to the list of statistics their expressions reference. // TEMP: May not be needed?
+    /// Modifier UIDs bound to the list of statistics their expressions reference.
     private readonly Dictionary<PackableUid, HashSet<PackableUid>> _statReferencedBy = [];
-
     // MODIFIER -> STATISTIC (PARENT)
     private readonly Dictionary<PackableUid, PackableUid> _modToParentStat = [];
-
     // SHUNTING YARD ALGORITHM
     private readonly ShuntingYard _shuntingYard;
-
-    //@formatter:off
-    [UsedImplicitly] public StatisticsList() => _shuntingYard = new ShuntingYard(this);
-    [UsedImplicitly] public StatisticsList(ShuntingYard yard) => _shuntingYard = yard;
-    //@formatter:on
-
-    #region Caching
-
     /// Caching the updated calculated values for a simple O(1) retrieval. Hinges on these values being updated
     /// consistently and elsewhere.
     private readonly Dictionary<UidPair, double> _modifierCache = new();
-
     /// If a statistic can somehow be defined as a constant value, then storing that value for raw O(1) retrieval
     /// will alleviate some of the processing burden.
     private readonly Dictionary<PackableUid, double> _statisticCache = new();
-
-    /// <summary>
     /// Clean/Dirty listing for statistics.
-    /// </summary>
     private readonly HashSet<PackableUid> _dirtiedStatistics = [];
-
-    #endregion
+    [UsedImplicitly] public StatisticsList() => _shuntingYard = new ShuntingYard(this);
+    [UsedImplicitly] public StatisticsList(ShuntingYard yard) => _shuntingYard = yard;
+    //@formatter:on
 
     #region Adding Statistics & Modifiers
 
@@ -173,7 +157,7 @@ public class StatisticsList : UidList<Statistic>
     }
 
     #endregion
-    
+
     #region Get Methods
 
     /// <summary>
@@ -214,7 +198,7 @@ public class StatisticsList : UidList<Statistic>
         // Propagate to any modifier referencing this statistic.
         if (_statReferencedBy.TryGetValue(statisticUid, out var dependentModifiers))
             foreach (PackableUid modUid in dependentModifiers)
-                if (_modToParentStat.TryGetValue(modUid, out PackableUid? parentStatistic))
+                if (_modToParentStat.TryGetValue(modUid, out PackableUid parentStatistic))
                     Dirty(parentStatistic); // Recursive – the early-out above prevents infinite loops.
     }
 
@@ -352,7 +336,7 @@ public class StatisticsList : UidList<Statistic>
 
     private bool WouldCreateCycle(PackableUid ownerStat, string expression)
     {
-        var owner = GetOwner(ownerStat);
+        PackableUid owner = GetOwner(ownerStat);
         var deps = GetDependenciesFromExpression(expression, owner).ToList();
 
         // Temporary edge: ownerStat → each dependency
@@ -360,10 +344,7 @@ public class StatisticsList : UidList<Statistic>
         var visited = new HashSet<PackableUid>();
         var stack = new HashSet<PackableUid>();
 
-        foreach (var d in deps)
-            if (HasPath(d, ownerStat, visited, stack))
-                return true;
-        return false;
+        return deps.Any(d => HasPath(d, ownerStat, visited, stack));
     }
 
     private bool HasPath(PackableUid from, PackableUid target,
@@ -373,7 +354,7 @@ public class StatisticsList : UidList<Statistic>
         if (Equals(from, target)) return true;
 
         stack.Add(from);
-        foreach (var next in GetDependencies(from))
+        foreach (PackableUid next in GetDependencies(from))
             if (HasPath(next, target, visited, stack))
                 return true;
         stack.Remove(from);
@@ -386,43 +367,33 @@ public class StatisticsList : UidList<Statistic>
             yield break;
 
         PackableUid owner = GetOwner(statisticUid);
-        foreach (PackableUid modUid in modUids)
+        foreach (var modUid in modUids)
         foreach (string identifier in EnumerateIdentifiers(_modifiers.Get(modUid).Expression))
-            if (TryResolve(identifier, owner, out PackableUid? dependentUid))
-                yield return dependentUid;
+            if (TryResolve(identifier, owner, out var dependentUid))
+                yield return dependentUid.Value;
     }
 
     private IEnumerable<PackableUid> GetDependenciesFromExpression(string expr, PackableUid owner)
     {
         foreach (var id in EnumerateIdentifiers(expr))
             if (TryResolve(id, owner, out var uid))
-                yield return uid;
+                yield return uid.Value;
     }
 
     private static List<string> EnumerateIdentifiers(string expression)
     {
         int i = 0;
         List<string> identifiers = [];
-
         while (i < expression.Length)
         {
             if (char.IsLetter(expression[i]) || expression[i] == '_')
             {
                 int start = i++;
-
-                while (i < expression.Length &&
-                       (char.IsLetterOrDigit(expression[i]) || expression[i] == '_'))
-                {
-                    i++;
-                }
-
+                while (i < expression.Length && (char.IsLetterOrDigit(expression[i]) || expression[i] == '_')) i++;
                 var identifier = expression[start..i];
                 identifiers.Add(identifier);
             }
-            else
-            {
-                i++;
-            }
+            else i++;
         }
 
         return identifiers;
@@ -442,7 +413,7 @@ public class StatisticsList : UidList<Statistic>
     {
         PackableUid? uid = GetStatistic(handle, owner);
         if (uid is null) return false;
-        Destroy(uid);
+        Destroy(uid.Value);
         return true;
     }
 
@@ -487,8 +458,8 @@ public class StatisticsList : UidList<Statistic>
     /// </summary>
     public int RemoveModifier(string modHandle, string statHandle, PackableUid? owner = null)
     {
-        PackableUid? statisticGuid = GetStatistic(statHandle, owner);
-        return statisticGuid is null ? 0 : RemoveModifier(modHandle, statisticGuid);
+        var statisticGuid = GetStatistic(statHandle, owner);
+        return statisticGuid is null ? 0 : RemoveModifier(modHandle, statisticGuid.Value);
     }
 
     /// Destroy / Removal intermediate function needs an override for when a UID becomes invalid.
@@ -531,15 +502,9 @@ public class StatisticsList : UidList<Statistic>
 
     #endregion
 
-    public override void Update(GameTime gameTime)
-    {
-        // Updates then cleans.
-        foreach (PackableUid statistic in _dirtiedStatistics.ToList())
-            UpdateStatistic(statistic);
-    }
-
     #region Recursion Checking
 
+    // ReSharper disable once UnusedMember.Global
     public bool HasCycle(PackableUid statistic) => HasCycle(statistic, [], []);
 
     private bool HasCycle(PackableUid statistic, HashSet<PackableUid> visited, HashSet<PackableUid> recursionStack)
@@ -557,4 +522,11 @@ public class StatisticsList : UidList<Statistic>
     }
 
     #endregion
+
+    public override void Update(Microsoft.Xna.Framework.GameTime gameTime)
+    {
+        // Updates then cleans.
+        foreach (PackableUid statistic in _dirtiedStatistics.ToList())
+            UpdateStatistic(statistic);
+    }
 }

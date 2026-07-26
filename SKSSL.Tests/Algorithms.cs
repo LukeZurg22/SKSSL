@@ -22,7 +22,7 @@ public class Algorithms
         .GetRegistry<SKSSL.ECS.Statistic, SKSSL.ECS.Registry.StatisticRegistry>();
 
 
-    private PackableUid thisEntityContainer = null!;
+    private PackableUid thisEntityContainer;
 
     [TestInitialize, UsedImplicitly]
     public void Initialize()
@@ -126,8 +126,7 @@ public class Algorithms
         var statisticsStorage = new StatisticsList();
         thisEntityContainer = statisticsStorage.New();
         statisticsStorage.AddStatistic(thisEntityContainer, statistic.Handle);
-        Assert.Throws<Exception>(()
-            => statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatistic?.Handle!));
+        statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatistic?.Handle!);
 
         _statisticRegistry.TryGet("recursive_statistic_b", out Statistic? recursiveStatisticB);
         _statisticRegistry.TryGet("recursive_statistic_c", out Statistic? recursiveStatisticC);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using MemoryPack;
 using Microsoft.Xna.Framework;
@@ -26,7 +27,7 @@ namespace SKSSL.ECS;
 /// # (Note: Component fields vary between component type.)
 /// </code>
 [JsonObject]
-public class Entity : Prototype, InternalUidObject, ICloneable<Entity>
+public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity>
 {
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool Abstract { get; set; } = false;
@@ -87,10 +88,11 @@ public class Entity : Prototype, InternalUidObject, ICloneable<Entity>
     /// An entity must keep its UID consistently. Do NOT manually assign this!
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
 
-    internal PackableUid _uid { get; private set; }
+    internal EntityUid _uid { get; private set; }
 
-    public void SetUid(PackableUid uid) => _uid = uid;
-    public PackableUid GetUid() => _uid;
+    public void SetUid(EntityUid uid) => _uid = uid;
+
+    public EntityUid GetUid() => _uid;
 
     /// <summary>
     /// 
@@ -101,7 +103,7 @@ public class Entity : Prototype, InternalUidObject, ICloneable<Entity>
     /// A null exception occurs when an entity not "properly" initialized is acted-upon by the Component Registry,
     /// or any system that involves a Uid that may be null.
     /// </exception>
-    public static implicit operator EntityUid(Entity entity) => (EntityUid)entity._uid;
+    public static implicit operator EntityUid(Entity entity) => entity._uid;
 
     #endregion
 
@@ -177,7 +179,9 @@ public class Entity : Prototype, InternalUidObject, ICloneable<Entity>
         return obj.GetType() == GetType() && Equals((Entity)obj);
     }
 
-    public override int GetHashCode() => _uid.GetHashCode();
+    [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
+    public override int GetHashCode() => HashCode.Combine(Handle, Inherit, IsDirty, World, _uid);
+
 
     /// Equates handles only.
     public static bool operator ==(Entity? a, Entity? b)
