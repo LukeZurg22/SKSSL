@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using JetBrains.Annotations;
 using SKSSL.ECS.Registry;
@@ -109,11 +110,20 @@ public class StatisticsList : UidList<Statistic>
         {
             ValidateModifierBeforeAdd(statisticUid, modifier);
         }
+#pragma warning disable CS0168 // Variable is declared but never used
+        // ReSharper disable once RedundantCatchClause
         catch (Exception innerException)
         {
+#if DEBUG
+            /* Throw an exception. Realistically, adding modifiers should not crash the program and it would be a
+             travesty to crash the program in the midst of a runtime error.*/
+            throw;
+#else
             Log($"Failed to add modifier \'{modifierHandle}\': {innerException.Message}", LOG.SYSTEM_ERROR);
             return; // Don't even bother adding it or doing any treatment.
+#endif
         }
+#pragma warning restore CS0168 // Variable is declared but never used
 
         // Generate new uid for this modifier.
         PackableUid modifierUid = _modifiers.New();
@@ -204,8 +214,7 @@ public class StatisticsList : UidList<Statistic>
 
     public void UpdateStatistic(PackableUid uid)
     {
-        // Sort the modifiers.
-        CalculateStatisticValue(uid, out double value); // TEMP HANDLE
+        var value = CalculateStatisticValue(uid); // Sort the modifiers.
         _statisticCache[uid] = value;
         _dirtiedStatistics.Remove(uid); // "Clean" statistic.
     }
@@ -216,23 +225,32 @@ public class StatisticsList : UidList<Statistic>
 
     #region Calculating Statistic's Value
 
+    public double CalculateStatisticValue(string handle, PackableUid owner)
+    {
+        var statistic = GetStatistic(handle, owner);
+        if (statistic is null)
+            throw new Exception($"Failed to get statistic \'{handle}\' through {nameof(CalculateStatisticValue)}.");
+        return CalculateStatisticValue(statistic.Value, null, []);
+    }
+
     /// <returns>Full value of statistic adjusted by its modifiers.</returns>
-    public void CalculateStatisticValue(
-        PackableUid statisticUid,
-        out double value,
-        PackableUid? parent = null, HashSet<PackableUid>? visited = null)
+    public double CalculateStatisticValue(PackableUid statisticUid, PackableUid? owner = null,
+        HashSet<PackableUid>? visited = null)
     {
         // If the statistic does not require updates, utilized a cached value.
         // Statistics that are simple numbers are left as-is.
-        if (!_dirtiedStatistics.Contains(statisticUid) && _statisticCache.TryGetValue(statisticUid, out value))
-            return;
+        if (!_dirtiedStatistics.Contains(statisticUid) && _statisticCache.TryGetValue(statisticUid, out var value))
+            return value;
 
         // Force the shunting yard algorithm to crash if any statistics are self-referential. 
-        visited ??= [statisticUid];
+        visited ??= [];
+        if (!visited.Add(statisticUid))
+            throw new RecursiveEvaluateException($"Infinite recursion involving statistic ({statisticUid})");
 
         // A non-cached statistic means it isn't very cut-and-dry.
         // Sort the modifiers by step, starting from base, then by operator which roughly follows PEMDAS.
-        if (!_sortedMods.TryGetValue(statisticUid, out var sortedModifiers))
+        if (!_sortedMods.TryGetValue(statisticUid, out var sortedModifiers) ||
+            sortedModifiers.Count > 0)
         {
             RebuildSortedModifiers(statisticUid);
             sortedModifiers = _sortedMods[statisticUid];
@@ -243,11 +261,12 @@ public class StatisticsList : UidList<Statistic>
         value = statistic.BaseValue; // Start with base value and go through each of the modifiers.
         foreach ((PackableUid ModUid, Modifier Mod) modKvp in sortedModifiers)
         {
-            ApplyModifierValue(ref value, statisticUid, modKvp.ModUid, modKvp.Mod, parent, visited);
+            ApplyModifierValue(ref value, statisticUid, modKvp.ModUid, modKvp.Mod, owner, visited);
         }
 
         // Enforce the minimum-maximum boundaries.
         value = Math.Clamp(value, statistic.MinValue, statistic.MaxValue);
+        return value;
     }
 
     private void ApplyModifierValue(ref double output,
@@ -307,6 +326,7 @@ public class StatisticsList : UidList<Statistic>
     private void ValidateModifierBeforeAdd(PackableUid statisticUid, Modifier modifier)
     {
         var concrete = (ModifierRegistry)_modifierRegistry;
+        var statisticHandle = GetHandle(statisticUid);
 
         // Check and ensure that the modifier exists in the registry.
         if (!concrete.Contains(modifier.Handle))
@@ -317,7 +337,7 @@ public class StatisticsList : UidList<Statistic>
             existing.Any(u => _modifiers.GetHandle(u) == modifier.Handle) &&
             !concrete.CanStack(modifier.Handle))
             throw new ModifierCannotStackException(
-                $"Modifier '{modifier.Handle}' cannot stack on statistic {statisticUid}.");
+                $"Modifier '{modifier.Handle}' cannot stack on stat. \'statisticHandle\' {statisticUid}.");
 
         // The expression is empty.
         if (string.IsNullOrWhiteSpace(modifier.Expression))
@@ -329,12 +349,34 @@ public class StatisticsList : UidList<Statistic>
                 $"Modifier \'{modifier.Handle}\' has an invalid expression \'{modifier.Expression}\'!");
 
         // Cycle check *before* permanently adding anything
-        if (ContainsText(modifier.Expression) && WouldCreateCycle(statisticUid, modifier.Expression))
-            throw new BadModifierException(
-                $"Modifier '{modifier.Handle}' would create a cycle with statistic {statisticUid}.");
+        if (ContainsText(modifier.Expression) &&
+            WouldCreateCycle(statisticUid, modifier.Expression, out var stack))
+        {
+            StringBuilder stb = new();
+            stb.Append($"Modifier '{modifier.Handle}' is recursive for stat. ");
+            stb.Append($"\'{statisticHandle}\' {statisticUid} ");
+            switch (stack.Count)
+            {
+                // Surface-level recursion.
+                case 0:
+                    stb.Append("and it's surface-level, ");
+                    break;
+                // Multi-level recursion.
+                default:
+                {
+                    stb.Append(", with the following references: ");
+                    foreach (PackableUid stackEntry in stack)
+                        stb.Append($"\'{GetHandle(stackEntry)}\' {stackEntry}, ");
+                    break;
+                }
+            }
+
+            stb.Append("please fix this.");
+            throw new RecursiveEvaluateException(stb.ToString());
+        }
     }
 
-    private bool WouldCreateCycle(PackableUid ownerStat, string expression)
+    private bool WouldCreateCycle(PackableUid ownerStat, string expression, out HashSet<PackableUid> stack)
     {
         PackableUid owner = GetOwner(ownerStat);
         var deps = GetDependenciesFromExpression(expression, owner).ToList();
@@ -342,9 +384,13 @@ public class StatisticsList : UidList<Statistic>
         // Temporary edge: ownerStat → each dependency
         // We only need to check whether any dep can already reach ownerStat
         var visited = new HashSet<PackableUid>();
-        var stack = new HashSet<PackableUid>();
+        stack = new HashSet<PackableUid>();
 
-        return deps.Any(d => HasPath(d, ownerStat, visited, stack));
+        foreach (PackableUid d in deps)
+            if (HasPath(d, ownerStat, visited, stack))
+                return true;
+
+        return false;
     }
 
     private bool HasPath(PackableUid from, PackableUid target,

@@ -197,15 +197,8 @@ public class ShuntingYard
                     throw new MissingStatisticException(
                         $"Variable \'{variable}\', has no matching statistics from {trace} to get a value of!");
 
-                // Exception - Statistic is recursively being called.
-                visited ??= [];
-                if (!visited.Add(statistic.Value))
-                    throw new RecursiveEvaluateException(
-                        $"Infinite recursion involving statistic ({statistic}) in expression '{expression}'");
-
                 // Calculate the statistic value.
-                Statistics.CalculateStatisticValue(statistic.Value, out double number, parent, visited);
-
+                var number = Statistics.CalculateStatisticValue(statistic.Value, parent, visited);
                 output.Enqueue(number.ToString(CultureInfo.InvariantCulture));
             }
         }

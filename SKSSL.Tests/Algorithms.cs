@@ -24,6 +24,8 @@ public class Algorithms
 
     private PackableUid thisEntityContainer;
 
+    private StatisticsList statisticsStorage = new();
+
     [TestInitialize, UsedImplicitly]
     public void Initialize()
     {
@@ -77,7 +79,7 @@ public class Algorithms
 
         #endregion
 
-        #region Indirect Recusion
+        #region Indirect Recursion
 
         _statisticRegistry.Register("recursive_statistic_b",
             new Statistic
@@ -123,15 +125,23 @@ public class Algorithms
         #endregion
 
         // Create a place to store statistics with Uids.
-        var statisticsStorage = new StatisticsList();
+        statisticsStorage = new StatisticsList();
         thisEntityContainer = statisticsStorage.New();
         statisticsStorage.AddStatistic(thisEntityContainer, statistic.Handle);
-        statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatistic?.Handle!);
+
+        // Expecting a bad, recursive modifier.
+        Assert.Throws<RecursiveEvaluateException>(() =>
+            statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatistic?.Handle!));
 
         _statisticRegistry.TryGet("recursive_statistic_b", out Statistic? recursiveStatisticB);
-        _statisticRegistry.TryGet("recursive_statistic_c", out Statistic? recursiveStatisticC);
+
+        // Statistic B is innocent?
         statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatisticB?.Handle!);
-        statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatisticC?.Handle!);
+
+        // Statistic C is the real recursive test.
+        _statisticRegistry.TryGet("recursive_statistic_c", out Statistic? recursiveStatisticC);
+        Assert.Throws<RecursiveEvaluateException>(() =>
+            statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatisticC?.Handle!));
 
         // Huzzah for object instantiation.
         ShuntingYard = new ShuntingYard(statisticsStorage);
@@ -147,10 +157,6 @@ public class Algorithms
         // Bad Variable.
         const string badVariableFormula = "(5+3*invalid_statistic)/3--6"; // -> ERROR
         Assert.Throws<MissingStatisticException>(() => ShuntingYard.Evaluate(badVariableFormula));
-
-        // Recursive calls.
-        const string recursiveFormula = "(5+3*recursive_statistic_b)/3--6"; // -> ERROR
-        Assert.Throws<RecursiveEvaluateException>(() => ShuntingYard.Evaluate(recursiveFormula, thisEntityContainer));
 
         /*
          * (5 + 3 * test_statistic) / 3 - -6
@@ -170,5 +176,17 @@ public class Algorithms
         const string goodFormula = "(5+3*test_statistic)/3--6"; // -> 16.666
         result = ShuntingYard.Evaluate(goodFormula);
         Assert.IsLessThan(0.001, Math.Abs(result - 16.666));
+    }
+
+    [TestMethod, UsedImplicitly]
+    public void TEST_STATISTICS()
+    {
+        // Surface-Level Recursive calls.
+        Assert.Throws<RecursiveEvaluateException>(() =>
+            statisticsStorage.CalculateStatisticValue("recursive_statistic", thisEntityContainer));
+
+        // Multi-Layer recursive calls.
+        Assert.Throws<RecursiveEvaluateException>(() =>
+            statisticsStorage.CalculateStatisticValue("recursive_statistic_b", thisEntityContainer));
     }
 }
