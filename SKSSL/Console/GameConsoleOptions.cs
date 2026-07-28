@@ -9,10 +9,12 @@ namespace SKSSL.Console
     {
         public Keys ToggleKey { get; init; }
         public Color BackgroundColor { get; init; }
+
         public Color FontColor
         {
             set => BufferColor = PastCommandColor = PastCommandOutputColor = PromptColor = CursorColor = value;
         }
+
         public Color BufferColor { get; set; }
         public Color PastCommandColor { get; set; }
         public Color PastCommandOutputColor { get; set; }
@@ -29,7 +31,6 @@ namespace SKSSL.Console
         public SpriteFont Font { get; set; }
 
         public Texture2D RoundedCorner { get; set; }
-
         internal static GameConsoleOptions Options { get; set; }
         internal static List<IConsoleCommand> Commands { get; set; } = [];
 
@@ -48,6 +49,5 @@ namespace SKSSL.Console
             Margin = 30;
             OpenOnWrite = true;
         }
-
     }
 }

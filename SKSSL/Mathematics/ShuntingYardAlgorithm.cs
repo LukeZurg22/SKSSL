@@ -52,8 +52,7 @@ public class ShuntingYard
         PackableUid? parent = null,
         HashSet<PackableUid>? visited = null)
     {
-        string trace = parent is null ? "an unknown source" : parent.ToString();
-
+        string trace = (parent is null ? "an unknown source" : parent.ToString())!;
         var output = new Queue<string>(); // RPN output
         var operators = new Stack<string>(); // Operator stack
 

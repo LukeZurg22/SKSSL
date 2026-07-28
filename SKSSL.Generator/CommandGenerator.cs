@@ -46,7 +46,7 @@ public class CommandGenerator : IIncrementalGenerator
 
         var commands = new List<INamedTypeSymbol>();
 
-        foreach (var classDecl in classes)
+        foreach (ClassDeclarationSyntax? classDecl in classes)
         {
             SemanticModel semanticModel = compilation.GetSemanticModel(classDecl.SyntaxTree);
 

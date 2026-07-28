@@ -40,7 +40,7 @@ public enum TextureType : byte
 public partial class TextureLoader : IGameLoader
 {
     public override string[] Extensions => [".png", ".jpg"];
-    
+
     private const string IndicatorMaterial = ".m";
     private const string IndicatorTilemap = ".t"; // TODO: Current unused. Tilemap support would be nice.
     private const string IndicatorIcon = ".i";
@@ -50,7 +50,7 @@ public partial class TextureLoader : IGameLoader
 
     /// Stores whether content from XNA / Monogame Content folders have been built.
     private static bool _contentIndexBuilt = false;
-    
+
     /// <summary>
     /// Initializes texture loaded. An alternative version of the loaded with a custom implement for
     /// <br/><br/>
@@ -80,7 +80,7 @@ public partial class TextureLoader : IGameLoader
              * If it DOES come up in the future, simply add an IF-statement to the assignment of the folder name, where
              * it will choose between GetRelativePath() or GetFileName(); both calling ToLowerInvariant().
              */
-            
+
             // Ensure that this folder is a valid one.
             var folderName = Path.GetRelativePath(directory, texturesFolder).ToLowerInvariant();
             if (folderName.EndsWith(IndicatorMaterial))
@@ -107,59 +107,56 @@ public partial class TextureLoader : IGameLoader
         // WIP: Ensure this actually works, and simplify external content loaders. Possibly with Source Generators?
         if (_contentIndexBuilt) return;
         _contentIndexBuilt = true;
-        
+
         XNAContentLoader.BuildContentIndex();
     }
 
-           /// <summary>
-        /// Core loading logic that attempts to load from a file path, then Content pipeline, before returning an
-        /// error texture of nothing was successful. This is generic, working between all kinds of map types.
-        /// </summary>
-        private static Texture2D LoadFromFileOrContent(string filePath, string cacheKey, string category)
+    /// <summary>
+    /// Core loading logic that attempts to load from a file path, then Content pipeline, before returning an
+    /// error texture of nothing was successful. This is generic, working between all kinds of map types.
+    /// </summary>
+    private static Texture2D LoadFromFileOrContent(string filePath, string cacheKey, string category)
+    {
+        Texture2D texture;
+        // 1. Direct file load (for mod/override support)
+        if (File.Exists(filePath))
         {
-            Texture2D texture;
-            // 1. Direct file load (for mod/override support)
-            if (File.Exists(filePath))
+            try
             {
-                try
-                {
-                    if (_textures.TryGetValue(category, out var categoryDictionary))
-                    {
-                        if (categoryDictionary.TryGetValue(cacheKey, out Texture2D? cached))
-                            return cached;
-                    }
+                if (_textures.TryGetValue(category, out var categoryDictionary) &&
+                    categoryDictionary.TryGetValue(cacheKey, out Texture2D? cached)) return cached;
 
-                    using var stream = new FileStream(
-                        filePath,
-                        FileMode.Open, FileAccess.Read, FileShare.Read,
-                        bufferSize: 4096,
-                        FileOptions.SequentialScan);
+                using var stream = new FileStream(
+                    filePath,
+                    FileMode.Open, FileAccess.Read, FileShare.Read,
+                    bufferSize: 4096,
+                    FileOptions.SequentialScan);
 
-                    texture = Texture2D.FromStream(SSLGame.Graphics, stream).ToMipMapped();
-                    return texture;
-                }
-                catch (Exception ex)
-                {
-                    Log($"Failed direct load: {filePath} - {ex.Message}", LOG.FILE_WARNING);
-                }
+                texture = Texture2D.FromStream(SSLGame.Graphics, stream).ToMipMapped();
+                return texture;
             }
-
-            // 2. Fallback to MonoGame Content pipeline (.xnb)
-            foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
+            catch (Exception ex)
             {
-                try
-                {
-                    texture = contentManager.Load<Texture2D>(cacheKey).ToMipMapped();
-                    return texture;
-                }
-                catch
-                {
-                    //
-                }
+                Log($"Failed direct load: {filePath} - {ex.Message}", LOG.FILE_WARNING);
             }
-
-            // 3. Error texture fallback
-            Log($"Texture load failed: {cacheKey} (category: {category}) → error texture", LOG.FILE_WARNING);
-            return HardcodedTextures.GetErrorTexture();
         }
+
+        // 2. Fallback to MonoGame Content pipeline (.xnb)
+        foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
+        {
+            try
+            {
+                texture = contentManager.Load<Texture2D>(cacheKey).ToMipMapped();
+                return texture;
+            }
+            catch
+            {
+                //
+            }
+        }
+
+        // 3. Error texture fallback
+        Log($"Texture load failed: {cacheKey} (category: {category}) → error texture", LOG.FILE_WARNING);
+        return HardcodedTextures.GetErrorTexture();
+    }
 }

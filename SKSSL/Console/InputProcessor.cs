@@ -202,7 +202,7 @@ namespace SKSSL.Console
                 return;
             }
 
-            var restOfTheCommand = match.Name.Substring(textToMatch.Length);
+            var restOfTheCommand = match.Name[textToMatch.Length..];
             Buffer.Output += restOfTheCommand + " ";
         }
 
