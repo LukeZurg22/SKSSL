@@ -1,27 +1,40 @@
 # .CSPROJ Adjustments
+
 First, Add SKSSL As a Nuget Package Reference (Or as a submodule!)
 
 https://www.nuget.org/packages/SKSSL/
 
 _or add to the `.csproj` directly:_
+
 ```config
+
 <ItemGroup>
     <PackageReference Include="SKSSL" Version="<!--Enter Version Here-->" />
+
 </ItemGroup>
 ```
 
-Then, adjust the `.csproj` to accomodate the engine.
-```config
+Then, adjust the `.csproj` to accomodate the engine. The following must be added to the `.csproj` file of the project
+using SKSSL. It relies on source-generated code (compile-time reflection for registries, components, etc.)
+whose generator's config must not be altered.
 
-    <!-- !== ADD THE FOLLOWING TO GAME PROJECTS INHERITING / USING SKSSL AS AN ENGINE !== -->
+```config
+<put_the_between_stuff_in_.csproj_but_not_this_tag_please>
+    
 <!--START - Enable Compiler-Generated Code-->
 <PropertyGroup>
-    <OutputPath>build\binaries\</OutputPath> &lt;!&ndash;Executable Is Here, SKSSL Accomodates 1 Level Above&ndash;&gt;
+    &lt;!&ndash;Override the compilation output directory. SKSSL Accomodates 1 Level Above&ndash;&gt;
+    <OutputPath>build\binaries\</OutputPath>
+    &lt;!&ndash;Target framework (i.e. linux, win-x64, etc.) isn't needed.&ndash;&gt;
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    &lt;!&ndash;Crucial for Source Generator to Work&ndash;&gt;
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    &lt;!&ndash;Do NOT change this! This is for the Source Gen.&ndash;&gt;
     <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
 </PropertyGroup>
+
+<!--Removes outdated Source-Gen code as a cleanup before-hand.-->
 <Target Name="CleanBuildFolder" BeforeTargets="BeforeBuild">
 <RemoveDir Directories="build" Condition="Exists(build)"/>
 </Target>
@@ -33,8 +46,23 @@ Then, adjust the `.csproj` to accomodate the engine.
 <Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs"/>
 <None Include="$(CompilerGeneratedFilesOutputPath)/**/*.cs"/>
 </ItemGroup>
+<!--END - Enable Compiler-Generated Code-->
+    
+</put_the_between_stuff_in_.csproj_but_not_this_tag_please>
+```
+
+## Forcing Default Structure
+Some projects may choose to begin with a dedicated "game" folder to store the game data, and with a matching
+directory layout for all development assets built directly into the game's— ignorant of the MonoGame Content 
+Builder —output content.
+
+The structure may be either a "root" layout where all assets are loaded in a single directory, which becomes non-modular.
+### Root-Centric Layout
+```config
+
+<copy_only_config_between_this_tag_and_not_this_tag>
+    
         <!-- Add custom pre-loaded game folders here! -->
-        <!--===EXAMPLE (ROOT GAME EXAMPLE)===-->
 <ItemGroup>
 <Content Include="prototypes\**\*.*">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -54,15 +82,48 @@ Then, adjust the `.csproj` to accomodate the engine.
     <Link>..\settings.yaml</Link>
 </Content>
 </ItemGroup>
-        <!--END - Enable Compiler-Generated Code-->
+    
+</copy_only_config_between_this_tag_and_not_this_tag>
 ```
 
-This is only for a _root_ game directory as an example. A specified directory requires a folder in your project, and
-**only one** of these Directory-centric content inclusions focused on that folder and all of its contents!
+### Modular Layout
+Meanwhile, if one alters the settings to accomodate other game folders, the _Root-Centric_ layout will be completely
+ignored, and a _Modular Layout_ will be enforced.
+```config
 
-# SSLGame Engine Config
-Make a game Class that inherits SSLGame, and call GameManager.Run<MyGameClass>() in Program.cs ; Additionally, you will
-need to configure the engine's properties below.
+<copy_only_config_between_this_tag_and_not_this_tag>
+    
+    <ItemGroup>
+        <Content Include="game\prototypes\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..game\prototypes\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+        <Content Include="game\textures\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..game\textures\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+        <Content Include="game\localization\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..game\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </Content>
+    
+        <!--This assumes that a settings file is present in your game project pre-compile.-->
+        <Content Include="settings.yaml">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\settings.yaml</Link>
+        </Content>
+    </ItemGroup>
+    
+</copy_only_config_between_this_tag_and_not_this_tag>
+```
+The modular layout makes the bold assumptions that your directory structure matches the config. "game" is used as the
+example, but any directory works so long as it contains the dedicated content folders.
+
+# Configuring SSLGame
+
+Make a game Class that inherits the `SSLGame` class which is an extension of the MonoGame `Game` class. Call 
+`GameManager.Run<MyGameClassName>()` in Program.cs ; Additionally, you will
+need to configure the engine's properties which are exemplified below.
 
 ## <i>[(SEE ENGINE CONFIG)](0_SETUP.ENGINE_CONFIG.md)</i>
 

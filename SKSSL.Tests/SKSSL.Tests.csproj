@@ -60,5 +60,4 @@
         <PackageReference Include="Tomlyn" Version="2.4.1"/>
         <PackageReference Include="YamlDotNet" Version="18.0.0"/>
     </ItemGroup>
-
 </Project>
