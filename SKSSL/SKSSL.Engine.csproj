@@ -176,6 +176,12 @@
         <Compile Update="ECS\Component\StatisticsComponent.cs">
           <DependentUpon>Component.cs</DependentUpon>
         </Compile>
+        <Compile Update="ECS\Entity\IDrawSystem.cs">
+          <DependentUpon>EntitySystem.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Entity\IUpdateSystem.cs">
+          <DependentUpon>EntitySystem.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <!-- START - !== ADD THE FOLLOWING TO INHERITING PROJECTS USING SKSSL AS AN ENGINE !== -->

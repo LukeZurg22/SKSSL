@@ -38,11 +38,13 @@ public class YamlLoader : PrototypeLoader
     private static readonly ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .ConfigureDefaultValuesHandling(OmitNull | OmitDefaults | OmitEmptyCollections)
+        .WithTypeConverter(new LocIdYamlConverter())
         .Build();
 
     /// YAML Deserializer.
     private static readonly IDeserializer SKSSLDefaultDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .WithTypeConverter(new LocIdYamlConverter())
         .Build();
 
     /// <summary>

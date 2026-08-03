@@ -152,11 +152,11 @@ public abstract class SSLGame : Game
         ecs_SB.AppendLine($"ECS status: {(Config.UseECS ? "on" : "off")}");
         if (Config.UseECS)
         {
-            ecs_SB.AppendLine($"Source generator accounted for {ComponentRegistry.Count} components:");
+            ecs_SB.AppendLine($"Source generator found {ComponentRegistry.Count} components:");
 
             // Print all registered components in a nice list. 
             foreach ((string? handle, Type? type) in ComponentRegistry.RegisteredHandleComponentTypesDictionary)
-                ecs_SB.AppendLine($"{handle} -> ID {ComponentRegistry.GetId(type)}");
+                ecs_SB.AppendLine($"{handle} ({ComponentRegistry.GetId(type)})");
         }
 
         // Spit out component logging.
@@ -182,10 +182,6 @@ public abstract class SSLGame : Game
         #endregion
     }
 
-    /// WIP: loading directories.
-    ///  == Textures & Materials
-    ///  == Prototypes (check ECS I guess?)
-    ///  Make a breakpoint & double-check that load order is operational. Higher order = higher priority!
     private static void LoadGameDirectory(GameDirectory directory)
     {
         // Assuming there are defined directories to begin with...

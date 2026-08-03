@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 
@@ -19,7 +20,7 @@ public static partial class DustLogger
 
     /// General toggle for output logging to file.
     private const bool DefaultOutputBoolean = true;
-    
+
     #region Log Types
 
     /// <summary>
@@ -135,14 +136,15 @@ public static partial class DustLogger
         _logFilePath = Path.Combine(GameDirectory.RootDirectory, "log.txt");
         StreamWriter writer = File.CreateText(_logFilePath);
         writer.Close(); // Wipe the old file.
-        
+
         // TODO: implement back-logging for antiquated logs. Also include splits.
     }
 
     // ReSharper disable once InvalidXmlDocComment
     /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
     /// Overload using enum, which is cast to byte.
-    public static void Log(string message, LOG log, bool outputToFile = DefaultOutputBoolean) => Log(message, (byte)log, outputToFile);
+    public static void Log(string message, LOG log, bool outputToFile = DefaultOutputBoolean)
+        => Log(message, (byte)log, outputToFile);
 
     public static void Panic<T>(string message) where T : Exception
     {
@@ -161,7 +163,7 @@ public static partial class DustLogger
         {
             // Fallback if the exception type doesn't have a (string) constructor
             exception = Activator.CreateInstance<T>();
-        
+
             // Try to set message via reflection as fallback
             typeof(Exception)
                 .GetField("_message", BindingFlags.Instance | BindingFlags.NonPublic)
@@ -170,33 +172,46 @@ public static partial class DustLogger
 
         throw exception;
     }
-    
+
     /// Write logging message to file. 
-    private static void WriteToFile(LOG log, string message)
+    private static void WriteToFile(LOG log, Exception exception)
     {
         try
         {
             using StreamWriter w = File.AppendText(_logFilePath);
-            w.WriteLine($"[{log.ToString()}] {message}");
+            w.WriteLine($"[{log.ToString()}] {exception.Message}");
         }
         catch (Exception)
         {
             // ignored
         }
     }
-    
-    /// <summary>
-    /// <seealso cref="LOG"/>
-    /// </summary>
-    /// <param name="message">The message that is being output to console.</param>
-    /// <param name="level">Logging level and type. Defaults to 0 (INFO).</param>
-    /// <param name="outputToFile">Dictates if this message should be logged.</param> // TODO: File-logging is not implemented yet!
+
     public static void Log(string message, int level = 0, bool outputToFile = DefaultOutputBoolean)
     {
         var exception = new Exception(message) { Source = "SKSSL" };
+#if DEBUG
+        if (level > 4)
+            throw exception;
+#endif
+        InternalLog(exception, level, outputToFile);
+    }
 
+    public static void Log(Exception e, int level = 0, bool outputToFile = DefaultOutputBoolean)
+        => Log(e.Message, level, outputToFile);
+
+    /// <summary>
+    /// <seealso cref="LOG"/>
+    /// </summary>
+    /// <param name="exception">The message that is being output to console.</param>
+    /// <param name="level">Logging level and type. Defaults to 0 (INFO).</param>
+    /// <param name="outputToFile">Dictates if this message should be logged.</param> // TODO: File-logging is not implemented yet!
+    [UsedImplicitly]
+    private static void InternalLog(Exception exception, int level = 0, bool outputToFile = DefaultOutputBoolean)
+    {
+        var message = exception.Message;
         var e = (LOG)level; // cast to internal enum
-        if (outputToFile) WriteToFile(e, message);
+        if (outputToFile) WriteToFile(e, exception);
 
         switch (e)
         {

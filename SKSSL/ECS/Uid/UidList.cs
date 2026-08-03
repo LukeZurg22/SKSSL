@@ -102,7 +102,7 @@ public class UidList<T> : IEnumerable<T> where T : class
         {
             uidIndex = _freeList[--_freeCount];
         }
-        // Allocate a brand new slot.
+        // Allocate a brand-new slot.
         else
         {
             uidIndex = _nextUidIndex++;
@@ -155,12 +155,12 @@ public class UidList<T> : IEnumerable<T> where T : class
         // Prevent duplicates.
         list.Add(uid);
 
-        var ownerCast = owner ??= RootUid;
+        PackableUid castOwner = owner ?? RootUid;
         _indexToHandle[uidIndex] = string.IsNullOrEmpty(handle) ? null : handle;
-        _indexToOwner[uidIndex] = ownerCast; // Use default root if otherwise not provided.
+        _indexToOwner[uidIndex] = castOwner; // Use default root if otherwise not provided.
 
         // Populate the ownership tracking.
-        if (!_ownerToOwned.TryGetValue(ownerCast, out var value)) _ownerToOwned[ownerCast] = [uid];
+        if (!_ownerToOwned.TryGetValue(castOwner, out var value)) _ownerToOwned[castOwner] = [uid];
         else value.Add(uid);
     }
 

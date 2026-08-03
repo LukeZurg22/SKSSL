@@ -45,21 +45,18 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
      * not need to contain a name.
      */
 
-    #region Name / Description
+    // TEMP: Consider moving these qualities into some MetaData type.
+    // TODO: Wrap these strings with a "LocaleKey" type w. a function ".Localized()"
+
+    #region Name / Description / Meta-Data
 
     /// Non-localized name key.
     [YamlMember(Alias = "name", Order = 4), JsonProperty("Name")]
-    public string? NameKey;
-
-    /// <returns>Localized name from Name Key.</returns>
-    public void GetName() => Loc.Get(NameKey);
+    public LocKey Name = new(string.Empty);
 
     /// Non-localized description key.
     [YamlMember(Alias = "description", Order = 5), JsonProperty("Description")]
-    public string? DescriptionKey;
-
-    /// <returns>Localized Description from Description Key.</returns>
-    public void GetDescription() => Loc.Get(DescriptionKey);
+    public LocKey Description = new(string.Empty);
 
     #endregion
 
@@ -117,8 +114,8 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
         base.CopyFrom(source); // Copy base-prototype stuff.
         Abstract = source.Abstract;
         Inherit = source.Inherit;
-        NameKey = source.NameKey;
-        DescriptionKey = source.DescriptionKey;
+        Name = source.Name;
+        Description = source.Description;
         World = source.World;
         if (source.YamlComponents != null && YamlComponents != null)
             YamlComponents = YamlComponents

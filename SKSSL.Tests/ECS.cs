@@ -156,6 +156,8 @@ public class ECS
         // Assert single register.
         TestEntityInheritedType testEnt = new TestEntityInheritedType { Handle = TestEntHandle };
         MasterRegistryManager.TryRegisterPrototype(testEnt.Type, testEnt);
+
+        // ERR: Crashes here. IsTrue failed. The registration failed! Idk why!
         IsTrue(MasterRegistryManager.TryGetPrototype(TestEntHandle, out _));
 
         // Assert multiple.
