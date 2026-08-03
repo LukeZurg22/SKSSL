@@ -1,4 +1,5 @@
 // ReSharper disable FieldCanBeMadeReadOnly.Global
+
 namespace SKSSL;
 
 public class EngineConfig
@@ -22,14 +23,6 @@ public class EngineConfig
     /// </summary>
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public PrototypeLoader ContentLoader = new YamlLoader();
-
-    /* // WIP: More dynamic directory loading.
-     * Dictionary<string, GameLoader>() {
-     *  { "textures", new TextureLoader() },
-     *  { "prototypes", new YamlLoader() },
-     *  { "localization", new LocaleLoader() },
-     * }
-     */
     
     /// <summary>
     /// The number of active objects that can be recycled. This is ignored when recycling more than the expected count.
@@ -37,8 +30,5 @@ public class EngineConfig
     /// <remarks>Don't touch this unless you know what you're doing. This may affect performance.</remarks>
     public int DESTROY_CACHE_LIMIT = 1024;
     
-    public override string ToString()
-    {
-        return $"{UseECS};{GumFile};{ContentLoader.GetType().Name}";
-    }
+    public override string ToString() => $"{UseECS};{GumFile};{ContentLoader.GetType().Name}";
 }

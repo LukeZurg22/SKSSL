@@ -47,7 +47,7 @@ public abstract class SSLGame : Game
     public static float AspectRatio => Graphics.Viewport.AspectRatio;
 
     /// Use static constructor for this.
-    public static EngineConfig Config { get; set; } = new();
+    public static EngineConfig Config { get; set; } = new(); // TODO: Make more dynamic and expandable by user-side.
 
     #endregion
 
@@ -146,20 +146,21 @@ public abstract class SSLGame : Game
 
         #region SSLGame Additionals
 
+        StringBuilder ecs_SB = new();
+
         // Display ECS status. This called after inheritors.
-        Log($"ECS status: {(Config.UseECS ? "on" : "off")}");
+        ecs_SB.AppendLine($"ECS status: {(Config.UseECS ? "on" : "off")}");
         if (Config.UseECS)
         {
-            Log($"Source generator accounted for {ComponentRegistry.Count} components:");
-            // Print all registered components in a nice list. 
-            StringBuilder componentTypesOutput = new();
-            foreach ((string? handle, Type? type) in ComponentRegistry.RegisteredHandleComponentTypesDictionary)
-            {
-                componentTypesOutput.AppendLine($"\n  {handle} -> ID {ComponentRegistry.GetId(type)}");
-            }
+            ecs_SB.AppendLine($"Source generator accounted for {ComponentRegistry.Count} components:");
 
-            Log(componentTypesOutput.ToString());
+            // Print all registered components in a nice list. 
+            foreach ((string? handle, Type? type) in ComponentRegistry.RegisteredHandleComponentTypesDictionary)
+                ecs_SB.AppendLine($"{handle} -> ID {ComponentRegistry.GetId(type)}");
         }
+
+        // Spit out component logging.
+        Log(ecs_SB.ToString());
 
         Log("Initializing ImGUI.");
         GuiRenderer = new ImGuiRenderer(this);

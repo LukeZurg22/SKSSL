@@ -53,7 +53,7 @@ public class GameSettings
         }
         catch (Exception e)
         {
-            Log($"Failed to load game settings: {e.Message}");
+            Log($"Failed to load game settings: {e.InnerException?.Message}.", LOG.SYSTEM_WARNING);
             return new GameSettings();
         }
 

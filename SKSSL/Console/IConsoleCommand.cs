@@ -1,17 +1,21 @@
 ﻿namespace SKSSL.Console;
 
+/// <summary>
+/// Use <see cref="RegisterCommandAttribute"/> to register commands. This interface is for interaction in the command
+/// handler.
+/// </summary>
 public interface IConsoleCommand
 {
     /// <summary>
     /// The name of the command
     /// </summary>
     string Name { get; }
-    
+
     /// <summary>
     /// Invoked through this string
     /// </summary>
     string Command { get; }
-    
+
     /// <summary>
     /// The description that is displayed with the 'help' command
     /// </summary>

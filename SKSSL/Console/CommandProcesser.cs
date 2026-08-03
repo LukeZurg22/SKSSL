@@ -16,6 +16,7 @@ namespace SKSSL.Console
             {
                 return "ERROR: Command not found";
             }
+
             string commandOutput;
             try
             {
@@ -25,6 +26,7 @@ namespace SKSSL.Console
             {
                 commandOutput = "ERROR: " + ex.Message;
             }
+
             return commandOutput;
         }
 
@@ -44,7 +46,6 @@ namespace SKSSL.Console
 
             // Extract the part of the buffer after the command
             var argsPart = buffer[(firstSpace + 1)..];
-
             var arguments = new List<string>();
             var currentArgument = new StringBuilder();
             bool insideQuotes = false;

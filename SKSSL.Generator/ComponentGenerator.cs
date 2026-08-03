@@ -39,8 +39,7 @@ public class ComponentGenerator : IIncrementalGenerator
         if (classes.IsDefaultOrEmpty) return;
 
         INamedTypeSymbol? ComponentSymbol
-            = compilation.GetTypeByMetadataName(ComponentBaseName) ??
-              FindInCompilation(compilation, ComponentBaseName);
+            = compilation.GetTypeByMetadataName(ComponentBaseName) ?? FindInCompilation(compilation, ComponentBaseName);
 
         if (ComponentSymbol == null) return;
 
@@ -114,6 +113,4 @@ public class ComponentGenerator : IIncrementalGenerator
         return sb;
         //@formatter:on
     }
-
-   
 }

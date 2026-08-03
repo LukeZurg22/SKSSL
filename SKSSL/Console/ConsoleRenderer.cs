@@ -71,7 +71,7 @@ internal class ConsoleRenderer
         pixel?.SetData([Color.White]);
         firstCommandPositionOffset = Vector2.Zero;
         oneCharacterWidth =
-            GameConsoleOptions.Options.Font.MeasureString("x").X; // IMPL: May be the source of the alignment issue.
+            GameConsoleOptions.Options.Font.MeasureString("x").X; // TEMP: May be the source of the alignment issue.
         maxCharactersPerLine = (int)((Bounds.Width - GameConsoleOptions.Options.Padding * 2) / oneCharacterWidth);
     }
 

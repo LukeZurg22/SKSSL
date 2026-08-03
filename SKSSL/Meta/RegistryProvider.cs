@@ -19,8 +19,5 @@ public class RegistryProvider<T> : IServiceProvider where T : class, new()
     public void Replace(T replacement) => Registry = replacement;
 
     /// <inheritdoc />
-    public object? GetService(Type serviceType)
-    {
-        return serviceType == typeof(T) ? Registry : null;
-    }
+    public object? GetService(Type serviceType) => serviceType == typeof(T) ? Registry : null;
 }

@@ -1,9 +1,9 @@
-﻿using JetBrains.Annotations;
+﻿using System.Threading;
 
 namespace SKSSL.Console.Commands;
 
-[UsedImplicitly]
-internal class ExitCommand : IConsoleCommand
+[JetBrains.Annotations.UsedImplicitly, RegisterCommand]
+public class ExitCommand : IConsoleCommand
 {
     public string Command => "exit";
     public string Name => "exit";
@@ -11,7 +11,16 @@ internal class ExitCommand : IConsoleCommand
 
     public string Execute(string?[] arguments)
     {
-        GameManager.Exit();
-        return "Exiting the game";
+        var shutdownThread = new Thread(() =>
+        {
+            Thread.Sleep(5000);
+            GameManager.Exit();
+        })
+        {
+            Name = "ExitCommandThread",
+            IsBackground = true
+        };
+        shutdownThread.Start();
+        return "Exiting game.";
     }
 }

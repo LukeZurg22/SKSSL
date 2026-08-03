@@ -2,6 +2,7 @@
 
 namespace SKSSL.Console.Commands;
 
+[JetBrains.Annotations.UsedImplicitly, RegisterCommand]
 internal class ClearScreenCommand: IConsoleCommand
 {
     public string Name => "clear";

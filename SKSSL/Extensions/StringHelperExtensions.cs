@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using SKSSL.Mathematics;
 using static System.Globalization.CultureInfo;
 using static System.Globalization.NumberStyles;
 

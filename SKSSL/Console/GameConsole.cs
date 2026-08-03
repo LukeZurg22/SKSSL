@@ -58,7 +58,7 @@ public class GameConsole
         GameConsoleOptions.Options = new GameConsoleOptions
         {
             ToggleKey = Keys.OemTilde,
-            // WARN: WILL CRASH!
+            // WARN: WILL CRASH, DUE TO MISSING FONT
             Font = consoleComponent.Game.Content.Load<SpriteFont>("ConsoleFont"),
             FontColor = LawnGreen,
             Prompt = "->",

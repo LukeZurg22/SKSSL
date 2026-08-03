@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static SKSSL.Generator.SharedMethods;
 
 namespace SKSSL.Generator;
 
@@ -39,7 +39,8 @@ public class PrototypeGenerator : IIncrementalGenerator
         if (classes.IsDefaultOrEmpty) return;
 
         INamedTypeSymbol? prototypeSymbol
-            = compilation.GetTypeByMetadataName(PrototypeBaseName) ?? FindPrototypeInCompilation(compilation);
+            = compilation.GetTypeByMetadataName(PrototypeBaseName) ??
+              FindInCompilation(compilation, PrototypeBaseName);
 
         if (prototypeSymbol == null) return;
 
@@ -99,37 +100,5 @@ public class PrototypeGenerator : IIncrementalGenerator
         sb.AppendLine("}");
         return sb;
         //@formatter:on
-    }
-
-    private static INamedTypeSymbol? FindPrototypeInCompilation(Compilation compilation)
-    {
-        // Fallback: search all types
-        return compilation.GlobalNamespace
-            .GetNamespaceMembers()
-            .SelectMany(GetAllTypes)
-            .FirstOrDefault(t => t.Name == PrototypeBaseName && !t.IsGenericType);
-    }
-
-    private static IEnumerable<INamedTypeSymbol> GetAllTypes(INamespaceSymbol ns)
-    {
-        foreach (INamedTypeSymbol? type in ns.GetTypeMembers())
-            yield return type;
-
-        foreach (INamespaceSymbol? nestedNs in ns.GetNamespaceMembers())
-        foreach (INamedTypeSymbol? type in GetAllTypes(nestedNs))
-            yield return type;
-    }
-
-    private static bool IsDerivedFrom(ITypeSymbol type, ITypeSymbol baseType)
-    {
-        INamedTypeSymbol? current = type.BaseType;
-        while (current != null)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                return true;
-            current = current.BaseType;
-        }
-
-        return false;
     }
 }

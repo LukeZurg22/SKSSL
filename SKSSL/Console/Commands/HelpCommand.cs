@@ -1,11 +1,10 @@
 ﻿using System.Linq;
 using System.Text;
-using JetBrains.Annotations;
 
 namespace SKSSL.Console.Commands;
 
-[UsedImplicitly]
-internal class HelpCommand : IConsoleCommand
+[JetBrains.Annotations.UsedImplicitly, RegisterCommand]
+public class HelpCommand : IConsoleCommand
 {
     public string Name => "help";
     public string Command => "help <x>";
