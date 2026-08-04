@@ -88,8 +88,47 @@ public abstract class MasterRegistryManager
     /// </remarks>
     public static bool TryRegisterPrototype(string typeName, Prototype prototype)
     {
-        if (!TypeDefinitions.TryGetValue(typeName, out Type? type))
+        if (TypeDefinitions.TryGetValue(typeName, out Type? type))
+        {
+            return RegisterInto(type, prototype);
+        }
+
+        Type? current = prototype.GetType();
+        while (current != null)
+        {
+            // Prefer an exact match on the short name if it exists
+            string candidateName = current.Name;
+            if (candidateName.EndsWith("Prototype", StringComparison.OrdinalIgnoreCase))
+                candidateName = candidateName[..^9];
+
+            if (TypeDefinitions.TryGetValue(candidateName, out type) ||
+                TypeDefinitions.TryGetValue(current.Name, out type) ||
+                Registries.ContainsKey(current))
+            {
+                // Remember the original typeName so future lookups are fast
+                return RegisterInto(type ?? current, prototype);
+            }
+
+            // Stop when we reach the root
+            if (current == typeof(Prototype))
+                break;
+
+            current = current.BaseType;
+        }
+
+        if (current == null)
+            Log(new InvalidCastException($"\'{typeName}\' type provided for prototype \'{prototype.Handle}\', " +
+                                         $"which is not a valid type definition in the registry."), LOG.FILE_ERROR);
+        return true;
+    }
+
+    private static bool RegisterInto(Type type, Prototype prototype)
+    {
+        if (!Registries.TryGetValue(type, out Registry? registry))
+        {
+            // Should never happen for Prototype, but be defensive
             return false;
+        }
 
         switch (prototype.Replace)
         {
@@ -111,8 +150,7 @@ public abstract class MasterRegistryManager
             }
         }
 
-        // Because type is explicitly provided, assume it's 100% valid. 
-        Registries[type].Register(prototype.Handle, prototype);
+        registry.Register(prototype.Handle, prototype);
         return true;
     }
 

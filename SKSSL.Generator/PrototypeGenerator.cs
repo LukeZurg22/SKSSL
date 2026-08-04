@@ -51,9 +51,6 @@ public class PrototypeGenerator : IIncrementalGenerator
             if (classDecl is null || classDecl.IsAbstract)
                 continue;
 
-            if (classDecl.Name.Equals("Prototype", StringComparison.OrdinalIgnoreCase))
-                continue;
-
             if (IsDerivedFrom(classDecl, prototypeSymbol))
                 prototypes.Add(classDecl);
         }
@@ -92,7 +89,9 @@ public class PrototypeGenerator : IIncrementalGenerator
             if (shortName.EndsWith("Prototype", StringComparison.OrdinalIgnoreCase))
                 shortName = shortName[..^9];
             
-            if (string.IsNullOrWhiteSpace(shortName)) continue;
+            if (string.IsNullOrWhiteSpace(shortName))
+                continue;
+
             sb.AppendLine($"            SKSSL.ECS.Registry.MasterRegistryManager.RegisterTypeDefinition(\"{shortName}\", typeof({fullName}));");
         }
         sb.AppendLine("      }");
