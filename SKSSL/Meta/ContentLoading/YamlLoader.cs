@@ -30,6 +30,7 @@ namespace SKSSL;
 /// // Files read once per type, cached afterward
 /// </code></example>
 /// </summary>
+// ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
 public class YamlLoader : PrototypeLoader
 {
     public override string[] Extensions => [".yml", ".yaml"];
@@ -41,11 +42,17 @@ public class YamlLoader : PrototypeLoader
         .WithTypeConverter(new LocIdYamlConverter())
         .Build();
 
+    // ReSharper disable MemberCanBeProtected.Global
+    public virtual ISerializer Serializer => SKSSLDefaultSerializer;
+
     /// YAML Deserializer.
     private static readonly IDeserializer SKSSLDefaultDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .WithTypeConverter(new LocIdYamlConverter())
         .Build();
+
+    // ReSharper disable MemberCanBeProtected.Global
+    public virtual IDeserializer Deserializer => SKSSLDefaultDeserializer;
 
     /// <summary>
     /// Serializes an object as either itself, or a list of its provided type.
@@ -54,7 +61,7 @@ public class YamlLoader : PrototypeLoader
     /// <remarks>Forces object to list of itself for serialization.</remarks>
     // WARN: I am worried this will not handle multiple types very well!
     protected override string SerializeLogicImplement<T>(T obj) where T : class =>
-        SKSSLDefaultSerializer.Serialize(obj);
+        Serializer.Serialize(obj);
 
     protected override List<Prototype> DeserializeLogicImplement(string text, string trace = "", params Type[] types)
     {
@@ -199,7 +206,7 @@ public class YamlLoader : PrototypeLoader
     }
 
     /// Deserialize a set of bytes per type, and fill the data into a dictionary for use elsewhere.
-    private static List<Prototype> DeserializeFillData(Dictionary<Type, StringBuilder> combined, string fileTrace)
+    private List<Prototype> DeserializeFillData(Dictionary<Type, StringBuilder> combined, string fileTrace)
     {
         // Assign proper types to a new dictionary to organize all the different flavors of files.
         // Because provided types are static, and that yaml blocks are later verified,
@@ -239,10 +246,10 @@ public class YamlLoader : PrototypeLoader
         // Helper method used to deserialize bytes as a list of an element type.
         // Requires the DeserializeListOf method to remain exactly as it is, as this converts a type parameter
         //  into a generic one.
-        static object? DeserializeAsListOfType(Type genericType, string text)
+        object? DeserializeAsListOfType(Type genericType, string text)
         {
             Type listType = typeof(List<>).MakeGenericType(genericType);
-            var result = SKSSLDefaultDeserializer.Deserialize(text, listType);
+            var result = Deserializer.Deserialize(text, listType);
             return result;
         }
     }
