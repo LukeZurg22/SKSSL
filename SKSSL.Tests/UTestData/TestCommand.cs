@@ -1,9 +1,11 @@
 using System;
 using System.Windows.Input;
+using SKSSL.Console;
 
 namespace SKSSL.Tests.UTestData;
 
-public class TestCommand : ICommand
+[RegisterCommand]
+public class TestCommand : IConsoleCommand
 {
     public bool CanExecute(object parameter)
     {
@@ -16,4 +18,11 @@ public class TestCommand : ICommand
     }
 
     public event EventHandler CanExecuteChanged;
+    public string Name { get; }
+    public string Command { get; }
+    public string Description { get; }
+    public string Execute(string[] arguments)
+    {
+        throw new NotImplementedException();
+    }
 }

@@ -107,4 +107,62 @@ public static class SharedMethods
 
         return false;
     }
+
+    internal static IEnumerable<INamedTypeSymbol> GetAllTypes(Compilation compilation)
+    {
+        // Current assembly
+        foreach (INamedTypeSymbol? type in GetAllTypes(compilation.Assembly))
+            yield return type;
+
+        // Referenced assemblies (source projects + binaries)
+        foreach (MetadataReference? reference in compilation.References)
+            if (compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol asm)
+                foreach (INamedTypeSymbol? type in GetAllTypes(asm))
+                    yield return type;
+    }
+
+    private static IEnumerable<INamedTypeSymbol> GetAllTypes(IAssemblySymbol assembly)
+    {
+        var stack = new Stack<INamespaceSymbol>();
+        stack.Push(assembly.GlobalNamespace);
+
+        while (stack.Count > 0)
+        {
+            INamespaceSymbol? ns = stack.Pop();
+            foreach (INamespaceOrTypeSymbol? member in ns.GetMembers())
+            {
+                switch (member)
+                {
+                    case INamespaceSymbol childNs:
+                        stack.Push(childNs);
+                        break;
+                    case INamedTypeSymbol type:
+                    {
+                        yield return type;
+
+                        // nested types
+                        foreach (INamedTypeSymbol? nested in GetNestedTypes(type))
+                            yield return nested;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<INamedTypeSymbol> GetNestedTypes(INamedTypeSymbol type)
+    {
+        foreach (INamedTypeSymbol? nested in type.GetTypeMembers())
+        {
+            yield return nested;
+            foreach (INamedTypeSymbol? deeper in GetNestedTypes(nested))
+                yield return deeper;
+        }
+    }
+
+    internal static INamedTypeSymbol? FindTypeInCompilation(Compilation compilation, string name)
+    {
+        return GetAllTypes(compilation)
+            .FirstOrDefault(t => t.Name == name || t.Name == name + "Attribute");
+    }
 }

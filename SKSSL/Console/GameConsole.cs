@@ -31,7 +31,7 @@ public class GameConsole
     public static GameConsoleOptions Options => GameConsoleOptions.Options;
 
     public static List<IConsoleCommand> Commands => GameConsoleOptions.Commands;
-
+    
     /// <summary>
     /// Adds a new command to the console.
     /// </summary>

@@ -2,7 +2,7 @@
 
 /// <summary>
 /// Use <see cref="RegisterCommandAttribute"/> to register commands. This interface is for interaction in the command
-/// handler.
+/// handler. Commands MUST be public!
 /// </summary>
 public interface IConsoleCommand
 {

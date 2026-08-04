@@ -1,6 +1,6 @@
 ﻿using System.Threading;
 
-namespace SKSSL.Console.Commands;
+namespace SKSSL.Console.Command;
 
 [JetBrains.Annotations.UsedImplicitly, RegisterCommand]
 public class ExitCommand : IConsoleCommand

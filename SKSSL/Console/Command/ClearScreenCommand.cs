@@ -1,16 +1,14 @@
 ﻿using System;
 
-namespace SKSSL.Console.Commands;
+namespace SKSSL.Console.Command;
 
 [JetBrains.Annotations.UsedImplicitly, RegisterCommand]
-internal class ClearScreenCommand: IConsoleCommand
+public class ClearScreenCommand : IConsoleCommand
 {
     public string Name => "clear";
     public string Command => "clear";
     public string Description => "Clears the console output";
 
-    private readonly ConsoleRenderer consoleRenderer;
-    public ClearScreenCommand(ConsoleRenderer consoleRenderer) => this.consoleRenderer = consoleRenderer;
 
     private Action TAs;
     
@@ -21,7 +19,7 @@ internal class ClearScreenCommand: IConsoleCommand
     
     public string Execute(string?[]? arguments = null)
     {
-        consoleRenderer.Clear();
+        //consoleRenderer.Clear();
         return string.Empty;
     }
 }

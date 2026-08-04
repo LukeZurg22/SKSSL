@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using System.Text;
 
-namespace SKSSL.Console.Commands;
+namespace SKSSL.Console.Command;
 
 [JetBrains.Annotations.UsedImplicitly, RegisterCommand]
 public class HelpCommand : IConsoleCommand
