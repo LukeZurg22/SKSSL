@@ -14,17 +14,17 @@ public class KeyListRegistry : Registry<KeyList>
 {
     /// <summary>
     /// Works like the typical TryGet for the prototype entry, but calls
-    /// <see cref="KeyList.ValuesAsLocalized"/>.
+    /// <see cref="KeyList.ValuesAsResolved"/>.
     /// </summary>
     /// <param name="handle"></param>
     /// <param name="localizations"></param>
     /// <returns></returns>
-    public bool TryGetLocalized(string handle, out IEnumerable<string> localizations)
+    public bool TryGetLocalized(string handle, out IEnumerable<LocKey> localizations)
     {
         localizations = [];
         bool result = TryGet(handle, out KeyList? prototype);
         if (prototype != null)
-            localizations = prototype.ValuesAsLocalized();
+            localizations = prototype.Values;
         return result;
     }
 }

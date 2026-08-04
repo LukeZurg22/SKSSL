@@ -8,6 +8,9 @@ using YamlDotNet.Serialization;
 
 namespace SKSSL;
 
+/// <summary>
+/// Localization wrapper around a Key String.
+/// </summary>
 public readonly record struct LocKey
 {
     public readonly string Key;

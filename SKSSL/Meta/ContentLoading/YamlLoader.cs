@@ -17,6 +17,8 @@ namespace SKSSL;
 /// <summary>
 /// Load all entries in YAML files based on provided types in BULK. Caches data when
 /// loading specific folders dedicated to a set of YAML files that homogeneously share a data type.
+/// Override the [De]Serializer fields when the Loader itself is enough, but types with unique parsing
+/// exceptions must be inserted.
 /// <example><code>
 /// var types = new[] { typeof(YamlTypeA), typeof(YamlTypeB), typeof(YamlTypeC) };
 /// var allData = YamlLoader.LoadAllTypes(types, path); // Supports ".../**/*.yaml"

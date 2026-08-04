@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 using YamlDotNet.Serialization;
 using static YamlDotNet.Serialization.DefaultValuesHandling;
 
@@ -10,6 +11,9 @@ using static YamlDotNet.Serialization.DefaultValuesHandling;
 
 namespace SKSSL.ECS;
 
+/// <summary>
+/// A One-Based [1..^] Indexed list of localization keys. Stores <see cref="LocKey"/> entries.
+/// </summary>
 public class KeyList : Prototype, ICloneable<KeyList>
 {
     // ->+ type
@@ -37,9 +41,10 @@ public class KeyList : Prototype, ICloneable<KeyList>
 
     /// <returns>Values Key List, but as a localized set of values as its keys.</returns>
     // Localization WILL complain if any are explicit but not present.
-    public IEnumerable<string> ValuesAsLocalized()
+    [UsedImplicitly]
+    public IEnumerable<string> ValuesAsResolved()
     {
-        foreach (string keyListValue in Values) yield return Loc.Get(keyListValue);
+        foreach (LocKey keyListValue in Values) yield return keyListValue.Resolve();
     }
 
     public KeyList Clone()
@@ -51,7 +56,7 @@ public class KeyList : Prototype, ICloneable<KeyList>
 }
 
 [YamlSerializable]
-public sealed partial class KeyListValues : IReadOnlyList<string>, ICloneable<KeyListValues>
+public sealed partial class KeyListValues : IReadOnlyList<LocKey>, ICloneable<KeyListValues>
 {
     /// <summary>
     /// Expected prefix to key list.
@@ -67,7 +72,7 @@ public sealed partial class KeyListValues : IReadOnlyList<string>, ICloneable<Ke
 
     /// Explicit override keys that can be overwritten.
     [YamlMember(DefaultValuesHandling = OmitNull | OmitEmptyCollections)]
-    public string[]? Keys { get; private set; }
+    public LocKey[]? Keys { get; private set; }
 
     /// <returns>true if keys are explicitly declared, and not empty; else false</returns>
     public bool AreKeysExplicit => Keys != null && Keys.Length > 0;
@@ -81,7 +86,7 @@ public sealed partial class KeyListValues : IReadOnlyList<string>, ICloneable<Ke
     /// Thrown when an index is out of bounds of either the
     /// keys list, or a provided entry-count.
     /// </exception>
-    public string this[int index]
+    public LocKey this[int index]
     {
         get
         {
@@ -95,7 +100,7 @@ public sealed partial class KeyListValues : IReadOnlyList<string>, ICloneable<Ke
             if (index < 0 || index >= Count)
                 throw new IndexOutOfRangeException();
 
-            return Prefix + (index + 1);
+            return new LocKey(Prefix + (index + 1)); // 1-based indexing!
         }
     }
 
@@ -103,23 +108,23 @@ public sealed partial class KeyListValues : IReadOnlyList<string>, ICloneable<Ke
     public int Length => AreKeysExplicit ? Keys!.Length : Count;
 
     /// <inheritdoc cref="Length"/>
-    int IReadOnlyCollection<string>.Count => Length;
+    int IReadOnlyCollection<LocKey>.Count => Length;
 
-    public IEnumerator<string> GetEnumerator()
+    public IEnumerator<LocKey> GetEnumerator()
         => AreKeysExplicit
-            ? ((IEnumerable<string>)Keys!).GetEnumerator()
+            ? ((IEnumerable<LocKey>)Keys!).GetEnumerator()
             : new Enumerator(this);
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    public sealed class Enumerator : IEnumerator<string>
+    public sealed class Enumerator : IEnumerator<LocKey>
     {
         private int _index = 0;
         private readonly KeyListValues _values;
 
         public Enumerator(KeyListValues values) => _values = values;
 
-        public string Current => _values.Prefix + _index;
+        public LocKey Current => new(_values.Prefix + _index);
         object IEnumerator.Current => Current;
 
         public bool MoveNext()

@@ -14,6 +14,24 @@ Ensure SourceGen is working in LiveTest.
 
 Make a new UML diagram, with black jack and hookers.
 
+Add Power-of support to Shunting Yard Algorithm.
+Add sine-cosine-tangent support to shunting yard algorithm.
+Fix shunting yard algorithm call for modifiers starting with unary minus.
+Ensure that [de]serialization works for modifiers, now.
+Look over the steps and ensure that modifiers are handled appropriately, and can be ignored completely.
+
+// TODO: Test the fact that i am making the Type field in Prototypes ignorable; the implementor / dev should not need
+//  to constantly re-override them if they enjoy the class name.
+// Finish modifiers and the statistic registry and StatisticList
+// Figure out how to fully implement "IsDirty" handling for components and entities.
+
+// WIP:
+//          Recursive statistic calls is a danger to us all! Some kind of precaution is needed.
+//              Circular check? Simply store ID and pass-down. If the ID is ever called again, then it's circular.
+//  Add the ability to recalculate / re-parse statistics.
+
+
+
 dotnet build -c Release --no-incremental
 dotnet pack -c Release
 
