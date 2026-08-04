@@ -323,12 +323,9 @@ public abstract class SSLGame : Game
         Components.Add(SceneManager);
 
         if (Config.UseECS)
-        {
             SystemManager.Initialize();
-        }
 
-        // Continue
-        base.Initialize();
+        base.Initialize(); // Continue
     }
 
     /// Quits the game.
@@ -339,15 +336,11 @@ public abstract class SSLGame : Game
     public static void ResetGame() =>
         throw new NotImplementedException("ResetGame is not implemented, really. Let's crash, instead.");
 
-    /// <inheritdoc />
     protected override void Draw(GameTime gameTime)
     {
-        base.Draw(gameTime);
+        base.Draw(gameTime); // Draw game first.
         if (Config.UseECS)
-        {
             SystemManager.Draw(gameTime);
-        }
-
         Gum?.Draw(); // Draw Gum UI after game draw.
     }
 
@@ -355,15 +348,10 @@ public abstract class SSLGame : Game
     protected override void Update(GameTime gameTime)
     {
         GameplayTime = GameplayTime.AddSeconds(gameTime.ElapsedGameTime.TotalSeconds);
-
         MouseWrapper.HandleForcedPosition();
-
         base.Update(gameTime);
         if (Config.UseECS)
-        {
             SystemManager.Update(gameTime);
-        }
-
         Gum?.Update(gameTime); // Update Gum UI after game update.
     }
 }
