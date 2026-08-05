@@ -4,6 +4,7 @@ using System.Data;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.ECS;
+using SKSSL.Exceptions;
 using SKSSL.Mathematics;
 
 // ReSharper disable RedundantNameQualifier

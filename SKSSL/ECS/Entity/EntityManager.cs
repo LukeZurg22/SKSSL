@@ -68,10 +68,13 @@ public partial class EntityManager
     /// <param name="source">Entity template to copy from.</param>
     /// <returns>Spawned copy of entity from handle.</returns>
     /// <exception cref="Exception">Thrown if entity is abstract. Abstract entities should not be instantiated.</exception>
-    public Entity Clone(Entity source)
+    public Entity? Clone(Entity source)
     {
         if (source.Abstract)
-            throw new Exception($"Attempted to spawn abstract entity {source.GetFullHandle()}");
+        {
+            Log(new EntityException($"Attempted to clone abstract entity {source.GetFullHandle()}"), LOG.SYSTEM_ERROR);
+            return null;
+        }
 
         var uid = EntitiesList.New().As<EntityUid>(); // Create unique ID.
         Entity entity = source.Clone(); // Create copy of source entity.

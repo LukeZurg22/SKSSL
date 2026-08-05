@@ -1,19 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using SKSSL.ECS;
-using SyntaxErrorException = System.Data.SyntaxErrorException;
 
 namespace SKSSL.Mathematics;
-
-/// <inheritdoc />
-public class EmptyStatisticsListException(string s) : Exception(s);
-
-/// <inheritdoc />
-public class MissingStatisticException(string s) : Exception(s);
-
-/// <inheritdoc />
-public class RecursiveEvaluateException(string s) : Exception(s);
 
 /// <summary>
 /// Algorithmically calculates values based on string input. This class was written to align with the
