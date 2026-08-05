@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using JetBrains.Annotations;
 
@@ -150,7 +151,7 @@ public abstract class MasterRegistryManager
             }
         }
 
-        registry.Register(prototype.Handle, prototype);
+        registry.Register(prototype.GetFullHandle(), prototype);
         return true;
     }
 
@@ -224,7 +225,15 @@ public abstract class MasterRegistryManager
         return ecsRegistry.TryGet(handle, out prototype!);
     }
 
-    public static bool TryGetPrototype(string handle, out Prototype prototype)
+    /// <summary>
+    /// Output a prototype entry which is located in some registry.
+    /// </summary>
+    /// <param name="handle">The full &lt;source&gt;:&lt;handle&gt; of the prototype desired.</param>
+    /// <param name="prototype"></param>
+    /// <returns>True if a prototype was found, false if not.</returns>
+    /// <remarks>The handle is stored internally pointing to its type, used to get that type's registry.</remarks>
+    // TEMP: Having to enter the full handle each time feels wrong somehow. It isn't, but there must be a better way.
+    public static bool TryGetPrototype(string handle, [NotNullWhen(true)] out Prototype? prototype)
     {
         // Check that the handle has a corresponding type definition.
         prototype = default!;

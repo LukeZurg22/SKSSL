@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
@@ -114,22 +113,16 @@ public class ECS
     public void TEST_COMPONENT_CONVERSIONS()
     {
         var component = new TestFieldComponent { x = 7 };
-        try
-        {
-            // Testing component to yaml.
-            ComponentYaml componentYaml = component.ToYaml();
-            object first = componentYaml.Entries.Values.First();
-            AreEqual(7, (int)first);
 
-            // Testing the reverse after change..
-            component = componentYaml.FromYaml() as TestFieldComponent;
-            IsTrue(component != null, nameof(component) + " != null");
-            AreEqual(7, component.x);
-        }
-        catch (Exception e)
-        {
-            Fail(e.Message);
-        }
+        // Testing component to yaml.
+        ComponentYaml componentYaml = component.ToYaml();
+        object first = componentYaml.Entries.Values.First();
+        AreEqual(7, (int)first);
+
+        // Testing the reverse after change..
+        component = componentYaml.FromYaml() as TestFieldComponent;
+        IsTrue(component != null, nameof(component) + " != null");
+        AreEqual(7, component.x);
     }
 
     // TODO: The same but for JSON format.
@@ -146,19 +139,26 @@ public class ECS
 
     /// Register entity from single file, single entry.
     /// Register multiple types from one file.
-    /// Register one file, then test override.
+    /// Register one file, then test override. 
     [TestMethod]
     public void TEST_ENTITY_REGISTRY()
     {
-        List<Entity> entities = [];
-        const string TestEntHandle = "TestEntity";
+        const string TestEntHandleA = "TestEntityA";
+        const string TestEntHandleB = "TestEntityB";
+        // -> Default source is "game"
 
-        // Assert single register.
-        TestEntityInheritedType testEnt = new TestEntityInheritedType { Handle = TestEntHandle };
-        MasterRegistryManager.TryRegisterPrototype(testEnt.Type, testEnt);
-        MasterRegistryManager.TryGetPrototype(TestEntHandle, out _);
+        // Assert single registered. Also assumes that the type inheritance and derivation are handled appropriately.
+        var testEntA = new TestPrototypeSingle { Handle = TestEntHandleA };
+        MasterRegistryManager.TryRegisterPrototype(testEntA.Type, testEntA);
+        IsTrue(MasterRegistryManager.TryGetPrototype($"game:{TestEntHandleA}", out _));
 
         // Assert multiple.
+        var testEntB = new TestPrototypeInherit { Handle = TestEntHandleB };
+        MasterRegistryManager.TryRegisterPrototype(testEntB.Type, testEntB);
+        IsTrue(MasterRegistryManager.TryGetPrototype($"game:{TestEntHandleB}", out _));
+
+
+        // WIP: Handle these next.
 
         // Assert override as expected.
 
