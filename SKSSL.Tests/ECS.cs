@@ -149,16 +149,20 @@ public class ECS
 
         // Assert single registered. Also assumes that the type inheritance and derivation are handled appropriately.
         var testEntA = new TestPrototypeSingle { Handle = TestEntHandleA };
-        MasterRegistryManager.TryRegisterPrototype(testEntA.Type, testEntA);
+        MasterRegistryManager.TryRegisterPrototype(testEntA);
         IsTrue(MasterRegistryManager.TryGetPrototype($"game:{TestEntHandleA}", out _));
 
         // Assert multiple.
-        var testEntB = new TestPrototypeInherit { Handle = TestEntHandleB };
-        MasterRegistryManager.TryRegisterPrototype(testEntB.Type, testEntB);
+        var testEntB = new TestPrototypeBlank { Handle = TestEntHandleB };
+        MasterRegistryManager.TryRegisterPrototype(testEntB);
         IsTrue(MasterRegistryManager.TryGetPrototype($"game:{TestEntHandleB}", out _));
 
-        // WIP: Handle these next.
-        // Assert override as expected.
+        // Assert override as expected. // WIP: Handle these next.
+        var testEntC = new TestPrototypeInherit { Handle = "override_me", FirstField = 0 };
+        MasterRegistryManager.TryRegisterPrototype(testEntC);
+        var @override = new TestPrototypeInherit
+            { Source = "other", Handle = "override_me", Replace = "game", FirstField = 99 };
+        MasterRegistryManager.TryRegisterPrototype(@override);
 
         // Assert override w. bad override handle.
     }

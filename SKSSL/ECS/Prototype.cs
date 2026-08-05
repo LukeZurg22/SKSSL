@@ -42,8 +42,8 @@ public partial class Prototype : ICloneable<Prototype>
     [YamlIgnore]
     public virtual string Source { get; set; } = DefaultSource;
 
-    /// Assignable force-override of existing prototype. To utilize, set the Handle for this prototype to be the
-    /// same as the one it intends to replace, then state the source for the override.
+    /// Assignable force-override of existing prototype. To utilize, set this to the full handle of the
+    /// prototype this aims to replace.
     [YamlMember(Alias = "override", Order = -1)]
     public string? Replace = null;
 

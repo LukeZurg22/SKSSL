@@ -87,8 +87,9 @@ public abstract class MasterRegistryManager
     /// Automatically registers definitions as a "source:handle" arrangement.
     /// No additional checks are made here, as they are made up the call chain.
     /// </remarks>
-    public static bool TryRegisterPrototype(string typeName, Prototype prototype)
+    public static bool TryRegisterPrototype(Prototype prototype)
     {
+        string typeName = prototype.Type;
         if (TypeDefinitions.TryGetValue(typeName, out Type? type))
         {
             return RegisterInto(type, prototype);
@@ -105,12 +106,9 @@ public abstract class MasterRegistryManager
             if (TypeDefinitions.TryGetValue(candidateName, out type) ||
                 TypeDefinitions.TryGetValue(current.Name, out type) ||
                 Registries.ContainsKey(current))
-            {
-                // Remember the original typeName so future lookups are fast
                 return RegisterInto(type ?? current, prototype);
-            }
 
-            // Stop when we reach the root
+            // Stop when we reach the root.
             if (current == typeof(Prototype))
                 break;
 
@@ -125,33 +123,35 @@ public abstract class MasterRegistryManager
 
     private static bool RegisterInto(Type type, Prototype prototype)
     {
+        // Should never happen for Prototype, but you never know.
         if (!Registries.TryGetValue(type, out Registry? registry))
-        {
-            // Should never happen for Prototype, but be defensive
             return false;
-        }
 
-        switch (prototype.Replace)
+        string fullHandle = prototype.GetFullHandle(prototype.Replace);
+
+        // If the replace isn't filled-in, then assume there is no replacement and that the full handle is honorable.
+        // More often than not, the "replace" field will be empty. This short-circuit is good enough.
+        if (string.IsNullOrEmpty(prototype.Replace))
         {
-            // For O(1) retrieval. Register handle with unique ref.
-            case null:
-                PrototypeHandleToType[prototype.GetFullHandle()] = type;
-                break;
-            // If replace is assigned, then attempt to replace the original prototype handle.
-            default:
-            {
-                var replaceHandle = prototype.GetFullHandle(prototype.Replace);
-                if (PrototypeHandleToType.ContainsKey(replaceHandle))
-                    PrototypeHandleToType[replaceHandle] = type;
-                else
-                    // If the original handle that is being attempted to be replaced doesn't exist... uh oh!
-                    Log($"{prototype.GetFullHandle()} attempted to replace {replaceHandle} which does not exist.",
-                        LOG.FILE_ERROR);
-                break;
-            }
+            PrototypeHandleToType[fullHandle] = type;
+            registry.Register(fullHandle, prototype);
+            return true;
         }
 
-        registry.Register(prototype.GetFullHandle(), prototype);
+        // From here, handle a prototype's overriding of an existing entry.
+        if (PrototypeHandleToType.ContainsKey(fullHandle))
+        {
+            PrototypeHandleToType[fullHandle] = type;
+        }
+        else
+        {
+            // If the original handle that is being attempted to be replaced doesn't exist... uh oh!
+            Log(new Exception($"{prototype.GetFullHandle()} attempted to replace invalid \'{fullHandle}\'."),
+                LOG.FILE_ERROR);
+        }
+
+        registry.Register(fullHandle, prototype);
+
         return true;
     }
 

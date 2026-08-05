@@ -43,7 +43,7 @@ public abstract class PrototypeLoader : IGameLoader
             {
                 // Forces only the support of defined types within the system. Since all types have a handle, and that
                 //  every prototype has an explicitly-referenced handle, that handle is used as a reference.
-                if (!MasterRegistryManager.TryRegisterPrototype(prototype.Type, prototype))
+                if (!MasterRegistryManager.TryRegisterPrototype(prototype))
                     Log($"Unsupported type {prototype.Type} found in {file}.", LOG.FILE_ERROR);
             }
         }
