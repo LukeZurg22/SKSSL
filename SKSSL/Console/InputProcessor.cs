@@ -33,7 +33,7 @@ namespace SKSSL.Console
         private void Alternate_Keypress(object sender, Keys key)
         {
             if (!isActive) return; // console is opened -> accept input
-            
+
             CommandHistory
                 .Reset(); // WIP: May be the cause of command history's inability to recall more than one command.
             switch (key)
@@ -59,9 +59,10 @@ namespace SKSSL.Console
                     if (IsLetterNumberKey(key) && IsPrintable(key.ToString()[0]))
                     {
                         // Convert to lowercase if it's a letter key
-                        char keyChar = (key >= Keys.A && key <= Keys.Z) ? char.ToLower((char)key) : (char)key;
+                        char keyChar = key >= Keys.A && key <= Keys.Z ? char.ToLower((char)key) : (char)key;
                         Buffer.Output += keyChar;
                     }
+
                     break;
             }
         }
@@ -79,13 +80,16 @@ namespace SKSSL.Console
                     AddToBuffer(clipboard);
                     return;
                 }
+
                 if (state.IsKeyDown(Keys.Back))
                 {
                     // IMPL: Add CTRL-BACKSPACE to delete a word
                     return;
                 }
+
                 return;
             }
+
             // SHIFT is being held.
             if (Keyboard.GetState().IsKeyDown(Keys.LeftShift))
             {
@@ -95,16 +99,19 @@ namespace SKSSL.Console
                     Buffer.Output += "_";
                     return;
                 }
+
                 if (Keyboard.GetState().IsKeyDown(Keys.OemSemicolon))
                 {
                     Buffer.Output += ":";
                     return;
                 }
+
                 if (Keyboard.GetState().IsKeyDown(Keys.OemQuotes))
                 {
                     Buffer.Output += "\"";
                     return;
                 }
+
                 return;
             }
 
@@ -195,8 +202,8 @@ namespace SKSSL.Console
             var lastSpacePosition = Buffer.Output.LastIndexOf(' ');
             var textToMatch = lastSpacePosition < 0
                 ? Buffer.Output
-                : Buffer.Output.Substring(lastSpacePosition + 1, Buffer.Output.Length - lastSpacePosition - 1);
-            var match = GetMatchingCommand(textToMatch);
+                : Buffer.Output[(lastSpacePosition + 1)..];
+            IConsoleCommand? match = GetMatchingCommand(textToMatch);
             if (match == null)
             {
                 return;
@@ -206,9 +213,10 @@ namespace SKSSL.Console
             Buffer.Output += restOfTheCommand + " ";
         }
 
-        private static IConsoleCommand GetMatchingCommand(string command)
+        private static IConsoleCommand? GetMatchingCommand(string command)
         {
-            var matchingCommands = GameConsoleOptions.Commands.Where(c => c.Command != null && c.Command.StartsWith(command));
+            var matchingCommands =
+                GameConsoleOptions.Commands.Where(c => c.Command.StartsWith(command));
             return matchingCommands.FirstOrDefault();
         }
 

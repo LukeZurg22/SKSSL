@@ -157,9 +157,7 @@ public class ECS
         MasterRegistryManager.TryRegisterPrototype(testEntB.Type, testEntB);
         IsTrue(MasterRegistryManager.TryGetPrototype($"game:{TestEntHandleB}", out _));
 
-
         // WIP: Handle these next.
-
         // Assert override as expected.
 
         // Assert override w. bad override handle.
