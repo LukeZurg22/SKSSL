@@ -81,6 +81,11 @@ The structure may be either a "root" layout where all assets are loaded in a sin
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     <Link>..\settings.yaml</Link>
 </Content>
+<!--This also assumes that a load-order file is also present pre-compile.-->
+<Content Include="load_order.yaml">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <Link>..\load_order.yaml</Link>
+</Content>
 </ItemGroup>
     
 </copy_only_config_between_this_tag_and_not_this_tag>
