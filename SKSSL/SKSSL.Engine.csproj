@@ -221,6 +221,10 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <Link>..\settings.yaml</Link>
         </Content>
+        <Content Include="load_order.yaml"> 
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>..\load_order.yaml</Link>
+        </Content>
     </ItemGroup>-->
     <!--END - Enabled Compiler-Generated Code!-->
 

@@ -26,7 +26,7 @@ public class GameContentDirectories : IEnumerable<GameDirectory>
     public void Sort()
         => Directories.Sort((a, b) => a.LoadOrder.CompareTo(b.LoadOrder));
 
-    public void Add(string path = "", int? order = null) => Directories.Add(new GameDirectory(path, order));
+    public void Add(string path, int? order = null) => Directories.Add(new GameDirectory(path, order));
 
     public IEnumerator<GameDirectory> GetEnumerator() => ((IEnumerable<GameDirectory>)Directories).GetEnumerator();
 
@@ -104,7 +104,7 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     /// <summary>
     /// Creates a new GameDirectory.
     /// </summary>
-    public GameDirectory(string directory = "", int? explicitLoadOrder = null)
+    public GameDirectory(string directory, int? explicitLoadOrder = null)
     {
         // For a typical directory. Root is a reserved keyword!
         if (string.IsNullOrEmpty(directory) || directory.Equals("root"))

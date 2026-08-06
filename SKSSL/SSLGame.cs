@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using Gum.DataTypes;
 using Gum.Wireframe;
+using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
@@ -74,7 +75,7 @@ public abstract class SSLGame : Game
     public readonly ImGuiRenderer GuiRenderer;
 
     /// Registries and services belonging to the game.
-    private readonly IServiceProvider GameServices;
+    [UsedImplicitly] private readonly IServiceProvider GameServices;
 
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
     public readonly GameContentDirectories Directories;
@@ -108,12 +109,12 @@ public abstract class SSLGame : Game
             _gumFilePath = Path.Combine("Gum", Config.GumFile);
 
         // Load settings, and based on game paths, create directories ordered by load order.
-        GameSettings settings = GameSettings.Load(); // Get game settings from file.
-        Directories = GetGameDirectories(settings.GamePaths);
+        (GameSettings Settings, List<LoadPath> Paths) load = GameSettings.Load(); // Get game settings from file.
+        Directories = GetGameDirectories(load.Paths);
         Directories.Sort();
 
         // Init w. language from settings.
-        Loc.InitalizeLocalizationCulture(settings.Language);
+        Loc.InitalizeLocalizationCulture(load.Settings.Language);
 
         #endregion
 
@@ -127,14 +128,15 @@ public abstract class SSLGame : Game
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
         Window.ClientSizeChanged += HandleClientSizeChanged; // TEMP: Something tells me this doesn't work...!
-        Window.IsBorderless = settings.IsBorderless; // Set to settings' borderless value.
-        _graphicsManager = HandleGraphicsManager(new GraphicsDeviceManager(this), settings);
+        Window.IsBorderless = load.Settings.IsBorderless; // Set to settings' borderless value.
+        _graphicsManager = HandleGraphicsManager(new GraphicsDeviceManager(this), load.Settings);
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _currentScreenGue.UpdateLayout(); // UI Behaviour when dragged
         MouseHandler = new MouseWrapper(_graphicsManager);
         StyleSheet.LoadStyles();
 
         var services = new ServiceCollection();
+        // ReSharper disable once VirtualMemberCallInConstructor
         LoadServices(services);
         GameServices = services.BuildServiceProvider();
 
@@ -219,7 +221,7 @@ public abstract class SSLGame : Game
 
     /// Get game directories stored in settings.
     [SuppressMessage("ReSharper", "BadChildStatementIndent")]
-    private static GameContentDirectories GetGameDirectories(List<LoadPath> settings)
+    private static GameContentDirectories GetGameDirectories(List<LoadPath> paths)
     {
         GameContentDirectories contentDirectories = new();
 
@@ -228,34 +230,41 @@ public abstract class SSLGame : Game
             No designated game paths means that a specialized dynamic one will be needed. Mods basically don't
             exist in this arrangement, but can be added later. This is the expected arrangement that a game will take.
         */
-        var modifiedSettings = settings.ToList();
-        if (settings.Count == 0)
+        // Load all paths except the ones that aren't enabled.
+        var modifiedSettings = paths.Except(paths.FindAll(p => p.Enabled == false))
+            .ToList();
+
+        const string root = "root";
+        if (paths.Count == 0)
         {
-            contentDirectories.Add();
+            contentDirectories.Add(root);
+            return contentDirectories;
         }
-        else
+
+        //  Once at least one path is in the list, any root-level directory would be rendered completely-
+        //   -worthless. To avoid this conundrum, the specific key word "root" was allocated to check and remove.
+        if (paths.Any(path => path.Path.Contains(root)))
         {
-            /*  Once a singular game-path is added to the list, any root-level directory would be rendered completely
-             worthless. To avoid this conundrum, the specific key word "root" was allocated to check and remove. */
-            if (settings.Any(d => d.Path.Contains("root")))
-            {
-                LoadPath rootPath = settings.First(d => d.Path.Contains("root"));
+            var rootPaths = paths.FindAll(path => path.Path.Contains(root));
 
-                modifiedSettings.Remove(rootPath);
-                // Add root path as "officially" accepted path if provided in list. It has its own load-order!
-                contentDirectories.Add("", rootPath.Order);
-            }
+            // Add root path as "officially" accepted path if provided in list. It has its own load-order!
+            // Use the first and only one.
+            contentDirectories.Add(root, rootPaths[0].Order);
 
-            // Ensure that duplicates are not added!
-            foreach (LoadPath gamePath in modifiedSettings)
-            {
-                // Game paths set to -1 are ignored.
-                if (gamePath.Order == -1)
-                    continue;
+            // Remove root path duplicates.
+            foreach (LoadPath rootPath in rootPaths)
+                modifiedSettings.Remove(rootPath); // Remove the roots.
+        }
 
-                if (!contentDirectories.Any(d => d.DirectoryTitle.Equals(gamePath.Path)))
-                    contentDirectories.Add(gamePath.Path, gamePath.Order);
-            }
+        // Ensure that duplicates are not added!
+        foreach (LoadPath gamePath in modifiedSettings)
+        {
+            // Game paths set to -1 are ignored.
+            if (gamePath.Order == -1)
+                continue;
+
+            if (!contentDirectories.Any(d => d.DirectoryTitle.Equals(gamePath.Path)))
+                contentDirectories.Add(gamePath.Path, gamePath.Order);
         }
 
         return contentDirectories;

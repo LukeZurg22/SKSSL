@@ -8,13 +8,16 @@ public class LoadPath
     public int Order { get; set; }
     public string Path { get; set; }
 
+    public bool Enabled { get; set; } = true;
+
     public LoadPath()
     {
     }
 
-    public LoadPath(string path, int order)
+    public LoadPath(string path, int order, bool enabled = true)
     {
         Path = path;
         Order = order;
+        Enabled = enabled;
     }
 }

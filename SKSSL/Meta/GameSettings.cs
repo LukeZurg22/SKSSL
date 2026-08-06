@@ -22,22 +22,20 @@ public class GameSettings
     public bool IsBorderless { get; set; } = false;
     public bool IsFullScreen { get; set; } = false;
 
-    /// Paths to game and mod content folders.
-    public List<LoadPath> GamePaths { get; set; } = [];
-
     /// Language culture of the game.
     public string Language { get; set; } = "en-US";
 
     private static string SettingsFilePath = Path.Combine(GameDirectory.RootDirectory, "settings.yaml");
+    private static string LoadOrderFilePath = Path.Combine(GameDirectory.RootDirectory, "load_order.yaml");
 
-    public static GameSettings Load()
+    public static (GameSettings, List<LoadPath>) Load()
     {
         var settings = new GameSettings();
-        if (!File.Exists(SettingsFilePath))
-        {
-            ForceCreateDefault(settings);
-            return settings;
-        }
+        List<LoadPath> loadPaths = [new("game", 1)];
+
+        // Ensure they exist, one way or another.
+        if (!File.Exists(SettingsFilePath)) ForceCreateDefault<GameSettings>(settings, SettingsFilePath);
+        if (!File.Exists(LoadOrderFilePath)) ForceCreateDefault<List<LoadPath>>(loadPaths, LoadOrderFilePath);
 
         // Commence the file-loading!
         IDeserializer deserializer = new DeserializerBuilder()
@@ -46,30 +44,28 @@ public class GameSettings
             .Build();
 
         // TODO: Make settings fields adjustable so various other projects can have more / less settings than others.
-        try
-        {
-            var text = File.ReadAllText(SettingsFilePath);
-            settings = deserializer.Deserialize<GameSettings>(text);
-        }
-        catch (Exception e)
-        {
-            Log($"Failed to load game settings: {e.InnerException?.Message}.", LOG.SYSTEM_WARNING);
-            return new GameSettings();
-        }
 
-        return settings;
+        //@formatter:off
+        // Try Loading Settings
+        try { settings = deserializer.Deserialize<GameSettings>(File.ReadAllText(SettingsFilePath)); }
+        catch (Exception e) { Log($"Failed to load game settings: {e.InnerException?.Message}.", LOG.SYSTEM_ERROR); }
+        // Try loading Load Order Paths
+        try { loadPaths = deserializer.Deserialize<List<LoadPath>>(File.ReadAllText(LoadOrderFilePath)); }
+        catch (Exception e) { Log($"Failed to load game paths: {e.InnerException?.Message}.", LOG.SYSTEM_ERROR); }
+        //@formatter:on
+
+        return (settings, loadPaths);
     }
 
-    public static void ForceCreateDefault(GameSettings settings)
+    public static void ForceCreateDefault<T>(object data, string defaultPath)
     {
-        if (!Directory.Exists(SettingsFilePath))
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsFilePath)!);
+        if (!Directory.Exists(defaultPath)) Directory.CreateDirectory(Path.GetDirectoryName(defaultPath)!);
 
         ISerializer serializer = new SerializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .Build();
-        var yaml = serializer.Serialize(settings);
+        var yaml = serializer.Serialize((T)data);
 
-        File.WriteAllText(SettingsFilePath, yaml);
+        File.WriteAllText(defaultPath, yaml);
     }
 }
