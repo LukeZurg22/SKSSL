@@ -1,5 +1,7 @@
 // ReSharper disable FieldCanBeMadeReadOnly.Global
 
+using SKSSL.Textures;
+
 namespace SKSSL;
 
 public class EngineConfig
@@ -23,6 +25,11 @@ public class EngineConfig
     /// </summary>
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public PrototypeLoader ContentLoader = new YamlLoader();
+    
+    /// <summary>
+    /// A replaceable developer-provided texture loader.
+    /// </summary>
+    public TextureLoader TextureLoader = new TextureLoader();
     
     /// <summary>
     /// The number of active objects that can be recycled. This is ignored when recycling more than the expected count.

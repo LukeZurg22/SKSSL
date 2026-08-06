@@ -197,16 +197,17 @@ public abstract class SSLGame : Game
         // Textures.
         if (directory.TexturesFolder != null)
         {
+            // The developer can bootstrap their own texture loader by adjusting the Engine Config.
             Log($"...loading {directory.DirectoryTitle} textures.");
-            new TextureLoader().Load(directory.TexturesFolder);
+            Config.TextureLoader.Load(directory.TexturesFolder);
         }
 
         // Prototypes.
         if (directory.PrototypesFolder != null && Config.UseECS) // Requires ECS to be on.
         {
+            // The developer can bootstrap their own prototype loader by adjusting the Engine Config.
             Log($"...loading {directory.DirectoryTitle} prototypes.");
             Config.ContentLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
-            // TODO: Add custom bootstrapping so developer can have their own loader slotted in.
         }
 
         Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
