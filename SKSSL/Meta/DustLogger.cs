@@ -142,9 +142,11 @@ public static partial class DustLogger
 
     public static void Log(Exception e, LOG log = LOG.INFO_PRINT, bool outputToFile = ToggleOutputBoolean)
     {
+        // Force file output if it is an error.
+        if (log > LOG.SYSTEM_WARNING) outputToFile = true;
 #if DEBUG
-        if (log > LOG.SYSTEM_WARNING) // If it's an error-proper.
-            throw e;
+        // For developer debugging, force an exception-crash. Final output should be spotless.
+        if (log > LOG.SYSTEM_WARNING) throw e;
 #endif
         InternalLog(e.Message, e, (byte)log, outputToFile);
     }

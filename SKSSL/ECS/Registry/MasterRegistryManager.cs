@@ -139,6 +139,14 @@ public abstract class MasterRegistryManager
         }
 
         // From here, handle a prototype's overriding of an existing entry.
+        // This is where prototypes that are dedicated to overriding existing ones are handled.
+        // WARN: The replacement seems to override the original in a way that prevents its own replacement.
+        //  The original, the replacement, and the replacement's replacement need to be stored. Possibly a separate
+        //  list of entries that forcibly replace existing ones?
+        //  [X] - ORIGINAL: 
+        //  [X] - REPLACEMENT_A:ORIGINAL
+        //  [ ] - REPLACEMENT_B:REPLACEMENT_A <- Some sort of caching or storage needed for replacement_a having been there.
+
         if (PrototypeHandleToType.ContainsKey(fullHandle))
         {
             PrototypeHandleToType[fullHandle] = type;
@@ -146,7 +154,7 @@ public abstract class MasterRegistryManager
         else
         {
             // If the original handle that is being attempted to be replaced doesn't exist... uh oh!
-            Log(new Exception($"{prototype.GetFullHandle()} attempted to replace invalid \'{fullHandle}\'."),
+            Log(new RegistryException($"{prototype.GetFullHandle()} attempted to replace invalid \'{fullHandle}\'."),
                 LOG.FILE_ERROR);
         }
 

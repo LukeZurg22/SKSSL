@@ -17,3 +17,4 @@ public class RecursiveEvaluateException(string s) : Exception(s);
 /// <inheritdoc />
 /// Thrown by exceptions involving Entities, the Spawning thereof, or around other methods acting upon them.
 public class EntityException(string s) : Exception(s);
+public class RegistryException(string s) : Exception(s);
