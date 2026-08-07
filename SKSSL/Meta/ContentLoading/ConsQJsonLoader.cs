@@ -14,10 +14,8 @@ namespace SKSSL;
 /// Lifted from "Consequaintances", this is an incredibly simple loader for Json files
 /// using system <see cref="System.Text.Json"/>.
 /// </summary>
-public class ConsQJsonLoader : PrototypeLoader
+public class ConsQJsonLoader() : PrototypeLoader([".json"])
 {
-    public override string[] Extensions => [".json"];
-
     protected override string SerializeLogicImplement<T>(T obj)
         => JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
 
@@ -41,7 +39,7 @@ public class ConsQJsonLoader : PrototypeLoader
         foreach (var proto in protoList) output.Add((proto as Prototype)!);
         return output;
     }
-    
+
     #region Helpers
 
     private static IList DeserializeJsonAsType(string text, Type type)

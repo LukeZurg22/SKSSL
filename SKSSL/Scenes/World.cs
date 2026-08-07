@@ -90,6 +90,7 @@ public class World : IWorld
          * nothing on their own, but if for some reason you feel like overriding this Update call and overriding the
          * consensus entity-type with your own calls- you can do that.
          */
+        if (!UsesECS) return;
         EntityManager.Update(gameTime);
     }
 

@@ -24,6 +24,7 @@ public readonly struct EntityContext
     /// <exception cref="NullReferenceException">Thrown when ECS acquired is null.</exception>
     public EntityContext()
     {
+        // Get entity context from the scene manager itself. This call has special handling for worlds.
         EntityContext ecs = SSLGame.Instance.SceneManager.ECS();
         World = ecs.World;
     }

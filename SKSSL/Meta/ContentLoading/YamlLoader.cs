@@ -33,10 +33,8 @@ namespace SKSSL;
 /// </code></example>
 /// </summary>
 // ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
-public class YamlLoader : PrototypeLoader
+public class YamlLoader() : PrototypeLoader([".yml", ".yaml"])
 {
-    public override string[] Extensions => [".yml", ".yaml"];
-
     /// YAML Serializer.
     private static readonly ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)

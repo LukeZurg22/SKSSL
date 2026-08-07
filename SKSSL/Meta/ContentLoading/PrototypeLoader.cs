@@ -8,7 +8,7 @@ using SKSSL.ECS.Registry;
 
 namespace SKSSL;
 
-public abstract class PrototypeLoader : IGameLoader
+public abstract class PrototypeLoader(string[] extensions) : IGameLoader(extensions)
 {
     /// Using prototype data collected from a Game Directory's provided Prototypes folder, ten load into registries.
     /// Load multiple files containing identical types in a directory.

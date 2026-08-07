@@ -22,6 +22,10 @@ public class GameSettings
     public bool IsBorderless { get; set; } = false;
     public bool IsFullScreen { get; set; } = false;
 
+    /// Default SKSSL in-built console complete with custom console command support.
+    /// <remarks>Put that Source Generator to good use! -Z</remarks>
+    public bool SKSSLConsoleEnabled { get; set; } = true;
+
     /// Language culture of the game.
     public string Language { get; set; } = "en-US";
 

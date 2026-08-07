@@ -37,10 +37,8 @@ public enum TextureType : byte
 /// Generic texture loader for all game asset categories (objects, items, UI, etc.).
 /// Supports multi-texture maps (diffuse + normal + etc.) and automatic error texture fallback.
 /// </summary>
-public partial class TextureLoader : IGameLoader
+public partial class TextureLoader() : IGameLoader([".png", ".jpg"])
 {
-    public override string[] Extensions => [".png", ".jpg"];
-
     private const string IndicatorMaterial = ".m";
     private const string IndicatorTilemap = ".t"; // TODO: Current unused. Tilemap support would be nice.
     private const string IndicatorIcon = ".i";

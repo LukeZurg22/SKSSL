@@ -44,31 +44,19 @@ public class SceneManager : DrawableGameComponent
     /// <returns>Scene Manager's Current World's Entity Context.</returns>
     public EntityContext ECS(World? currentWorld = null)
     {
-        string message;
-
         // If not using ECS, then why? Throw an error!
         if (!SSLGame.Config.UseECS)
         {
-            message = "Failed to get Entity Context because ECS is not enabled.";
+            const string message = "Failed to get Entity Context because ECS is not enabled.";
             Log(new SettingsException(message), LOG.SYSTEM_ERROR, outputToFile: true);
         }
 
         // If the scene manager has a world, then use that world instead of the provided one if this is null.
         if (currentWorld == null && CurrentWorld is { } persistentWorld)
-        {
-            currentWorld ??= persistentWorld; // Reassign world.
-        }
+            currentWorld ??= persistentWorld; // Reassign world to persistent one.
 
         // There is no persistent world. Force there to be one. There Must be a world in this scene.
         currentWorld ??= new World();
-
-        // Final check to validate that the world (and its ECS) is functioning.
-        if (currentWorld.EntityManager is null)
-        {
-            message = "Failed to get Entity Context from null world or null World ECS!";
-            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
-            throw new Exception(message);
-        }
 
         // Return the latest & greatest entity context!
         // Do NOT instantiate a blank-constructor EntityContext here! It will cause an infinite loop of ECS() calls!

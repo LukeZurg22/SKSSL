@@ -5,13 +5,15 @@ using System.Linq;
 
 namespace SKSSL;
 
-public abstract class IGameLoader
+/// <summary>
+/// Dedicated loader class to interact with game files. 
+/// </summary>
+/// <param name="Extensions">
+/// Custom supported extensions provided by developer implementation, which
+/// can be overriden with inherited primary constructor passthrough..
+/// </param>
+public abstract class IGameLoader(params string[] Extensions)
 {
-    /// <summary>
-    /// Custom supported extensions provided by developer implementation. OVERRIDE ME!
-    /// </summary>
-    public virtual string[] Extensions => [];
-
     public abstract void Load(string directory);
 
     protected IEnumerable<string> GetFiles(string directory)
