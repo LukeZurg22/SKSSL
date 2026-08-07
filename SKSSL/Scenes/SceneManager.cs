@@ -32,14 +32,17 @@ public class SceneManager : DrawableGameComponent
     /// Allows developers to initialize world settings / data per-scene.
     /// <remarks>May need improvement later.</remarks>
     /// </summary>
-    protected internal World? CurrentWorld; // TEMP: How multiple worlds in a networked game will work- I don't know...
+    protected internal World CurrentWorld;
+
+    // TEMP: How multiple worlds in a networked game will work- I don't know...
+
 
     /// <remarks>
     /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context
     /// varies between scenes.
     /// </remarks>
     /// <returns>Scene Manager's Current World's Entity Context.</returns>
-    public EntityContext ECS(World? world = null)
+    public EntityContext ECS(World? currentWorld = null)
     {
         string message;
 
@@ -51,13 +54,16 @@ public class SceneManager : DrawableGameComponent
         }
 
         // If the scene manager has a world, then use that world instead of the provided one if this is null.
-        if (world == null && CurrentWorld is { } res)
+        if (currentWorld == null && CurrentWorld is { } persistentWorld)
         {
-            world ??= res; // Reassign world.
+            currentWorld ??= persistentWorld; // Reassign world.
         }
 
+        // There is no persistent world. Force there to be one. There Must be a world in this scene.
+        currentWorld ??= new World();
+
         // Final check to validate that the world (and its ECS) is functioning.
-        if (world?.EntityManager is null)
+        if (currentWorld.EntityManager is null)
         {
             message = "Failed to get Entity Context from null world or null World ECS!";
             Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
@@ -66,7 +72,7 @@ public class SceneManager : DrawableGameComponent
 
         // Return the latest & greatest entity context!
         // Do NOT instantiate a blank-constructor EntityContext here! It will cause an infinite loop of ECS() calls!
-        var entityContext = new EntityContext(world);
+        var entityContext = new EntityContext(currentWorld);
         return entityContext;
     }
 
@@ -123,7 +129,8 @@ public class SceneManager : DrawableGameComponent
         _currentScene = scene; // Switch to the new scene
 
         // Allow scenes to override current world.
-        if (_currentScene.GameWorld != null) CurrentWorld = _currentScene.GameWorld;
+        if (_currentScene.GameWorld != null)
+            CurrentWorld = _currentScene.GameWorld;
 
         // Initialize the Scene
         Log("...initializing scene...");

@@ -20,37 +20,33 @@ public abstract class EntitySystem
     #region Shortcut Functions
 
     /// <summary>
-    /// Quick Context route to SSLGame.ECS();
+    /// Quick Context route to SSLGame.ECS(); This is the game's current world's context, rather than per-entity.
     /// </summary>
     /// <remarks>
     /// Will cause a crash if ECS isn't enabled, and Entity Systems are in use.
     /// </remarks>
-    private static EntityContext Context => SSLGame.Instance.SceneManager.ECS();
+    public static EntityContext GameContext => SSLGame.Instance.SceneManager.ECS();
 
     /// <summary>
     /// Quick route to SSLGame.ECS().EntityManager.
     /// </summary>
-    protected static EntityManager EntityManager => Context.EntityManager;
+    protected internal static EntityManager EntityManager => GameContext.EntityManager;
 
     /// <summary>
     /// Quick route to SSLGame.ECS().World for extension methods.
     /// </summary>
-    public static World World => Context.World;
+    public static World World => GameContext.World;
 
     /// <summary>
     /// Quick route to SSLGame.ECS().World.Events
     /// </summary>
-    public static EventHandler Events => Context.World.Events;
+    public static EventHandler Events => GameContext.World.Events;
 
     /// <summary>
     /// Quick route to SSLGame.ECS().World.Graphics handling.
     /// </summary>
-    public static GraphicsDevice Graphics => Context.World.Graphics.GraphicsDevice;
+    public static GraphicsDevice Graphics => GameContext.World.Graphics.GraphicsDevice;
 
-    /// <summary>
-    /// Quick route to World.QueryComponents Query.
-    /// </summary>
-    public static IEnumerable<T> Query<T>() where T : Component => World.QueryComponents<T>();
 
     #endregion
 

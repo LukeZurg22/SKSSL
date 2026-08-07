@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using JetBrains.Annotations;
 using Microsoft.Xna.Framework;
 using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
@@ -42,9 +41,6 @@ public partial class EntityManager
     // ReSharper disable once UnusedMember.Global
     public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => EntitiesList.Entries.OfType<T>();
 
-    [UsedImplicitly]
-    public T? SpawnAs<T>(string handle) where T : class => Spawn(handle) as T;
-
     public Entity? Spawn(string handle)
     {
         if (!_entityRegistry.TryGet(handle, out Entity? definition))
@@ -82,6 +78,7 @@ public partial class EntityManager
     /// <exception cref="Exception">Thrown if entity is abstract. Abstract entities should not be instantiated.</exception>
     public Entity? Clone(Entity source)
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         if (source.Abstract)
         {
             Log(new EntityException($"Attempted to clone abstract entity {source.GetFullHandle()}"), LOG.SYSTEM_ERROR);
@@ -89,10 +86,7 @@ public partial class EntityManager
         }
 
         var uid = EntitiesList.New().As<EntityUid>(); // Create unique ID.
-        // I am permitted to use the Clone() method here. It's where it matters.
-#pragma warning disable CS0618 // Type or member is obsolete
         Entity entity = source.Clone(); // Create copy of source entity.
-#pragma warning restore CS0618 // Type or member is obsolete
         entity.SetUid(uid);
 
         // Add to "All Entities" list.
@@ -109,6 +103,7 @@ public partial class EntityManager
 
         entity.Initialize();
         return entity;
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     public bool TryGet(EntityUid uid, [NotNullWhen(true)] out Entity? entity)

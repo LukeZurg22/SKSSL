@@ -6,8 +6,9 @@ using static SKSSL.ECS.PackableUid;
 namespace SKSSL.ECS;
 
 /// <summary>
-/// Specialized PackableUid for exclusive use with entities. This is copied from <see cref="PackableUid"/>.
+/// Specialized PackableUid for exclusive use with entities. This implements <see cref="IUid{TSelf}"/>.
 /// </summary>
+/// <seealso cref="PackableUid"/>
 public readonly struct EntityUid : IUid<EntityUid>, IEquatable<EntityUid>
 {
     public ulong Packed { get; }

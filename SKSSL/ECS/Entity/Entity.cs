@@ -14,7 +14,7 @@ namespace SKSSL.ECS;
 
 /// <summary>
 /// Instanced Entity representing an object present within game memory. Entities are contained within a
-/// <see cref="World"/>, and contain <see cref="ComponentRegistry"/> Component Indices for pointing to component arrays.
+/// <see cref="ParentWorld"/>, and contain <see cref="ComponentRegistry"/> Component Indices for pointing to component arrays.
 /// </summary>
 /// <inheritdoc cref="Prototype"/>
 /// <code>
@@ -29,6 +29,17 @@ namespace SKSSL.ECS;
 [JsonObject]
 public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity>
 {
+    /// Reverse-reference back to the world that this entity inhabits.
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    public EntityManager SourceManager { get; set; }
+
+    /// Reverse-reference back to the world that this entity inhabits.
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    public World ParentWorld { get; set; }
+
+    public EntityContext Context => new(this);
+
+
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool Abstract { get; set; } = false;
 
@@ -63,10 +74,6 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
     /// [De]serialized component entries part of this prototype. Put on end of order.
     [YamlMember(Alias = "components", Order = 99)]
     public List<ComponentYaml>? YamlComponents = [];
-
-    /// Reverse-reference back to the world that this entity inhabits.
-    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
-    public World? World { get; set; }
 
     /// Exclaim if this entity and its components require updating.
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
@@ -116,7 +123,8 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
         Inherit = source.Inherit;
         Name = source.Name;
         Description = source.Description;
-        World = source.World;
+        SourceManager = source.SourceManager;
+        ParentWorld = source.ParentWorld;
         if (source.YamlComponents != null && YamlComponents != null)
             YamlComponents = YamlComponents
                 .Select(c => c.Clone())
@@ -175,7 +183,7 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
     }
 
     [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
-    public override int GetHashCode() => HashCode.Combine(Handle, Inherit, IsDirty, World, _uid);
+    public override int GetHashCode() => HashCode.Combine(Handle, Inherit, IsDirty, ParentWorld, _uid);
 
 
     /// Equates handles only.

@@ -13,7 +13,7 @@ namespace SKSSL.ECS;
 public readonly struct EntityContext
 {
     /// <inheritdoc cref="SKSSL.ECS.EntityManager"/>
-    public EntityManager EntityManager => World.EntityManager;
+    public readonly EntityManager EntityManager = null!;
 
     /// <inheritdoc cref="Scenes.World"/>
     public readonly World World = null!;
@@ -32,6 +32,14 @@ public readonly struct EntityContext
     public EntityContext(World world)
     {
         World = world;
+        EntityManager = World.EntityManager;
+    }
+    
+    /// Create context surrounding an entity.
+    public EntityContext(Entity entity)
+    {
+        World = entity.ParentWorld;
+        EntityManager = entity.SourceManager;
     }
 
     /*

@@ -203,8 +203,9 @@ public class ECS
     private readonly EntityManager _entityManager = new();
 
     [TestMethod]
-    public void TEST_ENTITY_SPAWN()
+    public void TEST_ENTITIES_COMPONENTS()
     {
+        // ===TEST ENTITY SPAWNING===
 #pragma warning disable CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
         // Word of warning for this test: An instanced Entity Manager is decoupled, meaning that the ECS Entity context
         //  won't be 100% reliable, and reflective methods that extend Entity functions like ComponentRegistry.Add()
@@ -218,30 +219,22 @@ public class ECS
         IsNotNull(spawnedEntity); // Entity should have spawned successfully.
         AreEqual(spawnedEntity.TestString, entity.TestString);
 
+        spawnedEntity.TestString = "Test Also Successful";
+        
         // Assert test clone of spawn.
         // Note: It's assumed that the entity by this point was already cloned, but cloning from an existing one using
         //  the internal function is what this intends to test. This cloning shouldn't be done anyway, but this is to
-        //  test the CopyFrom function itself
-        Entity cloned = spawnedEntity.Clone();
-
-        // TODO:
-        //  Spawn entity.
-        //  Modify it.
-        //  Clone it.
+        //  test the Cloning directly, the proper way.
+        var clone = _entityManager.Clone(spawnedEntity) as TestEntityInheritedType;
+        IsNotNull(clone); // Entity should have cloned successfully.
+        AreEqual(clone.TestString, spawnedEntity.TestString);
 #pragma warning restore CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
-    }
-
-    [TestMethod]
-    public void TEST_COMPONENT()
-    {
+        
+        // TESTING COMPONENTS
+        spawnedEntity.AddComponent(new TestBlankComponent());
         // Add component.
 
         // Remove component.
-    }
-
-    [TestMethod]
-    public void TEST_ENTITY_INHERITANCE()
-    {
     }
 
     [TestMethod]

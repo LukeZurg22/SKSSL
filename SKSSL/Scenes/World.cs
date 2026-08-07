@@ -40,7 +40,7 @@ public interface IWorld
 /// which the user will play in. Implement this class however you see fit.
 /// Add your rendering / other code within your World class.
 /// </summary>
-public abstract class World : IWorld
+public class World : IWorld
 {
     /// <summary>
     /// Event handler for this world's systems.
@@ -62,7 +62,7 @@ public abstract class World : IWorld
     //public readonly StatisticsList StatisticsList = new();
     
     /// Calls ECS Init() (if enabled)
-    protected World()
+    protected internal World()
     {
         // ReSharper disable once VirtualMemberCallInConstructor
         // Enable ECS if toggled-on.
