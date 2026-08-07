@@ -129,11 +129,9 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
 
     /// <summary>
     /// Clones an entity. Uid is NOT copied. Do NOT call this directly upon an entity!
+    /// Use <see cref="EntityManager.Clone"/> instead.
     /// </summary>
-    public Entity Clone()
-    {
-        return new Entity().CopyFrom(this);
-    }
+    public virtual Entity Clone() => new Entity().CopyFrom(this);
 
     /// <summary>
     /// Special initialization logic for Entity.

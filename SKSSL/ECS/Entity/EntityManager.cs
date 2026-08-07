@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using JetBrains.Annotations;
 using Microsoft.Xna.Framework;
 using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
@@ -28,10 +29,7 @@ public partial class EntityManager
     public readonly List<EntityUid> DirtyEntities = [];
 
     /// <inheritdoc cref="EntityManager"/>
-    public EntityManager()
-    {
-        ComponentRegistry = new ComponentRegistry(this);
-    }
+    public EntityManager() => ComponentRegistry = new ComponentRegistry(this);
 
     /// <summary>
     /// Get-Method for all Entities of desired type. Does not handle components.
@@ -43,6 +41,9 @@ public partial class EntityManager
     /// <returns>Readonly enumerable list of entities that inherit from type T</returns>
     // ReSharper disable once UnusedMember.Global
     public IEnumerable<Entity> GetAllEntities<T>() where T : Entity => EntitiesList.Entries.OfType<T>();
+
+    [UsedImplicitly]
+    public T? SpawnAs<T>(string handle) where T : class => Spawn(handle) as T;
 
     public Entity? Spawn(string handle)
     {
@@ -58,6 +59,17 @@ public partial class EntityManager
             Log($"Unable to spawn abstract Entity \'{handle}\'.", LOG.SYSTEM_ERROR);
             return null;
         }
+
+        // Safety padding for handle.
+        if (definition.Handle.IsNullOrEmpty())
+        {
+            Log(
+                $"Entity definition \'{handle}\' exists, but it doesn't contain its handle within its Handle-field. " +
+                $"This was corrected at-runtime.",
+                LOG.SYSTEM_WARNING);
+            definition.Handle = handle;
+        }
+
 
         return Clone(definition);
     }
@@ -77,7 +89,10 @@ public partial class EntityManager
         }
 
         var uid = EntitiesList.New().As<EntityUid>(); // Create unique ID.
+        // I am permitted to use the Clone() method here. It's where it matters.
+#pragma warning disable CS0618 // Type or member is obsolete
         Entity entity = source.Clone(); // Create copy of source entity.
+#pragma warning restore CS0618 // Type or member is obsolete
         entity.SetUid(uid);
 
         // Add to "All Entities" list.
@@ -114,7 +129,7 @@ public partial class EntityManager
         foreach (Entity entry in EntitiesList)
         {
             // Asserting that entities present in the super-list all have valid Uids. This assumption is as dangerous
-            //  is it is necessary to avoid some tedious workarounds. -Z
+            //  as it is necessary to avoid some tedious workarounds. -Z
             Destroy(entry.GetUid());
         }
     }

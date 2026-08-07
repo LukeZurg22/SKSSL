@@ -4,6 +4,7 @@ using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.ECS;
 using SKSSL.ECS.Registry;
+using SKSSL.Exceptions;
 using SKSSL.Extensions;
 using SKSSL.Tests.TestData;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
@@ -65,6 +66,8 @@ public class ECS
      */
 
     private readonly PrototypeLoader _prototypeLoader = new SKSSL.YamlLoader();
+    private readonly EntityRegistry _entityRegistry = MasterRegistryManager.GetRegistry<Entity, EntityRegistry>();
+
 
     [TestMethod, UsedImplicitly, TestSubject(typeof(PrototypeLoader))]
     public void TEST_PROTOTYPE_LOADING()
@@ -157,14 +160,16 @@ public class ECS
         MasterRegistryManager.TryRegisterPrototype(testEntB);
         IsTrue(MasterRegistryManager.TryGetPrototype($"game:{TestEntHandleB}", out _));
 
-        // Assert override as expected. // WIP: Handle these next.
+        // Assert override as expected.
         var testEntC = new TestPrototypeInherit { Handle = "override_me", FirstField = 0 };
         MasterRegistryManager.TryRegisterPrototype(testEntC);
         var @override = new TestPrototypeInherit
             { Source = "other", Handle = "override_me", Replace = "game", FirstField = 99 };
-        MasterRegistryManager.TryRegisterPrototype(@override);
+        IsTrue(MasterRegistryManager.TryRegisterPrototype(@override));
 
-        // Assert override w. bad override handle.
+        // Assert override w. bad override handle. // "override_me" exists in the registry, at the moment.
+        var testEntD = new TestPrototypeInherit { Replace = "other", Handle = "invalid_handle", FirstField = 0 };
+        Throws<RegistryException>(() => MasterRegistryManager.TryRegisterPrototype(testEntD));
     }
 
     [TestMethod]
@@ -195,16 +200,35 @@ public class ECS
         uids.Clear();
     }
 
+    private readonly EntityManager _entityManager = new();
+
     [TestMethod]
     public void TEST_ENTITY_SPAWN()
     {
+#pragma warning disable CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+        // Word of warning for this test: An instanced Entity Manager is decoupled, meaning that the ECS Entity context
+        //  won't be 100% reliable, and reflective methods that extend Entity functions like ComponentRegistry.Add()
+        //  will not work perfectly given the context. This is being corrected, and may be fixed already.
+
+        var entity = new TestEntityInheritedType { TestString = "Test Successful" };
+        _entityRegistry.Register("TestEntity", entity);
+
         // Assert test spawn.
+        var spawnedEntity = _entityManager.Spawn("TestEntity") as TestEntityInheritedType;
+        IsNotNull(spawnedEntity); // Entity should have spawned successfully.
+        AreEqual(spawnedEntity.TestString, entity.TestString);
 
         // Assert test clone of spawn.
+        // Note: It's assumed that the entity by this point was already cloned, but cloning from an existing one using
+        //  the internal function is what this intends to test. This cloning shouldn't be done anyway, but this is to
+        //  test the CopyFrom function itself
+        Entity cloned = spawnedEntity.Clone();
+
         // TODO:
         //  Spawn entity.
         //  Modify it.
         //  Clone it.
+#pragma warning restore CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
     }
 
     [TestMethod]
