@@ -117,11 +117,11 @@ public static partial class EntityExtensions
 
     #region Query Components
 
-    /// <summary>
-    /// Quick route to World.QueryComponents Query. Extends EntitySystem using "global" ""World"" context.
-    /// </summary>
-    /// <typeparam name="T1">Component to search.</typeparam>
-    /// <returns>An enumerable of components.</returns>
+    /// <inheritdoc cref="QueryComponents{T1}"/>
+    /// <remarks>
+    /// This is a quick and dirty re-route to the World.QueryComponents() call.
+    /// However this is mainly to Extends EntitySystem instances with a "Global World Context".
+    /// </remarks>
     [Pure]
     public static IEnumerable<T1> Query<T1>(this EntitySystem _) where T1 : Component
         => QueryComponents<T1>(EntitySystem.World);
