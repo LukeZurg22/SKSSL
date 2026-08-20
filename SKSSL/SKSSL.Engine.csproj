@@ -172,6 +172,10 @@
 
     <ItemGroup>
       <EmbeddedResource Include="Assets\ConsoleFont.xnb" />
+      <None Remove="Assets\icon.png" />
+      <EmbeddedResource Include="Assets\icon.png" />
+      <None Remove="Assets\icon.svg" />
+      <EmbeddedResource Include="Assets\icon.svg" />
     </ItemGroup>
 
     <!-- START - !== ADD THE FOLLOWING TO INHERITING PROJECTS USING SKSSL AS AN ENGINE !== -->
