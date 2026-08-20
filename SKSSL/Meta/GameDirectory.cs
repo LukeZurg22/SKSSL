@@ -36,8 +36,9 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     /// <summary>Name of the overall directory. Used for sorting and classification.</summary>
     public string DirectoryTitle { get; }
 
-    public static readonly string BuildDirectory = Combine(AppContext.BaseDirectory, "..");
-    
+    /// <summary>Base relative build directory of the program's executable, but one above to exit the binaries.</summary>
+    public static readonly string BuildDirectory = new DirectoryInfo(AppContext.BaseDirectory).Parent!.FullName;
+
     /// <summary>Root of this current directory that contains its content.</summary>
     public static string RootDirectory { get; } = GetFullPath(BuildDirectory);
 

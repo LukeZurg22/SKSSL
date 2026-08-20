@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SKSSL.Serializing;
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global

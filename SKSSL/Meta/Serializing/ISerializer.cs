@@ -15,7 +15,7 @@ public interface ISerializer
     /// <param name="obj">Some object which may or may not be a list.</param>
     /// <typeparam name="T">The type the object is supposed to represent, or be a list of represented.</typeparam>
     /// <returns>A serialized string of the object.</returns>
-    public string Serialize<T>(T obj) where T : class;
+    public string Serialize<T>(T obj);
     
     // ReSharper disable once UnusedMemberInSuper.Global
     public T? Deserialize<T>(string serialized);

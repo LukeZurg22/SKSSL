@@ -20,7 +20,7 @@ public class SerializerDefaultJson : ISerializer
 
     private readonly JsonSerializerOptions _options = new() { WriteIndented = true };
 
-    public string Serialize<T>(T obj) where T : class => JsonSerializer.Serialize(obj, _options);
+    public string Serialize<T>(T obj) => JsonSerializer.Serialize(obj, _options);
 
     public T? Deserialize<T>(string serialized) => JsonSerializer.Deserialize<T>(serialized, _options);
 

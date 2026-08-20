@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Newtonsoft.Json;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
+using SKSSL.Serializing;
 using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;

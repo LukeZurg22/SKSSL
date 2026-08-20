@@ -75,7 +75,7 @@ public class SerializerDefaultYaml : ISerializer
     /// <returns>Serialized form of Object for YAML file save.</returns>
     /// <remarks>Forces object to list of itself for serialization.</remarks>
     // TEMP: I am worried this will not handle multiple types very well!
-    public string Serialize<T>(T obj) where T : class => Serializer.Serialize(obj);
+    public string Serialize<T>(T obj) => Serializer.Serialize(obj);
 
     public List<Prototype> DeserializePrototypes(string text, string trace = "", params Type[] types)
     {

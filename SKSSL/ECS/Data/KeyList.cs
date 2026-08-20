@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using JetBrains.Annotations;
+using SKSSL.Serializing;
 using YamlDotNet.Serialization;
 using static YamlDotNet.Serialization.DefaultValuesHandling;
 
