@@ -140,15 +140,6 @@
         <Compile Update="Meta\ContentLoading\TextureLoader.XNAContent.cs">
             <DependentUpon>TextureLoader.cs</DependentUpon>
         </Compile>
-        <Compile Update="Meta\ContentLoading\YamlLoader.cs">
-            <DependentUpon>PrototypeLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\ConsQJsonLoader.cs">
-            <DependentUpon>PrototypeLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\IYamlBlock.cs">
-            <DependentUpon>YamlLoader.cs</DependentUpon>
-        </Compile>
         <Compile Update="Meta\LoadPath.cs">
             <DependentUpon>GameSettings.cs</DependentUpon>
         </Compile>

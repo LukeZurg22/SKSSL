@@ -1,5 +1,6 @@
 // ReSharper disable FieldCanBeMadeReadOnly.Global
 
+using SKSSL.Serializing;
 using SKSSL.Textures;
 
 namespace SKSSL;
@@ -24,7 +25,7 @@ public class EngineConfig
     /// handle its files, whether to Serialize or Deserialize data.
     /// </summary>
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
-    public PrototypeLoader ContentLoader = new YamlLoader();
+    public IGameLoader PrototypeLoader = new PrototypeLoader<YamlSerializerSolKom>(".yaml", ".yml");
     
     /// <summary>
     /// A replaceable developer-provided texture loader.
@@ -37,5 +38,5 @@ public class EngineConfig
     /// <remarks>Don't touch this unless you know what you're doing. This may affect performance.</remarks>
     public int DESTROY_CACHE_LIMIT = 1024;
     
-    public override string ToString() => $"{UseECS};{GumFile};{ContentLoader.GetType().Name}";
+    public override string ToString() => $"{UseECS};{GumFile};{PrototypeLoader.GetType().Name}";
 }

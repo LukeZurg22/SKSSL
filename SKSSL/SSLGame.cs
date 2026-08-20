@@ -13,14 +13,13 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.ImGuiNet;
 using MonoGameGum;
+using SKSSL.Console;
 using SKSSL.ECS;
 using SKSSL.ECS.Registry;
 using SKSSL.Scenes;
-using SKSSL.Textures;
 using SKSSL.Utilities;
 
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
-
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Local
 
 namespace SKSSL;
@@ -47,8 +46,11 @@ public abstract class SSLGame : Game
     /// Aspect ratio to render the game.
     public static float AspectRatio => Graphics.Viewport.AspectRatio;
 
-    /// Use static constructor for this.
-    public static EngineConfig Config { get; set; } = new(); // TODO: Make more dynamic and expandable by user-side.
+    /// Access the general content loader.
+    public static IGameLoader PrototypeLoader => Config.PrototypeLoader;
+
+    /// Use static constructor for this. Configurable engine configuration assigned from the Developer's view.
+    public static EngineConfig Config { get; set; } = new();
 
     #endregion
 
@@ -181,6 +183,15 @@ public abstract class SSLGame : Game
             Log($"...finished loading {directoryTitle} directory...");
         }
 
+        if (load.Settings.SKSSLConsoleEnabled)
+        {
+            // WIP: Make sure this works. Also make sure that the options aren't cucked over by the Source Generator.
+            var p = new GameConsole(this, new SpriteBatch(GraphicsDevice));
+            // WIP: A quick hot-test will be needed in the live environment for this. Just getting it to run is fine.
+            //  Commands don't need to work just yet.
+            Components.Add(new GameConsoleComponent(p, this, _spriteBatch));
+        }
+
         #endregion
     }
 
@@ -207,7 +218,7 @@ public abstract class SSLGame : Game
         {
             // The developer can bootstrap their own prototype loader by adjusting the Engine Config.
             Log($"...loading {directory.DirectoryTitle} prototypes.");
-            Config.ContentLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
+            Config.PrototypeLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
         }
 
         Log($"...loaded {MasterRegistryManager.Count()} prototypes.");

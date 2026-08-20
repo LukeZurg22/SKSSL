@@ -1,10 +1,10 @@
 using System;
 using System.Text;
 
-namespace SKSSL.YAML;
+namespace SKSSL.Serializing;
 
 /// A block of YAML text data that represents a single entry in a file, which is assumed to be a list of blocks.
-public readonly record struct IYamlBlock(Type? Type, string Tag, string Text, string File, int Index)
+public readonly record struct YamlBlock(Type? Type, string Tag, string Text, string File, int Index)
 {
     /// Explicit representation of Type in Assembly that this block represents.
     public readonly Type? Type = Type;
@@ -15,7 +15,7 @@ public readonly record struct IYamlBlock(Type? Type, string Tag, string Text, st
     /// Text contained in the block.
     public readonly string Text = Text;
 
-    /// Text contained in the block.
+    /// File path to trace back-to in case of errors.
     public readonly string File = File;
 
     /// Index in the file that which this is defined.

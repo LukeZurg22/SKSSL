@@ -6,6 +6,7 @@ using SKSSL.ECS;
 using SKSSL.ECS.Registry;
 using SKSSL.Exceptions;
 using SKSSL.Extensions;
+using SKSSL.Serializing;
 using SKSSL.Tests.TestData;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 using static SKSSL.Tests.TestPrototypes;
@@ -16,7 +17,7 @@ using static SKSSL.Tests.TestPrototypes;
 namespace SKSSL.Tests;
 
 [TestClass, UsedImplicitly]
-[TestSubject(typeof(YamlLoader)), TestSubject(typeof(EntityManager))]
+[TestSubject(typeof(YamlSerializerSolKom)), TestSubject(typeof(EntityManager))]
 public class ECS
 {
     #region Test Entries
@@ -65,34 +66,34 @@ public class ECS
      * Setup is repeated per-tests.
      */
 
-    private readonly PrototypeLoader _prototypeLoader = new SKSSL.YamlLoader();
+    private readonly PrototypeLoader<YamlSerializerSolKom> _loader = new();
     private readonly EntityRegistry _entityRegistry = MasterRegistryManager.GetRegistry<Entity, EntityRegistry>();
 
 
-    [TestMethod, UsedImplicitly, TestSubject(typeof(PrototypeLoader))]
+    [TestMethod, UsedImplicitly, TestSubject(typeof(PrototypeLoader<YamlSerializerSolKom>))]
     public void TEST_PROTOTYPE_LOADING()
     {
         List<Entity> entities = [];
 
         // entity A
-        var yml = _prototypeLoader.Deserialize(TestYamlOutputSingleEntry, "Test");
+        var yml = _loader.Deserialize(TestYamlOutputSingleEntry, "Test");
         HasCount(1, yml); // Test deserialize. Only one entry expected.
         IsNotEmpty(yml);
         yml.ForEach(prototype => entities.AddRange(prototype as Entity));
 
         // entities B & C
-        yml = _prototypeLoader.Deserialize(TestYamlMultiEntry, "Test");
+        yml = _loader.Deserialize(TestYamlMultiEntry, "Test");
         HasCount(2, yml);
         yml.ForEach(prototype => entities.AddRange(prototype as Entity));
 
         // Test serializing and de-serializing in one breath.
         entities.Clear();
         entities.Add(_testEntityInstance);
-        string output = _prototypeLoader.Serialize(entities);
+        string output = _loader.Serialize(entities);
         IsFalse(string.IsNullOrEmpty(output), nameof(output) + " != null");
 
         // Deserialize as a list of prototypes and assume the first entry is the entity put in.
-        var prototypes = _prototypeLoader.Deserialize(output, "Test");
+        var prototypes = _loader.Deserialize(output, "Test");
         var entry = prototypes[0] as Entity;
         /* // Expected values
          * - handle = "test-entity",
@@ -107,12 +108,12 @@ public class ECS
 
         // Test special inherited type.
         entities.Add(_testInheritedEntityInheritedInstance);
-        output = _prototypeLoader.Serialize(entities);
+        output = _loader.Serialize(entities);
         Contains(ExpectedTestString, output); // Ensure that an expected variable is contained.
     }
 
 
-    [TestMethod, UsedImplicitly, TestSubject(typeof(YamlLoader))]
+    [TestMethod, UsedImplicitly, TestSubject(typeof(YamlSerializerSolKom))]
     public void TEST_COMPONENT_CONVERSIONS()
     {
         var component = new TestFieldComponent { x = 7 };
@@ -231,9 +232,11 @@ public class ECS
 #pragma warning restore CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
         
         // TESTING COMPONENTS
-        spawnedEntity.AddComponent(new TestBlankComponent());
         // Add component.
-
+        spawnedEntity.AddComponent(new TestBlankComponent());
+        // WIP: ADDING TEST CASES FOR COMPONENTS. I WENT ON A BINGE CLEANING UP THE ENTITY CONTEXT. WOOPS!
+        
+        
         // Remove component.
     }
 

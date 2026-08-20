@@ -7,12 +7,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using SKSSL.ECS;
 using SKSSL.Utilities;
-using SKSSL.YAML;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using static YamlDotNet.Serialization.DefaultValuesHandling;
 
-namespace SKSSL;
+namespace SKSSL.Serializing;
 
 /// <summary>
 /// Load all entries in YAML files based on provided types in BULK. Caches data when
@@ -32,38 +31,32 @@ namespace SKSSL;
 /// // Files read once per type, cached afterward
 /// </code></example>
 /// </summary>
-// ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
-public class YamlLoader() : PrototypeLoader([".yml", ".yaml"])
+public class YamlSerializerSolKom : ISerializer
 {
+    // ReSharper disable MemberCanBeProtected.Global
     /// YAML Serializer.
-    private static readonly ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
+    public static YamlDotNet.Serialization.ISerializer Serializer { get; } = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .ConfigureDefaultValuesHandling(OmitNull | OmitDefaults | OmitEmptyCollections)
         .WithTypeConverter(new LocIdYamlConverter())
         .Build();
 
     // ReSharper disable MemberCanBeProtected.Global
-    public virtual ISerializer Serializer => SKSSLDefaultSerializer;
-
     /// YAML Deserializer.
-    private static readonly IDeserializer SKSSLDefaultDeserializer = new DeserializerBuilder()
+    public static IDeserializer Deserializer { get; } = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .WithTypeConverter(new LocIdYamlConverter())
         .Build();
-
-    // ReSharper disable MemberCanBeProtected.Global
-    public virtual IDeserializer Deserializer => SKSSLDefaultDeserializer;
 
     /// <summary>
     /// Serializes an object as either itself, or a list of its provided type.
     /// </summary>
     /// <returns>Serialized form of Object for YAML file save.</returns>
     /// <remarks>Forces object to list of itself for serialization.</remarks>
-    // WARN: I am worried this will not handle multiple types very well!
-    protected override string SerializeLogicImplement<T>(T obj) where T : class =>
-        Serializer.Serialize(obj);
+    // TEMP: I am worried this will not handle multiple types very well!
+    public string Serialize<T>(T obj) where T : class => Serializer.Serialize(obj);
 
-    protected override List<Prototype> DeserializeLogicImplement(string text, string trace = "", params Type[] types)
+    public List<Prototype> Deserialize(string text, string trace = "", params Type[] types)
     {
         // Split up the text into lines.
         var lines = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
@@ -86,10 +79,10 @@ public class YamlLoader() : PrototypeLoader([".yml", ".yaml"])
     #region Helpers
 
     /// Reads all lines in a string, and parses them into yaml-blocks.
-    private static List<IYamlBlock> ConvertLinesToYamlBlocks(string[] lines, Type[] expectedTypes, string? file = null)
+    private static List<YamlBlock> ConvertLinesToYamlBlocks(string[] lines, Type[] expectedTypes, string? file = null)
     {
         int blockStartLine = 0;
-        var entries = new List<IYamlBlock>();
+        var entries = new List<YamlBlock>();
         file ??= ""; // For reverse-tracing files.
 
         // Text contained in the block, separated into individual lines for parsing.
@@ -110,7 +103,7 @@ public class YamlLoader() : PrototypeLoader([".yml", ".yaml"])
             {
                 if (linesRead > 0)
                 {
-                    var block = new IYamlBlock(
+                    var block = new YamlBlock(
                         previousType,
                         previousTag,
                         blockTextBuilder.ToString(),
@@ -136,7 +129,7 @@ public class YamlLoader() : PrototypeLoader([".yml", ".yaml"])
         // If there are no more lines, but lines have been read, output the remainder as a Yaml Block.
         if (linesRead > 0)
         {
-            entries.Add(new IYamlBlock(previousType, previousTag, blockTextBuilder.ToString(), file, linesRead));
+            entries.Add(new YamlBlock(previousType, previousTag, blockTextBuilder.ToString(), file, linesRead));
         }
 
         return entries;
@@ -255,11 +248,11 @@ public class YamlLoader() : PrototypeLoader([".yml", ".yaml"])
     }
 
 
-    private static Dictionary<Type, StringBuilder> CombineYamlBlocks(List<IYamlBlock> yamlBlocks)
+    private static Dictionary<Type, StringBuilder> CombineYamlBlocks(List<YamlBlock> yamlBlocks)
     {
         var combined = new Dictionary<Type, StringBuilder>();
 
-        foreach (IYamlBlock block in yamlBlocks)
+        foreach (YamlBlock block in yamlBlocks)
         {
             if (block.Text.StartsWith('#')) continue;
             if (block.Type == null)

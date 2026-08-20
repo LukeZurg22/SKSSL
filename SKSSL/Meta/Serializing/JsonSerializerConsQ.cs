@@ -8,20 +8,21 @@ using SKSSL.ECS;
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedMember.Global
 
-namespace SKSSL;
+namespace SKSSL.Serializing;
 
 /// <summary>
 /// Lifted from "Consequaintances", this is an incredibly simple loader for Json files
 /// using system <see cref="System.Text.Json"/>.
 /// </summary>
-public class ConsQJsonLoader() : PrototypeLoader([".json"])
+public class JsonConsQSerializer : ISerializer
 {
-    protected override string SerializeLogicImplement<T>(T obj)
-        => JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
+    private readonly JsonSerializerOptions _options = new() { WriteIndented = true };
+
+    public string Serialize<T>(T obj) where T : class
+        => JsonSerializer.Serialize(obj, _options);
 
     /// Loads json file at path and returns a list of objects, even if there is only one entry.
-    protected override List<Prototype> DeserializeLogicImplement(string text, string trace = "",
-        params Type[] types)
+    public List<Prototype> Deserialize(string text, string trace = "", params Type[] types)
     {
         List<Prototype> output = [];
         // Extracting the type annotated.
