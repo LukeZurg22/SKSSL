@@ -27,7 +27,7 @@ internal class GameConsoleComponent : DrawableGameComponent
     {
         this.console = console;
         this.spriteBatch = spriteBatch;
-        inputProcesser = new InputProcessor(new CommandProcessor());
+        inputProcesser = new InputProcessor();
         inputProcesser.Open += (_, _) => consoleRenderer?.Open();
         inputProcesser.Close += (_, _) => consoleRenderer?.Close();
         consoleRenderer = new ConsoleRenderer(game, spriteBatch, inputProcesser);

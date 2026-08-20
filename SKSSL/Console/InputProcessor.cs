@@ -11,7 +11,7 @@ using Keys = Microsoft.Xna.Framework.Input.Keys;
 
 namespace SKSSL.Console
 {
-    internal class InputProcessor(CommandProcessor commandProcessor)
+    internal class InputProcessor
     {
         public event EventHandler Open = delegate { };
         public event EventHandler Close = delegate { };
@@ -32,10 +32,11 @@ namespace SKSSL.Console
 
         private void Alternate_Keypress(object sender, Keys key)
         {
-            if (!isActive) return; // console is opened -> accept input
+            // Console is opened -> accept input. If not, don't bother.
+            if (!isActive) return;
 
-            CommandHistory
-                .Reset(); // WIP: May be the cause of command history's inability to recall more than one command.
+            // TODO: May be the cause of command history's inability to recall more than one command.
+            CommandHistory.Reset();
             switch (key)
             {
                 case Keys.Enter:
@@ -69,14 +70,20 @@ namespace SKSSL.Console
 
         internal void EventInput_KeyDown(object sender, Keys keyPressed)
         {
+            KeyboardState state = Keyboard.GetState();
+            
             // CTRL is being held.
-            if (Keyboard.GetState().IsKeyDown(Keys.LeftControl))
+            if (state.IsKeyDown(Keys.LeftControl))
             {
-                KeyboardState state = Keyboard.GetState();
+                state = Keyboard.GetState();
+                
                 // CTRL + V - Paste
                 if (state.IsKeyDown(Keys.V))
                 {
                     var clipboard = ClipboardService.GetText();
+                    if (string.IsNullOrEmpty(clipboard))
+                        return;
+                    
                     AddToBuffer(clipboard);
                     return;
                 }
@@ -86,27 +93,31 @@ namespace SKSSL.Console
                     // IMPL: Add CTRL-BACKSPACE to delete a word
                     return;
                 }
+                
+                // IMPL: Add CTRL-Arrow keys for navigation.
 
                 return;
             }
 
             // SHIFT is being held.
-            if (Keyboard.GetState().IsKeyDown(Keys.LeftShift))
+            if (state.IsKeyDown(Keys.LeftShift))
             {
-                // The '_' character.
-                if (Keyboard.GetState().IsKeyDown(Keys.OemMinus))
+                // INSERT _ (SHIFT -)
+                if (state.IsKeyDown(Keys.OemMinus))
                 {
                     Buffer.Output += "_";
                     return;
                 }
 
-                if (Keyboard.GetState().IsKeyDown(Keys.OemSemicolon))
+                // INSERT : (Shift ;)
+                if (state.IsKeyDown(Keys.OemSemicolon))
                 {
                     Buffer.Output += ":";
                     return;
                 }
 
-                if (Keyboard.GetState().IsKeyDown(Keys.OemQuotes))
+                // INSERT " (SHIFT ')
+                if (state.IsKeyDown(Keys.OemQuotes))
                 {
                     Buffer.Output += "\"";
                     return;
@@ -135,8 +146,8 @@ namespace SKSSL.Console
         #endregion
 
         /// Check if key is a letter (A-Z) or number (0-9) or minus (-)
-        private static bool IsLetterNumberKey(Keys key) =>
-            (key >= Keys.A && key <= Keys.Z) || (key >= Keys.D0 && key <= Keys.D9);
+        private static bool IsLetterNumberKey(Keys key)
+            => (key >= Keys.A && key <= Keys.Z) || (key >= Keys.D0 && key <= Keys.D9);
 
         private void AddToBuffer(string text)
         {

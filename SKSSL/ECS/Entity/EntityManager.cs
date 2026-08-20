@@ -66,7 +66,6 @@ public partial class EntityManager
             definition.Handle = handle;
         }
 
-
         return Clone(definition);
     }
 
@@ -81,7 +80,7 @@ public partial class EntityManager
 #pragma warning disable CS0618 // Type or member is obsolete
         if (source.Abstract)
         {
-            Log(new EntityException($"Attempted to clone abstract entity {source.GetFullHandle()}"), LOG.SYSTEM_ERROR);
+            Log(new EntityException($"Attempted to clone abstract entity {source.GetFullHandle()}"));
             return null;
         }
 
