@@ -32,6 +32,9 @@ TODO: (SOUND LOADER)
     SoA for assets: { Name, Handle, Data }
     Void expects literally everything to be tapped into the ECS. Review Bevy Asset systems.
 
+TODO: (COMMANDS)
+    Dynamize commands and their parameters to include auto-correct... somehow. 
+
 WARN: Content loaders may index things differently. They index by file name iirc.
     Directory means nothing to Monogame! I'll need to double check, but this could
     become a problem for games that are trying to override "base" / "private" game
@@ -40,7 +43,6 @@ WARN: Content loaders may index things differently. They index by file name iirc
 Add Wave Function Collapse: 
 https://github.com/mxgmn/WaveFunctionCollapse
 
-Make Commands generated & inserted by Source Generator.
 Use SourceGenerator for adding additional Content Folders?
 Ensure SourceGen is working in LiveTest.
 

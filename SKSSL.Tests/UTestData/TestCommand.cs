@@ -18,8 +18,8 @@ public class TestCommand : IConsoleCommand
     }
 
     public event EventHandler CanExecuteChanged;
-    public string Name { get; }
-    public string Command { get; }
+    public string Handle { get; }
+    public string Usage { get; }
     public string Description { get; }
     public string Execute(string[] arguments)
     {

@@ -5,8 +5,8 @@ namespace SKSSL.Console.Command;
 [JetBrains.Annotations.UsedImplicitly, RegisterCommand]
 public class ExitCommand : IConsoleCommand
 {
-    public string Command => "exit";
-    public string Name => "exit";
+    public string Usage => "exit";
+    public string Handle => "exit";
     public string Description => "Forcefully exits the game.";
 
     public string Execute(params string[] arguments)

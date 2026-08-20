@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
@@ -140,13 +141,21 @@ public static partial class DustLogger
         //  Also include different loging types split between different files..
     }
 
-    public static void Log(Exception e, LOG log = LOG.INFO_PRINT, bool outputToFile = ToggleOutputBoolean)
+    /// <summary>
+    /// Log exception.
+    /// </summary>
+    /// <param name="e">Exception to log.</param>
+    /// <param name="log">Log type. Defaults to SYSTEM_ERROR as exceptions tend to be errors.</param>
+    /// <param name="outputToFile">Toggle output to file.</param>
+    /// <exception cref="Exception">Throws an exception if the debugger is on.</exception>
+    public static void Log(Exception e, LOG log = LOG.SYSTEM_ERROR, bool outputToFile = ToggleOutputBoolean)
     {
         // Force file output if it is an error.
         if (log > LOG.SYSTEM_WARNING) outputToFile = true;
 #if DEBUG
         // For developer debugging, force an exception-crash. Final output should be spotless.
-        if (log > LOG.SYSTEM_WARNING) throw e;
+        if (log > LOG.SYSTEM_WARNING && Debugger.IsAttached)
+            throw e;
 #endif
         InternalLog(e.Message, e, (byte)log, outputToFile);
     }
@@ -165,9 +174,13 @@ public static partial class DustLogger
             using StreamWriter w = File.AppendText(_logFilePath);
             w.WriteLine($"[{log.ToString()}] {message}");
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            // ignored
+            // Log somewhere, but just not to a file.
+            Log(
+                new FileNotFoundException("Failed to serialize log to file!", e.InnerException),
+                LOG.FILE_ERROR, false
+            );
         }
     }
 
@@ -186,7 +199,10 @@ public static partial class DustLogger
     private static void InternalLog(string message, Exception? e, int level = 0, bool outputFile = ToggleOutputBoolean)
     {
         var exType = (LOG)level; // cast to internal enum
-        if (outputFile) WriteToFile(exType, message);
+        if (outputFile)
+        {
+            WriteToFile(exType, message);
+        }
 
         switch (exType)
         {

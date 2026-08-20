@@ -209,14 +209,14 @@ namespace SKSSL.Console
                 return;
             }
 
-            var restOfTheCommand = match.Name[textToMatch.Length..];
+            var restOfTheCommand = match.Handle[textToMatch.Length..];
             Buffer.Output += restOfTheCommand + " ";
         }
 
-        private static IConsoleCommand? GetMatchingCommand(string command)
+        private static IConsoleCommand? GetMatchingCommand(string handle)
         {
             var matchingCommands =
-                GameConsoleOptions.Commands.Where(c => c.Command.StartsWith(command));
+                GameConsoleOptions.Commands.Where(c => c.Handle.StartsWith(handle));
             return matchingCommands.FirstOrDefault();
         }
 

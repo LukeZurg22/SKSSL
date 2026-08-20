@@ -10,21 +10,28 @@ namespace SKSSL.Console
         public static string Process(string buffer)
         {
             string commandName = GetCommandName(buffer);
-            IConsoleCommand? command = GameConsoleOptions.Commands.FirstOrDefault(c => c.Name == commandName);
-            var arguments = GetArguments(buffer);
+            IConsoleCommand? command = GameConsoleOptions.Commands.FirstOrDefault(c => c.Handle == commandName);
+            string[] arguments = GetArguments(buffer);
+
             if (command == null)
             {
-                return "ERROR: Command not found";
+                return $"[INVALID COMMAND] No command found! {buffer}";
             }
 
             string commandOutput;
+
+            // Try-catch to prevent commands from ever crashing the program. This means all commands are wrapped
+            //  in an overhead-inducing try-catch statement, but there is little more one can do about safety without
+            //  demanding that all implementations of commands also include their own try-catch statements. The logging
+            //  without writing to file keeps the file output clean, and the console itself will spit out an error.
             try
             {
                 commandOutput = command.Execute(arguments);
             }
             catch (Exception ex)
             {
-                commandOutput = "ERROR: " + ex.Message;
+                commandOutput = "[COMMAND ERROR]: " + ex.Message;
+                Log(ex, LOG.SYSTEM_WARNING, false);
             }
 
             return commandOutput;
@@ -36,7 +43,7 @@ namespace SKSSL.Console
             return buffer[..(firstSpace < 0 ? buffer.Length : firstSpace)];
         }
 
-        private static string?[] GetArguments(string buffer)
+        private static string[] GetArguments(string buffer)
         {
             var firstSpace = buffer.IndexOf(' ');
             if (firstSpace < 0)
