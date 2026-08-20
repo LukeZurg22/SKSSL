@@ -39,7 +39,7 @@ namespace SKSSL.Console
         public int Padding { get; set; } = 12;
         public int Margin { get; set; } = 30;
         public bool OpenOnWrite { get; set; } = true;
-        
+
         /// <summary>
         /// Replaceable font. In order to work, expects that the builder had indeed built a console font.
         /// </summary>
@@ -54,20 +54,17 @@ namespace SKSSL.Console
         /// </summary>
         /// <returns></returns>
         // ReSharper disable once UnusedMember.Global
-        public static GameConsoleOptions SolKomDefault()
+        public static GameConsoleOptions SolKomDefault() => new()
         {
-            return new GameConsoleOptions
-            {
-                ToggleKey = Keys.OemTilde,
-                Font = SSLGame.Instance.LoadFont("ConsoleFont"),
-                FontColor = LawnGreen,
-                Prompt = "->",
-                PromptColor = Crimson,
-                CursorColor = OrangeRed,
-                BackgroundColor = new Color(Black, 150),
-                PastCommandOutputColor = White,
-                BufferColor = Gold
-            };
-        }
+            ToggleKey = Keys.OemTilde,
+            Font = SSLGame.Instance.LoadFont("ConsoleFont"),
+            FontColor = LawnGreen,
+            Prompt = "->",
+            PromptColor = Crimson,
+            CursorColor = OrangeRed,
+            BackgroundColor = new Color(Black, 150),
+            PastCommandOutputColor = White,
+            BufferColor = Gold
+        };
     }
 }
