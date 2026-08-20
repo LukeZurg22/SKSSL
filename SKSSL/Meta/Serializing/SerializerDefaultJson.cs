@@ -14,8 +14,10 @@ namespace SKSSL.Serializing;
 /// Lifted from "Consequaintances", this is an incredibly simple loader for Json files
 /// using system <see cref="System.Text.Json"/>.
 /// </summary>
-public class JsonConsQSerializer : ISerializer
+public class SerializerDefaultJson : ISerializer
 {
+    // FROM THE CONSEQUAINTANCE PROJECT.
+    
     private readonly JsonSerializerOptions _options = new() { WriteIndented = true };
 
     public string Serialize<T>(T obj) where T : class

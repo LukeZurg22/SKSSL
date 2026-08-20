@@ -17,7 +17,7 @@ using static SKSSL.Tests.TestPrototypes;
 namespace SKSSL.Tests;
 
 [TestClass, UsedImplicitly]
-[TestSubject(typeof(YamlSerializerSolKom)), TestSubject(typeof(EntityManager))]
+[TestSubject(typeof(SerializerDefaultYaml)), TestSubject(typeof(EntityManager))]
 public class ECS
 {
     #region Test Entries
@@ -66,11 +66,10 @@ public class ECS
      * Setup is repeated per-tests.
      */
 
-    private readonly PrototypeLoader<YamlSerializerSolKom> _loader = new();
+    private readonly PrototypeLoader<SerializerDefaultYaml> _loader = new();
     private readonly EntityRegistry _entityRegistry = MasterRegistryManager.GetRegistry<Entity, EntityRegistry>();
 
-
-    [TestMethod, UsedImplicitly, TestSubject(typeof(PrototypeLoader<YamlSerializerSolKom>))]
+    [TestMethod, UsedImplicitly, TestSubject(typeof(PrototypeLoader<SerializerDefaultYaml>))]
     public void TEST_PROTOTYPE_LOADING()
     {
         List<Entity> entities = [];
@@ -113,7 +112,7 @@ public class ECS
     }
 
 
-    [TestMethod, UsedImplicitly, TestSubject(typeof(YamlSerializerSolKom))]
+    [TestMethod, UsedImplicitly, TestSubject(typeof(SerializerDefaultYaml))]
     public void TEST_COMPONENT_CONVERSIONS()
     {
         var component = new TestFieldComponent { x = 7 };
@@ -221,7 +220,7 @@ public class ECS
         AreEqual(spawnedEntity.TestString, entity.TestString);
 
         spawnedEntity.TestString = "Test Also Successful";
-        
+
         // Assert test clone of spawn.
         // Note: It's assumed that the entity by this point was already cloned, but cloning from an existing one using
         //  the internal function is what this intends to test. This cloning shouldn't be done anyway, but this is to
@@ -230,13 +229,13 @@ public class ECS
         IsNotNull(clone); // Entity should have cloned successfully.
         AreEqual(clone.TestString, spawnedEntity.TestString);
 #pragma warning restore CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
-        
+
         // TESTING COMPONENTS
         // Add component.
         spawnedEntity.AddComponent(new TestBlankComponent());
         // WIP: ADDING TEST CASES FOR COMPONENTS. I WENT ON A BINGE CLEANING UP THE ENTITY CONTEXT. WOOPS!
-        
-        
+
+
         // Remove component.
     }
 

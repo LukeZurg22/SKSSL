@@ -39,8 +39,13 @@ public enum TextureType : byte
 /// </summary>
 public partial class TextureLoader() : IGameLoader(".png", ".jpg")
 {
+    /// MATERIAL (multiple different mapping images)
     private const string IndicatorMaterial = ".m";
-    private const string IndicatorTilemap = ".t"; // TODO: Current unused. Tilemap support would be nice.
+
+    /// TILEMAP (one sheet of multiple image segments)
+    private const string IndicatorTilemap = ".t"; // TODO: Current unused. Add Tilemap support. Would be nice.
+
+    /// ICON (flat image)
     private const string IndicatorIcon = ".i";
 
     /// Generic storage: category -> (texture name -> texture object). These are textures actively being used in memory.

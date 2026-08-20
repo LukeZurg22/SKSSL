@@ -24,6 +24,7 @@ public class GameSettings
 
     /// Default SKSSL in-built console complete with custom console command support.
     /// <remarks>Put that Source Generator to good use! -Z</remarks>
+    [YamlMember(Alias = "default_console_enabled")]
     public bool SKSSLConsoleEnabled { get; set; } = true;
 
     /// Language culture of the game.

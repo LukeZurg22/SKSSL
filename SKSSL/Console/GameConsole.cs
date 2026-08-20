@@ -5,6 +5,7 @@ using JetBrains.Annotations;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using SKSSL.Assets;
 using static Microsoft.Xna.Framework.Color;
 
 namespace SKSSL.Console;
@@ -31,7 +32,7 @@ public class GameConsole
     public static GameConsoleOptions Options => GameConsoleOptions.Options;
 
     public static List<IConsoleCommand> Commands => GameConsoleOptions.Commands;
-    
+
     /// <summary>
     /// Adds a new command to the console.
     /// </summary>
@@ -49,46 +50,19 @@ public class GameConsole
 
     # region Constructors
 
-    /// <summary>
-    /// Assigns the Console Options manually.
-    /// </summary>
-    /// <returns></returns>
-    public GameConsole SolKomDefault()
-    {
-        GameConsoleOptions.Options = new GameConsoleOptions
-        {
-            ToggleKey = Keys.OemTilde,
-            // WARN: WILL CRASH, DUE TO MISSING FONT
-            Font = consoleComponent.Game.Content.Load<SpriteFont>("ConsoleFont"),
-            FontColor = LawnGreen,
-            Prompt = "->",
-            PromptColor = Crimson,
-            CursorColor = OrangeRed,
-            BackgroundColor = new Color(Black, 150),
-            PastCommandOutputColor = White,
-            BufferColor = Gold
-        };
-        return this;
-    }
-
-
-    public GameConsole(Game? game, SpriteBatch? spriteBatch) : this(game, spriteBatch,
-        Array.Empty<IConsoleCommand>(),
-        new GameConsoleOptions())
+    public GameConsole(Game? game, SpriteBatch spriteBatch)
+        : this(game, spriteBatch, Array.Empty<IConsoleCommand>(), new GameConsoleOptions())
     {
     }
 
-    public GameConsole(Game? game, SpriteBatch? spriteBatch, GameConsoleOptions options)
+
+    // ReSharper disable once UnusedMember.Global
+    public GameConsole(Game? game, SpriteBatch spriteBatch, GameConsoleOptions options)
         : this(game, spriteBatch, Array.Empty<IConsoleCommand>(), options)
     {
     }
 
-    public GameConsole(Game? game, SpriteBatch? spriteBatch, IEnumerable<IConsoleCommand> commands) : this(game,
-        spriteBatch, commands, new GameConsoleOptions())
-    {
-    }
-
-    public GameConsole(Game? game, SpriteBatch? spriteBatch, IEnumerable<IConsoleCommand> commands,
+    public GameConsole(Game? game, SpriteBatch spriteBatch, IEnumerable<IConsoleCommand> commands,
         GameConsoleOptions options)
     {
         if (options.Font == null)
@@ -189,7 +163,7 @@ public class GameConsole
         {
             if (backspacePressTicks >= BackspaceDelayTicks)
                 return Keys.Back;
-            
+
             backspacePressTicks++;
             return null;
         }

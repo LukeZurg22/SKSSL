@@ -74,17 +74,12 @@
     </ItemGroup>
 
     <ItemGroup> <!--Reference to Source Generator(s)-->
-        <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
-                          OutputItemType="Analyzer"
-                          ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     </ItemGroup>
 
     <ItemGroup>
         <!-- Explicitly pack the generator DLL (adjust path if needed) -->
-        <None Include="..\SKSSL.Generator\bin\$(Configuration)\netstandard2.0\SKSSL.Generator.dll"
-              Pack="true"
-              PackagePath="analyzers/dotnet/cs"
-              Visible="true"/>
+        <None Include="..\SKSSL.Generator\bin\$(Configuration)\netstandard2.0\SKSSL.Generator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="true" />
     </ItemGroup>
 
     <ItemGroup>
@@ -173,6 +168,10 @@
         <Compile Update="ECS\Entity\IUpdateSystem.cs">
           <DependentUpon>EntitySystem.cs</DependentUpon>
         </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Include="Assets\ConsoleFont.xnb" />
     </ItemGroup>
 
     <!-- START - !== ADD THE FOLLOWING TO INHERITING PROJECTS USING SKSSL AS AN ENGINE !== -->

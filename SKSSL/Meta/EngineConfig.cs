@@ -25,7 +25,7 @@ public class EngineConfig
     /// handle its files, whether to Serialize or Deserialize data.
     /// </summary>
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
-    public IGameLoader PrototypeLoader = new PrototypeLoader<YamlSerializerSolKom>(".yaml", ".yml");
+    public IGameLoader PrototypeLoader = new PrototypeLoader<SerializerDefaultYaml>(".yaml", ".yml");
     
     /// <summary>
     /// A replaceable developer-provided texture loader.

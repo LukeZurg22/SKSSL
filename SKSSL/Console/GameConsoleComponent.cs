@@ -14,7 +14,7 @@ internal class GameConsoleComponent : DrawableGameComponent
 {
     public bool IsOpen => consoleRenderer.IsOpen;
     private readonly GameConsole console;
-    private readonly SpriteBatch? spriteBatch;
+    private readonly SpriteBatch spriteBatch;
     internal readonly InputProcessor inputProcesser;
     internal readonly ConsoleRenderer consoleRenderer;
 
@@ -23,7 +23,7 @@ internal class GameConsoleComponent : DrawableGameComponent
         => (SSLGame.Instance.Components.First(gameComponent => gameComponent is GameConsoleComponent)
             as GameConsoleComponent)?.consoleRenderer;
 
-    public GameConsoleComponent(GameConsole console, Game? game, SpriteBatch? spriteBatch) : base(game)
+    public GameConsoleComponent(GameConsole console, Game? game, SpriteBatch spriteBatch) : base(game)
     {
         this.console = console;
         this.spriteBatch = spriteBatch;
@@ -36,13 +36,11 @@ internal class GameConsoleComponent : DrawableGameComponent
     public override void Draw(GameTime gameTime)
     {
         if (!console.Enabled)
-        {
             return;
-        }
 
-        spriteBatch?.Begin();
+        spriteBatch.Begin();
         consoleRenderer.Draw(gameTime);
-        spriteBatch?.End();
+        spriteBatch.End();
         base.Draw(gameTime);
     }
 

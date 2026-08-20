@@ -11,6 +11,9 @@ using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using static YamlDotNet.Serialization.DefaultValuesHandling;
 
+// ReSharper disable VirtualMemberNeverOverridden.Global
+// ReSharper disable MemberCanBeProtected.Global
+
 namespace SKSSL.Serializing;
 
 /// <summary>
@@ -31,22 +34,27 @@ namespace SKSSL.Serializing;
 /// // Files read once per type, cached afterward
 /// </code></example>
 /// </summary>
-public class YamlSerializerSolKom : ISerializer
+public class SerializerDefaultYaml : ISerializer
 {
-    // ReSharper disable MemberCanBeProtected.Global
-    /// YAML Serializer.
-    public static YamlDotNet.Serialization.ISerializer Serializer { get; } = new SerializerBuilder()
+    // FROM THE SOL.KOM. PROJECT.
+    
+    private static readonly YamlDotNet.Serialization.ISerializer DefaultSerializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .ConfigureDefaultValuesHandling(OmitNull | OmitDefaults | OmitEmptyCollections)
         .WithTypeConverter(new LocIdYamlConverter())
         .Build();
 
-    // ReSharper disable MemberCanBeProtected.Global
-    /// YAML Deserializer.
-    public static IDeserializer Deserializer { get; } = new DeserializerBuilder()
+    /// YAML Serializer.
+    public virtual YamlDotNet.Serialization.ISerializer Serializer { get; } = DefaultSerializer;
+
+    // ReSharper disable once RedundantNameQualifier
+    private static readonly YamlDotNet.Serialization.IDeserializer DefaultDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .WithTypeConverter(new LocIdYamlConverter())
         .Build();
+
+    /// YAML Deserializer.
+    public virtual IDeserializer Deserializer { get; } = DefaultDeserializer;
 
     /// <summary>
     /// Serializes an object as either itself, or a list of its provided type.

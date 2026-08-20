@@ -13,6 +13,12 @@ TODO: (DOCUMENTATION)
 + UidLists
 + Game Loaders and their new primary constructors. No overriding properties anymore.
 + Commands (Auto-Registered)
++ There may be an issue with the copy and paste-able CSPROJ.
+    +> The settings and load order files will cause a build error if they aren't there. Auto-gen?
+    +> There's a big difference between directly referencing the project, and importing it off of NuGet...
+        -right now the project assumes it's both, but still has .csproj config lines dedicated to a direct reference.
+    +> Also the source generator seems cucked.
+    +> Also Content loading issues?
 
 TODO: (PRACTICAL)
 + Proper Caching and Loading of game assets via handles.

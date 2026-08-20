@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Gum.DataTypes;
 using Gum.Wireframe;
@@ -13,9 +15,11 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.ImGuiNet;
 using MonoGameGum;
+using SKSSL.Assets;
 using SKSSL.Console;
 using SKSSL.ECS;
 using SKSSL.ECS.Registry;
+using SKSSL.Extensions;
 using SKSSL.Scenes;
 using SKSSL.Utilities;
 
@@ -86,6 +90,8 @@ public abstract class SSLGame : Game
 
     public MouseWrapper MouseHandler;
 
+    public static GameSettings Settings;
+
     #endregion
 
     /// Base constructor runs first.
@@ -100,34 +106,42 @@ public abstract class SSLGame : Game
     /// Constructor for SSLGame. Runs before any inheritors.
     /// </summary>
     /// <param name="title">Title of the game window.</param>
-    /// <param name="contents">Additional content managers belonging to attached libraries.</param>
-    protected SSLGame(string title, params ContentManager[] contents)
+    /// <param name="contentManagers">Additional content managers belonging to attached libraries.</param>
+    protected SSLGame(string title, params ContentManager[] contentManagers)
     {
+        Instance = this;
+        Window.Title = title.IsNullOrEmpty() ? Title : "SKSSL";
+        Content.RootDirectory = "Content";
+        Window.AllowUserResizing = true;
+        Window.ClientSizeChanged += HandleClientSizeChanged; // TEMP: Something tells me this doesn't work...!
+
         #region Settings
 
         if (string.IsNullOrEmpty(Config.GumFile))
-            Log($"No gum project file in Content/Gum in {Title}, {nameof(SSLGame)} Class.", LOG.SYSTEM_WARNING);
-        else // Prepend Gum root.
-            _gumFilePath = Path.Combine("Gum", Config.GumFile);
+        {
+            //@formatter:off
+            Log($"No gum project file in Content/Gum for {Title}, {nameof(SSLGame)} Class.", LOG.SYSTEM_WARNING);
+            //@formatter:on
+        }
+        else
+        {
+            _gumFilePath = Path.Combine("Gum", Config.GumFile); // Prepend Gum root.
+        }
 
         // Load settings, and based on game paths, create directories ordered by load order.
         (GameSettings Settings, List<LoadPath> Paths) load = GameSettings.Load(); // Get game settings from file.
+        Settings = load.Settings;
         Directories = GetGameDirectories(load.Paths);
         Directories.Sort();
 
         // Init w. language from settings.
-        Loc.InitalizeLocalizationCulture(load.Settings.Language);
+        Loc.InitalizeLocalizationCulture(Settings.Language);
 
         #endregion
 
         #region Monogame Usuals
 
-        Instance = this;
-        Window.Title = title;
-        Content.RootDirectory = "Content";
-        Window.AllowUserResizing = true;
-        Window.ClientSizeChanged += HandleClientSizeChanged; // TEMP: Something tells me this doesn't work...!
-        Window.IsBorderless = load.Settings.IsBorderless; // Set to settings' borderless value.
+        Window.IsBorderless = Settings.IsBorderless; // Set to settings' borderless value.
         _graphicsManager = HandleGraphicsManager(new GraphicsDeviceManager(this), load.Settings);
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _currentScreenGue.UpdateLayout(); // UI Behaviour when dragged
@@ -141,7 +155,7 @@ public abstract class SSLGame : Game
 
         // Assign static-access content managers.
         ContentManagers.Add(Content);
-        ContentManagers.AddRange(contents);
+        ContentManagers.AddRange(contentManagers);
 
         #endregion
 
@@ -180,15 +194,6 @@ public abstract class SSLGame : Game
             Log($"...finished loading {directoryTitle} directory...");
         }
 
-        if (load.Settings.SKSSLConsoleEnabled)
-        {
-            // WIP: Make sure this works. Also make sure that the options aren't cucked over by the Source Generator.
-            var p = new GameConsole(this, new SpriteBatch(GraphicsDevice));
-            // WIP: A quick hot-test will be needed in the live environment for this. Just getting it to run is fine.
-            //  Commands don't need to work just yet.
-            Components.Add(new GameConsoleComponent(p, this, _spriteBatch));
-        }
-
         #endregion
     }
 
@@ -215,7 +220,7 @@ public abstract class SSLGame : Game
         {
             // The developer can bootstrap their own prototype loader by adjusting the Engine Config.
             Log($"...loading {directory.DirectoryTitle} prototypes.");
-            Config.PrototypeLoader.Load(directory.PrototypesFolder); // WIP: Handle mod overrides once more.
+            Config.PrototypeLoader.Load(directory.PrototypesFolder);
         }
 
         Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
@@ -339,6 +344,12 @@ public abstract class SSLGame : Game
 
         SceneManager = new SceneManager(this, _graphicsManager, _spriteBatch, gumSave);
         Components.Add(SceneManager);
+
+        if (Settings.SKSSLConsoleEnabled)
+        {
+            var gameConsole = new GameConsole(this, new SpriteBatch(GraphicsDevice), GameConsoleOptions.SolKomDefault());
+            Components.Add(new GameConsoleComponent(gameConsole, this, _spriteBatch));
+        }
 
         if (Config.UseECS)
             SystemManager.Initialize();
