@@ -12,7 +12,7 @@ public readonly struct Edge
         Point2 = point2;
     }
 
-    public override bool Equals(object obj)
+    public override bool Equals(object? obj)
     {
         if (obj == null) return false;
         if (obj.GetType() != GetType()) return false;

@@ -9,9 +9,10 @@ using SKSSL.Serializing;
 
 namespace SKSSL;
 
-public class PrototypeLoader<TSerializer>(params string[] extensions)
-    : IGameLoader(extensions) where TSerializer : class, ISerializer, new()
+//@formatter:off
+public class PrototypeLoader<TSerializer>(params string[] extensions) : IGameLoader(extensions) where TSerializer : class, ISerializer, new()
 {
+    //@formatter:on
     private readonly TSerializer Serializer = new();
 
     /// Using prototype data collected from a Game Directory's provided Prototypes folder, ten load into registries.
@@ -96,6 +97,6 @@ public class PrototypeLoader<TSerializer>(params string[] extensions)
         if (types.Length == 0)
             types = MasterRegistryManager.RegisteredGameRegistryTypes.ToArray();
 
-        return Serializer.Deserialize(text, fileTrace, types);
+        return Serializer.DeserializePrototypes(text, fileTrace, types);
     }
 }

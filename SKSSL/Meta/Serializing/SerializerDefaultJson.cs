@@ -17,14 +17,15 @@ namespace SKSSL.Serializing;
 public class SerializerDefaultJson : ISerializer
 {
     // FROM THE CONSEQUAINTANCE PROJECT.
-    
+
     private readonly JsonSerializerOptions _options = new() { WriteIndented = true };
 
-    public string Serialize<T>(T obj) where T : class
-        => JsonSerializer.Serialize(obj, _options);
+    public string Serialize<T>(T obj) where T : class => JsonSerializer.Serialize(obj, _options);
+
+    public T? Deserialize<T>(string serialized) => JsonSerializer.Deserialize<T>(serialized, _options);
 
     /// Loads json file at path and returns a list of objects, even if there is only one entry.
-    public List<Prototype> Deserialize(string text, string trace = "", params Type[] types)
+    public List<Prototype> DeserializePrototypes(string text, string trace = "", params Type[] types)
     {
         List<Prototype> output = [];
         // Extracting the type annotated.

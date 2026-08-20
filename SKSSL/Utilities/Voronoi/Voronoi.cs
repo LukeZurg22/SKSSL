@@ -128,7 +128,7 @@ public class Voronoi
         foreach (Triangle triangle in triangulation)
         foreach (Point site in triangle.Vertices) // Every vertex of a Delaunay triangle is a Voronoi site
         {
-            if (!_voronoiCells.TryGetValue(site, out VoronoiCell cell))
+            if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
             {
                 cell = new VoronoiCell { Site = site, Vertices = [] };
                 _voronoiCells[site] = cell;

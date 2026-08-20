@@ -168,6 +168,9 @@
         <Compile Update="ECS\Entity\IUpdateSystem.cs">
           <DependentUpon>EntitySystem.cs</DependentUpon>
         </Compile>
+        <Compile Update="Meta\Serializing\YamlBlock.cs">
+          <DependentUpon>SerializerDefaultYaml.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

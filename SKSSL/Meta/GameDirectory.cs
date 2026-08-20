@@ -5,10 +5,6 @@ using System.Diagnostics.Contracts;
 using System.IO;
 using static System.IO.Path;
 
-// ReSharper disable UnusedMember.Global
-// ReSharper disable ClassNeverInstantiated.Global
-// ReSharper disable UnusedAutoPropertyAccessor.Global
-
 namespace SKSSL;
 
 /// <summary>
@@ -19,12 +15,11 @@ public class GameContentDirectories : IEnumerable<GameDirectory>
     private readonly List<GameDirectory> Directories = [];
 
     public int Count => Directories.Count;
-    
+
     /// <summary>
     /// Sort internal directories by load order. Lower Order = Higher Priority.
     /// </summary>
-    public void Sort()
-        => Directories.Sort((a, b) => a.LoadOrder.CompareTo(b.LoadOrder));
+    public void Sort() => Directories.Sort((a, b) => a.LoadOrder.CompareTo(b.LoadOrder));
 
     public void Add(string path, int? order = null) => Directories.Add(new GameDirectory(path, order));
 
@@ -41,13 +36,16 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     /// <summary>Name of the overall directory. Used for sorting and classification.</summary>
     public string DirectoryTitle { get; }
 
+    public static readonly string BuildDirectory = Combine(AppContext.BaseDirectory, "..");
+    
     /// <summary>Root of this current directory that contains its content.</summary>
-    public static string RootDirectory { get; } = GetFullPath(Combine(AppContext.BaseDirectory, ".."));
+    public static string RootDirectory { get; } = GetFullPath(BuildDirectory);
 
     /// Default to "game"
     private readonly string _location;
 
     /// <returns>Directory's primary folder.</returns>
+    // ReSharper disable once UnusedMember.Global
     public string GetDirectoryPath() => _location;
 
     /// <summary>Load priority. Lower = loaded first.</summary>
@@ -81,7 +79,7 @@ public sealed class GameDirectory : IComparable<GameDirectory>
 
     // TODO: Dedicated folders may not be required if file extensions are exclusive. Exclusive directories are default,
     //  but making them optional would be nice, assuming directory extensions and file extensions are annotated.
-    
+
     /// Nullable string to state that the folder may be locally-absent. 
     public string? PrototypesFolder => GetSubFolder("prototypes");
 

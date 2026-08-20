@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using Microsoft.Xna.Framework.Graphics;
-using SKSSL.Extensions;
 using SKSSL.Scenes;
 
 // ReSharper disable UnusedMember.Global

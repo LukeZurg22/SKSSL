@@ -26,17 +26,17 @@ public class EngineConfig
     /// </summary>
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public IGameLoader PrototypeLoader = new PrototypeLoader<SerializerDefaultYaml>(".yaml", ".yml");
-    
+
     /// <summary>
     /// A replaceable developer-provided texture loader.
     /// </summary>
-    public TextureLoader TextureLoader = new TextureLoader();
-    
+    public IGameLoader TextureLoader = new TextureLoader();
+
     /// <summary>
     /// The number of active objects that can be recycled. This is ignored when recycling more than the expected count.
     /// </summary>
     /// <remarks>Don't touch this unless you know what you're doing. This may affect performance.</remarks>
     public int DESTROY_CACHE_LIMIT = 1024;
-    
+
     public override string ToString() => $"{UseECS};{GumFile};{PrototypeLoader.GetType().Name}";
 }

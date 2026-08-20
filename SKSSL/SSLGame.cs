@@ -103,10 +103,10 @@ public abstract class SSLGame : Game
     /// Constructor for SSLGame. Runs before any inheritors.
     /// </summary>
     /// <param name="title">Title of the game window.</param>
-    /// <param name="contentManagers">Additional content managers belonging to attached libraries.</param>
-    protected SSLGame(string title, params ContentManager[] contentManagers)
+    protected SSLGame(string title)
     {
         Instance = this;
+        // MonoGame priority assignments.
         Window.Title = title.IsNullOrEmpty() ? Title : "SKSSL";
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
@@ -152,7 +152,6 @@ public abstract class SSLGame : Game
 
         // Assign static-access content managers.
         ContentManagers.Add(Content);
-        ContentManagers.AddRange(contentManagers);
 
         #endregion
 
@@ -218,9 +217,16 @@ public abstract class SSLGame : Game
             // The developer can bootstrap their own prototype loader by adjusting the Engine Config.
             Log($"...loading {directory.DirectoryTitle} prototypes.");
             Config.PrototypeLoader.Load(directory.PrototypesFolder);
+            Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
         }
+        
+        // WIP: Sounds.
+        // if (directory.SoundsFolder != null)
+        // {
+        //      Log($"...loading {directory.DirectoryTitle} sounds.");
+        //      Config.SoundLoader.Load(directory.SoundsFolder);
+        // }
 
-        Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
     }
 
 
@@ -344,7 +350,8 @@ public abstract class SSLGame : Game
 
         if (Settings.SKSSLConsoleEnabled)
         {
-            var gameConsole = new GameConsole(this, new SpriteBatch(GraphicsDevice), GameConsoleOptions.SolKomDefault());
+            var gameConsole =
+                new GameConsole(this, new SpriteBatch(GraphicsDevice), GameConsoleOptions.SolKomDefault());
             Components.Add(new GameConsoleComponent(gameConsole, this, _spriteBatch));
         }
 

@@ -4,12 +4,6 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Console;
 
-// WARN: Does not work!
-//  1. UPDATE: This needs to be added to the SSLGame components list. Not the ECS components, but the MonoGame Game Comp.
-//  list. The real hard part is accessing the console renderer when it is instanced-internal-readonly.
-//  SSLGame.Instance may help with this, though, so an equally useful Get-Method would be handy. Might need to be in
-//   SSlGame? Not sure about it, maybe direct access is better.
-//  2. I made a game setting just for this. That setting still needs to be read.
 internal class GameConsoleComponent : DrawableGameComponent
 {
     public bool IsOpen => consoleRenderer.IsOpen;

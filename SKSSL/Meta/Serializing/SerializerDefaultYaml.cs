@@ -34,27 +34,40 @@ namespace SKSSL.Serializing;
 /// // Files read once per type, cached afterward
 /// </code></example>
 /// </summary>
+// ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
 public class SerializerDefaultYaml : ISerializer
 {
     // FROM THE SOL.KOM. PROJECT.
-    
+
     private static readonly YamlDotNet.Serialization.ISerializer DefaultSerializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .ConfigureDefaultValuesHandling(OmitNull | OmitDefaults | OmitEmptyCollections)
         .WithTypeConverter(new LocIdYamlConverter())
+        .WithTypeConverter(new HandleYamlConverter())
+        .WithTypeConverter(new FileInfoYamlConverter(GameDirectory.RootDirectory))
         .Build();
 
     /// YAML Serializer.
-    public virtual YamlDotNet.Serialization.ISerializer Serializer { get; } = DefaultSerializer;
+    public virtual YamlDotNet.Serialization.ISerializer Serializer => DefaultSerializer;
 
     // ReSharper disable once RedundantNameQualifier
     private static readonly YamlDotNet.Serialization.IDeserializer DefaultDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .WithTypeConverter(new LocIdYamlConverter())
+        .WithTypeConverter(new HandleYamlConverter())
+        .WithTypeConverter(new FileInfoYamlConverter(GameDirectory.RootDirectory))
         .Build();
 
     /// YAML Deserializer.
-    public virtual IDeserializer Deserializer { get; } = DefaultDeserializer;
+    public virtual IDeserializer Deserializer => DefaultDeserializer;
+
+    /// <summary>
+    /// Serializes an object as either itself, or a list of its provided type.
+    /// </summary>
+    /// <returns>Serialized form of Object for YAML file save.</returns>
+    /// <remarks>Forces object to list of itself for serialization.</remarks>
+    // ReSharper disable once UnusedMember.Global
+    public T Deserialize<T>(string serialized) => Deserializer.Deserialize<T>(serialized);
 
     /// <summary>
     /// Serializes an object as either itself, or a list of its provided type.
@@ -64,7 +77,7 @@ public class SerializerDefaultYaml : ISerializer
     // TEMP: I am worried this will not handle multiple types very well!
     public string Serialize<T>(T obj) where T : class => Serializer.Serialize(obj);
 
-    public List<Prototype> Deserialize(string text, string trace = "", params Type[] types)
+    public List<Prototype> DeserializePrototypes(string text, string trace = "", params Type[] types)
     {
         // Split up the text into lines.
         var lines = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);

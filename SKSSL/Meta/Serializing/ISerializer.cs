@@ -17,6 +17,9 @@ public interface ISerializer
     /// <returns>A serialized string of the object.</returns>
     public string Serialize<T>(T obj) where T : class;
     
+    // ReSharper disable once UnusedMemberInSuper.Global
+    public T? Deserialize<T>(string serialized);
+    
     /// <summary>
     /// User-Developer implementation for deserialization logic for game content.
     /// </summary>
@@ -24,6 +27,6 @@ public interface ISerializer
     /// <param name="trace">Filepath passthrough for tracing.</param>
     /// <param name="types">Explicit types for conversions. (Optional)</param>
     /// <returns></returns>
-    public List<Prototype> Deserialize(string text, string trace = "", params Type[] types);
+    public List<Prototype> DeserializePrototypes(string text, string trace = "", params Type[] types);
 
 }
