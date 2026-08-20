@@ -122,9 +122,6 @@ public abstract class SSLGame : Game
 
         #region Monogame Usuals
 
-        // WIP: Add IsBorderless & IsFullScreen option handling here, plus screen Width & Height if windowed.
-        //  Borderless = False assumes windowed.
-
         Instance = this;
         Window.Title = title;
         Content.RootDirectory = "Content";

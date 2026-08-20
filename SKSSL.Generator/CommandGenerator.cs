@@ -102,7 +102,6 @@ public class CommandGenerator : IIncrementalGenerator
             //sb.AppendLine($"       SKSSL.Console.GameConsole.AddCommand(typeof({fullName}));");
             sb.AppendLine($"        SKSSL.Console.GameConsole.AddCommand(new {fullName}());");
         }
-
         sb.AppendLine("    }");
         sb.AppendLine("}");
         return sb;

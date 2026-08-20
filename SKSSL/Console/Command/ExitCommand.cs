@@ -9,7 +9,7 @@ public class ExitCommand : IConsoleCommand
     public string Name => "exit";
     public string Description => "Forcefully exits the game.";
 
-    public string Execute(string?[] arguments)
+    public string Execute(params string[] arguments)
     {
         var shutdownThread = new Thread(() =>
         {

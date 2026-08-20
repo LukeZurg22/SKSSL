@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System.Linq;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Console;
@@ -17,11 +18,15 @@ internal class GameConsoleComponent : DrawableGameComponent
     internal readonly InputProcessor inputProcesser;
     internal readonly ConsoleRenderer consoleRenderer;
 
+    /// Access the renderer using SSLGame instance and hope it's there.
+    public static ConsoleRenderer? GetRenderer()
+        => (SSLGame.Instance.Components.First(gameComponent => gameComponent is GameConsoleComponent)
+            as GameConsoleComponent)?.consoleRenderer;
+
     public GameConsoleComponent(GameConsole console, Game? game, SpriteBatch? spriteBatch) : base(game)
     {
         this.console = console;
         this.spriteBatch = spriteBatch;
-
         inputProcesser = new InputProcessor(new CommandProcessor());
         inputProcesser.Open += (_, _) => consoleRenderer?.Open();
         inputProcesser.Close += (_, _) => consoleRenderer?.Close();

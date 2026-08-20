@@ -24,5 +24,5 @@ public interface IConsoleCommand
     /// <summary>
     /// The action of the command.  The return string value is used as output in the console
     /// </summary>
-    string Execute(string?[] arguments);
+    string Execute(params string[] arguments);
 }

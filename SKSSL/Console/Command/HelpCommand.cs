@@ -12,7 +12,7 @@ public class HelpCommand : IConsoleCommand
     public string Description => "Displays the list of commands where <x> is an " +
                                  "optional parameter to display more about a particular command.";
 
-    public string Execute(string?[] arguments)
+    public string Execute(params string[] arguments)
     {
         if (arguments.Length >= 1)
         {
