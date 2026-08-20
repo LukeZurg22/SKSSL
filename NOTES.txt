@@ -34,6 +34,7 @@ TODO: (SOUND LOADER)
 
 TODO: (COMMANDS)
     Dynamize commands and their parameters to include auto-correct... somehow. 
+    Add Umlaut Support. Frankly the localization handler should offer some use to this.
 
 WARN: Content loaders may index things differently. They index by file name iirc.
     Directory means nothing to Monogame! I'll need to double check, but this could
