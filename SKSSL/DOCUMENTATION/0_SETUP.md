@@ -170,24 +170,6 @@ need to configure the engine's properties which are exemplified below.
 
 ## <i>[(SEE ENGINE CONFIG)](0_SETUP.ENGINE_CONFIG.md)</i>
 
-```csharp
-public class MyGame : SSLGame
-{
-    static MyGame()
-    {
-        Config = new EngineConfig()
-        {
-            UseECS = <bool>,    // Toggles ECS. Defaults to "true"
-            GumFile = <string>, // "<name>.gumx" Defaults to "" (ignored)
-            // Content loader. Defaults to the SKSSL-provided YamlLoader.
-            ProtoTypeLoader = new <Type of PrototypeLoader><Type of SKSSL ISerializer>(),
-            //...
-            //etc.
-        };
-    }
-}
-```
-
 # Settings
 
 Configure game paths in the provided settings file, which is auto-created for you if one isn't created and specified to
