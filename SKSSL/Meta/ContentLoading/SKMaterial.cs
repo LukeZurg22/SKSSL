@@ -11,20 +11,20 @@ namespace SKSSL;
 public readonly struct SKMaterial
 {
     /// Internal array of texture references used in this material.
-    public readonly TextureRegistry.TextureLease[] Textures = new TextureRegistry.TextureLease[Enum.GetValues<TextureMap>().Length];
+    public readonly TextureManager.TextureLease[] Textures = new TextureManager.TextureLease[Enum.GetValues<TextureMap>().Length];
     
     // @formatter:off
     /// Albedo / color map.
-    public TextureRegistry.TextureLease Diffuse { get => Textures[0]; set => Textures[0] = value; }
+    public TextureManager.TextureLease Diffuse { get => Textures[0]; set => Textures[0] = value; }
 
     /// Lighting height map.
-    public TextureRegistry.TextureLease Normal { get => Textures[1]; set => Textures[1] = value; }
+    public TextureManager.TextureLease Normal { get => Textures[1]; set => Textures[1] = value; }
 
     /// Physical displacement map.
-    public TextureRegistry.TextureLease Displacement { get => Textures[2]; set => Textures[2] = value; }
+    public TextureManager.TextureLease Displacement { get => Textures[2]; set => Textures[2] = value; }
 
     /// Lighting emission map.
-    public TextureRegistry.TextureLease Emissive { get => Textures[3]; set => Textures[3] = value; }
+    public TextureManager.TextureLease Emissive { get => Textures[3]; set => Textures[3] = value; }
     
     // IMPL: occlusion, detail mask, etc. Everything below is a bit out-of-current-scope.
     //public Texture2D Specular { get; set; }
@@ -41,10 +41,10 @@ public readonly struct SKMaterial
     
     /// Constructor to manually assign all textures.
     public SKMaterial(
-        TextureRegistry.TextureLease diffuse,
-        TextureRegistry.TextureLease normal,
-        TextureRegistry.TextureLease displacement,
-        TextureRegistry.TextureLease emissive)
+        TextureManager.TextureLease diffuse,
+        TextureManager.TextureLease normal,
+        TextureManager.TextureLease displacement,
+        TextureManager.TextureLease emissive)
     {
         Diffuse = diffuse;
         Normal = normal;

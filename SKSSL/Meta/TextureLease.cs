@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL;
 
-public partial class TextureRegistry
+public partial class TextureManager
 {
     public sealed class TextureLease : IDisposable
     {

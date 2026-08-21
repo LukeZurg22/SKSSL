@@ -51,7 +51,7 @@ public abstract class SSLGame : Game
     public static IGameLoader PrototypeLoader => Engine.PrototypeLoader;
 
     public static bool UsesECS => Engine.UseECS;
-    public static TextureRegistry TextureRegistry => Instance.Services.GetService<TextureRegistry>();
+    public static TextureManager TextureManager => Instance.Services.GetService<TextureManager>();
 
     #endregion
 
@@ -322,7 +322,7 @@ public abstract class SSLGame : Game
     /// </remarks>
     protected virtual void LoadServices()
     {
-        Services.AddService(new TextureRegistry());
+        Services.AddService(new TextureManager());
     }
 
     #region Graphics & Window Management

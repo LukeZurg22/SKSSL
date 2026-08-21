@@ -26,6 +26,7 @@
 
     <ItemGroup>
         <!--The Ones That Flow-->
+        <PackageReference Include="Bass.NetWrapper" Version="2.4.12.5" />
         <PackageReference Include="FlatRedBall.GumCommon" Version="2026.5.31.1" PrivateAssets="none"/>
         <PackageReference Include="Gum.MonoGame" Version="2026.5.31.1" PrivateAssets="none"/>
         <PackageReference Include="MemoryPack" Version="1.21.4" PrivateAssets="none"/>
@@ -163,13 +164,13 @@
           <DependentUpon>SerializerDefaultYaml.cs</DependentUpon>
         </Compile>
         <Compile Update="Meta\TextureLease.cs">
-          <DependentUpon>TextureRegistry.cs</DependentUpon>
+          <DependentUpon>TextureManager.cs</DependentUpon>
         </Compile>
         <Compile Update="Meta\TextureMap.cs">
-          <DependentUpon>TextureRegistry.cs</DependentUpon>
+          <DependentUpon>TextureManager.cs</DependentUpon>
         </Compile>
         <Compile Update="Meta\TextureType.cs">
-          <DependentUpon>TextureRegistry.cs</DependentUpon>
+          <DependentUpon>TextureManager.cs</DependentUpon>
         </Compile>
     </ItemGroup>
 

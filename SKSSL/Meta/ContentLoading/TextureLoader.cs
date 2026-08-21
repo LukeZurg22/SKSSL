@@ -81,7 +81,7 @@ public class TextureLoader() : IGameLoader(".png", ".jpg")
 
             // Trust that the game constructor created the texture registry. Mostly for debugging and special
             //  utility as an instanced registry, as opposed to static.
-            TextureRegistry textureRegistry = SSLGame.TextureRegistry;
+            TextureManager textureManager = SSLGame.TextureManager;
 
             // Get all surface-level files.
             var files = GetFiles(folder, TopDirectoryOnly);
@@ -89,10 +89,10 @@ public class TextureLoader() : IGameLoader(".png", ".jpg")
             switch (indicator)
             {
                 case IndicatorIcon:
-                    foreach (var file in files) RecordIcon(folderName, file, textureRegistry);
+                    foreach (var file in files) RecordIcon(folderName, file, textureManager);
                     break;
                 case IndicatorMaterial:
-                    foreach (var file in files) RecordMaterial(folderName, file, textureRegistry);
+                    foreach (var file in files) RecordMaterial(folderName, file, textureManager);
                     break;
                 // TODO: Add TileMaps.
                 default:
@@ -111,12 +111,12 @@ public class TextureLoader() : IGameLoader(".png", ".jpg")
         XNAContentLoader.BuildContentIndex();
     }
 
-    private static void RecordIcon(string folder, string file, TextureRegistry textureRegistry)
+    private static void RecordIcon(string folder, string file, TextureManager textureManager)
     {
-        textureRegistry.RegisterIcon(Handle.Create(folder, file), new FileInfo(file));
+        textureManager.RegisterIcon(Handle.Create(folder, file), new FileInfo(file));
     }
 
-    private static void RecordMaterial(string folder, string file, TextureRegistry textureRegistry)
+    private static void RecordMaterial(string folder, string file, TextureManager textureManager)
     {
         string fileNameNoExt = Path.GetFileNameWithoutExtension(file);
         string baseName = fileNameNoExt.RemoveUnderscoreEndingTag();
@@ -130,6 +130,6 @@ public class TextureLoader() : IGameLoader(".png", ".jpg")
         // Unique material key (folderPrefix + baseName) -> allows overrides from mods.
         // This material key is the basic handle of a material; no texture typing applied.
         var handle = new Handle(Path.Combine(folder, baseName));
-        textureRegistry.RegisterMaterial(handle, textureType, new FileInfo(file));
+        textureManager.RegisterMaterial(handle, textureType, new FileInfo(file));
     }
 }

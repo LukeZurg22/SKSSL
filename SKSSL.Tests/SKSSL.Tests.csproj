@@ -50,6 +50,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Bass.NetWrapper" Version="2.4.12.5" />
         <PackageReference Include="Fluent.Net" Version="1.0.63"/>
         <PackageReference Include="JetBrains.Annotations" Version="2025.2.4"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0"/>

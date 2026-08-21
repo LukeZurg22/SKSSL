@@ -4,6 +4,12 @@ using SKSSL.Serializing;
 
 namespace SKSSL;
 
+/// <summary>
+/// Loader for sound files.
+/// </summary>
+/// <reference>
+/// https://www.radio42.com/bass/help/
+/// </reference>
 public class SoundLoader() : IGameLoader(".wav", ".mp3", ".opus", ".ogg")
 {
     private readonly Dictionary<Handle, FileInfo> _handleToFile = new();
