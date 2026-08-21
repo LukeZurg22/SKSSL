@@ -6,8 +6,6 @@ using System.Linq;
 using System.Text;
 using Gum.DataTypes;
 using Gum.Wireframe;
-using JetBrains.Annotations;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -47,12 +45,13 @@ public abstract class SSLGame : Game
     /// Aspect ratio to render the game.
     public static float AspectRatio => Graphics.Viewport.AspectRatio;
 
+    public static TextureRegistry TextureRegistry => Instance.Services.GetService<TextureRegistry>();
+
     /// Access the general content loader.
-    public static IGameLoader PrototypeLoader => Config.PrototypeLoader;
+    public static IGameLoader PrototypeLoader => Instance.Config.PrototypeLoader;
 
-    /// Use static constructor for this. Configurable engine configuration assigned from the Developer's view.
-    public static EngineConfig Config { get; set; } = new();
-
+    public static bool UsesECS => Instance.Config.UseECS;
+    
     #endregion
 
     #region Fields
@@ -77,9 +76,6 @@ public abstract class SSLGame : Game
 
     public readonly ImGuiRenderer GuiRenderer;
 
-    /// Registries and services belonging to the game.
-    [UsedImplicitly] private readonly IServiceProvider GameServices;
-
     /// All content directories contained in the game folder. (E.g. game, mods ➡ etc.)
     public readonly GameContentDirectories Directories;
 
@@ -87,7 +83,10 @@ public abstract class SSLGame : Game
 
     public MouseWrapper MouseHandler;
 
-    public static GameSettings Settings;
+    public readonly GameSettings Settings;
+
+    /// Configurable engine configuration assigned from the Developer's view.
+    public readonly EngineConfig Config;
 
     #endregion
 
@@ -106,11 +105,12 @@ public abstract class SSLGame : Game
     protected SSLGame(string title)
     {
         Instance = this; // MonoGame priority assignments.
-        Services.AddService(new TextureRegistry());
         Window.Title = title.IsNullOrEmpty() ? Title : "SKSSL";
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
         Window.ClientSizeChanged += HandleClientSizeChanged; // TEMP: Something tells me this doesn't work...!
+        // ReSharper disable once VirtualMemberCallInConstructor
+        Config = BuildEngineConfig(); // This virtual call is desired, as the override acting first is intended.
 
         #region Settings
 
@@ -145,13 +145,11 @@ public abstract class SSLGame : Game
         MouseHandler = new MouseWrapper(_graphicsManager);
         StyleSheet.LoadStyles();
 
-        var services = new ServiceCollection();
-        // ReSharper disable once VirtualMemberCallInConstructor
-        LoadServices(services);
-        GameServices = services.BuildServiceProvider();
-
         // Assign static-access content managers.
         ContentManagers.Add(Content);
+
+        // ReSharper disable once VirtualMemberCallInConstructor
+        LoadServices();
 
         #endregion
 
@@ -177,55 +175,63 @@ public abstract class SSLGame : Game
         GuiRenderer = new ImGuiRenderer(this);
         GuiRenderer.RebuildFontAtlas();
 
-        // If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
-        //  If there ever is such a case, then the entire game's folder outside of the binaries is its game directory.
         Log($"Loading {Directories.Count} Game Directories.");
-        foreach (GameDirectory directory in Directories)
-        {
-            LoadGameDirectory(directory);
-            string directoryTitle = directory.DirectoryTitle;
-            if (string.IsNullOrEmpty(directoryTitle))
-                directoryTitle = "root";
-
-            Log($"...finished loading {directoryTitle} directory...");
-        }
+        LoadGameDirectories();
 
         #endregion
     }
 
-    private static void LoadGameDirectory(GameDirectory directory)
+    /// Overridable engine configuration.
+    public virtual EngineConfig BuildEngineConfig() => new();
+
+    /// If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
+    ///  If there ever is such a case, then the entire game's folder outside of the binaries is its game directory.
+    private void LoadGameDirectories()
     {
-        // Assuming there are defined directories to begin with...
-        // Localization.
-        if (directory.LocalizationFolder != null)
+        foreach (GameDirectory directory in Directories)
         {
-            Log($"...loading {directory.DirectoryTitle} localization.");
-            Loc.Load(directory.LocalizationFolder);
-        }
+            // Assuming there are defined directories to begin with...
+            // Localization.
+            if (directory.LocalizationFolder != null)
+            {
+                Log($"...loading {directory.DirectoryTitle} localization.");
+                Loc.Load(directory.LocalizationFolder);
+            }
 
-        // Textures.
-        if (directory.TexturesFolder != null)
-        {
-            // The developer can bootstrap their own texture loader by adjusting the Engine Config.
-            Log($"...loading {directory.DirectoryTitle} textures.");
-            Config.TextureLoader.Load(directory.TexturesFolder);
-        }
+            // Textures.
+            if (directory.TexturesFolder != null)
+            {
+                // The developer can bootstrap their own texture loader by adjusting the Engine Config.
+                Log($"...loading {directory.DirectoryTitle} textures.");
+                Config.TextureLoader.Load(directory.TexturesFolder);
+            }
 
-        // Prototypes.
-        if (directory.PrototypesFolder != null && Config.UseECS) // Requires ECS to be on.
-        {
-            // The developer can bootstrap their own prototype loader by adjusting the Engine Config.
-            Log($"...loading {directory.DirectoryTitle} prototypes.");
-            Config.PrototypeLoader.Load(directory.PrototypesFolder);
-            Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
-        }
+            // Prototypes.
+            if (directory.PrototypesFolder != null) // Requires ECS to be on.
+            {
+                //@formatter:off
+                if (!Config.UseECS) Log($"Cannot load prototypes from {directory} folder. ECS is not Enabled!", LOG.SYSTEM_WARNING);
+                else
+                {
+                    // The developer can bootstrap their own prototype loader by adjusting the Engine Config.
+                    Log($"...loading {directory.DirectoryTitle} prototypes.");
+                    Config.PrototypeLoader.Load(directory.PrototypesFolder);
+                    Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
+                }
+                //@formatter:on
+            }
 
-        // WIP: Sounds.
-        // if (directory.SoundsFolder != null)
-        // {
-        //      Log($"...loading {directory.DirectoryTitle} sounds.");
-        //      Config.SoundLoader.Load(directory.SoundsFolder);
-        // }
+            // WIP: Sounds.
+            // if (directory.SoundsFolder != null)
+            // {
+            //      Log($"...loading {directory.DirectoryTitle} sounds.");
+            //      Config.SoundLoader.Load(directory.SoundsFolder);
+            // }
+            string directoryTitle = directory.DirectoryTitle;
+            if (string.IsNullOrEmpty(directoryTitle))
+                directoryTitle = "root";
+            Log($"...finished loading {directoryTitle} directory...");
+        }
     }
 
 
@@ -303,11 +309,13 @@ public abstract class SSLGame : Game
     /// <summary>
     /// Loads programmer-provided game services and registries.
     /// </summary>
-    /// <param name="services"></param>
     /// <code>services.AddSingleton&lt;ExampleRegistry&gt;();</code>
-    protected virtual void LoadServices(ServiceCollection services)
+    /// <remarks>
+    /// Add game services to an override method. Unless you replace the registr(y|ies) somehow, add a base call.
+    /// </remarks>
+    protected virtual void LoadServices()
     {
-        // Add game services to override method here.
+        Services.AddService(new TextureRegistry());
     }
 
     /// <summary>

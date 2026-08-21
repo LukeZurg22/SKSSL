@@ -20,12 +20,6 @@ public class PrototypeLoader<TSerializer>(params string[] extensions) : IGameLoa
     /// Generally expects all files in the directory to be the same type. Can be overwritten for custom logic.
     public override void Load(string directory)
     {
-        if (!SSLGame.Config.UseECS)
-        {
-            Log($"Cannot load prototypes from {directory} folder. ECS is not Enabled!", LOG.SYSTEM_WARNING);
-            return;
-        }
-
         // Get all yaml files.
         var files = GetFiles(directory);
 

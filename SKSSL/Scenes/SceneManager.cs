@@ -44,10 +44,10 @@ public class SceneManager : DrawableGameComponent
     public EntityContext ECS(World? currentWorld = null)
     {
         // If not using ECS, then why? Throw an error!
-        if (!SSLGame.Config.UseECS)
+        if (!SSLGame.UsesECS)
         {
             const string message = "Failed to get Entity Context because ECS is not enabled.";
-            Log(new SettingsException(message), LOG.SYSTEM_ERROR, outputToFile: true);
+            Log(new SettingsException(message));
         }
 
         // If the scene manager has a world, then use that world instead of the provided one if this is null.

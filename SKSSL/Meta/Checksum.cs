@@ -21,7 +21,7 @@ public class Checksum
     {
         int totalRegistryCount = MasterRegistryManager.Count();
         byte[] regBytes = Encoding.UTF8.GetBytes($"REG.COUNT:{totalRegistryCount};");
-        byte[] configBytes = Encoding.UTF8.GetBytes(SSLGame.Config.ToString());
+        byte[] configBytes = Encoding.UTF8.GetBytes(SSLGame.Instance.Config.ToString());
         byte[] texBytes =
             Encoding.UTF8.GetBytes($"$TEXTURES:{TextureLoader.XNAContentLoader.HandleToContentPath.Count}");
 
