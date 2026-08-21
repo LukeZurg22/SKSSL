@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Serializing;
@@ -11,7 +12,7 @@ using SKSSL.Textures;
 
 namespace SKSSL;
 
-public class TextureRegistry
+public partial class TextureRegistry
 {
     private readonly ConcurrentDictionary<Handle, TextureType> _handleToType = new();
 
@@ -92,18 +93,63 @@ public class TextureRegistry
     {
         FileInfo? file = RetrieveTextureFileInfo(handle, textureType, textureMap);
         if (file == null)
-            throw new FileNotFoundException(
-                $"Texture for '{handle}' could not be found in Registry.");
+            throw new FileNotFoundException($"Texture for '{handle}' could not be found in Registry.");
 
+        // File doesn't exist and failing at the attempt to acquire it means not even the content loader doesn't work.
         if (!File.Exists(file.FullName))
-            throw new FileNotFoundException(
-                $"Texture file '{file.FullName}' does not exist.");
+        {
+            // If desperate, check game Content Manager. The worst-case scenario is that someone is attempting to
+            // retrieve a texture that doesn't exist -~anywhere~-.
+            if (TryGetFromContent(handle, mipMapped, out TextureLease? texture))
+                return texture;
+            throw new FileNotFoundException($"Texture handle \'handle\' for file '{file.FullName}' does not exist.");
+            //return new TextureLease(GetErrorTexture(), () => { });
+        }
 
-        if (!AcquireTexture(handle, file, mipMapped, out TextureLease? lease))
-            throw new FileNotFoundException(
-                $"Failed to load texture '{file.FullName}'.");
+        // Quick-get the texture, or just make an error texture on the spot.
+        if (AcquireTexture(file, mipMapped, out TextureLease? lease))
+            return lease;
+        
+        // Log the exception and bootleg together an error texture.
+        Log(new FileNotFoundException($"Failed to load texture '{file.FullName}'."));
+        return new TextureLease(GetErrorTexture(), () => { });
 
-        return lease;
+    }
+
+    private static bool TryGetFromContent(Handle handle, bool mipMapped, [NotNullWhen(true)] out TextureLease? lease)
+    {
+        lease = null;
+        foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
+        {
+            try
+            {
+                // Disposing this content-loaded texture without using the content manager may be a bad thing?
+                // Not sure. The hope is this will work just fine.
+                var texture = contentManager.Load<Texture2D>(handle);
+                if (mipMapped) texture = texture.ToMipMapped(); // MipMap handling.
+                lease = new TextureLease(texture, () => { });
+
+                // COMMENTED THE BELOW OUT AS DISPOSING CONTENT MANAGER TEXTURES MAY BE RISKY.
+                //entry = new TextureEntry { Texture = texture, References = 1 };
+                //if (_activeTextures.TryAdd(info, entry))
+                //{
+                //    textureLease = new TextureLease(this, info, texture);
+                //    return true;
+                //}
+                //
+                //// Another thread loaded it first.
+                //texture.Dispose();
+                //entry = _activeTextures[info];
+                //Interlocked.Increment(ref entry.References);
+                return true;
+            }
+            catch
+            {
+                //Log($"Failed to find {info.Name} texture in content manager.", LOG.FILE_ERROR);
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -144,13 +190,11 @@ public class TextureRegistry
     /// <summary>
     /// Attempts to acquire a cached texture, or otherwise loads it from the file.
     /// </summary>
-    /// <param name="handle"></param>
     /// <param name="info"></param>
     /// <param name="mipMapped"></param>
     /// <param name="textureLease"></param>
     /// <returns></returns>
-    private bool AcquireTexture(Handle handle, FileInfo info, bool mipMapped,
-        [NotNullWhen(true)] out TextureLease? textureLease)
+    private bool AcquireTexture(FileInfo info, bool mipMapped, [NotNullWhen(true)] out TextureLease? textureLease)
     {
         textureLease = null!;
 
@@ -194,37 +238,6 @@ public class TextureRegistry
         catch (Exception)
         {
             //Log($"Failed file open-read: {info.Name} :: {ex.Message}", LOG.FILE_ERROR);
-        }
-
-        // If desperate, check game content?
-        foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
-        {
-            try
-            {
-                // Disposing this content-loaded texture without using the content manager may be a bad thing?
-                // Not sure. The hope is this will work just fine.
-                var texture = contentManager.Load<Texture2D>(handle);
-                if (mipMapped) texture = texture.ToMipMapped(); // MipMap handling.
-                textureLease = new TextureLease(texture, () => { });
-
-                // COMMENTED THE BELOW OUT AS DISPOSING CONTENT MANAGER TEXTURES MAY BE RISKY.
-                //entry = new TextureEntry { Texture = texture, References = 1 };
-                //if (_activeTextures.TryAdd(info, entry))
-                //{
-                //    textureLease = new TextureLease(this, info, texture);
-                //    return true;
-                //}
-                //
-                //// Another thread loaded it first.
-                //texture.Dispose();
-                //entry = _activeTextures[info];
-                //Interlocked.Increment(ref entry.References);
-                return true;
-            }
-            catch
-            {
-                //Log($"Failed to find {info.Name} texture in content manager.", LOG.FILE_ERROR);
-            }
         }
 
         // Plum out of luck. I guess the ERROR texture will have to suffice.
@@ -333,28 +346,28 @@ public class TextureRegistry
         public int References;
     }
 
-    public sealed class TextureLease : IDisposable
+    private const int ERROR_DEFAULT_WIDTH = 128;
+    private const int ERROR_DEFAULT_HEIGHT = 128;
+    private static Texture2D? DefaultError;
+
+    /// <returns>Cached Default Error Texture, or creates a new one if one is not present. Defaults to 128x128.</returns>
+    public static Texture2D GetErrorTexture(int width = ERROR_DEFAULT_WIDTH, int height = ERROR_DEFAULT_HEIGHT)
     {
-        private readonly Action _release;
+        if (DefaultError != null)
+            return DefaultError;
 
-        private bool _disposed;
+        var texture = new Texture2D(SSLGame.Graphics, width, height);
+        var pixels = new Color[128 * 128];
 
-        internal TextureLease(Texture2D texture, Action release)
+        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
         {
-            _release = release;
-            Texture = texture;
+            bool checker = (x / 32 + y / 32) % 2 == 0;
+            pixels[y * 128 + x] = checker ? new Color(1f, 0f, 1f, 1f) : Color.Black; // Magenta / Black
         }
 
-        // ReSharper disable once UnusedAutoPropertyAccessor.Global
-        public Texture2D Texture { get; }
-
-        public void Dispose()
-        {
-            if (_disposed)
-                return;
-
-            _disposed = true;
-            _release();
-        }
+        texture.SetData(pixels);
+        DefaultError = texture;
+        return texture;
     }
 }

@@ -1,8 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Extensions;
 using SKSSL.Serializing;
 using static System.IO.Directory;
@@ -33,7 +31,7 @@ public class SerializedMaterial
 /// Generic texture loader for all game asset categories (objects, items, UI, etc.).
 /// Supports multi-texture maps (diffuse + normal + etc.) and automatic error texture fallback.
 /// </summary>
-public partial class TextureLoader() : IGameLoader(".png", ".jpg")
+public class TextureLoader() : IGameLoader(".png", ".jpg")
 {
     /// MATERIAL (multiple different mapping images)
     private const string IndicatorMaterial = ".m";
@@ -44,17 +42,9 @@ public partial class TextureLoader() : IGameLoader(".png", ".jpg")
     /// ICON (flat image)
     private const string IndicatorIcon = ".i";
 
-    // WIP: NEW REPLACEMENT FOR THE GENERIC STORAGE.
-    // WIP: Add some "Get" method for textures, icons and so forth. Multiple "Get" overrides would be nice.
-    //  Also overrides are important. Handles are merely file names.
-
     /// Stores whether content from XNA / Monogame Content folders have been built.
     private static bool _contentIndexBuilt = false;
 
-    private const int ERROR_DEFAULT_WIDTH = 128;
-    private const int ERROR_DEFAULT_HEIGHT = 128;
-    private static Texture2D? DefaultError;
-    
     /// <summary>
     /// Initializes texture loaded. An alternative version of the loaded with a custom implement for
     /// <br/><br/>
@@ -77,29 +67,22 @@ public partial class TextureLoader() : IGameLoader(".png", ".jpg")
 
             string? indicator = null;
 
-            if (folderName.EndsWith(IndicatorIcon, StringComparison.OrdinalIgnoreCase))
-            {
-                indicator = IndicatorIcon;
-            }
-            else if (folderName.EndsWith(IndicatorMaterial, StringComparison.OrdinalIgnoreCase))
-            {
-                indicator = IndicatorMaterial;
-            }
-            else if (folderName.EndsWith(IndicatorTilemap, StringComparison.OrdinalIgnoreCase))
-            {
-                indicator = IndicatorTilemap;
-            }
+            //@formatter:off
+            /*  ICONS       */ if (folderName.EndsWith(IndicatorIcon, StringComparison.OrdinalIgnoreCase)) indicator = IndicatorIcon;
+            /*  MATERIALS   */ else if (folderName.EndsWith(IndicatorMaterial, StringComparison.OrdinalIgnoreCase)) indicator = IndicatorMaterial;
+            /*  TILEMAPS    */ else if (folderName.EndsWith(IndicatorTilemap, StringComparison.OrdinalIgnoreCase)) indicator = IndicatorTilemap;
+            //@formatter:on
 
             if (indicator == null)
             {
                 Log($"Texture storage format {folderName} not supported.", LOG.SYSTEM_WARNING);
                 continue;
             }
-            
+
             // Trust that the game constructor created the texture registry. Mostly for debugging and special
             //  utility as an instanced registry, as opposed to static.
-            var textureRegistry = SSLGame.Instance.Services.GetService<TextureRegistry>();
-            
+            TextureRegistry textureRegistry = SSLGame.TextureRegistry;
+
             // Get all surface-level files.
             var files = GetFiles(folder, TopDirectoryOnly);
             folderName = folderName[..^indicator.Length];
@@ -148,27 +131,5 @@ public partial class TextureLoader() : IGameLoader(".png", ".jpg")
         // This material key is the basic handle of a material; no texture typing applied.
         var handle = new Handle(Path.Combine(folder, baseName));
         textureRegistry.RegisterMaterial(handle, textureType, new FileInfo(file));
-    }
-    
-    /// <returns>Cached Default Error Texture, or creates a new one if one is not present. Defaults to 128x128.</returns>
-    public static Texture2D GetErrorTexture(int width = ERROR_DEFAULT_WIDTH, int height = ERROR_DEFAULT_HEIGHT)
-    {
-        if (DefaultError != null)
-            return DefaultError;
-
-        var tex = new Texture2D(SSLGame.Graphics, width, height);
-
-        var pixels = new Color[128 * 128];
-
-        for (int y = 0; y < height; y++)
-        for (int x = 0; x < width; x++)
-        {
-            bool checker = (x / 32 + y / 32) % 2 == 0;
-            pixels[y * 128 + x] = checker ? new Color(1f, 0f, 1f, 1f) : Color.Black; // Magenta / Black
-        }
-
-        tex.SetData(pixels);
-        DefaultError = tex;
-        return tex;
     }
 }

@@ -9,7 +9,7 @@ namespace SKSSL.ECS.Registry;
 /// <summary>
 /// Storing all prototype definitions.
 /// </summary>
-public abstract class MasterRegistryManager
+public static class MasterRegistryManager // TODO: Move this to Game Services?
 {
     /*
      * Here's The Pattern:

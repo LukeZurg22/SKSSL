@@ -39,19 +39,20 @@ public abstract class SSLGame : Game
     #region Static Fields /*Don't make too many of these.*/
 
     public static SSLGame Instance { get; private set; }
-
     internal static GraphicsDevice Graphics => Instance.GraphicsDevice;
 
     /// Aspect ratio to render the game.
     public static float AspectRatio => Graphics.Viewport.AspectRatio;
 
-    public static TextureRegistry TextureRegistry => Instance.Services.GetService<TextureRegistry>();
+    /// Static getter for Instance.Config.
+    public static EngineConfig Engine => Instance.Config;
 
     /// Access the general content loader.
-    public static IGameLoader PrototypeLoader => Instance.Config.PrototypeLoader;
+    public static IGameLoader PrototypeLoader => Engine.PrototypeLoader;
 
-    public static bool UsesECS => Instance.Config.UseECS;
-    
+    public static bool UsesECS => Engine.UseECS;
+    public static TextureRegistry TextureRegistry => Instance.Services.GetService<TextureRegistry>();
+
     #endregion
 
     #region Fields
@@ -80,13 +81,15 @@ public abstract class SSLGame : Game
     public readonly GameContentDirectories Directories;
 
     // TEMP: Consider just throwing this away. Are they ever accessed outside of this class? Probably not!
-
     public MouseWrapper MouseHandler;
 
     public readonly GameSettings Settings;
 
     /// Configurable engine configuration assigned from the Developer's view.
     public readonly EngineConfig Config;
+
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global
+    public Checksum Checksum { get; private set; }
 
     #endregion
 
@@ -181,8 +184,13 @@ public abstract class SSLGame : Game
         #endregion
     }
 
-    /// Overridable engine configuration.
+    /// <summary>
+    /// Creates the engine configuration before the remainder of the engine is initialized.
+    /// Do not access derived instance state from this method.
+    /// </summary>
     public virtual EngineConfig BuildEngineConfig() => new();
+
+    #region Utility Methods
 
     /// If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
     ///  If there ever is such a case, then the entire game's folder outside of the binaries is its game directory.
@@ -239,7 +247,6 @@ public abstract class SSLGame : Game
  * Methods that handle ulterior loading outside of simple Monogame stuff. Game Directories, localization, etc.
  */
 
-    #region Utility Methods
 
     /// Get game directories stored in settings.
     [SuppressMessage("ReSharper", "BadChildStatementIndent")]
@@ -318,6 +325,8 @@ public abstract class SSLGame : Game
         Services.AddService(new TextureRegistry());
     }
 
+    #region Graphics & Window Management
+
     /// <summary>
     /// Accommodates for when the user readjusts the UI dimensions.
     /// </summary>
@@ -348,6 +357,8 @@ public abstract class SSLGame : Game
         return graphicsDeviceManager;
     }
 
+    #endregion
+
     protected override void Initialize()
     {
         GumProjectSave? gumSave = InitializeGum();
@@ -363,8 +374,11 @@ public abstract class SSLGame : Game
         }
 
         if (Config.UseECS)
+        {
             SystemManager.Initialize();
+        }
 
+        Checksum = Checksum.Generate(this); // Now the game is mostly initialized, generate a checksum.
         base.Initialize(); // Continue
     }
 

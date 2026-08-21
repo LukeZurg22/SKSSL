@@ -162,8 +162,14 @@
         <Compile Update="Meta\Serializing\YamlBlock.cs">
           <DependentUpon>SerializerDefaultYaml.cs</DependentUpon>
         </Compile>
-        <Compile Update="Meta\ContentLoading\TextureMap.cs">
-          <DependentUpon>TextureLoader.cs</DependentUpon>
+        <Compile Update="Meta\TextureLease.cs">
+          <DependentUpon>TextureRegistry.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Meta\TextureMap.cs">
+          <DependentUpon>TextureRegistry.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Meta\TextureType.cs">
+          <DependentUpon>TextureRegistry.cs</DependentUpon>
         </Compile>
     </ItemGroup>
 

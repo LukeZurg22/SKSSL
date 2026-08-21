@@ -67,7 +67,7 @@ public class UidList<T> : IEnumerable<T> where T : class
     private string?[] _indexToHandle = Array.Empty<string>();
     private PackableUid[] _indexToOwner = Array.Empty<PackableUid>();
     private int[] _generations = Array.Empty<int>();
-    private int[] _freeList = new int[SSLGame.Instance.Config.DESTROY_CACHE_LIMIT];
+    private int[] _freeList = new int[SSLGame.Engine.DESTROY_CACHE_LIMIT];
     private int _freeCount = 0;
     private int _nextUidIndex = 0;
 
