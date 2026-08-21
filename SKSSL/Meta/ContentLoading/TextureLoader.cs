@@ -1,36 +1,32 @@
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
-using Microsoft.Xna.Framework.Content;
+using System.Linq;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SKSSL.Extensions;
+using SKSSL.Serializing;
 using static System.IO.Directory;
 using static System.IO.SearchOption;
 
-namespace SKSSL.Textures;
+namespace SKSSL;
 
 /// <summary>
-/// Supported texture-types in the system. Defaults to <see cref="DIFFUSE"/>.
+/// Serialized paths to material files.
 /// </summary>
-/// <remarks>
-/// This will not inherently do anything besides permit additional map types. Rendering must be implemented separately.
-/// </remarks>
-public enum TextureType : byte
+/// <seealso cref="TextureMap"/>
+public class SerializedMaterial
 {
-    /// Plain color information.
-    DIFFUSE = 0,
+    // ReSharper disable once UnusedMember.Global
+    public FileInfo this[TextureMap map]
+    {
+        get => Files[(byte)map];
+        set => Files[(byte)map] = value;
+    }
 
-    /// Normal-data.
-    NORMAL = 1,
-
-    /// Height data.
-    DISPLACEMENT = 2,
-
-    /// Glow data.
-    EMISSIVE = 3,
-
-    // Unused as of 20260106
-    //GLOSSY,
+    /// <summary>
+    /// Storing as many instances of file data as there are texture types to utilize.
+    /// </summary>
+    public readonly FileInfo[] Files = new FileInfo[Enum.GetValues<TextureMap>().Length];
 }
 
 /// <summary>
@@ -48,12 +44,17 @@ public partial class TextureLoader() : IGameLoader(".png", ".jpg")
     /// ICON (flat image)
     private const string IndicatorIcon = ".i";
 
-    /// Generic storage: category -> (texture name -> texture object). These are textures actively being used in memory.
-    private static readonly ConcurrentDictionary<string, Dictionary<string, Texture2D>> _textures = new();
+    // WIP: NEW REPLACEMENT FOR THE GENERIC STORAGE.
+    // WIP: Add some "Get" method for textures, icons and so forth. Multiple "Get" overrides would be nice.
+    //  Also overrides are important. Handles are merely file names.
 
     /// Stores whether content from XNA / Monogame Content folders have been built.
     private static bool _contentIndexBuilt = false;
 
+    private const int ERROR_DEFAULT_WIDTH = 128;
+    private const int ERROR_DEFAULT_HEIGHT = 128;
+    private static Texture2D? DefaultError;
+    
     /// <summary>
     /// Initializes texture loaded. An alternative version of the loaded with a custom implement for
     /// <br/><br/>
@@ -63,44 +64,57 @@ public partial class TextureLoader() : IGameLoader(".png", ".jpg")
     /// <exception cref="ArgumentNullException"></exception>
     public override void Load(string directory)
     {
-        // Process all folders inside textures folder. 
-        var subFolders = GetDirectories(directory, "", AllDirectories);
-        foreach (string texturesFolder in subFolders)
+        // Process all folders inside textures folder. This accommodates nested material folders for whatever reason.
+        var folders = GetDirectories(directory, "*", AllDirectories)
+            .Where(x =>
+                x.EndsWith(IndicatorIcon, StringComparison.OrdinalIgnoreCase) ||
+                x.EndsWith(IndicatorMaterial, StringComparison.OrdinalIgnoreCase) ||
+                x.EndsWith(IndicatorTilemap, StringComparison.OrdinalIgnoreCase));
+
+        foreach (string folder in folders)
         {
-            /*
-             * I have > 1 options when handling this. All textures could be explicitly unique by relative filepath to
-             * the root of their local game directory. (I.e. textures --> test/<name>.<ext>/{files} <-
-             *  However, this means all mods / loaded directories that intend to override the base directory must too
-             *  mimic the exact texture path respectful to their own root.
-             * The alternative is only reading <name>.<ext> as the indexer, which marks total exclusivity for that
-             * folder name, but allows mods to easily override other game content regardless of the way they organize
-             * the layout of their textures!
-             *
-             * I subsequently decided to go with the first option. Declarative overrides seemed appealing to me as of
-             * 202606050522, so I am going with that. I could have it toggle-able, and it would be very easy to do, but
-             * for now it isn't necessary and it could come up in the future.
-             *
-             * If it DOES come up in the future, simply add an IF-statement to the assignment of the folder name, where
-             * it will choose between GetRelativePath() or GetFileName(); both calling ToLowerInvariant().
-             */
+            var folderName = Path.GetRelativePath(directory, folder).ToLowerInvariant();
 
-            // Ensure that this folder is a valid one.
-            var folderName = Path.GetRelativePath(directory, texturesFolder).ToLowerInvariant();
-            if (folderName.EndsWith(IndicatorMaterial))
+            string? indicator = null;
+
+            if (folderName.EndsWith(IndicatorIcon, StringComparison.OrdinalIgnoreCase))
             {
-                folderName = folderName[..^IndicatorMaterial.Length];
-                var files = EnumerateFiles(texturesFolder, "*", TopDirectoryOnly);
-
-                // MATERIALS!
-                foreach (var file in files) LoadTextureMaterial(file, folderName);
+                indicator = IndicatorIcon;
             }
-            else if (folderName.EndsWith(IndicatorIcon))
+            else if (folderName.EndsWith(IndicatorMaterial, StringComparison.OrdinalIgnoreCase))
             {
-                folderName = folderName[..^IndicatorMaterial.Length];
-                var files = EnumerateFiles(texturesFolder, "*", TopDirectoryOnly);
+                indicator = IndicatorMaterial;
+            }
+            else if (folderName.EndsWith(IndicatorTilemap, StringComparison.OrdinalIgnoreCase))
+            {
+                indicator = IndicatorTilemap;
+            }
 
-                // ICONS!
-                foreach (var file in files) LoadTextureIcon(file, folderName);
+            if (indicator == null)
+            {
+                Log($"Texture storage format {folderName} not supported.", LOG.SYSTEM_WARNING);
+                continue;
+            }
+            
+            // Trust that the game constructor created the texture registry. Mostly for debugging and special
+            //  utility as an instanced registry, as opposed to static.
+            var textureRegistry = SSLGame.Instance.Services.GetService<TextureRegistry>();
+            
+            // Get all surface-level files.
+            var files = GetFiles(folder, TopDirectoryOnly);
+            folderName = folderName[..^indicator.Length];
+            switch (indicator)
+            {
+                case IndicatorIcon:
+                    foreach (var file in files) RecordIcon(folderName, file, textureRegistry);
+                    break;
+                case IndicatorMaterial:
+                    foreach (var file in files) RecordMaterial(folderName, file, textureRegistry);
+                    break;
+                // TODO: Add TileMaps.
+                default:
+                    Log($"Format \'{indicator}\' not supported.", LOG.SYSTEM_WARNING);
+                    break;
             }
         }
 
@@ -114,52 +128,47 @@ public partial class TextureLoader() : IGameLoader(".png", ".jpg")
         XNAContentLoader.BuildContentIndex();
     }
 
-    /// <summary>
-    /// Core loading logic that attempts to load from a file path, then Content pipeline, before returning an
-    /// error texture of nothing was successful. This is generic, working between all kinds of map types.
-    /// </summary>
-    private static Texture2D LoadFromFileOrContent(string filePath, string cacheKey, string category)
+    private static void RecordIcon(string folder, string file, TextureRegistry textureRegistry)
     {
-        Texture2D texture;
-        // 1. Direct file load (for mod/override support)
-        if (File.Exists(filePath))
+        textureRegistry.RegisterIcon(Handle.Create(folder, file), new FileInfo(file));
+    }
+
+    private static void RecordMaterial(string folder, string file, TextureRegistry textureRegistry)
+    {
+        string fileNameNoExt = Path.GetFileNameWithoutExtension(file);
+        string baseName = fileNameNoExt.RemoveUnderscoreEndingTag();
+        string suffix = fileNameNoExt.GetUnderscoreEndingTag();
+
+        // If there is no suffix, assume diffuse. If multiple, well... that sucks! You shouldn't have multiple diffuse
+        //  textures in a single material!
+        if (!Enum.TryParse(suffix, true, out TextureMap textureType))
+            textureType = TextureMap.DIFFUSE;
+
+        // Unique material key (folderPrefix + baseName) -> allows overrides from mods.
+        // This material key is the basic handle of a material; no texture typing applied.
+        var handle = new Handle(Path.Combine(folder, baseName));
+        textureRegistry.RegisterMaterial(handle, textureType, new FileInfo(file));
+    }
+    
+    /// <returns>Cached Default Error Texture, or creates a new one if one is not present. Defaults to 128x128.</returns>
+    public static Texture2D GetErrorTexture(int width = ERROR_DEFAULT_WIDTH, int height = ERROR_DEFAULT_HEIGHT)
+    {
+        if (DefaultError != null)
+            return DefaultError;
+
+        var tex = new Texture2D(SSLGame.Graphics, width, height);
+
+        var pixels = new Color[128 * 128];
+
+        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
         {
-            try
-            {
-                if (_textures.TryGetValue(category, out var categoryDictionary) &&
-                    categoryDictionary.TryGetValue(cacheKey, out Texture2D? cached)) return cached;
-
-                using var stream = new FileStream(
-                    filePath,
-                    FileMode.Open, FileAccess.Read, FileShare.Read,
-                    bufferSize: 4096,
-                    FileOptions.SequentialScan);
-
-                texture = Texture2D.FromStream(SSLGame.Graphics, stream).ToMipMapped();
-                return texture;
-            }
-            catch (Exception ex)
-            {
-                Log($"Failed direct load: {filePath} - {ex.Message}", LOG.FILE_WARNING);
-            }
+            bool checker = (x / 32 + y / 32) % 2 == 0;
+            pixels[y * 128 + x] = checker ? new Color(1f, 0f, 1f, 1f) : Color.Black; // Magenta / Black
         }
 
-        // 2. Fallback to MonoGame Content pipeline (.xnb)
-        foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
-        {
-            try
-            {
-                texture = contentManager.Load<Texture2D>(cacheKey).ToMipMapped();
-                return texture;
-            }
-            catch
-            {
-                //
-            }
-        }
-
-        // 3. Error texture fallback
-        Log($"Texture load failed: {cacheKey} (category: {category}) → error texture", LOG.FILE_WARNING);
-        return HardcodedTextures.GetErrorTexture();
+        tex.SetData(pixels);
+        DefaultError = tex;
+        return tex;
     }
 }

@@ -1,7 +1,6 @@
 // ReSharper disable FieldCanBeMadeReadOnly.Global
 
 using SKSSL.Serializing;
-using SKSSL.Textures;
 
 namespace SKSSL;
 

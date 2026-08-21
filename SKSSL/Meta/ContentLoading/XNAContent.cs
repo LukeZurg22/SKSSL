@@ -4,7 +4,7 @@ using System.IO;
 using Microsoft.Xna.Framework.Content;
 using SKSSL.Extensions;
 
-namespace SKSSL.Textures;
+namespace SKSSL;
 
 public partial class TextureLoader
 {
@@ -61,7 +61,7 @@ public partial class TextureLoader
                 // Hard-coded Texture Type values are avoided like the plague.
                 string fileNameNoExt = Path.GetFileNameWithoutExtension(file);
                 string suffix = fileNameNoExt.GetUnderscoreEndingTag();
-                if (!string.IsNullOrEmpty(suffix) && Enum.TryParse(suffix, true, out TextureType _))
+                if (!string.IsNullOrEmpty(suffix) && Enum.TryParse(suffix, true, out TextureMap _))
                     continue;
 
                 // Quick header check: Is this actually a Texture2D?

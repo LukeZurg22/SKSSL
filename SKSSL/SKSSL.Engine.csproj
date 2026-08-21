@@ -123,16 +123,7 @@
         <Compile Update="GameContentLoader\IYamlBlock.cs">
             <DependentUpon>YamlLoader.cs</DependentUpon>
         </Compile>
-        <Compile Update="Meta\ContentLoading\TextureLoader.HardcodedTextures.cs">
-            <DependentUpon>TextureLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\TextureLoader.IconRegistry.cs">
-            <DependentUpon>TextureLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\TextureLoader.MaterialRegistry.cs">
-            <DependentUpon>TextureLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\TextureLoader.XNAContent.cs">
+        <Compile Update="Meta\ContentLoading\XNAContent.cs">
             <DependentUpon>TextureLoader.cs</DependentUpon>
         </Compile>
         <Compile Update="Meta\LoadPath.cs">
@@ -170,6 +161,9 @@
         </Compile>
         <Compile Update="Meta\Serializing\YamlBlock.cs">
           <DependentUpon>SerializerDefaultYaml.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Meta\ContentLoading\TextureMap.cs">
+          <DependentUpon>TextureLoader.cs</DependentUpon>
         </Compile>
     </ItemGroup>
 

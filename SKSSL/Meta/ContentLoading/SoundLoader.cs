@@ -1,11 +1,15 @@
 using System.Collections.Generic;
+using System.IO;
+using SKSSL.Serializing;
 
 namespace SKSSL;
 
 public class SoundLoader() : IGameLoader(".wav", ".mp3", ".opus", ".ogg")
 {
-    private Dictionary<string, string> _handleToPath  = new(); 
-    
+    private readonly Dictionary<Handle, FileInfo> _handleToFile = new();
+
+    // WARN: Sound handle storage is per-loader. This is the same for textures. There is no central registry!!
+    //  Textures and Sounds need some kind of central registry for those handles, and for mods to be able to override them.
     /*
 Short sounds wav
 Opus requires a C library, but is great for music and for voice. .ogg is a good replacer.
@@ -21,7 +25,14 @@ Void expects literally everything to be tapped into the ECS. Review Bevy Asset s
 
     public override void Load(string directory)
     {
-        throw new System.NotImplementedException();
         var files = GetFiles(directory);
+        foreach (var file in files)
+        {
+            var fileInfo = new FileInfo(file);
+
+            // WIP: Verify that the handle is what's desired. The local, relative (Not absolute) path should be needed.
+            var handle = new Handle(fileInfo.Name);
+            _handleToFile[handle] = fileInfo;
+        }
     }
 }

@@ -105,8 +105,8 @@ public abstract class SSLGame : Game
     /// <param name="title">Title of the game window.</param>
     protected SSLGame(string title)
     {
-        Instance = this;
-        // MonoGame priority assignments.
+        Instance = this; // MonoGame priority assignments.
+        Services.AddService(new TextureRegistry());
         Window.Title = title.IsNullOrEmpty() ? Title : "SKSSL";
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
@@ -219,14 +219,13 @@ public abstract class SSLGame : Game
             Config.PrototypeLoader.Load(directory.PrototypesFolder);
             Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
         }
-        
+
         // WIP: Sounds.
         // if (directory.SoundsFolder != null)
         // {
         //      Log($"...loading {directory.DirectoryTitle} sounds.");
         //      Config.SoundLoader.Load(directory.SoundsFolder);
         // }
-
     }
 
 
@@ -326,7 +325,7 @@ public abstract class SSLGame : Game
         int monitorWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
         int monitorHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
 
-        // Assign settings to heights and etc.
+        // Assign settings to heights etc. Keeps the default monitor size, otherwise.
         if (settings.Width != -1)
             monitorWidth = settings.Width;
         if (settings.Height != -1)

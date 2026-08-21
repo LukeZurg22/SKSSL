@@ -73,6 +73,8 @@ public readonly struct Handle : IEquatable<Handle>
 
     // ReSharper disable once UnusedMember.Global
     public bool IsNullOrWhiteSpace() => string.IsNullOrWhiteSpace(Value);
+    public static Handle Create(string folder, string file)
+        => new(Path.Combine(folder, Path.GetFileNameWithoutExtension(file).ToLowerInvariant()));
 }
 
 /// Simple string converter for Yaml Parser.
