@@ -1,5 +1,4 @@
 using System;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL;
 
@@ -8,23 +7,23 @@ namespace SKSSL;
 /// Texture mapping fields mapped to various types of textures.
 /// <example>Diffuse, Normal, Displacement, etc.</example>
 /// </summary>
-public readonly struct SKMaterial
+public readonly struct SKMaterial : IDisposable
 {
     /// Internal array of texture references used in this material.
-    public readonly TextureManager.TextureLease[] Textures = new TextureManager.TextureLease[Enum.GetValues<TextureMap>().Length];
+    public readonly TextureLease[] Textures = new TextureLease[Enum.GetValues<TextureMap>().Length];
     
     // @formatter:off
     /// Albedo / color map.
-    public TextureManager.TextureLease Diffuse { get => Textures[0]; set => Textures[0] = value; }
+    public TextureLease Diffuse { get => Textures[0]; set => Textures[0] = value; }
 
     /// Lighting height map.
-    public TextureManager.TextureLease Normal { get => Textures[1]; set => Textures[1] = value; }
+    public TextureLease Normal { get => Textures[1]; set => Textures[1] = value; }
 
     /// Physical displacement map.
-    public TextureManager.TextureLease Displacement { get => Textures[2]; set => Textures[2] = value; }
+    public TextureLease Displacement { get => Textures[2]; set => Textures[2] = value; }
 
     /// Lighting emission map.
-    public TextureManager.TextureLease Emissive { get => Textures[3]; set => Textures[3] = value; }
+    public TextureLease Emissive { get => Textures[3]; set => Textures[3] = value; }
     
     // IMPL: occlusion, detail mask, etc. Everything below is a bit out-of-current-scope.
     //public Texture2D Specular { get; set; }
@@ -38,17 +37,23 @@ public readonly struct SKMaterial
     public SKMaterial()
     {
     }
-    
+
     /// Constructor to manually assign all textures.
     public SKMaterial(
-        TextureManager.TextureLease diffuse,
-        TextureManager.TextureLease normal,
-        TextureManager.TextureLease displacement,
-        TextureManager.TextureLease emissive)
+        TextureLease diffuse,
+        TextureLease normal,
+        TextureLease displacement,
+        TextureLease emissive)
     {
         Diffuse = diffuse;
         Normal = normal;
         Displacement = displacement;
         Emissive = emissive;
+    }
+
+    public void Dispose()
+    {
+        foreach (TextureLease texture in Textures)
+            texture.Dispose();
     }
 }
