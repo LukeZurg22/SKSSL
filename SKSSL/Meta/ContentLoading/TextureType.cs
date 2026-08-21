@@ -1,6 +1,6 @@
 namespace SKSSL;
 
-public enum TextureType
+public enum TextureType : byte
 {
     ICON,
     MATERIAL,

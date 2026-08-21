@@ -55,9 +55,7 @@ public sealed class LocIdYamlConverter : IYamlTypeConverter
 public readonly struct Handle : IEquatable<Handle>
 {
     public readonly string Value;
-
     public Handle(string value) => Value = value;
-
     public string Unwrap() => ToString().TrimEnd('\r', '\n').Trim();
     public override string ToString() => Value;
     public bool Equals(Handle other) => Value.Equals(other.Value);
@@ -73,6 +71,7 @@ public readonly struct Handle : IEquatable<Handle>
 
     // ReSharper disable once UnusedMember.Global
     public bool IsNullOrWhiteSpace() => string.IsNullOrWhiteSpace(Value);
+
     public static Handle Create(string folder, string file)
         => new(Path.Combine(folder, Path.GetFileNameWithoutExtension(file).ToLowerInvariant()));
 }
