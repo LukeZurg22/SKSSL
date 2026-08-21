@@ -3,30 +3,27 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL;
 
-public partial class TextureManager
+public sealed class TextureLease : IDisposable
 {
-    public sealed class TextureLease : IDisposable
+    private readonly Action _release;
+
+    private bool _disposed;
+
+    internal TextureLease(Texture2D texture, Action release)
     {
-        private readonly Action _release;
+        _release = release;
+        Texture = texture;
+    }
 
-        private bool _disposed;
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global
+    public Texture2D Texture { get; }
 
-        internal TextureLease(Texture2D texture, Action release)
-        {
-            _release = release;
-            Texture = texture;
-        }
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
 
-        // ReSharper disable once UnusedAutoPropertyAccessor.Global
-        public Texture2D Texture { get; }
-
-        public void Dispose()
-        {
-            if (_disposed)
-                return;
-
-            _disposed = true;
-            _release();
-        }
+        _disposed = true;
+        _release();
     }
 }

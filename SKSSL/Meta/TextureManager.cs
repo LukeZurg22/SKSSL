@@ -12,7 +12,7 @@ using SKSSL.Textures;
 
 namespace SKSSL;
 
-public partial class TextureManager
+public class TextureManager
 {
     private readonly ConcurrentDictionary<Handle, TextureType> _handleToType = new();
 
