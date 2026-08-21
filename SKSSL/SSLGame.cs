@@ -53,6 +53,8 @@ public abstract class SSLGame : Game
     public static bool UsesECS => Engine.UseECS;
     public static TextureManager TextureManager => Instance.Services.GetService<TextureManager>();
 
+    public static SoundManager SoundManager => Instance.Services.GetService<SoundManager>();
+
     #endregion
 
     #region Fields
@@ -323,6 +325,7 @@ public abstract class SSLGame : Game
     protected virtual void LoadServices()
     {
         Services.AddService(new TextureManager());
+        Services.AddService(new SoundManager());
     }
 
     #region Graphics & Window Management

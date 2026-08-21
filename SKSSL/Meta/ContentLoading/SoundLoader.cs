@@ -12,7 +12,6 @@ namespace SKSSL;
 /// </reference>
 public class SoundLoader() : IGameLoader(".wav", ".mp3", ".opus", ".ogg")
 {
-    private readonly Dictionary<Handle, FileInfo> _handleToFile = new();
 
     // WARN: Sound handle storage is per-loader. This is the same for textures. There is no central registry!!
     //  Textures and Sounds need some kind of central registry for those handles, and for mods to be able to override them.
@@ -31,14 +30,22 @@ Void expects literally everything to be tapped into the ECS. Review Bevy Asset s
 
     public override void Load(string directory)
     {
-        var files = GetFiles(directory);
-        foreach (var file in files)
-        {
-            var fileInfo = new FileInfo(file);
+        // Process all folders inside textures folder. This accommodates nested material folders for whatever reason.
+        var folders = Directory.GetDirectories(directory, "*", SearchOption.AllDirectories);
+        SoundManager manager = SSLGame.SoundManager;
 
-            // WIP: Verify that the handle is what's desired. The local, relative (Not absolute) path should be needed.
-            var handle = new Handle(fileInfo.Name);
-            _handleToFile[handle] = fileInfo;
+        foreach (string folder in folders)
+        {
+            var folderName = Path.GetRelativePath(directory, folder).ToLowerInvariant();
+
+            var files = GetFiles(folder, SearchOption.TopDirectoryOnly);
+            foreach (var file in files)
+            {
+                var fileInfo = new FileInfo(file);
+                var handle = Handle.Create(folder, file);
+                manager.RegisterSound(handle, fileInfo);
+            }
         }
+
     }
 }
