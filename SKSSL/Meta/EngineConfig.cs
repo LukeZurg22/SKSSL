@@ -32,6 +32,11 @@ public class EngineConfig
     public IGameLoader TextureLoader = new TextureLoader();
 
     /// <summary>
+    /// Configured sound loader.
+    /// </summary>
+    public IGameLoader SoundLoader = new SoundLoader();
+
+    /// <summary>
     /// The number of active objects that can be recycled. This is ignored when recycling more than the expected count.
     /// </summary>
     /// <remarks>Don't touch this unless you know what you're doing. This may affect performance.</remarks>

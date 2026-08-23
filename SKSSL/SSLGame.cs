@@ -4,6 +4,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
+using FmodAudio.Base;
+using FmodForFoxes;
 using Gum.DataTypes;
 using Gum.Wireframe;
 using Microsoft.Xna.Framework;
@@ -34,7 +36,7 @@ namespace SKSSL;
 /// Registering Game factories, loaders and such, such as anything that inherits BaseRegistry or <see cref="Loc"/>,
 /// is incredibly important as these are the loaders that will LOAD the game's content.
 /// </summary>
-public abstract class SSLGame : Game
+public class SSLGame : Game
 {
     #region Static Fields /*Don't make too many of these.*/
 
@@ -93,6 +95,8 @@ public abstract class SSLGame : Game
     // ReSharper disable once UnusedAutoPropertyAccessor.Global
     public Checksum Checksum { get; private set; }
 
+    private readonly INativeFmodLibrary _nativeLibrary;
+
     #endregion
 
     /// Base constructor runs first.
@@ -116,6 +120,7 @@ public abstract class SSLGame : Game
         Window.ClientSizeChanged += HandleClientSizeChanged; // TEMP: Something tells me this doesn't work...!
         // ReSharper disable once VirtualMemberCallInConstructor
         Config = BuildEngineConfig(); // This virtual call is desired, as the override acting first is intended.
+        _nativeLibrary = new DesktopNativeFmodLibrary();
 
         #region Settings
 
@@ -180,8 +185,11 @@ public abstract class SSLGame : Game
         GuiRenderer = new ImGuiRenderer(this);
         GuiRenderer.RebuildFontAtlas();
 
+        // If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
+        //  If there ever is such a case, then the entire game's folder outside the binaries is its game directory.
         Log($"Loading {Directories.Count} Game Directories.");
-        LoadGameDirectories();
+        foreach (GameDirectory directory in Directories)
+            directory.Load();
 
         #endregion
     }
@@ -194,60 +202,9 @@ public abstract class SSLGame : Game
 
     #region Utility Methods
 
-    /// If there aren't any directories, it either is a failure on behalf of the loader, or that one isn't defined.
-    ///  If there ever is such a case, then the entire game's folder outside of the binaries is its game directory.
-    private void LoadGameDirectories()
-    {
-        foreach (GameDirectory directory in Directories)
-        {
-            // Assuming there are defined directories to begin with...
-            // Localization.
-            if (directory.LocalizationFolder != null)
-            {
-                Log($"...loading {directory.DirectoryTitle} localization.");
-                Loc.Load(directory.LocalizationFolder);
-            }
-
-            // Textures.
-            if (directory.TexturesFolder != null)
-            {
-                // The developer can bootstrap their own texture loader by adjusting the Engine Config.
-                Log($"...loading {directory.DirectoryTitle} textures.");
-                Config.TextureLoader.Load(directory.TexturesFolder);
-            }
-
-            // Prototypes.
-            if (directory.PrototypesFolder != null) // Requires ECS to be on.
-            {
-                //@formatter:off
-                if (!Config.UseECS) Log($"Cannot load prototypes from {directory} folder. ECS is not Enabled!", LOG.SYSTEM_WARNING);
-                else
-                {
-                    // The developer can bootstrap their own prototype loader by adjusting the Engine Config.
-                    Log($"...loading {directory.DirectoryTitle} prototypes.");
-                    Config.PrototypeLoader.Load(directory.PrototypesFolder);
-                    Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
-                }
-                //@formatter:on
-            }
-
-            // WIP: Sounds.
-            // if (directory.SoundsFolder != null)
-            // {
-            //      Log($"...loading {directory.DirectoryTitle} sounds.");
-            //      Config.SoundLoader.Load(directory.SoundsFolder);
-            // }
-            string directoryTitle = directory.DirectoryTitle;
-            if (string.IsNullOrEmpty(directoryTitle))
-                directoryTitle = "root";
-            Log($"...finished loading {directoryTitle} directory...");
-        }
-    }
-
-
-/*
- * Methods that handle ulterior loading outside of simple Monogame stuff. Game Directories, localization, etc.
- */
+    /*
+     * Methods that handle ulterior loading outside of simple Monogame stuff. Game Directories, localization, etc.
+     */
 
 
     /// Get game directories stored in settings.
@@ -353,7 +310,6 @@ public abstract class SSLGame : Game
 
         // Fullscreen?
         graphicsDeviceManager.IsFullScreen = settings.IsFullScreen;
-
         graphicsDeviceManager.PreferredBackBufferWidth = monitorWidth; // Set preferred width
         graphicsDeviceManager.PreferredBackBufferHeight = monitorHeight; // Set preferred height
         graphicsDeviceManager.ApplyChanges();
@@ -381,8 +337,14 @@ public abstract class SSLGame : Game
             SystemManager.Initialize();
         }
 
+        FmodManager.Init(_nativeLibrary, FmodInitMode.Core, "Content");
         Checksum = Checksum.Generate(this); // Now the game is mostly initialized, generate a checksum.
         base.Initialize(); // Continue
+    }
+
+    protected override void UnloadContent()
+    {
+        FmodManager.Unload();
     }
 
     /// Quits the game.
@@ -404,6 +366,7 @@ public abstract class SSLGame : Game
     /// <inheritdoc />
     protected override void Update(GameTime gameTime)
     {
+        FmodManager.Update();
         GameplayTime = GameplayTime.AddSeconds(gameTime.ElapsedGameTime.TotalSeconds);
         MouseWrapper.HandleForcedPosition();
         base.Update(gameTime);

@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
@@ -185,9 +184,6 @@ public static partial class DustLogger
         }
     }
 
-    [LibraryImport("kernel32.dll")]
-    private static partial IntPtr GetConsoleWindow();
-
     /// <summary>
     /// <seealso cref="LOG"/>
     /// </summary>
@@ -202,7 +198,7 @@ public static partial class DustLogger
     [UsedImplicitly]
     private static void InternalLog(string message, Exception? e, int level = 0, bool outputFile = ToggleOutputBoolean)
     {
-        // Write to debugger or console..
+        // Write to debugger or console.
         if (Debugger.IsAttached)
         {
             Debug.WriteLine(message);

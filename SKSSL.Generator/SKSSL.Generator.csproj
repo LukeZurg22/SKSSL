@@ -13,7 +13,7 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <PackageReference Include="Bass.NetWrapper" Version="2.4.12.5" />
+        <PackageReference Include="LibVLCSharp" Version="3.10.1" />
         <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="*">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

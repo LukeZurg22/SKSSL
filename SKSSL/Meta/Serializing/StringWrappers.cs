@@ -52,19 +52,19 @@ public sealed class LocIdYamlConverter : IYamlTypeConverter
 /// <summary>
 /// Localization wrapper around a Handle String.
 /// </summary>
-public readonly struct Handle : IEquatable<Handle>
+public readonly struct handle : IEquatable<handle>
 {
     public readonly string Value;
-    public Handle(string value) => Value = value;
+    public handle(string value) => Value = value;
     public string Unwrap() => ToString().TrimEnd('\r', '\n').Trim();
     public override string ToString() => Value;
-    public bool Equals(Handle other) => Value.Equals(other.Value);
-    public override bool Equals(object? obj) => obj is Handle handle && Equals(handle);
+    public bool Equals(handle other) => Value.Equals(other.Value);
+    public override bool Equals(object? obj) => obj is handle handle && Equals(handle);
     public override int GetHashCode() => Value.GetHashCode();
-    public static bool operator ==(Handle left, Handle right) => left.Equals(right);
-    public static bool operator !=(Handle left, Handle right) => !(left == right);
-    public static implicit operator Handle(string value) => new(value);
-    public static implicit operator string(Handle value) => value.Value;
+    public static bool operator ==(handle left, handle right) => left.Equals(right);
+    public static bool operator !=(handle left, handle right) => !(left == right);
+    public static implicit operator handle(string value) => new(value);
+    public static implicit operator string(handle value) => value.Value;
 
     // ReSharper disable once UnusedMember.Global
     public bool IsNullOrEmpty() => string.IsNullOrEmpty(Value);
@@ -72,21 +72,21 @@ public readonly struct Handle : IEquatable<Handle>
     // ReSharper disable once UnusedMember.Global
     public bool IsNullOrWhiteSpace() => string.IsNullOrWhiteSpace(Value);
 
-    public static Handle Create(string folder, string file)
-        => new(Path.Combine(folder, Path.GetFileNameWithoutExtension(file).ToLowerInvariant()));
+    public static handle Create(string folder, string file)
+        => new(Path.Combine(folder, Path.GetFileNameWithoutExtension(file)));
 }
 
 /// Simple string converter for Yaml Parser.
 public sealed class HandleYamlConverter : IYamlTypeConverter
 {
-    public bool Accepts(Type type) => type == typeof(Handle);
+    public bool Accepts(Type type) => type == typeof(handle);
 
     public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
-        => new Handle(parser.Consume<Scalar>().Value);
+        => new handle(parser.Consume<Scalar>().Value);
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
     {
-        if (value is Handle handle)
+        if (value is handle handle)
             emitter.Emit(new Scalar(handle.Value));
     }
 }

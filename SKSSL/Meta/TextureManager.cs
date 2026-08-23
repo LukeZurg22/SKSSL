@@ -14,18 +14,18 @@ namespace SKSSL;
 
 public class TextureManager
 {
-    private readonly ConcurrentDictionary<Handle, TextureType> _handleToType = new();
+    private readonly ConcurrentDictionary<handle, TextureType> _handleToType = new();
 
     /// (Actively Used) Handle -> Material Map Index
-    private readonly ConcurrentDictionary<Handle, SerializedMaterial> _materialPaths = new();
+    private readonly ConcurrentDictionary<handle, SerializedMaterial> _materialPaths = new();
 
-    private readonly ConcurrentDictionary<Handle, FileInfo> _iconPaths = new();
+    private readonly ConcurrentDictionary<handle, FileInfo> _iconPaths = new();
 
     private readonly ConcurrentDictionary<FileInfo, TextureEntry> _activeTextures = new();
 
     #region Registration
 
-    public void RegisterIcon(Handle handle, FileInfo info)
+    public void RegisterIcon(handle handle, FileInfo info)
     {
         // When new textures are being loaded-in, then this will "refresh" them.
         if (_iconPaths.TryGetValue(handle, out FileInfo? oldInfo) && !oldInfo.Equals(info))
@@ -36,7 +36,7 @@ public class TextureManager
         _handleToType[handle] = TextureType.ICON;
     }
 
-    public void RegisterMaterial(Handle handle, TextureMap textureMap, FileInfo info)
+    public void RegisterMaterial(handle handle, TextureMap textureMap, FileInfo info)
     {
         if (_materialPaths.TryGetValue(handle, out SerializedMaterial? value))
         {
@@ -60,7 +60,7 @@ public class TextureManager
     /// <param name="mipMap"></param>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
-    public TextureLease GetIcon(Handle handle, bool mipMap = false)
+    public TextureLease GetIcon(handle handle, bool mipMap = false)
         => GetTexture(handle, TextureType.ICON, 0, mipMap);
 
     /// <summary>
@@ -70,7 +70,7 @@ public class TextureManager
     /// <param name="mipMap"></param>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
-    public TextureLease GetTexture(Handle handle, bool mipMap = false)
+    public TextureLease GetTexture(handle handle, bool mipMap = false)
     {
         TextureLease texture2D = GetTexture(handle, _handleToType[handle], TextureMap.DIFFUSE, mipMap);
         return texture2D;
@@ -86,10 +86,10 @@ public class TextureManager
     /// <returns></returns>
     /// <remarks>
     /// Assume by this point that mod overrides of game textures are complete.
-    /// Use <see cref="GetTexture(SKSSL.Serializing.Handle,bool)"/> instead.
+    /// Use <see cref="GetTexture(handle,bool)"/> instead.
     /// </remarks>
     /// <seealso cref="GetMaterial"/>
-    public TextureLease GetTexture(Handle handle, TextureType textureType, TextureMap textureMap, bool mipMapped)
+    public TextureLease GetTexture(handle handle, TextureType textureType, TextureMap textureMap, bool mipMapped)
     {
         FileInfo? file = RetrieveTextureFileInfo(handle, textureType, textureMap);
         if (file == null)
@@ -116,7 +116,7 @@ public class TextureManager
 
     }
 
-    private static bool TryGetFromContent(Handle handle, bool mipMapped, [NotNullWhen(true)] out TextureLease? lease)
+    private static bool TryGetFromContent(handle handle, bool mipMapped, [NotNullWhen(true)] out TextureLease? lease)
     {
         lease = null;
         foreach (ContentManager contentManager in SSLGame.Instance.ContentManagers)
@@ -162,7 +162,7 @@ public class TextureManager
     /// <param name="mipMapped">Make returned texture mip-mapped.</param>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
-    public TextureLease GetTexture(Handle handle, TextureMap map, bool mipMapped = false)
+    public TextureLease GetTexture(handle handle, TextureMap map, bool mipMapped = false)
         => GetTexture(handle, TextureType.MATERIAL, map, mipMapped);
 
     /// <summary>
@@ -171,7 +171,7 @@ public class TextureManager
     /// <param name="handle">Handle must be "proper" without folder extension.</param>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
-    public SKMaterial GetMaterial(Handle handle)
+    public SKMaterial GetMaterial(handle handle)
     {
         // Each texture map is cached individually in the active textures dictionary.
         return new SKMaterial
@@ -244,7 +244,7 @@ public class TextureManager
         return false;
     }
 
-    private FileInfo? RetrieveTextureFileInfo(Handle handle, TextureType textureType, TextureMap textureMap)
+    private FileInfo? RetrieveTextureFileInfo(handle handle, TextureType textureType, TextureMap textureMap)
     {
         FileInfo? textureInfo = null;
 
@@ -293,7 +293,7 @@ public class TextureManager
     /// the materials referencing them.
     /// </summary>
     // ReSharper disable once UnusedMember.Global
-    public bool ReleaseTexture(Handle handle, TextureMap map)
+    public bool ReleaseTexture(handle handle, TextureMap map)
     {
         TextureType type = _handleToType[handle];
         FileInfo? file = RetrieveTextureFileInfo(handle, type, map);
@@ -307,7 +307,7 @@ public class TextureManager
     /// <returns></returns>
     /// <remarks>Not recommended if segments of materials are used dispersed over a program.</remarks>
     // ReSharper disable once UnusedMember.Global
-    public bool Release(Handle handle)
+    public bool Release(handle handle)
     {
         TextureType type = _handleToType[handle];
         switch (type)

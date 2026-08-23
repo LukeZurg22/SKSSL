@@ -113,7 +113,7 @@ public class TextureLoader() : IGameLoader(".png", ".jpg")
 
     private static void RecordIcon(string folder, string file, TextureManager textureManager)
     {
-        textureManager.RegisterIcon(Handle.Create(folder, file), new FileInfo(file));
+        textureManager.RegisterIcon(handle.Create(folder, file), new FileInfo(file));
     }
 
     private static void RecordMaterial(string folder, string file, TextureManager textureManager)
@@ -129,7 +129,7 @@ public class TextureLoader() : IGameLoader(".png", ".jpg")
 
         // Unique material key (folderPrefix + baseName) -> allows overrides from mods.
         // This material key is the basic handle of a material; no texture typing applied.
-        var handle = new Handle(Path.Combine(folder, baseName));
+        var handle = new handle(Path.Combine(folder, baseName));
         textureManager.RegisterMaterial(handle, textureType, new FileInfo(file));
     }
 }

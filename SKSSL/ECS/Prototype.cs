@@ -57,7 +57,7 @@ public partial class Prototype : ICloneable<Prototype>
     /// Definition's Reference ID to later refer-to when making copies.
     /// Searchable, indexable ID. Virtual for possible nullability change in child classes.
     [YamlMember(Alias = "id", Order = 3), JsonInclude]
-    public Handle Handle { get; set; }
+    public handle Handle { get; set; }
 
     /// <summary>
     /// Internal categorization of this yaml entry. Split into parts:<br/>
