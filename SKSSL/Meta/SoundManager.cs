@@ -1,14 +1,16 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using FMOD;
 using FmodForFoxes;
-using Microsoft.Xna.Framework;
 using SKSSL.Serializing;
 using Channel = FmodForFoxes.Channel;
 using ChannelGroup = FmodForFoxes.ChannelGroup;
 using Sound = FmodForFoxes.Sound;
+using SoundGroup = FmodForFoxes.SoundGroup;
 
 namespace SKSSL;
 
@@ -23,13 +25,13 @@ namespace SKSSL;
 public class SoundManager
 {
     private static Channel FoxChannel = new();
-    private static ChannelGroup FoxChannelGroup = new ChannelGroup("");
+    private static ChannelGroup FoxChannelGroup = new("Default");
     private const double timerMilli = 0.005;
     private const float tolerance = 0.01f;
 
     private static SoundInstance? _currentSong = new();
-    private static readonly Dictionary<handle, List<SoundInstance>> _playingSounds = new();
-    private readonly Dictionary<handle, (FileInfo, string relative)> _handleToFile = new();
+    private static readonly Dictionary<Handle, List<SoundInstance>> _playingSounds = new();
+    private readonly Dictionary<Handle, FileInfo> _handleToFile = new();
 
     #region Registration
 
@@ -38,16 +40,15 @@ public class SoundManager
     /// </summary>
     /// <param name="handle"></param>
     /// <param name="info"></param>
-    /// <param name="build"></param>
-    public void RegisterSound(handle handle, FileInfo info, string build)
+    public void RegisterSound(Handle handle, FileInfo info)
     {
-        _handleToFile[handle] = (info, build);
+        _handleToFile[handle] = info;
     }
 
     #endregion
 
     public void PlaySound(
-        handle handle,
+        Handle handle,
         bool allowMultiple = true,
         bool loop = false,
         float volume = 1.0f,
@@ -61,12 +62,7 @@ public class SoundManager
         }
 
         // TODO: Implement caching.
-
-        var build = _handleToFile[handle].relative;
-        FileLoader.RootDirectory = build;
-        Stream? stream = TitleContainer.OpenStream(Path.Combine(FileLoader.RootDirectory, handle));
-        var buffer = FileLoader.LoadFileAsBuffer(stream);
-        Sound sound = CoreSystem.LoadStreamedSound(buffer);
+        var sound = ReadSoundFile(handle);
         sound.Play(FoxChannelGroup, true);
 
         // Set looping
@@ -83,8 +79,52 @@ public class SoundManager
         value1.Add(instance);
     }
 
+    /// <summary>
+    /// An almost complete dodge of Fox's handling for getting sound with relative paths.
+    /// </summary>
+    /// <returns></returns>
+    private Sound ReadSoundFile(string handle)
+    {
+        // Read file.
+        using FileStream file = File.OpenRead(_handleToFile[handle].FullName);
+
+        var buffer = FileLoader.LoadFileAsBuffer(file);
+        GCHandle bufferHandle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+
+        try
+        {
+            CREATESOUNDEXINFO exinfo = new()
+            {
+                cbsize = Marshal.SizeOf<CREATESOUNDEXINFO>(),
+                length = (uint)buffer.Length
+            };
+
+            IntPtr bufferPtr = bufferHandle.AddrOfPinnedObject();
+
+            RESULT result = CoreSystem.Native.createStream(
+                bufferPtr,
+                MODE.CREATESTREAM | MODE.OPENMEMORY,
+                ref exinfo,
+                out FMOD.Sound fmodSound);
+
+            if (result != RESULT.OK)
+                throw new Exception($"FMOD createStream failed: {result}");
+
+            var sound = new Sound(fmodSound, buffer, bufferHandle);
+            sound.SoundGroup = new SoundGroup("test");
+            sound.ChannelGroup = FoxChannelGroup;
+
+            return sound;
+        }
+        catch
+        {
+            bufferHandle.Free();
+            throw;
+        }
+    }
+
     public void PlaySong(
-        handle Handle,
+        Handle Handle,
         float volume = 1.0f,
         double startTimeDelay = 0.0,
         double fadeInTime = 0.0)
@@ -92,13 +132,13 @@ public class SoundManager
         _currentSong?.Channel.Stop();
 
         // TODO: Implement caching.
-        FileInfo info = _handleToFile[Handle].Item1;
+        FileInfo info = _handleToFile[Handle];
         Sound sound = CoreSystem.LoadStreamedSound(info.FullName);
         sound.Play(FoxChannelGroup, true);
         _currentSong = CreateSoundInstance(FoxChannel, volume, startTimeDelay, fadeInTime);
     }
 
-    public static void StopSound(handle Handle, double fadeOutTimeMilli = 0)
+    public static void StopSound(Handle Handle, double fadeOutTimeMilli = 0)
     {
         if (!_playingSounds.TryGetValue(Handle, value: out var sound))
             return;
@@ -130,7 +170,7 @@ public class SoundManager
 
     private static void UpdatePlayingSounds(double currentTimeMilli)
     {
-        foreach (handle Handle in _playingSounds.Keys.ToList())
+        foreach (Handle Handle in _playingSounds.Keys.ToList())
         {
             _playingSounds[Handle].RemoveAll(inst => HandleSoundInstance(inst, currentTimeMilli));
             if (_playingSounds[Handle].Count == 0)
