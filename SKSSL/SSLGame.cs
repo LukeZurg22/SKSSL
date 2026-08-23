@@ -15,7 +15,6 @@ using MonoGame.ImGuiNet;
 using MonoGameGum;
 using SKSSL.Console;
 using SKSSL.ECS;
-using SKSSL.ECS.Registry;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
 using SKSSL.Utilities;
@@ -266,7 +265,6 @@ public class SSLGame : Game
             return gumProjectSave;
         Gum = GumService.Default;
         gumProjectSave = Gum.Initialize(this, _gumFilePath);
-
         return gumProjectSave;
     }
 
@@ -277,7 +275,8 @@ public class SSLGame : Game
     /// </summary>
     /// <code>services.AddSingleton&lt;ExampleRegistry&gt;();</code>
     /// <remarks>
-    /// Add game services to an override method. Unless you replace the registr(y|ies) somehow, add a base call.
+    /// Add game services to an override method. Unless you replace the registr(y|ies) somehow,
+    /// you MUST add a base.LoadServices() call.
     /// </remarks>
     protected virtual void LoadServices()
     {
@@ -337,14 +336,16 @@ public class SSLGame : Game
             SystemManager.Initialize();
         }
 
-        FmodManager.Init(_nativeLibrary, FmodInitMode.Core, "Content");
+        //FmodManager.Init(_nativeLibrary, FmodInitMode.Core, "Content");
         Checksum = Checksum.Generate(this); // Now the game is mostly initialized, generate a checksum.
+        SoundManager.Enabled = true;
         base.Initialize(); // Continue
     }
 
     protected override void UnloadContent()
     {
-        FmodManager.Unload();
+        //FmodManager.Unload();
+        SoundManager.Enabled = false;
     }
 
     /// Quits the game.
@@ -373,5 +374,6 @@ public class SSLGame : Game
         if (Config.UseECS)
             SystemManager.Update(gameTime);
         Gum?.Update(gameTime); // Update Gum UI after game update.
+        SoundManager.Update(gameTime); // Update sound manager. Hope it's there and not gone!
     }
 }

@@ -1,6 +1,5 @@
 using System.IO;
-using FmodForFoxes;
-using SKSSL.Serializing;
+using System.Linq;
 
 namespace SKSSL;
 
@@ -28,20 +27,19 @@ public class SoundLoader() : IGameLoader(".wav", ".mp3", ".opus", ".ogg")
     {
         // Process all folders inside textures folder. This accommodates nested material folders for whatever reason.
         var folders = Directory.GetDirectories(directory, "*", SearchOption.AllDirectories);
+        // Add this directory as a valid folder to search for top-level sounds.
+        folders = folders.Append(directory).ToArray();
+
         SoundManager manager = SSLGame.SoundManager;
         foreach (string folder in folders)
         {
             var relativeFolderPath = Path.GetRelativePath(directory, folder);
-            
-            var build = Path.GetRelativePath(GameDirectory.BuildDirectory, folder); // This may not work?
-
             var files = GetFiles(folder, SearchOption.TopDirectoryOnly);
             foreach (var file in files)
             {
                 var fileInfo = new FileInfo(file);
-                var handle = Serializing.handle.Create(relativeFolderPath, file);
-                manager.RegisterSound(handle, fileInfo, build);
-                manager.PlaySound(handle); // TEMP: WARN: The thing expects a... relative path? Relative to -what-?
+                var handle = Serializing.Handle.Create(relativeFolderPath, file);
+                manager.RegisterSound(handle, fileInfo);
             }
         }
     }

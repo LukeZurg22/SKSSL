@@ -27,9 +27,9 @@
     <ItemGroup>
         <!--The Ones That Flow-->
         <PackageReference Include="FlatRedBall.GumCommon" Version="2026.5.31.1" PrivateAssets="none"/>
-        <PackageReference Include="FmodAudio" Version="2.2.5" />
+        <!--<PackageReference Include="FmodAudio" Version="2.2.5" />
         <PackageReference Include="FmodForFoxes" Version="3.2.0" />
-        <PackageReference Include="FmodForFoxes.Desktop" Version="3.2.0" />
+        <PackageReference Include="FmodForFoxes.Desktop" Version="3.2.0" />-->
         <PackageReference Include="Gum.MonoGame" Version="2026.5.31.1" PrivateAssets="none"/>
         <PackageReference Include="MemoryPack" Version="1.21.4" PrivateAssets="none"/>
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1" PrivateAssets="none"/>
@@ -53,20 +53,19 @@
         <PackageReference Include="Tomlyn" Version="2.4.1"/>
     </ItemGroup>
 
-    <ItemGroup>
+    <!--<ItemGroup>
         <None Include="libs\FMOD\win-x64\*.dll"
               CopyToOutputDirectory="PreserveNewest"
               CopyToPublishDirectory="Always"
               TargetPath="%(Filename)%(Extension)"/>
     </ItemGroup>
-    <!-- TODO: Make sure these copy so linux users don't suffer. -Z-->
-<!--    <ItemGroup>
-        <None Include="libs\FMOD\linux-x64\**.*"
+    <ItemGroup>
+        <None Include="libs\FMOD\linux-x64\*.so"
               CopyToOutputDirectory="PreserveNewest"
               CopyToPublishDirectory="Always"
               TargetPath="%(Filename)%(Extension)"/>
-    </ItemGroup>-->
-    
+    </ItemGroup>
+    -->
     <!--Exclude Testhost Stuff-->
     <ItemGroup>
         <Content Update="testhost.exe;testhost*.exe;testhost*.dll;testhost*.json"
