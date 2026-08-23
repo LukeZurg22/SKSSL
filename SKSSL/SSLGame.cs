@@ -367,7 +367,7 @@ public class SSLGame : Game
     /// <inheritdoc />
     protected override void Update(GameTime gameTime)
     {
-        FmodManager.Update();
+        //FmodManager.Update();
         GameplayTime = GameplayTime.AddSeconds(gameTime.ElapsedGameTime.TotalSeconds);
         MouseWrapper.HandleForcedPosition();
         base.Update(gameTime);
