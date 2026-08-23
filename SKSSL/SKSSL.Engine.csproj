@@ -196,6 +196,8 @@
       <EmbeddedResource Include="Assets\icon.png" />
       <None Remove="Assets\icon.svg" />
       <EmbeddedResource Include="Assets\icon.svg" />
+      <None Remove="Assets\logo_FMOD.png" />
+      <EmbeddedResource Include="Assets\logo_FMOD.png" />
     </ItemGroup>
 
     <!-- START - !== ADD THE FOLLOWING TO INHERITING PROJECTS USING SKSSL AS AN ENGINE !== -->
