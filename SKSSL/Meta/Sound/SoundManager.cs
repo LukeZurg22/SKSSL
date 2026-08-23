@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Media;
@@ -52,23 +53,67 @@ public class SoundManager : IUpdateable
     /// </summary>
     /// <param name="handle"></param>
     /// <param name="info"></param>
-    // TODO: Accompany this with some extra file info which should be paired with the sfx.
-    //  If not present, then assume it's alone by default?
-    public void RegisterSound(Handle handle, FileInfo info)
+    /// <param name="category">//TODO: Serialize Enum types somehow.</param>
+    /// <param name="variations">//TODO: Serialize variations</param>
+    public void RegisterSound(Handle handle,
+        FileInfo info,
+        Enum? category = null,
+        params (Handle Handle, FileInfo File)[] variations)
     {
         _handleToFile[handle] = info;
-    }
+        HandleCategory(handle, category);
+        EnCue(handle);
+        foreach ((Handle Handle, FileInfo File) variation in variations)
+        {
+            // Depending on how sounds are registered, variations may induce duplicates. Playing a sound that has an
+            // explicitly-defined hierarchy, especially more than once, may be messy.
+            RegisterSound(variation.Handle, variation.File, category);
+            EnCue(handle, variation.Handle);
+        }
 
-    /// <summary>
-    /// Assigns a sound as the Cue of another sound, such that it may be played if the parent is attempted to play.
-    /// </summary>
-    /// <param name="current"></param>
-    /// <param name="parent"></param>
-    // WARN: There's no way for the end-user to assign these sounds directly.
-    //  Some kind of file processing and dictating will be needed so the end-user can deal with this..
-    public void AssignSoundAsSubCue(Handle current, Handle parent)
-    {
-        _soundCues[parent].Add(current);
+        // Add all relevant sub-handles to handle. Sound Cue handle is still top-brass. Each has a pointer to a file.
+        // The file is assumed valid by now. Else, why was it read and put here with a handle?
+
+        return;
+
+        // TODO: This should probably also be in file information, but the end-user does  NOT programatically know of
+        //  any enums. The developer *does*, though, and can probably share the categories on their own. Then the
+        //  files can be serialized ENUM values similar to prototypes.
+        void HandleCategory(Handle innerHandle, Enum? categoryCarry)
+        {
+            if (categoryCarry == null)
+                return;
+            // Prevent a handle from being added more than once.
+            if (_soundCategories[categoryCarry].Contains(handle))
+            {
+                //Log(new Exception($"Attempted to add existing Sound handle \'{handle}\' is the \'{category.ToString()}\' " +
+                //                  $"sound categories list."));
+                return;
+            }
+
+            _soundCategories[categoryCarry].Add(innerHandle);
+        }
+
+        // Adds relational handling between parent and child handles.
+        void EnCue(Handle relevantHandle, Handle? parentHandle = null)
+        {
+            // If this is an existing handle with a cue, don't even bother.
+            if (_soundCues.ContainsKey(relevantHandle))
+            {
+                return;
+            }
+
+            // No parent, this IS the parent.
+            if (parentHandle == null)
+            {
+                _soundCues.Add(relevantHandle, new SoundCue(relevantHandle));
+            }
+            // Has a parent handle, and so must be assigned.
+            else
+            {
+                _soundCues[parentHandle.Value].Add(relevantHandle);
+            }
+        }
     }
 
     /// <summary>
@@ -76,20 +121,11 @@ public class SoundManager : IUpdateable
     /// </summary>
     /// <param name="handle"></param>
     /// <param name="category"></param>
-    // TODO: This should probably also be in file information, but the end-user does  NOT programatically know of
-    //  any enums. The developer *does*, though, and can probably share the categories on their own. Then the
-    //  files can be serialized ENUM values similar to prototypes.
     public void LabelSoundAsCategory(Handle handle, Enum category)
     {
         if (!_soundCategories.TryGetValue(category, out var instances))
             _soundCategories[category] = instances = [];
 
-        if (instances.Contains(handle))
-        {
-            Log(new Exception($"Attempted to add existing Sound handle \'{handle}\' is the \'{category.ToString()}\' " +
-                              $"sound categories list."));
-            return;
-        }
 
         instances.Add(handle);
     }
@@ -112,7 +148,6 @@ public class SoundManager : IUpdateable
             return;
 
         SoundEffect sound = LoadSound(handle);
-
         SoundEffectInstance instance = sound.CreateInstance();
         instance.IsLooped = loop;
         instance.Volume = fadeInTime > 0 ? 0f : volume;
@@ -197,16 +232,15 @@ public class SoundManager : IUpdateable
     /// <returns></returns>
     private SoundEffect LoadSound(Handle handle)
     {
-        if (!_soundCues.TryGetValue(handle, out SoundCue cue))
-        {
-            using FileStream stream = _handleToFile[handle].OpenRead();
-            SoundEffect? sound = SoundEffect.FromStream(stream);
-            cue = new SoundCue(sound);
-            _soundCues.Add(handle, cue);
-            return cue.Select();
-        }
+        // If Handle contains sub-sounds, then randomly select one and use that instead,
+        // which includes this handle. Otherwise, it assumes the handle alone is fine.
+        if (_soundCues.TryGetValue(handle, out SoundCue instances))
+            handle = instances.Select();
 
-        return cue.Select();
+        // All handles, even variants are stored in the Handle->File storage, so this will always work.
+        using FileStream stream = _handleToFile[handle].OpenRead();
+        SoundEffect? sound = SoundEffect.FromStream(stream);
+        return sound;
     }
 
     // TODO: add things like
@@ -221,23 +255,25 @@ public class SoundManager : IUpdateable
     {
         if (!Enabled)
             return;
-        //@formatter:off
         foreach (var instances in _instances.Values)
-        for (int i = instances.Count - 1; i >= 0; i--)
-        {
-            if (instances[i].State != SoundState.Stopped)
-                continue;
-            instances[i].Dispose();
-            instances.RemoveAt(i);
-        }
-        //@formatter:on
+            Clean(instances);
     }
 
+    /// <summary>
+    /// Clean all instances of a specific handle. Does not Stop existing instances.
+    /// </summary>
+    /// <param name="handle"></param>
     private void CleanupInstances(Handle handle)
     {
         if (!_instances.TryGetValue(handle, out var instances))
             return;
+        Clean(instances);
+        if (instances.Count == 0)
+            _instances.Remove(handle);
+    }
 
+    private static void Clean(List<SoundEffectInstance> instances)
+    {
         for (int i = instances.Count - 1; i >= 0; i--)
         {
             if (instances[i].State != SoundState.Stopped)
@@ -245,9 +281,6 @@ public class SoundManager : IUpdateable
             instances[i].Dispose();
             instances.RemoveAt(i);
         }
-
-        if (instances.Count == 0)
-            _instances.Remove(handle);
     }
 
     public bool Enabled { get; internal set; }
