@@ -56,13 +56,16 @@
     <ItemGroup>
         <None Include="libs\FMOD\win-x64\*.dll"
               CopyToOutputDirectory="PreserveNewest"
-              CopyToPublishDirectory="Always" />
+              CopyToPublishDirectory="Always"
+              TargetPath="%(Filename)%(Extension)"/>
     </ItemGroup>
-    <ItemGroup>
-        <None Include="libs\FMOD\linux-x64\*.dll"
+    <!-- TODO: Make sure these copy so linux users don't suffer. -Z-->
+<!--    <ItemGroup>
+        <None Include="libs\FMOD\linux-x64\**.*"
               CopyToOutputDirectory="PreserveNewest"
-              CopyToPublishDirectory="Always" />
-    </ItemGroup>
+              CopyToPublishDirectory="Always"
+              TargetPath="%(Filename)%(Extension)"/>
+    </ItemGroup>-->
     
     <!--Exclude Testhost Stuff-->
     <ItemGroup>
