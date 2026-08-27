@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Media;
+using SKSSL.Extensions;
 using SKSSL.Serializing;
 
-namespace SKSSL;
+namespace SKSSL.Sound;
 
 /// <summary>
 /// Using FMOD requires a display of the FMOD logo to stay legal.
@@ -33,11 +33,14 @@ public class SoundManager : IUpdateable
     /// For storing handles to functional sound files.
     /// </summary>
     private readonly Dictionary<Handle, FileInfo> _handleToFile = new();
+    
+    // WIP: Improve this.
+    private readonly Dictionary<Handle, SoundEffect> _soundEffectCache = new();
 
     /// <summary>
-    /// Categorize sounds by custom inserted enum types.
+    /// Categorize sounds by custom inserted enum types. Keyed by category names.
     /// </summary>
-    private readonly Dictionary<Enum, List<Handle>> _soundCategories = [];
+    private readonly Dictionary<string, List<Handle>> _soundCategories = [];
 
     private readonly Dictionary<Handle, SoundCue> _soundCues = [];
     private readonly Dictionary<Handle, List<SoundEffectInstance>> _instances = [];
@@ -51,83 +54,40 @@ public class SoundManager : IUpdateable
     /// <summary>
     /// Sounds have different root directories (aka, 
     /// </summary>
-    /// <param name="handle"></param>
-    /// <param name="info"></param>
-    /// <param name="category">//TODO: Serialize Enum types somehow.</param>
-    /// <param name="variations">//TODO: Serialize variations</param>
-    public void RegisterSound(Handle handle,
-        FileInfo info,
-        Enum? category = null,
-        params (Handle Handle, FileInfo File)[] variations)
+    /// <param name="handle">Relative path of a file; shortname for organization.</param>
+    /// <param name="info">File info to a sound's handle.</param>
+    /// <param name="parent">Used to handle Cue creation order.</param>
+    /// <param name="category">Allows interacting with multiple sounds in one category. Always lowercased.</param>
+    public void RegisterSound(Handle handle, FileInfo info, Handle? parent, string? category)
     {
+        // Put to the general registry. Assume handle is normalized.
         _handleToFile[handle] = info;
-        HandleCategory(handle, category);
-        EnCue(handle);
-        foreach ((Handle Handle, FileInfo File) variation in variations)
+
+        // Handle the categorization of this handle.
+        if (category != null)
         {
-            // Depending on how sounds are registered, variations may induce duplicates. Playing a sound that has an
-            // explicitly-defined hierarchy, especially more than once, may be messy.
-            RegisterSound(variation.Handle, variation.File, category);
-            EnCue(handle, variation.Handle);
+            // Set category to lower-case.
+            category = category.ToLowerInvariant();
+
+            // Ensure the category is present.
+            if (!_soundCategories.ContainsKey(category))
+                _soundCategories.Add(category, []);
+
+            // Prevent a handle from being added more than once.
+            if (!_soundCategories[category].Contains(handle))
+                _soundCategories[category].Add(handle);
         }
+        else _soundCategories[string.Empty].Add(handle); // Add the handle to a blank category anyway ig.
+
 
         // Add all relevant sub-handles to handle. Sound Cue handle is still top-brass. Each has a pointer to a file.
         // The file is assumed valid by now. Else, why was it read and put here with a handle?
 
-        return;
-
-        // TODO: This should probably also be in file information, but the end-user does  NOT programatically know of
-        //  any enums. The developer *does*, though, and can probably share the categories on their own. Then the
-        //  files can be serialized ENUM values similar to prototypes.
-        void HandleCategory(Handle innerHandle, Enum? categoryCarry)
-        {
-            if (categoryCarry == null)
-                return;
-            // Prevent a handle from being added more than once.
-            if (_soundCategories[categoryCarry].Contains(handle))
-            {
-                //Log(new Exception($"Attempted to add existing Sound handle \'{handle}\' is the \'{category.ToString()}\' " +
-                //                  $"sound categories list."));
-                return;
-            }
-
-            _soundCategories[categoryCarry].Add(innerHandle);
-        }
-
-        // Adds relational handling between parent and child handles.
-        void EnCue(Handle relevantHandle, Handle? parentHandle = null)
-        {
-            // If this is an existing handle with a cue, don't even bother.
-            if (_soundCues.ContainsKey(relevantHandle))
-            {
-                return;
-            }
-
-            // No parent, this IS the parent.
-            if (parentHandle == null)
-            {
-                _soundCues.Add(relevantHandle, new SoundCue(relevantHandle));
-            }
-            // Has a parent handle, and so must be assigned.
-            else
-            {
-                _soundCues[parentHandle.Value].Add(relevantHandle);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Allows one to categorize sounds to Stop-All, later.
-    /// </summary>
-    /// <param name="handle"></param>
-    /// <param name="category"></param>
-    public void LabelSoundAsCategory(Handle handle, Enum category)
-    {
-        if (!_soundCategories.TryGetValue(category, out var instances))
-            _soundCategories[category] = instances = [];
-
-
-        instances.Add(handle);
+        // Handle relational handling between parent and child handles with assurances that a cue is made.
+        if (parent != null && _soundCues.TryGetValue(parent.Value, out SoundCue cue))
+            cue.Add(handle); // Has a parent handle, and so must be assigned as a child entry.
+        else if (parent == null && !_soundCues.ContainsKey(handle))
+            _soundCues.Add(handle, new SoundCue(handle)); // No parent means this handle IS the parent.
     }
 
     #endregion
@@ -141,6 +101,7 @@ public class SoundManager : IUpdateable
         double startTimeDelay = 0.0,
         double fadeInTime = 0.0)
     {
+        handle = handle.AsNormalizedPath();
         CleanupInstances(handle);
 
         // Prevent duplicates.
@@ -165,6 +126,7 @@ public class SoundManager : IUpdateable
     /// <param name="handle"></param>
     public void Stop(Handle handle)
     {
+        handle = handle.AsNormalizedPath();
         foreach (SoundEffectInstance instance in _instances[handle])
             instance.Stop();
     }
@@ -172,10 +134,10 @@ public class SoundManager : IUpdateable
     /// <summary>
     /// Stop all sound.
     /// </summary>
-    public void StopAll(Enum? category = null)
+    public void StopAll(string category = "")
     {
         // If no category provided, assume stopping ALL sounds.
-        if (category == null)
+        if (string.IsNullOrEmpty(category))
         {
             foreach (var instanceKVP in _instances)
             {
@@ -209,6 +171,8 @@ public class SoundManager : IUpdateable
 
     public void PlayMusic(Handle handle, bool loop = true, float volume = 1f)
     {
+        handle = handle.AsNormalizedPath();
+
         // TODO: Ease out the current music if it's there, ease in the new music.
         //  May require an additional song.
         //  All songs loop, unless they don't.
@@ -228,10 +192,16 @@ public class SoundManager : IUpdateable
     /// <summary>
     /// Loads a sound effect from a handle, using a Cue's sounds at random if necessary.
     /// </summary>
-    /// <param name="handle"></param>
+    /// <param name="handle">
+    /// A (non)normalized handle. This is auto-normalized if not.
+    /// Default library-provided classes auto-normalize handles in registries that use handles for objects with
+    /// filepaths.
+    /// </param>
     /// <returns></returns>
     private SoundEffect LoadSound(Handle handle)
     {
+        handle = handle.Value.NormalizePath(); // Normalize the handle.
+
         // If Handle contains sub-sounds, then randomly select one and use that instead,
         // which includes this handle. Otherwise, it assumes the handle alone is fine.
         if (_soundCues.TryGetValue(handle, out SoundCue instances))
