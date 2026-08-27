@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using JetBrains.Annotations;
 
@@ -8,7 +9,7 @@ namespace SKSSL.ECS.Registry;
 /// <summary>
 /// Storing all prototype definitions.
 /// </summary>
-public abstract class MasterRegistryManager
+public static class MasterRegistryManager // TODO: Move this to Game Services?
 {
     /*
      * Here's The Pattern:
@@ -86,33 +87,79 @@ public abstract class MasterRegistryManager
     /// Automatically registers definitions as a "source:handle" arrangement.
     /// No additional checks are made here, as they are made up the call chain.
     /// </remarks>
-    public static bool TryRegisterPrototype(string typeName, Prototype prototype)
+    public static bool TryRegisterPrototype(Prototype prototype)
     {
-        if (!TypeDefinitions.TryGetValue(typeName, out Type? type))
-            return false;
-
-        switch (prototype.Replace)
+        string typeName = prototype.Type;
+        if (TypeDefinitions.TryGetValue(typeName, out Type? type))
         {
-            // For O(1) retrieval. Register handle with unique ref.
-            case null:
-                PrototypeHandleToType[prototype.GetFullHandle()] = type;
-                break;
-            // If replace is assigned, then attempt to replace the original prototype handle.
-            default:
-            {
-                var replaceHandle = prototype.GetFullHandle(prototype.Replace);
-                if (PrototypeHandleToType.ContainsKey(replaceHandle))
-                    PrototypeHandleToType[replaceHandle] = type;
-                else
-                    // If the original handle that is being attempted to be replaced doesn't exist... uh oh!
-                    Log($"{prototype.GetFullHandle()} attempted to replace {replaceHandle} which does not exist.",
-                        LOG.FILE_ERROR);
-                break;
-            }
+            return RegisterInto(type, prototype);
         }
 
-        // Because type is explicitly provided, assume it's 100% valid. 
-        Registries[type].Register(prototype.Handle, prototype);
+        Type? current = prototype.GetType();
+        while (current != null)
+        {
+            // Prefer an exact match on the short name if it exists
+            string candidateName = current.Name;
+            if (candidateName.EndsWith("Prototype", StringComparison.OrdinalIgnoreCase))
+                candidateName = candidateName[..^9];
+
+            if (TypeDefinitions.TryGetValue(candidateName, out type) ||
+                TypeDefinitions.TryGetValue(current.Name, out type) ||
+                Registries.ContainsKey(current))
+                return RegisterInto(type ?? current, prototype);
+
+            // Stop when we reach the root.
+            if (current == typeof(Prototype))
+                break;
+
+            current = current.BaseType;
+        }
+
+        if (current == null)
+            Log(new InvalidCastException($"\'{typeName}\' type provided for prototype \'{prototype.Handle}\', " +
+                                         $"which is not a valid type definition in the registry."), LOG.FILE_ERROR);
+        return true;
+    }
+
+    private static bool RegisterInto(Type type, Prototype prototype)
+    {
+        // Should never happen for Prototype, but you never know.
+        if (!Registries.TryGetValue(type, out Registry? registry))
+            return false;
+
+        string fullHandle = prototype.GetFullHandle(prototype.Replace);
+
+        // If the replace isn't filled-in, then assume there is no replacement and that the full handle is honorable.
+        // More often than not, the "replace" field will be empty. This short-circuit is good enough.
+        if (string.IsNullOrEmpty(prototype.Replace))
+        {
+            PrototypeHandleToType[fullHandle] = type;
+            registry.Register(fullHandle, prototype);
+            return true;
+        }
+
+        // From here, handle a prototype's overriding of an existing entry.
+        // This is where prototypes that are dedicated to overriding existing ones are handled.
+        // WARN: The replacement seems to override the original in a way that prevents its own replacement.
+        //  The original, the replacement, and the replacement's replacement need to be stored. Possibly a separate
+        //  list of entries that forcibly replace existing ones?
+        //  [X] - ORIGINAL: 
+        //  [X] - REPLACEMENT_A:ORIGINAL
+        //  [ ] - REPLACEMENT_B:REPLACEMENT_A <- Some sort of caching or storage needed for replacement_a having been there.
+
+        if (PrototypeHandleToType.ContainsKey(fullHandle))
+        {
+            PrototypeHandleToType[fullHandle] = type;
+        }
+        else
+        {
+            // If the original handle that is being attempted to be replaced doesn't exist... uh oh!
+            Log(new RegistryException($"{prototype.GetFullHandle()} attempted to replace invalid \'{fullHandle}\'."),
+                LOG.FILE_ERROR);
+        }
+
+        registry.Register(fullHandle, prototype);
+
         return true;
     }
 
@@ -186,7 +233,15 @@ public abstract class MasterRegistryManager
         return ecsRegistry.TryGet(handle, out prototype!);
     }
 
-    public static bool TryGetPrototype(string handle, out Prototype prototype)
+    /// <summary>
+    /// Output a prototype entry which is located in some registry.
+    /// </summary>
+    /// <param name="handle">The full &lt;source&gt;:&lt;handle&gt; of the prototype desired.</param>
+    /// <param name="prototype"></param>
+    /// <returns>True if a prototype was found, false if not.</returns>
+    /// <remarks>The handle is stored internally pointing to its type, used to get that type's registry.</remarks>
+    // TEMP: Having to enter the full handle each time feels wrong somehow. It isn't, but there must be a better way.
+    public static bool TryGetPrototype(string handle, [NotNullWhen(true)] out Prototype? prototype)
     {
         // Check that the handle has a corresponding type definition.
         prototype = default!;

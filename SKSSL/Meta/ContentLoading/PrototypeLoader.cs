@@ -5,22 +5,21 @@ using System.IO;
 using System.Linq;
 using SKSSL.ECS;
 using SKSSL.ECS.Registry;
+using SKSSL.Serializing;
 
 namespace SKSSL;
 
-public abstract class PrototypeLoader : IGameLoader
+//@formatter:off
+public class PrototypeLoader<TSerializer>(params string[] extensions) : IGameLoader(extensions) where TSerializer : class, ISerializer, new()
 {
+    //@formatter:on
+    private readonly TSerializer Serializer = new();
+
     /// Using prototype data collected from a Game Directory's provided Prototypes folder, ten load into registries.
     /// Load multiple files containing identical types in a directory.
     /// Generally expects all files in the directory to be the same type. Can be overwritten for custom logic.
     public override void Load(string directory)
     {
-        if (!SSLGame.Config.UseECS)
-        {
-            Log($"Cannot load prototypes from {directory} folder. ECS is not Enabled!", LOG.SYSTEM_WARNING);
-            return;
-        }
-
         // Get all yaml files.
         var files = GetFiles(directory);
 
@@ -43,13 +42,14 @@ public abstract class PrototypeLoader : IGameLoader
             {
                 // Forces only the support of defined types within the system. Since all types have a handle, and that
                 //  every prototype has an explicitly-referenced handle, that handle is used as a reference.
-                if (!MasterRegistryManager.TryRegisterPrototype(prototype.Type, prototype))
+                if (!MasterRegistryManager.TryRegisterPrototype(prototype))
                     Log($"Unsupported type {prototype.Type} found in {file}.", LOG.FILE_ERROR);
             }
         }
     }
 
     /// Serialize provided object and save to specific file path. Overrides existing file if present.
+    // ReSharper disable once UnusedMember.Global
     public void SerializeAndSave<T>(string path, T obj, bool @override = true) where T : class
     {
         var data = Serialize(obj);
@@ -71,8 +71,8 @@ public abstract class PrototypeLoader : IGameLoader
             return "";
 
         return IsCollection(obj) && obj is not string
-            ? SerializeLogicImplement(obj)
-            : SerializeLogicImplement(new List<T> { obj });
+            ? Serializer.Serialize(obj)
+            : Serializer.Serialize(new List<T> { obj });
 
         // Helper method - Clean way to detect collections
         bool IsCollection(object? ding) => ding switch
@@ -85,28 +85,12 @@ public abstract class PrototypeLoader : IGameLoader
         };
     }
 
-    /// <summary>
-    /// The developer-implemented interim layer that handles the [de]serialization logic.
-    /// </summary>
-    /// <param name="obj">Some object which may or may not be a list.</param>
-    /// <typeparam name="T">The type the object is supposed to represent, or be a list of represented.</typeparam>
-    /// <returns>A serialized string of the object.</returns>
-    protected abstract string SerializeLogicImplement<T>(T obj) where T : class;
-
     public List<Prototype> Deserialize(string text, string fileTrace = "", params Type[] types)
     {
         // Additional fallback. Typically for testing.
         if (types.Length == 0)
             types = MasterRegistryManager.RegisteredGameRegistryTypes.ToArray();
-        return DeserializeLogicImplement(text, fileTrace, types);
-    }
 
-    /// <summary>
-    /// User-Developer implementation for deserialization logic for game content.
-    /// </summary>
-    /// <param name="text">Text to deserialize.</param>
-    /// <param name="trace">Filepath passthrough for tracing.</param>
-    /// <param name="types">Explicit types for conversions. (Optional)</param>
-    /// <returns></returns>
-    protected abstract List<Prototype> DeserializeLogicImplement(string text, string trace = "", params Type[] types);
+        return Serializer.DeserializePrototypes(text, fileTrace, types);
+    }
 }

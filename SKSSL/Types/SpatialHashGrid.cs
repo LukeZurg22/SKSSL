@@ -84,23 +84,34 @@ public class SpatialHashGrid<T> where T : class
     /// If the cell contains a list of objects, it will remove the first entry of a cell's list (should it have one),
     /// or a provided object.
     /// </summary>
-    public void Remove(float x, float y, T? obj = null)
+    public void Remove(float x, float y, T? obj = null, bool clear = false)
     {
         (int, int) cell = GetCell(x, y);
         if (!TryGetValue(cell, out T? cellObject))
             return;
         if (cellObject is List<T> list)
         {
+            // Given that there is nothing in the cell's list... just delete it!
             if (list.Count == 0)
                 WipeCell(cell);
-            if (obj == null || !list.Remove(obj)) // If cant remove object, remove first entry!
-                list.RemoveAt(0);
+
+            if (obj != null && list.Remove(obj))
+                return; // Short-circuit, object removed.
+
+            switch (clear)
+            {
+                // If total wipe is enabled, then clear the list.
+                case true:
+                    list.Clear();
+                    break;
+                // If total wipe not enabled, simply remove first entry!
+                default:
+                    list.RemoveAt(0);
+                    break;
+            }
         }
         // If all else fails, delete the cell.
-        else
-        {
-            WipeCell(cell);
-        }
+        else WipeCell(cell);
     }
 
     /// <summary>
@@ -145,7 +156,8 @@ public class SpatialHashGrid<T> where T : class
         for (var y = 0; y < _cells.GetLength(1); y++)
         for (var x = 0; x < _cells.GetLength(0); x++)
         {
-            _cells[x, y] = null;
+            // Clean the cell, which may wipe it entirely, or empty it of its list's contents if it has one.
+            Remove(x, y, null, true);
         }
     }
 }

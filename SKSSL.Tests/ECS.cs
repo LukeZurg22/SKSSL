@@ -1,11 +1,12 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.ECS;
 using SKSSL.ECS.Registry;
+using SKSSL.Exceptions;
 using SKSSL.Extensions;
+using SKSSL.Serializing;
 using SKSSL.Tests.TestData;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 using static SKSSL.Tests.TestPrototypes;
@@ -16,7 +17,7 @@ using static SKSSL.Tests.TestPrototypes;
 namespace SKSSL.Tests;
 
 [TestClass, UsedImplicitly]
-[TestSubject(typeof(YamlLoader)), TestSubject(typeof(EntityManager))]
+[TestSubject(typeof(SerializerDefaultYaml)), TestSubject(typeof(EntityManager))]
 public class ECS
 {
     #region Test Entries
@@ -65,32 +66,33 @@ public class ECS
      * Setup is repeated per-tests.
      */
 
-    private readonly PrototypeLoader _prototypeLoader = new SKSSL.YamlLoader();
+    private readonly PrototypeLoader<SerializerDefaultYaml> _loader = new();
+    private readonly EntityRegistry _entityRegistry = MasterRegistryManager.GetRegistry<Entity, EntityRegistry>();
 
-    [TestMethod, UsedImplicitly, TestSubject(typeof(PrototypeLoader))]
+    [TestMethod, UsedImplicitly, TestSubject(typeof(PrototypeLoader<SerializerDefaultYaml>))]
     public void TEST_PROTOTYPE_LOADING()
     {
         List<Entity> entities = [];
 
         // entity A
-        var yml = _prototypeLoader.Deserialize(TestYamlOutputSingleEntry, "Test");
+        var yml = _loader.Deserialize(TestYamlOutputSingleEntry, "Test");
         HasCount(1, yml); // Test deserialize. Only one entry expected.
         IsNotEmpty(yml);
         yml.ForEach(prototype => entities.AddRange(prototype as Entity));
 
         // entities B & C
-        yml = _prototypeLoader.Deserialize(TestYamlMultiEntry, "Test");
+        yml = _loader.Deserialize(TestYamlMultiEntry, "Test");
         HasCount(2, yml);
         yml.ForEach(prototype => entities.AddRange(prototype as Entity));
 
         // Test serializing and de-serializing in one breath.
         entities.Clear();
         entities.Add(_testEntityInstance);
-        string output = _prototypeLoader.Serialize(entities);
+        string output = _loader.Serialize(entities);
         IsFalse(string.IsNullOrEmpty(output), nameof(output) + " != null");
 
         // Deserialize as a list of prototypes and assume the first entry is the entity put in.
-        var prototypes = _prototypeLoader.Deserialize(output, "Test");
+        var prototypes = _loader.Deserialize(output, "Test");
         var entry = prototypes[0] as Entity;
         /* // Expected values
          * - handle = "test-entity",
@@ -105,31 +107,25 @@ public class ECS
 
         // Test special inherited type.
         entities.Add(_testInheritedEntityInheritedInstance);
-        output = _prototypeLoader.Serialize(entities);
+        output = _loader.Serialize(entities);
         Contains(ExpectedTestString, output); // Ensure that an expected variable is contained.
     }
 
 
-    [TestMethod, UsedImplicitly, TestSubject(typeof(YamlLoader))]
+    [TestMethod, UsedImplicitly, TestSubject(typeof(SerializerDefaultYaml))]
     public void TEST_COMPONENT_CONVERSIONS()
     {
         var component = new TestFieldComponent { x = 7 };
-        try
-        {
-            // Testing component to yaml.
-            ComponentYaml componentYaml = component.ToYaml();
-            object first = componentYaml.Entries.Values.First();
-            AreEqual(7, (int)first);
 
-            // Testing the reverse after change..
-            component = componentYaml.FromYaml() as TestFieldComponent;
-            IsTrue(component != null, nameof(component) + " != null");
-            AreEqual(7, component.x);
-        }
-        catch (Exception e)
-        {
-            Fail(e.Message);
-        }
+        // Testing component to yaml.
+        ComponentYaml componentYaml = component.ToYaml();
+        object first = componentYaml.Entries.Values.First();
+        AreEqual(7, (int)first);
+
+        // Testing the reverse after change..
+        component = componentYaml.FromYaml() as TestFieldComponent;
+        IsTrue(component != null, nameof(component) + " != null");
+        AreEqual(7, component.x);
     }
 
     // TODO: The same but for JSON format.
@@ -146,23 +142,34 @@ public class ECS
 
     /// Register entity from single file, single entry.
     /// Register multiple types from one file.
-    /// Register one file, then test override.
+    /// Register one file, then test override. 
     [TestMethod]
     public void TEST_ENTITY_REGISTRY()
     {
-        List<Entity> entities = [];
-        const string TestEntHandle = "TestEntity";
+        const string TestEntHandleA = "TestEntityA";
+        const string TestEntHandleB = "TestEntityB";
+        // -> Default source is "game"
 
-        // Assert single register.
-        TestEntityInheritedType testEnt = new TestEntityInheritedType { Handle = TestEntHandle };
-        MasterRegistryManager.TryRegisterPrototype(testEnt.Type, testEnt);
-        IsTrue(MasterRegistryManager.TryGetPrototype(TestEntHandle, out _));
+        // Assert single registered. Also assumes that the type inheritance and derivation are handled appropriately.
+        var testEntA = new TestPrototypeSingle { Handle = TestEntHandleA };
+        MasterRegistryManager.TryRegisterPrototype(testEntA);
+        IsTrue(MasterRegistryManager.TryGetPrototype($"game:{TestEntHandleA}", out _));
 
         // Assert multiple.
+        var testEntB = new TestPrototypeBlank { Handle = TestEntHandleB };
+        MasterRegistryManager.TryRegisterPrototype(testEntB);
+        IsTrue(MasterRegistryManager.TryGetPrototype($"game:{TestEntHandleB}", out _));
 
         // Assert override as expected.
+        var testEntC = new TestPrototypeInherit { Handle = "override_me", FirstField = 0 };
+        MasterRegistryManager.TryRegisterPrototype(testEntC);
+        var @override = new TestPrototypeInherit
+            { Source = "other", Handle = "override_me", Replace = "game", FirstField = 99 };
+        IsTrue(MasterRegistryManager.TryRegisterPrototype(@override));
 
-        // Assert override w. bad override handle.
+        // Assert override w. bad override handle. // "override_me" exists in the registry, at the moment.
+        var testEntD = new TestPrototypeInherit { Replace = "other", Handle = "invalid_handle", FirstField = 0 };
+        Throws<RegistryException>(() => MasterRegistryManager.TryRegisterPrototype(testEntD));
     }
 
     [TestMethod]
@@ -193,29 +200,43 @@ public class ECS
         uids.Clear();
     }
 
+    private readonly EntityManager _entityManager = new();
+
     [TestMethod]
-    public void TEST_ENTITY_SPAWN()
+    public void TEST_ENTITIES_COMPONENTS()
     {
+        // ===TEST ENTITY SPAWNING===
+#pragma warning disable CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+        // Word of warning for this test: An instanced Entity Manager is decoupled, meaning that the ECS Entity context
+        //  won't be 100% reliable, and reflective methods that extend Entity functions like ComponentRegistry.Add()
+        //  will not work perfectly given the context. This is being corrected, and may be fixed already.
+
+        var entity = new TestEntityInheritedType { TestString = "Test Successful" };
+        _entityRegistry.Register("TestEntity", entity);
+
         // Assert test spawn.
+        var spawnedEntity = _entityManager.Spawn("TestEntity") as TestEntityInheritedType;
+        IsNotNull(spawnedEntity); // Entity should have spawned successfully.
+        AreEqual(spawnedEntity.TestString, entity.TestString);
+
+        spawnedEntity.TestString = "Test Also Successful";
 
         // Assert test clone of spawn.
-        // TODO:
-        //  Spawn entity.
-        //  Modify it.
-        //  Clone it.
-    }
+        // Note: It's assumed that the entity by this point was already cloned, but cloning from an existing one using
+        //  the internal function is what this intends to test. This cloning shouldn't be done anyway, but this is to
+        //  test the Cloning directly, the proper way.
+        var clone = _entityManager.Clone(spawnedEntity) as TestEntityInheritedType;
+        IsNotNull(clone); // Entity should have cloned successfully.
+        AreEqual(clone.TestString, spawnedEntity.TestString);
+#pragma warning restore CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
 
-    [TestMethod]
-    public void TEST_COMPONENT()
-    {
+        // TESTING COMPONENTS
         // Add component.
+        spawnedEntity.AddComponent(new TestBlankComponent());
+        // WIP: ADDING TEST CASES FOR COMPONENTS. I WENT ON A BINGE CLEANING UP THE ENTITY CONTEXT. WOOPS!
+
 
         // Remove component.
-    }
-
-    [TestMethod]
-    public void TEST_ENTITY_INHERITANCE()
-    {
     }
 
     [TestMethod]

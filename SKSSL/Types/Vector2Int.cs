@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework;
 namespace SKSSL.Types;
 
 /// <summary>
-/// A vector of three integer values: (<see cref="X"/>, <see cref="Y"/>)
+/// A vector of two integer values: (<see cref="X"/>, <see cref="Y"/>)
 /// </summary>
 public readonly struct Vector2Int : IEquatable<Vector2Int>
 {

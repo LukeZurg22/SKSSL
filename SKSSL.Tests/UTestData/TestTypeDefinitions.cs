@@ -47,8 +47,16 @@ public class TestPrototypeConstructorTwo : TestPrototypeConstructor
     }
 }
 
-public class TestEntityInheritedType : Entity
+public class TestEntityInheritedType : Entity, ICloneable<TestEntityInheritedType>
 {
-    [YamlMember]
-    public string TestString { get; set; }
+    [YamlMember] public string TestString { get; set; }
+
+    public override TestEntityInheritedType CopyFrom(Entity source)
+    {
+        base.CopyFrom(source);
+        if (source is TestEntityInheritedType type) TestString = type.TestString;
+        return this;
+    }
+
+    public override TestEntityInheritedType Clone() => new TestEntityInheritedType().CopyFrom(this);
 }

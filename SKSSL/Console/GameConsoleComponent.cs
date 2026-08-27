@@ -1,23 +1,27 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System.Linq;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Console;
 
-// WARN: DOES NOT WORK CORRECTMY AT THE MOMENT
 internal class GameConsoleComponent : DrawableGameComponent
 {
     public bool IsOpen => consoleRenderer.IsOpen;
     private readonly GameConsole console;
-    private readonly SpriteBatch? spriteBatch;
+    private readonly SpriteBatch spriteBatch;
     internal readonly InputProcessor inputProcesser;
     internal readonly ConsoleRenderer consoleRenderer;
 
-    public GameConsoleComponent(GameConsole console, Game? game, SpriteBatch? spriteBatch) : base(game)
+    /// Access the renderer using SSLGame instance and hope it's there.
+    public static ConsoleRenderer? GetRenderer()
+        => (SSLGame.Instance.Components.First(gameComponent => gameComponent is GameConsoleComponent)
+            as GameConsoleComponent)?.consoleRenderer;
+
+    public GameConsoleComponent(GameConsole console, Game? game, SpriteBatch spriteBatch) : base(game)
     {
         this.console = console;
         this.spriteBatch = spriteBatch;
-
-        inputProcesser = new InputProcessor(new CommandProcessor());
+        inputProcesser = new InputProcessor();
         inputProcesser.Open += (_, _) => consoleRenderer?.Open();
         inputProcesser.Close += (_, _) => consoleRenderer?.Close();
         consoleRenderer = new ConsoleRenderer(game, spriteBatch, inputProcesser);
@@ -26,13 +30,11 @@ internal class GameConsoleComponent : DrawableGameComponent
     public override void Draw(GameTime gameTime)
     {
         if (!console.Enabled)
-        {
             return;
-        }
 
-        spriteBatch?.Begin();
+        spriteBatch.Begin();
         consoleRenderer.Draw(gameTime);
-        spriteBatch?.End();
+        spriteBatch.End();
         base.Draw(gameTime);
     }
 

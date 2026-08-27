@@ -110,20 +110,12 @@ public class StatisticsList : UidList<Statistic>
         {
             ValidateModifierBeforeAdd(statisticUid, modifier);
         }
-#pragma warning disable CS0168 // Variable is declared but never used
         // ReSharper disable once RedundantCatchClause
         catch (Exception innerException)
         {
-#if DEBUG
-            /* Throw an exception. Realistically, adding modifiers should not crash the program and it would be a
-             travesty to crash the program in the midst of a runtime error.*/
-            throw;
-#else
             Log($"Failed to add modifier \'{modifierHandle}\': {innerException.Message}", LOG.SYSTEM_ERROR);
             return; // Don't even bother adding it or doing any treatment.
-#endif
         }
-#pragma warning restore CS0168 // Variable is declared but never used
 
         // Generate new uid for this modifier.
         PackableUid modifierUid = _modifiers.New();

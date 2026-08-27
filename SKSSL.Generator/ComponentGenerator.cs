@@ -39,22 +39,19 @@ public class ComponentGenerator : IIncrementalGenerator
         if (classes.IsDefaultOrEmpty) return;
 
         INamedTypeSymbol? ComponentSymbol
-            = compilation.GetTypeByMetadataName(ComponentBaseName) ??
-              FindInCompilation(compilation, ComponentBaseName);
+            = compilation.GetTypeByMetadataName(ComponentBaseName) ?? FindInCompilation(compilation, ComponentBaseName);
 
         if (ComponentSymbol == null) return;
 
         var components = new List<INamedTypeSymbol>();
 
-        foreach (RecordDeclarationSyntax? classDecl in classes)
+        foreach (INamedTypeSymbol? foundType in GetAllTypes(compilation))
         {
-            SemanticModel semanticModel = compilation.GetSemanticModel(classDecl.SyntaxTree);
-
-            if (semanticModel.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol typeSymbol || typeSymbol.IsAbstract)
+            if (foundType is null || foundType.IsAbstract)
                 continue;
 
-            if (IsDerivedFrom(typeSymbol, ComponentSymbol) && IsRelevantAssembly(typeSymbol.ContainingAssembly))
-                components.Add(typeSymbol);
+            if (IsDerivedFrom(foundType, ComponentSymbol) && IsRelevantAssembly(foundType.ContainingAssembly))
+                components.Add(foundType);
         }
 
         if (components.Count == 0) return;
@@ -114,6 +111,4 @@ public class ComponentGenerator : IIncrementalGenerator
         return sb;
         //@formatter:on
     }
-
-   
 }

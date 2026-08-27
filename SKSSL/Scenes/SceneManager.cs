@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics.CodeAnalysis;
 using Gum.DataTypes;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel;
@@ -32,42 +31,35 @@ public class SceneManager : DrawableGameComponent
     /// Allows developers to initialize world settings / data per-scene.
     /// <remarks>May need improvement later.</remarks>
     /// </summary>
-    protected internal World? CurrentWorld; // TEMP: How multiple worlds in a networked game will work- I don't know...
+    protected internal World CurrentWorld;
+
+    // TEMP: How multiple worlds in a networked game will work- I don't know...
+
 
     /// <remarks>
     /// In order to Spawn, Remove, or generally interact with entities in an ECS, a context is required. This context
     /// varies between scenes.
     /// </remarks>
     /// <returns>Scene Manager's Current World's Entity Context.</returns>
-    public EntityContext ECS(World? world = null)
+    public EntityContext ECS(World? currentWorld = null)
     {
-        string message;
-
         // If not using ECS, then why? Throw an error!
-        if (!SSLGame.Config.UseECS)
+        if (!SSLGame.UsesECS)
         {
-            message = "Failed to get Entity Context because ECS is not enabled.";
-            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
-            throw new SettingsException(message);
+            const string message = "Failed to get Entity Context because ECS is not enabled.";
+            Log(new SettingsException(message));
         }
 
         // If the scene manager has a world, then use that world instead of the provided one if this is null.
-        if (world == null && CurrentWorld is { } res)
-        {
-            world ??= res; // Reassign world.
-        }
+        if (currentWorld == null && CurrentWorld is { } persistentWorld)
+            currentWorld ??= persistentWorld; // Reassign world to persistent one.
 
-        // Final check to validate that the world (and its ECS) is functioning.
-        if (world?.EntityManager is null)
-        {
-            message = "Failed to get Entity Context from null world or null World ECS!";
-            Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
-            throw new Exception(message);
-        }
+        // There is no persistent world. Force there to be one. There Must be a world in this scene.
+        currentWorld ??= new World();
 
         // Return the latest & greatest entity context!
         // Do NOT instantiate a blank-constructor EntityContext here! It will cause an infinite loop of ECS() calls!
-        var entityContext = new EntityContext(world);
+        var entityContext = new EntityContext(currentWorld);
         return entityContext;
     }
 
@@ -124,7 +116,8 @@ public class SceneManager : DrawableGameComponent
         _currentScene = scene; // Switch to the new scene
 
         // Allow scenes to override current world.
-        if (_currentScene.GameWorld != null) CurrentWorld = _currentScene.GameWorld;
+        if (_currentScene.GameWorld != null)
+            CurrentWorld = _currentScene.GameWorld;
 
         // Initialize the Scene
         Log("...initializing scene...");

@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading;
-using JetBrains.Annotations;
 using Type = System.Type; // For reflection purposes.
 
 namespace SKSSL.ECS;
@@ -19,7 +19,7 @@ public class ComponentRegistry(EntityManager EntityManager)
 
     private static readonly Dictionary<Type, Func<Component>> _creators = new();
 
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     internal static Component FastCreate(Type type)
     {
         if (_creators.TryGetValue(type, out var creator))
@@ -81,7 +81,7 @@ public class ComponentRegistry(EntityManager EntityManager)
     
 
     /// Called by Source Generator.
-    [UsedImplicitly]
+    [JetBrains.Annotations.UsedImplicitly]
     public static void Clear()
     {
         _typeToId.Clear();
@@ -110,12 +110,12 @@ public class ComponentRegistry(EntityManager EntityManager)
     // ReSharper disable once UnusedMember.Global
     /// <param name="id">ID of Registered Component</param>
     /// <returns>Null or Type Definition based on provided ID.</returns>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static Type? GetType(int id) => _idToType.GetValueOrDefault(id);
 
     /// <param name="type">Type of Registered Component</param>
     /// <returns>ID of Component Type based on provided type.</returns>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static int GetId(Type type) => _typeToId.GetValueOrDefault(type);
 
     #region Get Methods
@@ -123,7 +123,7 @@ public class ComponentRegistry(EntityManager EntityManager)
     /// <summary>
     /// Used for extensions that attempt to retrieve a defined component from an entity.
     /// </summary>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     private bool TryGetComponentIndex(EntityUid entity, Type componentType, out int index)
     {
         if (!_typeToId.TryGetValue(componentType, out var typeId))
@@ -188,11 +188,11 @@ public class ComponentRegistry(EntityManager EntityManager)
     }
 
     /// <inheritdoc cref="GetComponentTypeId"/>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     private static int GetComponentTypeId<T>() => GetComponentTypeId(typeof(T));
 
     /// Safe-ish way to to obtain a registered type definition added here from Source Generator Registrar.
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static bool TryGetComponentType(string shortName, out Type type)
     {
         if (RegisteredHandleComponentTypesDictionary.TryGetValue(shortName, out Type? temp))
@@ -250,7 +250,7 @@ public class ComponentRegistry(EntityManager EntityManager)
     /// <returns>The component instance (boxed as ISKComponent), or null if not found (or throws based on preference).</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component or type is invalid.</exception>
     /// <seealso cref="TryGetComponent{T}"/>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public Component? GetComponent(EntityUid uid, Type componentType)
     {
         if (!typeof(Component).IsAssignableFrom(componentType))
@@ -273,7 +273,7 @@ public class ComponentRegistry(EntityManager EntityManager)
     /// <typeparam name="T">The component type (must implement ISKComponent).</typeparam>
     /// <returns>A reference to the component if found; otherwise throws.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the entity does not have the component.</exception>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public ref T GetComponent<T>(EntityUid uid) where T : Component
     {
         if (!TryGetComponentIndex(uid, typeof(T), out var index))
@@ -362,7 +362,7 @@ public class ComponentRegistry(EntityManager EntityManager)
     /// <param name="component">Component output for use.</param>
     /// <typeparam name="T">Expected Component Type within entity.</typeparam>
     /// <returns>False if a component wasn't found.</returns>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public bool TryGetComponent<T>(EntityUid uid, out T component) where T : Component
     {
         component = null!;
@@ -380,7 +380,7 @@ public class ComponentRegistry(EntityManager EntityManager)
     /// Attempts to retrieve a component using explicit type.
     /// </summary>
     /// <returns>true if component was found, output is not null. false if not found, output will be null.</returns>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public bool TryGetComponent(EntityUid uid, Type componentType, out Component component)
     {
         component = null!;
@@ -416,7 +416,7 @@ public class ComponentRegistry(EntityManager EntityManager)
     /// This is intended for debugging, serialization, inspection, or rare runtime needs.
     /// For performance, use <see cref="GetComponent{T}"/> instead.
     /// </remarks>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public IEnumerable<Component> GetAllComponents(EntityUid uid)
     {
         var indices = _entityUIDToComponentIndices[uid];

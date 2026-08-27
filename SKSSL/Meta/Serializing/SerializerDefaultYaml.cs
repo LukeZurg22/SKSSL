@@ -7,16 +7,20 @@ using System.Text;
 using System.Text.RegularExpressions;
 using SKSSL.ECS;
 using SKSSL.Utilities;
-using SKSSL.YAML;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using static YamlDotNet.Serialization.DefaultValuesHandling;
 
-namespace SKSSL;
+// ReSharper disable VirtualMemberNeverOverridden.Global
+// ReSharper disable MemberCanBeProtected.Global
+
+namespace SKSSL.Serializing;
 
 /// <summary>
 /// Load all entries in YAML files based on provided types in BULK. Caches data when
 /// loading specific folders dedicated to a set of YAML files that homogeneously share a data type.
+/// Override the [De]Serializer fields when the Loader itself is enough, but types with unique parsing
+/// exceptions must be inserted.
 /// <example><code>
 /// var types = new[] { typeof(YamlTypeA), typeof(YamlTypeB), typeof(YamlTypeC) };
 /// var allData = YamlLoader.LoadAllTypes(types, path); // Supports ".../**/*.yaml"
@@ -30,31 +34,50 @@ namespace SKSSL;
 /// // Files read once per type, cached afterward
 /// </code></example>
 /// </summary>
-public class YamlLoader : PrototypeLoader
+// ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
+public class SerializerDefaultYaml : ISerializer
 {
-    public override string[] Extensions => [".yml", ".yaml"];
+    // FROM THE SOL.KOM. PROJECT.
 
-    /// YAML Serializer.
-    private static readonly ISerializer SKSSLDefaultSerializer = new SerializerBuilder()
+    private static readonly YamlDotNet.Serialization.ISerializer DefaultSerializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .ConfigureDefaultValuesHandling(OmitNull | OmitDefaults | OmitEmptyCollections)
+        .WithTypeConverter(new LocIdYamlConverter())
+        .WithTypeConverter(new HandleYamlConverter())
+        .WithTypeConverter(new FileInfoYamlConverter(GameDirectory.RootDirectory))
+        .Build();
+
+    /// YAML Serializer.
+    public virtual YamlDotNet.Serialization.ISerializer Serializer => DefaultSerializer;
+
+    // ReSharper disable once RedundantNameQualifier
+    private static readonly YamlDotNet.Serialization.IDeserializer DefaultDeserializer = new DeserializerBuilder()
+        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .WithTypeConverter(new LocIdYamlConverter())
+        .WithTypeConverter(new HandleYamlConverter())
+        .WithTypeConverter(new FileInfoYamlConverter(GameDirectory.RootDirectory))
         .Build();
 
     /// YAML Deserializer.
-    private static readonly IDeserializer SKSSLDefaultDeserializer = new DeserializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .Build();
+    public virtual IDeserializer Deserializer => DefaultDeserializer;
 
     /// <summary>
     /// Serializes an object as either itself, or a list of its provided type.
     /// </summary>
     /// <returns>Serialized form of Object for YAML file save.</returns>
     /// <remarks>Forces object to list of itself for serialization.</remarks>
-    // WARN: I am worried this will not handle multiple types very well!
-    protected override string SerializeLogicImplement<T>(T obj) where T : class =>
-        SKSSLDefaultSerializer.Serialize(obj);
+    // ReSharper disable once UnusedMember.Global
+    public T Deserialize<T>(string input) => Deserializer.Deserialize<T>(input);
 
-    protected override List<Prototype> DeserializeLogicImplement(string text, string trace = "", params Type[] types)
+    /// <summary>
+    /// Serializes an object as either itself, or a list of its provided type.
+    /// </summary>
+    /// <returns>Serialized form of Object for YAML file save.</returns>
+    /// <remarks>Forces object to list of itself for serialization.</remarks>
+    // TEMP: I am worried this will not handle multiple types very well!
+    public string Serialize<T>(T obj) => Serializer.Serialize(obj);
+
+    public List<Prototype> DeserializePrototypes(string text, string trace = "", params Type[] types)
     {
         // Split up the text into lines.
         var lines = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
@@ -77,10 +100,10 @@ public class YamlLoader : PrototypeLoader
     #region Helpers
 
     /// Reads all lines in a string, and parses them into yaml-blocks.
-    private static List<IYamlBlock> ConvertLinesToYamlBlocks(string[] lines, Type[] expectedTypes, string? file = null)
+    private static List<YamlBlock> ConvertLinesToYamlBlocks(string[] lines, Type[] expectedTypes, string? file = null)
     {
         int blockStartLine = 0;
-        var entries = new List<IYamlBlock>();
+        var entries = new List<YamlBlock>();
         file ??= ""; // For reverse-tracing files.
 
         // Text contained in the block, separated into individual lines for parsing.
@@ -101,7 +124,7 @@ public class YamlLoader : PrototypeLoader
             {
                 if (linesRead > 0)
                 {
-                    var block = new IYamlBlock(
+                    var block = new YamlBlock(
                         previousType,
                         previousTag,
                         blockTextBuilder.ToString(),
@@ -127,7 +150,7 @@ public class YamlLoader : PrototypeLoader
         // If there are no more lines, but lines have been read, output the remainder as a Yaml Block.
         if (linesRead > 0)
         {
-            entries.Add(new IYamlBlock(previousType, previousTag, blockTextBuilder.ToString(), file, linesRead));
+            entries.Add(new YamlBlock(previousType, previousTag, blockTextBuilder.ToString(), file, linesRead));
         }
 
         return entries;
@@ -197,7 +220,7 @@ public class YamlLoader : PrototypeLoader
     }
 
     /// Deserialize a set of bytes per type, and fill the data into a dictionary for use elsewhere.
-    private static List<Prototype> DeserializeFillData(Dictionary<Type, StringBuilder> combined, string fileTrace)
+    private List<Prototype> DeserializeFillData(Dictionary<Type, StringBuilder> combined, string fileTrace)
     {
         // Assign proper types to a new dictionary to organize all the different flavors of files.
         // Because provided types are static, and that yaml blocks are later verified,
@@ -237,20 +260,20 @@ public class YamlLoader : PrototypeLoader
         // Helper method used to deserialize bytes as a list of an element type.
         // Requires the DeserializeListOf method to remain exactly as it is, as this converts a type parameter
         //  into a generic one.
-        static object? DeserializeAsListOfType(Type genericType, string text)
+        object? DeserializeAsListOfType(Type genericType, string text)
         {
             Type listType = typeof(List<>).MakeGenericType(genericType);
-            var result = SKSSLDefaultDeserializer.Deserialize(text, listType);
+            var result = Deserializer.Deserialize(text, listType);
             return result;
         }
     }
 
 
-    private static Dictionary<Type, StringBuilder> CombineYamlBlocks(List<IYamlBlock> yamlBlocks)
+    private static Dictionary<Type, StringBuilder> CombineYamlBlocks(List<YamlBlock> yamlBlocks)
     {
         var combined = new Dictionary<Type, StringBuilder>();
 
-        foreach (IYamlBlock block in yamlBlocks)
+        foreach (YamlBlock block in yamlBlocks)
         {
             if (block.Text.StartsWith('#')) continue;
             if (block.Type == null)

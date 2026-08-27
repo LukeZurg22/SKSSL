@@ -1,6 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.IO;
-using System.Reflection;
+using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 
@@ -18,8 +19,8 @@ public static partial class DustLogger
     private static readonly string _logFilePath;
 
     /// General toggle for output logging to file.
-    private const bool DefaultOutputBoolean = true;
-    
+    private const bool ToggleOutputBoolean = true;
+
     #region Log Types
 
     /// <summary>
@@ -135,42 +136,36 @@ public static partial class DustLogger
         _logFilePath = Path.Combine(GameDirectory.RootDirectory, "log.txt");
         StreamWriter writer = File.CreateText(_logFilePath);
         writer.Close(); // Wipe the old file.
-        
-        // TODO: implement back-logging for antiquated logs. Also include splits.
+
+        // TODO: implement storing antiquated logs up to a certain amount of times.
+        //  Also include different loging types split between different files..
+    }
+
+    /// <summary>
+    /// Log exception.
+    /// </summary>
+    /// <param name="e">Exception to log.</param>
+    /// <param name="log">Log type. Defaults to SYSTEM_ERROR as exceptions tend to be errors.</param>
+    /// <param name="outputToFile">Toggle output to file.</param>
+    /// <exception cref="Exception">Throws an exception if the debugger is on.</exception>
+    public static void Log(Exception e, LOG log = LOG.SYSTEM_ERROR, bool outputToFile = ToggleOutputBoolean)
+    {
+        // Force file output if it is an error.
+        if (log > LOG.SYSTEM_WARNING) outputToFile = true;
+#if DEBUG
+        // For developer debugging, force an exception-crash. Final output should be spotless.
+        if (log > LOG.SYSTEM_WARNING && Debugger.IsAttached)
+            throw e;
+#endif
+        InternalLog(e.Message, e, (byte)log, outputToFile);
     }
 
     // ReSharper disable once InvalidXmlDocComment
     /// <inheritdoc cref="Log(string,SKSSL.DustLogger.LOG,bool)"/>
     /// Overload using enum, which is cast to byte.
-    public static void Log(string message, LOG log, bool outputToFile = DefaultOutputBoolean) => Log(message, (byte)log, outputToFile);
+    public static void Log(string message, LOG log = LOG.INFO_PRINT, bool outputToFile = ToggleOutputBoolean)
+        => InternalLog(message, null, (byte)log, outputToFile);
 
-    public static void Panic<T>(string message) where T : Exception
-    {
-        // Log first.
-        Log(message, LOG.SYSTEM_ERROR, outputToFile: true);
-
-        // Use Activator to create exception with custom message when possible
-        Exception exception;
-
-        try
-        {
-            // Prefer constructors that accept a message
-            exception = (Exception)Activator.CreateInstance(typeof(T), message)!;
-        }
-        catch
-        {
-            // Fallback if the exception type doesn't have a (string) constructor
-            exception = Activator.CreateInstance<T>();
-        
-            // Try to set message via reflection as fallback
-            typeof(Exception)
-                .GetField("_message", BindingFlags.Instance | BindingFlags.NonPublic)
-                ?.SetValue(exception, message);
-        }
-
-        throw exception;
-    }
-    
     /// Write logging message to file. 
     private static void WriteToFile(LOG log, string message)
     {
@@ -179,39 +174,60 @@ public static partial class DustLogger
             using StreamWriter w = File.AppendText(_logFilePath);
             w.WriteLine($"[{log.ToString()}] {message}");
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            // ignored
+            // Log somewhere, but just not to a file.
+            Log(
+                new FileNotFoundException("Failed to serialize log to file!", e.InnerException),
+                LOG.FILE_ERROR, false
+            );
         }
     }
-    
+
     /// <summary>
     /// <seealso cref="LOG"/>
     /// </summary>
     /// <param name="message">The message that is being output to console.</param>
+    /// <param name="e">Hard exception for tracking and repair during release runtime.</param>
     /// <param name="level">Logging level and type. Defaults to 0 (INFO).</param>
-    /// <param name="outputToFile">Dictates if this message should be logged.</param> // TODO: File-logging is not implemented yet!
-    public static void Log(string message, int level = 0, bool outputToFile = DefaultOutputBoolean)
+    /// <param name="outputFile">Dictates if this message should be logged.</param>
+    /// <remarks>
+    /// Note that an exception, when it arrives here, will crash the executable if it was built in
+    /// debug mode. This change was made effective in 202608. A program published using SKSSL must be built perfectly!
+    /// </remarks>
+    [UsedImplicitly]
+    private static void InternalLog(string message, Exception? e, int level = 0, bool outputFile = ToggleOutputBoolean)
     {
-        var exception = new Exception(message) { Source = "SKSSL" };
+        // Write to debugger or console.
+        if (Debugger.IsAttached)
+        {
+            Debug.WriteLine(message);
+        }
+        else if (Environment.UserInteractive)
+        {
+            System.Console.WriteLine(message);
+        }
 
-        var e = (LOG)level; // cast to internal enum
-        if (outputToFile) WriteToFile(e, message);
+        var exType = (LOG)level; // cast to internal enum
+        if (outputFile)
+        {
+            WriteToFile(exType, message);
+        }
 
-        switch (e)
+        switch (exType)
         {
             // Errors
             case LOG.GENERAL_ERROR:
-                GENERAL_ERROR(logger, string.Empty, exception);
+                GENERAL_ERROR(logger, string.Empty, e);
                 break;
             case LOG.META_DATA_ERROR:
-                META_ERROR(logger, string.Empty, exception);
+                META_ERROR(logger, string.Empty, e);
                 break;
             case LOG.FILE_ERROR:
-                FILE_ERROR(logger, string.Empty, exception);
+                FILE_ERROR(logger, string.Empty, e);
                 break;
             case LOG.SYSTEM_ERROR:
-                SYSTEM_ERROR(logger, string.Empty, exception);
+                SYSTEM_ERROR(logger, string.Empty, e);
                 break;
             // Warnings
             case LOG.META_DATA_WARNING:

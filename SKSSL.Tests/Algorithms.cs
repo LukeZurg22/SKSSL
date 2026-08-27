@@ -4,6 +4,7 @@ using System.Data;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SKSSL.ECS;
+using SKSSL.Exceptions;
 using SKSSL.Mathematics;
 
 // ReSharper disable RedundantNameQualifier
@@ -130,8 +131,7 @@ public class Algorithms
         statisticsStorage.AddStatistic(thisEntityContainer, statistic.Handle);
 
         // Expecting a bad, recursive modifier.
-        Assert.Throws<RecursiveEvaluateException>(() =>
-            statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatistic?.Handle!));
+        statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatistic?.Handle!);
 
         _statisticRegistry.TryGet("recursive_statistic_b", out Statistic? recursiveStatisticB);
 
@@ -140,8 +140,7 @@ public class Algorithms
 
         // Statistic C is the real recursive test.
         _statisticRegistry.TryGet("recursive_statistic_c", out Statistic? recursiveStatisticC);
-        Assert.Throws<RecursiveEvaluateException>(() =>
-            statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatisticC?.Handle!));
+        statisticsStorage.AddStatistic(thisEntityContainer, recursiveStatisticC?.Handle!);
 
         // Huzzah for object instantiation.
         ShuntingYard = new ShuntingYard(statisticsStorage);

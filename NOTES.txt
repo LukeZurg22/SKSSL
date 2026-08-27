@@ -1,5 +1,51 @@
 Study this: https://github.com/alexmuab/unit-testing-csharp-example
 
+// Note to self: Dynamic prototype loading for Hot-Reloads? Not sure about that.
+
+TODO: (DOCUMENTATION)
++ Voronoi Image Generator
++ Shunting Yard
++ Prototypes (Auto-Registered)
+    +> Prototype Class Inheritance
++ Extendability of the YAML Loader
++ KeyLists
++ LocKeys
++ UidLists
++ Game Loaders and their new primary constructors. No overriding properties anymore.
++ Commands (Auto-Registered)
++ There may be an issue with the copy and paste-able CSPROJ.
+    +> The settings and load order files will cause a build error if they aren't there. Auto-gen?
+    +> There's a big difference between directly referencing the project, and importing it off of NuGet...
+        -right now the project assumes it's both, but still has .csproj config lines dedicated to a direct reference.
+    +> Also the source generator seems cucked.
+    +> Also Content loading issues?
+
+TODO: (PRACTICAL)
++ Proper Caching and Loading of game assets via handles.
+    +> NOT ALL IN MEMORY ALL AT ONCE!
++ Sound Loader and caching.
++ Source Generator kinda works, but doesn't work for SolKom. (The irony! It's palpable!)
++ Overridable settings files.
++ Model Loading
++ Font Loading
++ Templating the things needed to serialize to a SQLite database.
+
+TODO: (SOUND LOADER)
+    Short sounds wav
+    Opus requires a C library, but is great for music and for voice. .ogg is a good replacer.
+    Matroska (.mka) is a more modern container for Audio. Mkv is for video.
+    https://github.com/dmitrykolchev/OpusSharp
+    Use stream decoding for opus / ogg.
+    Assets are typically loaded into memory when they‘re first used and freed when the last handle is dropped.
+    “Core” assets that see constant use (like basic UI stuff) can be loses into memory.
+    Give it a path, it immediately returns a handle, it internally checks if it‘s already loaded and if not it will load the asset into memory.
+    SoA for assets: { Name, Handle, Data }
+    Void expects literally everything to be tapped into the ECS. Review Bevy Asset systems.
+
+TODO: (COMMANDS)
+    Dynamize commands and their parameters to include auto-correct... somehow. 
+    Add Umlaut Support. Frankly the localization handler should offer some use to this.
+
 WARN: Content loaders may index things differently. They index by file name iirc.
     Directory means nothing to Monogame! I'll need to double check, but this could
     become a problem for games that are trying to override "base" / "private" game
@@ -8,17 +54,33 @@ WARN: Content loaders may index things differently. They index by file name iirc
 Add Wave Function Collapse: 
 https://github.com/mxgmn/WaveFunctionCollapse
 
-Make Commands generated & inserted by Source Generator.
 Use SourceGenerator for adding additional Content Folders?
 Ensure SourceGen is working in LiveTest.
 
 Make a new UML diagram, with black jack and hookers.
 
+Add Power-of support to Shunting Yard Algorithm.
+Add sine-cosine-tangent support to shunting yard algorithm.
+Fix shunting yard algorithm call for modifiers starting with unary minus.
+Ensure that [de]serialization works for modifiers, now.
+Look over the steps and ensure that modifiers are handled appropriately, and can be ignored completely.
+
+// TODO: Test the fact that i am making the Type field in Prototypes ignorable; the implementor / dev should not need
+//  to constantly re-override them if they enjoy the class name.
+// Finish modifiers and the statistic registry and StatisticList
+// Figure out how to fully implement "IsDirty" handling for components and entities.
+
+// WIP:
+//          Recursive statistic calls is a danger to us all! Some kind of precaution is needed.
+//              Circular check? Simply store ID and pass-down. If the ID is ever called again, then it's circular.
+//  Add the ability to recalculate / re-parse statistics.
+
+
 dotnet build -c Release --no-incremental
 dotnet pack -c Release
 
 Add Hot Reload for:
-    - Textures (HELP ME, PLEASE)
+    - Textures (DIFFICULT)
     - Prototypes (MEDIUM)
     - Localization (EASY)
 
@@ -27,13 +89,7 @@ Tap Github Releases into Nuget
 
 ------------------------------------------------------------------------------------------------------------------
 
-Microsoft.Logging.Console (fixed?)
 ImGUI.Net (fixed?)
-
-IT DEMANDS GUM
--> Gum FOLDER and FILE (+ extension) currently must be specified in constructor.
---> Resolve by auto-assume folder named "Gum"
---> Set GUM as optional insert, call w. checks.
 
 MAKE SCENES NOT FED BY GENERIC TYPES
 (or make it optional)
@@ -44,25 +100,9 @@ Scene Changer might be invalidated due to Gum..etc...Children not existing.
 
 FlatRedBall needs transfer-over.
 
-Clearing Gum Screens from
-SceneManager.SwitchScene(new SceneMainMenu()); -> CRASHES
-
 Simplify BaseWorld
-
-Components are still loaded via reflection, not source generation.
-
-Prototype defined type may be constrictor
-
-Prototype fails to deserialize at "DeserializeBytesAsListOfType"
-
 Load all Prototype Definitions via Source Gen, then read game content and automatically feed Type values.
-
-Add a wrapper for Entities to their IDs, EntityID.
-
 Events expect an integer, not an EntityID passthrough.
-
 Make GetEntity give a warning that its output needs to be used.
-
 SKSSL entities have a non-readonly runtime ID.
-
 SKSSL can have array of structs for storing entities in EntityManager

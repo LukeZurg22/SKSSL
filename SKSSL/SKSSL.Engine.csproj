@@ -27,6 +27,10 @@
     <ItemGroup>
         <!--The Ones That Flow-->
         <PackageReference Include="FlatRedBall.GumCommon" Version="2026.5.31.1" PrivateAssets="none"/>
+        <!--    ==Disabled FMOD for now until I can figure out how to actually use it. Foxes seemed dysfunctional.-->
+        <!--<PackageReference Include="FmodAudio" Version="2.2.5" />
+        <PackageReference Include="FmodForFoxes" Version="3.2.0" />
+        <PackageReference Include="FmodForFoxes.Desktop" Version="3.2.0" />-->
         <PackageReference Include="Gum.MonoGame" Version="2026.5.31.1" PrivateAssets="none"/>
         <PackageReference Include="MemoryPack" Version="1.21.4" PrivateAssets="none"/>
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1" PrivateAssets="none"/>
@@ -38,7 +42,7 @@
         <PackageReference Include="Fluent.Net" Version="1.0.63" PrivateAssets="none"/>
         <PackageReference Include="ImGui.NET" Version="1.91.6.1" PrivateAssets="none"/>
         <PackageReference Include="ImGUI.NET.ToolBox" Version="0.1.1" PrivateAssets="none"/>
-        <PackageReference Include="YamlDotNet" Version="18.0.0"/>
+        <PackageReference Include="YamlDotNet" Version="18.0.0" PrivateAssets="none"/>
 
         <!--Private Ones-->
         <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" PrivateAssets="All"/>
@@ -50,6 +54,19 @@
         <PackageReference Include="Tomlyn" Version="2.4.1"/>
     </ItemGroup>
 
+    <!--<ItemGroup>
+        <None Include="libs\FMOD\win-x64\*.dll"
+              CopyToOutputDirectory="PreserveNewest"
+              CopyToPublishDirectory="Always"
+              TargetPath="%(Filename)%(Extension)"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="libs\FMOD\linux-x64\*.so"
+              CopyToOutputDirectory="PreserveNewest"
+              CopyToPublishDirectory="Always"
+              TargetPath="%(Filename)%(Extension)"/>
+    </ItemGroup>
+    -->
     <!--Exclude Testhost Stuff-->
     <ItemGroup>
         <Content Update="testhost.exe;testhost*.exe;testhost*.dll;testhost*.json"
@@ -74,17 +91,12 @@
     </ItemGroup>
 
     <ItemGroup> <!--Reference to Source Generator(s)-->
-        <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj"
-                          OutputItemType="Analyzer"
-                          ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\SKSSL.Generator\SKSSL.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
     </ItemGroup>
 
     <ItemGroup>
         <!-- Explicitly pack the generator DLL (adjust path if needed) -->
-        <None Include="..\SKSSL.Generator\bin\$(Configuration)\netstandard2.0\SKSSL.Generator.dll"
-              Pack="true"
-              PackagePath="analyzers/dotnet/cs"
-              Visible="true"/>
+        <None Include="..\SKSSL.Generator\bin\$(Configuration)\netstandard2.0\SKSSL.Generator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="true"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -128,57 +140,68 @@
         <Compile Update="GameContentLoader\IYamlBlock.cs">
             <DependentUpon>YamlLoader.cs</DependentUpon>
         </Compile>
-        <Compile Update="Meta\ContentLoading\TextureLoader.HardcodedTextures.cs">
+        <Compile Update="Meta\ContentLoading\XNAContent.cs">
             <DependentUpon>TextureLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\TextureLoader.IconRegistry.cs">
-            <DependentUpon>TextureLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\TextureLoader.MaterialRegistry.cs">
-            <DependentUpon>TextureLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\TextureLoader.XNAContent.cs">
-            <DependentUpon>TextureLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\YamlLoader.cs">
-            <DependentUpon>PrototypeLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\ConsQJsonLoader.cs">
-            <DependentUpon>PrototypeLoader.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Meta\ContentLoading\IYamlBlock.cs">
-            <DependentUpon>YamlLoader.cs</DependentUpon>
         </Compile>
         <Compile Update="Meta\LoadPath.cs">
             <DependentUpon>GameSettings.cs</DependentUpon>
         </Compile>
         <Compile Update="ECS\Data\ModifierOperator.cs">
-          <DependentUpon>Modifier.cs</DependentUpon>
+            <DependentUpon>Modifier.cs</DependentUpon>
         </Compile>
         <Compile Update="ECS\Data\ModifierStep.cs">
-          <DependentUpon>Modifier.cs</DependentUpon>
+            <DependentUpon>Modifier.cs</DependentUpon>
         </Compile>
         <Compile Update="ECS\Component\MeshComponent.cs">
-          <DependentUpon>Component.cs</DependentUpon>
+            <DependentUpon>Component.cs</DependentUpon>
         </Compile>
         <Compile Update="ECS\Component\SpriteComponents.cs">
-          <DependentUpon>Component.cs</DependentUpon>
+            <DependentUpon>Component.cs</DependentUpon>
         </Compile>
         <Compile Update="ECS\Component\Transform2DComponent.cs">
-          <DependentUpon>Component.cs</DependentUpon>
+            <DependentUpon>Component.cs</DependentUpon>
         </Compile>
         <Compile Update="ECS\Component\Transform3DComponent.cs">
-          <DependentUpon>Component.cs</DependentUpon>
+            <DependentUpon>Component.cs</DependentUpon>
         </Compile>
         <Compile Update="ECS\Component\AnimatedSpriteComponent.cs">
-          <DependentUpon>Component.cs</DependentUpon>
+            <DependentUpon>Component.cs</DependentUpon>
         </Compile>
         <Compile Update="ECS\Component\StatisticsComponent.cs">
-          <DependentUpon>Component.cs</DependentUpon>
+            <DependentUpon>Component.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Entity\IDrawSystem.cs">
+            <DependentUpon>EntitySystem.cs</DependentUpon>
+        </Compile>
+        <Compile Update="ECS\Entity\IUpdateSystem.cs">
+            <DependentUpon>EntitySystem.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Meta\Serializing\YamlBlock.cs">
+            <DependentUpon>SerializerDefaultYaml.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Meta\TextureLease.cs">
+            <DependentUpon>TextureManager.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Meta\TextureMap.cs">
+            <DependentUpon>TextureManager.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Meta\TextureType.cs">
+            <DependentUpon>TextureManager.cs</DependentUpon>
         </Compile>
     </ItemGroup>
 
+    <ItemGroup>
+        <EmbeddedResource Include="Assets\ConsoleFont.xnb"/>
+        <None Remove="Assets\icon.png"/>
+        <EmbeddedResource Include="Assets\icon.png"/>
+        <None Remove="Assets\icon.svg"/>
+        <EmbeddedResource Include="Assets\icon.svg"/>
+        <None Remove="Assets\logo_FMOD.png"/>
+        <EmbeddedResource Include="Assets\logo_FMOD.png"/>
+    </ItemGroup>
+
     <!-- START - !== ADD THE FOLLOWING TO INHERITING PROJECTS USING SKSSL AS AN ENGINE !== -->
+
     <!--<PropertyGroup>
         <OutputPath>build\binaries\</OutputPath> &lt;!&ndash;Executable Is Here, SKSSL Accomodates 1 Level Above&ndash;&gt;
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -211,10 +234,18 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
         </Content>
+    </ItemGroup>-->
+
+    <!--INCLUDE THESE IN YOUR .CSPROJ IF YOU WANT TO HAVE DEFAULTS-->
+    <!--<ItemGroup>
         <Content Include="settings.yaml"> 
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-            <Link>..\settings.yaml</Link>
-        </Content>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <Link>..\settings.yaml</Link>
+    </Content>
+    <Content Include="load_order.yaml"> 
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <Link>..\load_order.yaml</Link>
+    </Content>
     </ItemGroup>-->
     <!--END - Enabled Compiler-Generated Code!-->
 
