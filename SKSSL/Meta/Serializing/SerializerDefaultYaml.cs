@@ -67,7 +67,7 @@ public class SerializerDefaultYaml : ISerializer
     /// <returns>Serialized form of Object for YAML file save.</returns>
     /// <remarks>Forces object to list of itself for serialization.</remarks>
     // ReSharper disable once UnusedMember.Global
-    public T Deserialize<T>(string serialized) => Deserializer.Deserialize<T>(serialized);
+    public T Deserialize<T>(string input) => Deserializer.Deserialize<T>(input);
 
     /// <summary>
     /// Serializes an object as either itself, or a list of its provided type.
