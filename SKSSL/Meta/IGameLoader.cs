@@ -18,7 +18,7 @@ public abstract class IGameLoader(params string[] Extensions)
 {
     public abstract void Load(string directory);
 
-    protected static IEnumerable<string> GetFiles(string directory, SearchOption option, params string[] extensions)
+    protected static IEnumerable<string> GetFiles(string directory, SearchOption option, string[] extensions)
         => Directory
             .EnumerateFiles(directory, "*", option)
             .Where(file => extensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase));
