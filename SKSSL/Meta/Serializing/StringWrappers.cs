@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using SKSSL.Extensions;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -55,7 +56,15 @@ public sealed class LocIdYamlConverter : IYamlTypeConverter
 public readonly struct Handle : IEquatable<Handle>
 {
     public readonly string Value;
+
+    /// <summary>
+    /// Handle constructor to create a handle with an explicit, NON-NORMALIZED value.
+    /// </summary>
+    /// <param name="value">Whatever string you wish to be a handle.</param>
+    /// <seealso cref="CreateFromProvidedPath"/>
+    /// <seealso cref="CreateFromRelativeRoot"/>
     public Handle(string value) => Value = value;
+
     public string Unwrap() => ToString().TrimEnd('\r', '\n').Trim();
     public override string ToString() => Value;
     public bool Equals(Handle other) => Value.Equals(other.Value);
@@ -72,8 +81,25 @@ public readonly struct Handle : IEquatable<Handle>
     // ReSharper disable once UnusedMember.Global
     public bool IsNullOrWhiteSpace() => string.IsNullOrWhiteSpace(Value);
 
-    public static Handle Create(string folder, string file)
-        => new(Path.Combine(folder, Path.GetFileNameWithoutExtension(file)));
+    public Handle AsNormalizedPath() => new(Value.NormalizePath());
+    
+    /// <summary>
+    /// Creates a normalized handle using a file and its relative folder.
+    /// </summary>
+    /// <param name="prePath">Provided already-relativized path.</param>
+    /// <param name="file">File this handle represents, whose extension is removed.</param>
+    /// <returns></returns>
+    public static Handle CreateFromProvidedPath(string prePath, string file)
+        => new(Path.Combine(prePath, Path.GetFileNameWithoutExtension(file)).NormalizePath());
+
+    /// <summary>
+    /// Creates a normalized handle using a root directory path and a file path under it.
+    /// </summary>
+    /// <param name="root">Root directory to get relative path.</param>
+    /// <param name="file">File this handle represents, whose extension is removed.</param>
+    /// <returns></returns>
+    public static Handle CreateFromRelativeRoot(string root, string file)
+        => new(Path.ChangeExtension(Path.GetRelativePath(root, file), null).NormalizePath());
 }
 
 /// Simple string converter for Yaml Parser.
