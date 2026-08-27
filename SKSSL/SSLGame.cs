@@ -4,8 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
-using FmodAudio.Base;
-using FmodForFoxes;
 using Gum.DataTypes;
 using Gum.Wireframe;
 using Microsoft.Xna.Framework;
@@ -17,6 +15,7 @@ using SKSSL.Console;
 using SKSSL.ECS;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
+using SKSSL.Sound;
 using SKSSL.Utilities;
 
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
@@ -94,8 +93,6 @@ public class SSLGame : Game
     // ReSharper disable once UnusedAutoPropertyAccessor.Global
     public Checksum Checksum { get; private set; }
 
-    private readonly INativeFmodLibrary _nativeLibrary;
-
     #endregion
 
     /// Base constructor runs first.
@@ -119,7 +116,6 @@ public class SSLGame : Game
         Window.ClientSizeChanged += HandleClientSizeChanged; // TEMP: Something tells me this doesn't work...!
         // ReSharper disable once VirtualMemberCallInConstructor
         Config = BuildEngineConfig(); // This virtual call is desired, as the override acting first is intended.
-        _nativeLibrary = new DesktopNativeFmodLibrary();
 
         #region Settings
 
