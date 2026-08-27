@@ -27,14 +27,16 @@ public class SoundManager : IUpdateable
     //private static readonly Dictionary<Handle, List<SoundInstance>> _playingSounds = new();
     private SoundEffectInstance? _currentMusic;
 
+    // WIP: Find out how to handle music. Are music really SFX??
+    //  Maybe add a toggle in the meta data exclusively for music, so giant tracks aren't cached for playback.
     private Handle? _currentMusicHandle;
 
     /// <summary>
     /// For storing handles to functional sound files.
     /// </summary>
     private readonly Dictionary<Handle, FileInfo> _handleToFile = new();
-    
-    // WIP: Improve this.
+
+    // WIP: Improve this. Sound effects need caching for faster playback. Sound effect instances don't cache well.
     private readonly Dictionary<Handle, SoundEffect> _soundEffectCache = new();
 
     /// <summary>
@@ -79,10 +81,8 @@ public class SoundManager : IUpdateable
         }
         else _soundCategories[string.Empty].Add(handle); // Add the handle to a blank category anyway ig.
 
-
         // Add all relevant sub-handles to handle. Sound Cue handle is still top-brass. Each has a pointer to a file.
         // The file is assumed valid by now. Else, why was it read and put here with a handle?
-
         // Handle relational handling between parent and child handles with assurances that a cue is made.
         if (parent != null && _soundCues.TryGetValue(parent.Value, out SoundCue cue))
             cue.Add(handle); // Has a parent handle, and so must be assigned as a child entry.
@@ -132,7 +132,7 @@ public class SoundManager : IUpdateable
     }
 
     /// <summary>
-    /// Stop all sound.
+    /// Stop all sound. Add exclusivity to all under a certain provided category, if desired.
     /// </summary>
     public void StopAll(string category = "")
     {
@@ -140,21 +140,28 @@ public class SoundManager : IUpdateable
         if (string.IsNullOrEmpty(category))
         {
             foreach (var instanceKVP in _instances)
-            {
-                StopAll(instanceKVP.Value);
-                CleanupInstances(instanceKVP.Key);
-            }
-
+                StopInstances(instanceKVP.Key, instanceKVP.Value);
             return;
         }
 
-        // If category provided, stop all sounds within that category. Easy-peasy.
-        foreach (Handle sound in _soundCategories[category])
+        // Check to make sure the category is actually present. If not there is not much one can do besides
+        //  scream and run away.
+        if (!_soundCategories.TryGetValue(category, out var handles))
         {
-            if (!_instances.TryGetValue(sound, out var instanceList))
+            Log(new Exception($"Unknown category in {nameof(StopAll)}: {category}"));
+            return;
+        }
+
+        // Stop all sounds within that category. Easy-peasy.
+        foreach (Handle sound in handles)
+        {
+            // All instances belonging to the handle.
+            if (!_instances.TryGetValue(sound, out var instances))
                 continue;
-            StopAll(instanceList);
-            CleanupInstances(sound);
+
+            // Stop it all. Kill the lights. Shoot the messenger and throw out the pies due to one of them
+            //  being poisoned. Also clean instances, I guess!
+            StopInstances(sound, instances);
         }
 
         MediaPlayer.Stop();
@@ -163,10 +170,12 @@ public class SoundManager : IUpdateable
     /// <summary>
     /// Stop all active instances in a list.
     /// </summary>
+    /// <param name="sound">Handle to stop.</param>
     /// <param name="instances"></param>
-    private static void StopAll(List<SoundEffectInstance> instances)
+    private void StopInstances(Handle sound, List<SoundEffectInstance> instances)
     {
         foreach (SoundEffectInstance instance in instances) instance.Stop();
+        CleanupInstances(sound);
     }
 
     public void PlayMusic(Handle handle, bool loop = true, float volume = 1f)
