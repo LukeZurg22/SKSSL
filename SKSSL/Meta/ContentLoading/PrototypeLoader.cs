@@ -87,7 +87,7 @@ public class PrototypeLoader<TSerializer>(params string[] extensions) : IGameLoa
 
     public List<Prototype> Deserialize(string text, string fileTrace = "", params Type[] types)
     {
-        // Additional fallback. Typically for testing.
+        // Additional fallback. Typically, for testing.
         if (types.Length == 0)
             types = MasterRegistryManager.RegisteredGameRegistryTypes.ToArray();
 
