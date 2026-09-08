@@ -54,19 +54,6 @@
         <PackageReference Include="Tomlyn" Version="2.4.1"/>
     </ItemGroup>
 
-    <!--<ItemGroup>
-        <None Include="libs\FMOD\win-x64\*.dll"
-              CopyToOutputDirectory="PreserveNewest"
-              CopyToPublishDirectory="Always"
-              TargetPath="%(Filename)%(Extension)"/>
-    </ItemGroup>
-    <ItemGroup>
-        <None Include="libs\FMOD\linux-x64\*.so"
-              CopyToOutputDirectory="PreserveNewest"
-              CopyToPublishDirectory="Always"
-              TargetPath="%(Filename)%(Extension)"/>
-    </ItemGroup>
-    -->
     <!--Exclude Testhost Stuff-->
     <ItemGroup>
         <Content Update="testhost.exe;testhost*.exe;testhost*.dll;testhost*.json"
