@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -108,6 +109,9 @@ public class Voronoi
     private int _height;
 
     // TODO: Allow the ability to generate / render a set of cells that follow explicitly-provided borders.
+    //  a. Feed image
+    //   1. determine functional edges. color-coding may be needed.
+    //  b. Generate random series of larger polygons. If using voronoi, the edges will be useful.
 
     #region Generation Methods
 
