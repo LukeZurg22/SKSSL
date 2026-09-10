@@ -43,8 +43,8 @@ public class StatisticsList : UidList<Statistic>
      in the hope that those references don't go stale! Handles are blanket-wide. It is best NOT to get statistics
      using handles if possible.*/
     // -->+ _internal_storage (string to HashSet<Uid>)
-    //@formatter:off
 
+    //@formatter:off
     // STATISTIC -> MODIFIERS
     /// Stores Modifier Uid values based on a Statistic UID- Modifier Handle pair.
     private readonly Dictionary<PackableUid, HashSet<PackableUid>> _statToMods = [];

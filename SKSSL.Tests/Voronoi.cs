@@ -10,7 +10,7 @@ namespace SKSSL.Tests;
 [TestClass, UsedImplicitly, TestSubject(typeof(Utilities.Voronoi.Voronoi))]
 public class Voronoi
 {
-    private const bool TOGGLE_EXECUTABLE_CLOSURE = true;
+    private const bool TOGGLE_EXECUTABLE_CLOSURE = false;
     private Utilities.Voronoi.Voronoi _voronoi;
     bool generated = false;
     private UnitGame _game;
@@ -51,10 +51,9 @@ public class Voronoi
             return;
         }
 
-        _diagram = _voronoi.GenerateDiagram(
+        _diagram = _voronoi.GenerateDiagram(50000,
             distribution: DelaunayTriangulator.PointDistribution.RandomJitter,
-            randomness: 0.4f,
-            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.CellsAndEdges);
+            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells);
         generated = true;
     }
 }

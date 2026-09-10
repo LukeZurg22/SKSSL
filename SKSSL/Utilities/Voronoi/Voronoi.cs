@@ -82,6 +82,9 @@ public class Voronoi
         _pixelMap = new Texture2D(_graphicsDevice, 1, 1);
         _pixelMap.SetData([Color.White]);
 
+        _width = _graphicsDevice.Viewport.Width;
+        _height = _graphicsDevice.Viewport.Height;
+
         _effect = new BasicEffect(_graphicsDevice)
         {
             VertexColorEnabled = true,
@@ -90,15 +93,12 @@ public class Voronoi
             View = Matrix.Identity,
             Projection = Matrix.CreateOrthographicOffCenter(
                 0,
-                _graphicsDevice.Viewport.Width,
-                _graphicsDevice.Viewport.Height,
+                _width,
+                _height,
                 0,
                 0,
                 1)
         };
-
-        _width = _graphicsDevice.Viewport.Width;
-        _height = _graphicsDevice.Viewport.Height;
     }
 
     /// <value>_graphicsDevice.Viewport.Width</value>
@@ -108,7 +108,7 @@ public class Voronoi
     private int _height;
 
     // TODO: Allow the ability to generate / render a set of cells that follow explicitly-provided borders.
-    
+
     #region Generation Methods
 
     /// <summary>
@@ -162,6 +162,7 @@ public class Voronoi
         float thickness = 1f,
         float pointSize = 2f)
     {
+        _usedColors.Clear();
         _isGenerated = false;
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
@@ -212,8 +213,10 @@ public class Voronoi
             _triangulationEdges.Add(new Edge(triangle.Vertices[2], triangle.Vertices[0]));
 
             // Add edge to voronoi edges.
-            foreach (Triangle neighbor in triangle.TrianglesWithSharedEdge)
+            foreach (Triangle neighbor in triangle.Neighbors)
+            {
                 voronoiEdges.Add(new Edge(triangle.Circumcenter, neighbor.Circumcenter));
+            }
         }
 
         // Finalize edges.
@@ -232,26 +235,17 @@ public class Voronoi
         }
 
         _isGenerated = true;
-        UpdateTexture(flags, thickness, pointSize);
+        // Update the existing internal pixel map with visual changes.
+        GetTexture(flags, thickness, pointSize);
         return _pixelMap;
     }
 
-    /// <summary>
-    /// Update the existing internal pixel map with visual changes.
-    /// </summary>
-    /// <param name="flags"></param>
-    /// <param name="thickness"></param>
-    /// <param name="pointSize"></param>
-    public void UpdateTexture(VoronoiRenderingFlags flags, float thickness, float pointSize)
-    {
-        if (!_isGenerated)
-            throw new Exception("Attempted to update voronoi texture despite it not having been generated!");
-
-        _pixelMap = GetTexture(flags, thickness, pointSize);
-    }
-
     /// Toggle handling for <see cref="GetTexture"/> to check if something was generated.
-    private VoronoiRenderingFlags _previousFlags = VoronoiRenderingFlags.None;
+    private VoronoiRenderingFlags _previousFlags;
+
+    private float _previousThickness;
+    private float _previousPointSize;
+    private bool _textureValid;
 
     /// <summary>
     /// Gets the voronoi object's rasterized texture, or creates one.
@@ -264,9 +258,15 @@ public class Voronoi
     // ReSharper disable once UnusedMember.Global
     public Texture2D GetTexture(VoronoiRenderingFlags flags, float thickness, float pointSize)
     {
+        if (!_isGenerated)
+            throw new InvalidOperationException("Attempted to get Voronoi texture before generating a diagram.");
+
         // If current flags are present whilst previous flags exist and aren't none, it means that a map
         //  was generated.
-        if (flags == _previousFlags)
+        if (_textureValid &&
+            flags == _previousFlags &&
+            Math.Abs(thickness - _previousThickness) < 0.01f &&
+            Math.Abs(pointSize - _previousPointSize) < 0.01f)
             return _pixelMap;
 
         var output = new RenderTarget2D(
@@ -278,30 +278,46 @@ public class Voronoi
             DepthFormat.None
         );
 
-        var previousTarget = _graphicsDevice.GetRenderTargets().FirstOrDefault().RenderTarget as RenderTarget2D;
+        var previousTargets = _graphicsDevice.GetRenderTargets();
 
         _graphicsDevice.SetRenderTarget(output);
-        _graphicsDevice.Clear(Color.Transparent);
 
-        // Draw filled Voronoi cells first.
-        if (flags.HasFlag(VoronoiRenderingFlags.Cells))
-            foreach (VoronoiCell cell in _voronoiCells.Values)
-                DrawPolygon(cell.Vertices, _cellColors[cell.Site]);
+        // Prevent graphics device from going haywire and pointing at off-screen targets.
+        try
+        {
+            _graphicsDevice.Clear(Color.Transparent);
 
-        // Drawing triangles.
-        if (flags.HasFlag(VoronoiRenderingFlags.Triangles))
-            DrawEdges(_triangulationEdges, Color.Transparent, thickness);
+            // Draw filled Voronoi cells first.
+            if (flags.HasFlag(VoronoiRenderingFlags.Cells))
+                foreach (VoronoiCell cell in _voronoiCells.Values)
+                    DrawPolygon(cell.Vertices, _cellColors[cell.Site]);
 
-        // Drawing edges.
-        if (flags.HasFlag(VoronoiRenderingFlags.Edges))
-            DrawEdges(_voronoiEdges, Color.DarkGray, thickness);
+            // Drawing triangles.
+            if (flags.HasFlag(VoronoiRenderingFlags.Triangles))
+                DrawEdges(_triangulationEdges, Color.Transparent, thickness);
 
-        // Drawing the dots.
-        if (flags.HasFlag(VoronoiRenderingFlags.Points))
-            DrawPoints(pointSize);
+            // Drawing edges.
+            if (flags.HasFlag(VoronoiRenderingFlags.Edges))
+                DrawEdges(_voronoiEdges, Color.DarkGray, thickness);
 
-        _graphicsDevice.SetRenderTarget(previousTarget);
+            // Drawing the dots.
+            if (flags.HasFlag(VoronoiRenderingFlags.Points))
+                DrawPoints(pointSize);
+        }
+        finally
+        {
+            _graphicsDevice.SetRenderTargets(previousTargets);
+        }
+
+        Texture2D oldTexture = _pixelMap;
+        _pixelMap = output;
         _previousFlags = flags;
+        _previousThickness = thickness;
+        _previousPointSize = pointSize;
+        _textureValid = true;
+        if (oldTexture is RenderTarget2D oldTarget)
+            oldTarget.Dispose();
+
         return output;
     }
 
@@ -323,8 +339,10 @@ public class Voronoi
             _triangulationEdges.Add(new Edge(triangle.Vertices[2], triangle.Vertices[0]));
 
             // Add edge to voronoi edges.
-            foreach (Triangle neighbor in triangle.TrianglesWithSharedEdge)
+            foreach (Triangle neighbor in triangle.Neighbors)
+            {
                 voronoiEdges.Add(new Edge(triangle.Circumcenter, neighbor.Circumcenter));
+            }
         }
 
         return voronoiEdges;
@@ -396,7 +414,6 @@ public class Voronoi
             new VertexPositionColor(new Vector3(end + offset, 0f), color)
         };
 
-        var indices = new short[] { 0, 1, 2, 0, 2, 3 };
         foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
         {
             pass.Apply();
@@ -405,7 +422,7 @@ public class Voronoi
                 vertices,
                 0,
                 4,
-                indices,
+                QuadIndices,
                 0,
                 2);
         }
@@ -428,7 +445,6 @@ public class Voronoi
                 new VertexPositionColor(new Vector3(x - halfSize, y + halfSize, 0f), PointColor)
             };
 
-            var indices = new short[] { 0, 1, 2, 0, 2, 3 };
             foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
             {
                 pass.Apply();
@@ -437,7 +453,7 @@ public class Voronoi
                     vertices,
                     0,
                     4,
-                    indices,
+                    QuadIndices,
                     0,
                     2);
             }
@@ -478,6 +494,22 @@ public class Voronoi
                 0,
                 triangleCount);
         }
+    }
+
+    private VertexPositionColor[] _polygonVertices = [];
+    private short[] _polygonIndices = [];
+
+    private static readonly short[] QuadIndices = [0, 1, 2, 0, 2, 3];
+
+    private void EnsurePolygonCapacity(int vertexCount)
+    {
+        if (_polygonVertices.Length < vertexCount)
+            _polygonVertices = new VertexPositionColor[vertexCount];
+
+        int indexCount = (vertexCount - 2) * 3;
+
+        if (_polygonIndices.Length < indexCount)
+            _polygonIndices = new short[indexCount];
     }
 
     // ReSharper disable once UnusedMember.Local
@@ -524,17 +556,17 @@ public class Voronoi
         spriteBatch.Begin();
 
         // Draw filled Voronoi cells first
-        if (flags.HasFlag(VoronoiRenderingFlags.Cells))
+        if ((flags & VoronoiRenderingFlags.Cells) != 0)
             foreach (VoronoiCell cell in _voronoiCells.Values)
                 DrawPolygon(cell.Vertices, _cellColors[cell.Site]);
 
-        if (flags.HasFlag(VoronoiRenderingFlags.Triangles))
+        if ((flags & VoronoiRenderingFlags.Triangles) != 0)
             DrawEdges(_triangulationEdges, Color.Transparent, thickness, spriteBatch);
 
-        if (flags.HasFlag(VoronoiRenderingFlags.Edges))
+        if ((flags & VoronoiRenderingFlags.Edges) != 0)
             DrawEdges(_voronoiEdges, Color.DarkGray, thickness, spriteBatch);
 
-        if (flags.HasFlag(VoronoiRenderingFlags.Points))
+        if ((flags & VoronoiRenderingFlags.Points) != 0)
             DrawPoints(spriteBatch);
         spriteBatch.End();
     }
