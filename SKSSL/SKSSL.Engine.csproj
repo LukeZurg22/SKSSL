@@ -13,14 +13,13 @@
         <Description>Shared general game engine built on Monogame and GumUI.</Description>
         <PackageTags>logging, ecs, yaml, parsing</PackageTags>
         <RepositoryUrl>https://github.com/LukeZurg22/SKSSL</RepositoryUrl>
-        <IncludeBuildOutput>true</IncludeBuildOutput> <!--For generated classes.-->
 
         <!--For Packaging-->
         <ExcludeTestAssets>true</ExcludeTestAssets>
         <IsPackable>true</IsPackable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <GenerateLibraryLayout>true</GenerateLibraryLayout>
-        <IncludeBuildOutput>true</IncludeBuildOutput>
+        <IncludeBuildOutput>true</IncludeBuildOutput> <!--For generated classes.-->
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
 
@@ -45,10 +44,10 @@
         <PackageReference Include="YamlDotNet" Version="18.0.0" PrivateAssets="none"/>
 
         <!--Private Ones-->
-        <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" PrivateAssets="All"/>
-        <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" PrivateAssets="All"/>
-        <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0" PrivateAssets="all"/>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all"/>
+        <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" PrivateAssets="all"/>
+        <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0.0" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0.0" PrivateAssets="all"/>
         <PackageReference Include="Microsoft.Testing.Platform" Version="1.7.3" PrivateAssets="all"/>
         <PackageReference Include="Microsoft.TestPlatform.TestHost" Version="17.14.1" PrivateAssets="all"/>
         <PackageReference Include="Tomlyn" Version="2.4.1"/>
