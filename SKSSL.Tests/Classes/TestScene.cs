@@ -1,7 +1,7 @@
 using Microsoft.Xna.Framework;
 using SKSSL.Scenes;
 
-namespace SKSSL.Tests.TestData;
+namespace SKSSL.Tests.Classes;
 
 public class TestScene : Scene
 {

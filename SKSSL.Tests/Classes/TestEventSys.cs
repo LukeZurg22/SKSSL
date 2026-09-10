@@ -4,7 +4,7 @@ using SKSSL.ECS;
 using SKSSL.Extensions;
 using static SKSSL.DustLogger;
 
-namespace SKSSL.Tests.TestData;
+namespace SKSSL.Tests.Classes;
 public record DamageEvent(Entity Target, int Amount, Entity? Source = null);
 
 public class DamageEventSystem

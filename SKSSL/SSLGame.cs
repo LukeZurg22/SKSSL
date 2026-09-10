@@ -346,12 +346,18 @@ public class SSLGame : Game
     }
 
     /// Quits the game.
-    public static void Quit() =>
-        throw new NotImplementedException("Quit is not implemented, really. Let's crash, instead.");
+    public void Quit()
+    {
+        Exit();
+        //Environment.Exit(0);
+        //throw new NotImplementedException("Quit is not implemented, really. Let's crash, instead.");
+    }
 
     /// Resets the game.
-    public static void ResetGame() =>
+    public static void ResetGame()
+    {
         throw new NotImplementedException("ResetGame is not implemented, really. Let's crash, instead.");
+    }
 
     protected override void Draw(GameTime gameTime)
     {

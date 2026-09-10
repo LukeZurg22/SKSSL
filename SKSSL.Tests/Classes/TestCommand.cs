@@ -1,7 +1,7 @@
 using System;
 using SKSSL.Console;
 
-namespace SKSSL.Tests.UTestData;
+namespace SKSSL.Tests.Classes;
 
 [RegisterCommand]
 public class TestCommand : IConsoleCommand

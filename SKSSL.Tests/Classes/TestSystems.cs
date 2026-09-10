@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework;
 using SKSSL.ECS;
 using SKSSL.Extensions;
 
-namespace SKSSL.Tests.TestData;
+namespace SKSSL.Tests.Classes;
 
 [RegisterSystem]
 public class TestSystem : EntitySystem

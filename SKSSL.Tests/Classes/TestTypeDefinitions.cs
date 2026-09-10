@@ -6,7 +6,7 @@ using YamlDotNet.Serialization;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable UnusedType.Global
 
-namespace SKSSL.Tests.TestData;
+namespace SKSSL.Tests.Classes;
 
 public class TestPrototypeBlank : Prototype;
 

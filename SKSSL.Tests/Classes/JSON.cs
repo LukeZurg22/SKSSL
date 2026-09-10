@@ -1,6 +1,4 @@
-using SKSSL.Tests.TestData;
-
-namespace SKSSL.Tests;
+namespace SKSSL.Tests.Classes;
 
 public static class TestJSON
 {

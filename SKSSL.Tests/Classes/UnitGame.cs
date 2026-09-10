@@ -6,7 +6,7 @@ using Microsoft.Xna.Framework.Input;
 
 // ReSharper disable RedundantOverriddenMember
 
-namespace SKSSL.Tests;
+namespace SKSSL.Tests.Classes;
 /*internal static class Program
 {
     [STAThread]

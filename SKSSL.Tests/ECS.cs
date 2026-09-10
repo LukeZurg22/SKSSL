@@ -7,9 +7,9 @@ using SKSSL.ECS.Registry;
 using SKSSL.Exceptions;
 using SKSSL.Extensions;
 using SKSSL.Serializing;
-using SKSSL.Tests.TestData;
+using SKSSL.Tests.Classes;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
-using static SKSSL.Tests.TestPrototypes;
+using static SKSSL.Tests.Classes.TestPrototypes;
 
 // ReSharper disable RedundantNameQualifier
 // ReSharper disable UnusedMember.Global

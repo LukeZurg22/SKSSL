@@ -5,7 +5,7 @@ using SKSSL.ECS;
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable NotAccessedPositionalProperty.Global
 
-namespace SKSSL.Tests.TestData;
+namespace SKSSL.Tests.Classes;
 
 public record TestBlankComponent : Component;
 public record TestOtherComponent(int x, int y) : Component;
