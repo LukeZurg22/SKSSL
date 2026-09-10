@@ -1,14 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
-using SKSSL.Utilities.Voronoi;
+
+namespace SKSSL.Utilities.Voronoi;
 
 public class Triangle
 {
     public Point[] Vertices { get; } = new Point[3];
-
     public Point Circumcenter { get; private set; }
 
-    public IEnumerable<Triangle> Neighbors
+    private static int nextId;
+    internal readonly int Id = nextId++;
+
+    public IEnumerable<Triangle?> Neighbors
     {
         get
         {
@@ -23,28 +26,36 @@ public class Triangle
         }
     }
 
-    public double RadiusSquared;
-
+    private double _radiusSquared;
     public Triangle? Neighbor0;
     public Triangle? Neighbor1;
     public Triangle? Neighbor2;
+
+    // DelaunayTriangulator scratch state.
+    internal bool Alive = true;
+    internal int VisitStamp;
+    internal int BadStamp;
 
     public Triangle(Point point1, Point point2, Point point3)
     {
         if (point1 == point2 || point1 == point3 || point2 == point3)
             throw new ArgumentException("Must be 3 distinct points");
 
-        if (!IsCounterClockwise(point1, point2, point3))
+        bool IsCounterClockwise =
+            (point2.X - point1.X) * (point3.Y - point1.Y) -
+            (point3.X - point1.X) * (point2.Y - point1.Y) > 0;
+
+        Vertices[0] = point1;
+        switch (IsCounterClockwise)
         {
-            Vertices[0] = point1;
-            Vertices[1] = point3;
-            Vertices[2] = point2;
-        }
-        else
-        {
-            Vertices[0] = point1;
-            Vertices[1] = point2;
-            Vertices[2] = point3;
+            case false:
+                Vertices[1] = point3;
+                Vertices[2] = point2;
+                break;
+            default:
+                Vertices[1] = point2;
+                Vertices[2] = point3;
+                break;
         }
 
         Vertices[0].AdjacentTriangles.Add(this);
@@ -58,19 +69,7 @@ public class Triangle
     {
         double dx = point.X - Circumcenter.X;
         double dy = point.Y - Circumcenter.Y;
-
-        return dx * dx + dy * dy < RadiusSquared;
-    }
-
-    public Triangle? GetNeighbor(int edge)
-    {
-        return edge switch
-        {
-            0 => Neighbor0,
-            1 => Neighbor1,
-            2 => Neighbor2,
-            _ => throw new ArgumentOutOfRangeException(nameof(edge))
-        };
+        return dx * dx + dy * dy < _radiusSquared;
     }
 
     public void SetNeighbor(int edge, Triangle triangle)
@@ -86,24 +85,19 @@ public class Triangle
             case 2:
                 Neighbor2 = triangle;
                 break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(edge));
+            default: throw new ArgumentOutOfRangeException(nameof(edge));
         }
     }
 
     public int IndexOfEdge(Point a, Point b)
     {
-        if ((Vertices[0] == a && Vertices[1] == b) ||
-            (Vertices[0] == b && Vertices[1] == a))
-            return 0;
+        Point v0 = Vertices[0];
+        Point v1 = Vertices[1];
+        Point v2 = Vertices[2];
 
-        if ((Vertices[1] == a && Vertices[2] == b) ||
-            (Vertices[1] == b && Vertices[2] == a))
-            return 1;
-
-        if ((Vertices[2] == a && Vertices[0] == b) ||
-            (Vertices[2] == b && Vertices[0] == a))
-            return 2;
+        if ((v0 == a && v1 == b) || (v0 == b && v1 == a)) return 0;
+        if ((v1 == a && v2 == b) || (v1 == b && v2 == a)) return 1;
+        if ((v2 == a && v0 == b) || (v2 == b && v0 == a)) return 2;
 
         return -1;
     }
@@ -134,77 +128,13 @@ public class Triangle
                 p1.X * (p0.Y - p2.Y) +
                 p2.X * (p1.Y - p0.Y));
 
-        if (div == 0)
-            throw new DivideByZeroException();
+        if (div == 0) throw new DivideByZeroException();
 
         var center = new Point(aux1 / div, aux2 / div);
-
         Circumcenter = center;
 
         double dx = center.X - p0.X;
         double dy = center.Y - p0.Y;
-
-        RadiusSquared = dx * dx + dy * dy;
+        _radiusSquared = dx * dx + dy * dy;
     }
-
-    private static bool IsCounterClockwise(
-        Point point1,
-        Point point2,
-        Point point3)
-    {
-        return
-            (point2.X - point1.X) * (point3.Y - point1.Y) -
-            (point3.X - point1.X) * (point2.Y - point1.Y) > 0;
-    }
-
-    public int FindContainingEdge(Point point)
-    {
-        double c0 =
-            (Vertices[1].X - Vertices[0].X) *
-            (point.Y - Vertices[0].Y) -
-            (Vertices[1].Y - Vertices[0].Y) *
-            (point.X - Vertices[0].X);
-
-        if (c0 < 0)
-            return 0;
-
-        double c1 =
-            (Vertices[2].X - Vertices[1].X) *
-            (point.Y - Vertices[1].Y) -
-            (Vertices[2].Y - Vertices[1].Y) *
-            (point.X - Vertices[1].X);
-
-        if (c1 < 0)
-            return 1;
-
-        double c2 =
-            (Vertices[0].X - Vertices[2].X) *
-            (point.Y - Vertices[2].Y) -
-            (Vertices[0].Y - Vertices[2].Y) *
-            (point.X - Vertices[2].X);
-
-        if (c2 < 0)
-            return 2;
-
-        return -1;
-    }
-
-    internal static Triangle FindContainingTriangle(Point point, Triangle start)
-    {
-        Triangle current = start;
-        while (true)
-        {
-            int edge = current.FindContainingEdge(point);
-            if (edge < 0)
-                return current;
-
-            Triangle? next = current.GetNeighbor(edge);
-            if (next == null)
-                return current;
-
-            current = next;
-        }
-    }
-    
-    
 }

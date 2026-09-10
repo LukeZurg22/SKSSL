@@ -39,10 +39,10 @@ public class Voronoi
     public readonly GraphicsDevice _graphicsDevice;
     private readonly SpriteBatch _spriteBatch;
     public const int DefaultPointCount = 2000;
-    private List<Point> _points = [];
+    private Point[] _points = [];
 
     private readonly List<Edge> _triangulationEdges = []; // For rendering triangulation edges.
-    private List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
+    private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
 
     private readonly Dictionary<Point, VoronoiCell> _voronoiCells = [];
     private readonly Dictionary<Point, Color> _cellColors = [];
@@ -162,7 +162,6 @@ public class Voronoi
         float thickness = 1f,
         float pointSize = 2f)
     {
-        _usedColors.Clear();
         _isGenerated = false;
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
@@ -180,6 +179,10 @@ public class Voronoi
         // Make the triangles.
         var triangulation = _delaunay.BowyerWatson(_points);
 
+#if DEBUG
+        ValidateNeighbors((List<Triangle>)triangulation);
+#endif
+
         /*
          * Previously, each separate generate function was used in sequence. However the multiple-iteration
          * warning made me grow concerned over performance, so I merged the functions into one.
@@ -188,9 +191,10 @@ public class Voronoi
         _triangulationEdges.Clear();
         _voronoiCells.Clear();
         _cellColors.Clear();
+        _voronoiEdges.Clear();
+        _usedColors.Clear();
 
         // GENERATE CELLS
-        var voronoiEdges = new HashSet<Edge>();
         foreach (Triangle triangle in triangulation)
         {
             // POINTS
@@ -213,14 +217,12 @@ public class Voronoi
             _triangulationEdges.Add(new Edge(triangle.Vertices[2], triangle.Vertices[0]));
 
             // Add edge to voronoi edges.
-            foreach (Triangle neighbor in triangle.Neighbors)
+            foreach (Triangle? neighbor in triangle.Neighbors)
             {
-                voronoiEdges.Add(new Edge(triangle.Circumcenter, neighbor.Circumcenter));
+                if (neighbor != null && triangle.Id < neighbor.Id)
+                    _voronoiEdges.Add(new Edge(triangle.Circumcenter, neighbor.Circumcenter));
             }
         }
-
-        // Finalize edges.
-        _voronoiEdges = [..voronoiEdges];
 
         // Order the vertices of every cell clockwise / counter-clockwise.
         foreach (VoronoiCell cell in _voronoiCells.Values)
@@ -256,6 +258,7 @@ public class Voronoi
     /// When this function is called, it also assigns the internal pixel data to the new image.
     /// </remarks>
     // ReSharper disable once UnusedMember.Global
+    // ReSharper disable once UnusedMethodReturnValue.Global
     public Texture2D GetTexture(VoronoiRenderingFlags flags, float thickness, float pointSize)
     {
         if (!_isGenerated)
@@ -328,29 +331,6 @@ public class Voronoi
     [Obsolete($"If generating a diagram, use {nameof(GenerateDiagram)}")]
     // ReSharper disable once UnusedMember.Local
     // ReSharper disable once UnusedMember.Global
-    public HashSet<Edge> GenerateEdgesFromDelaunay(IEnumerable<Triangle> triangulation)
-    {
-        var voronoiEdges = new HashSet<Edge>();
-        foreach (Triangle triangle in triangulation)
-        {
-            // Triangulation edges moved here from call above in order to prevent multiple-reiterations of the list.
-            _triangulationEdges.Add(new Edge(triangle.Vertices[0], triangle.Vertices[1]));
-            _triangulationEdges.Add(new Edge(triangle.Vertices[1], triangle.Vertices[2]));
-            _triangulationEdges.Add(new Edge(triangle.Vertices[2], triangle.Vertices[0]));
-
-            // Add edge to voronoi edges.
-            foreach (Triangle neighbor in triangle.Neighbors)
-            {
-                voronoiEdges.Add(new Edge(triangle.Circumcenter, neighbor.Circumcenter));
-            }
-        }
-
-        return voronoiEdges;
-    }
-
-    [Obsolete($"If generating a diagram, use {nameof(GenerateDiagram)}")]
-    // ReSharper disable once UnusedMember.Local
-    // ReSharper disable once UnusedMember.Global
     public void GenerateCells(IEnumerable<Triangle> triangulation)
     {
         _voronoiCells.Clear();
@@ -384,6 +364,8 @@ public class Voronoi
     #endregion
 
     #region Spritebatch-Less Drawing
+
+    private static readonly short[] QuadIndices = [0, 1, 2, 0, 2, 3];
 
     private void DrawEdges(IEnumerable<Edge> edges, Color color, float thickness)
     {
@@ -496,21 +478,6 @@ public class Voronoi
         }
     }
 
-    private VertexPositionColor[] _polygonVertices = [];
-    private short[] _polygonIndices = [];
-
-    private static readonly short[] QuadIndices = [0, 1, 2, 0, 2, 3];
-
-    private void EnsurePolygonCapacity(int vertexCount)
-    {
-        if (_polygonVertices.Length < vertexCount)
-            _polygonVertices = new VertexPositionColor[vertexCount];
-
-        int indexCount = (vertexCount - 2) * 3;
-
-        if (_polygonIndices.Length < indexCount)
-            _polygonIndices = new short[indexCount];
-    }
 
     // ReSharper disable once UnusedMember.Local
     [Obsolete]
@@ -518,12 +485,11 @@ public class Voronoi
     {
         var vertices = new[]
         {
-            new VertexPositionColor(
-                new Vector3((float)triangle.Vertices[0].X, (float)triangle.Vertices[0].Y, 0), color),
-            new VertexPositionColor(
-                new Vector3((float)triangle.Vertices[1].X, (float)triangle.Vertices[1].Y, 0), color),
-            new VertexPositionColor(
-                new Vector3((float)triangle.Vertices[2].X, (float)triangle.Vertices[2].Y, 0), color),
+            //@formatter:off
+            new VertexPositionColor(new Vector3((float)triangle.Vertices[0].X, (float)triangle.Vertices[0].Y, 0), color),
+            new VertexPositionColor(new Vector3((float)triangle.Vertices[1].X, (float)triangle.Vertices[1].Y, 0), color),
+            new VertexPositionColor(new Vector3((float)triangle.Vertices[2].X, (float)triangle.Vertices[2].Y, 0), color),
+            //@formatter:on
         };
 
         foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
@@ -663,6 +629,60 @@ public class Voronoi
     }
 
     #endregion
+
+    private static void ValidateNeighbors(List<Triangle> triangles)
+    {
+        foreach (Triangle t in triangles)
+        {
+            Validate(t, 0, t.Neighbor0);
+            Validate(t, 1, t.Neighbor1);
+            Validate(t, 2, t.Neighbor2);
+        }
+
+        return;
+
+        static void Validate(Triangle t, int edge, Triangle? n)
+        {
+            if (n == null)
+                return;
+
+            Point a;
+            Point b;
+
+            switch (edge)
+            {
+                case 0:
+                    a = t.Vertices[0];
+                    b = t.Vertices[1];
+                    break;
+                case 1:
+                    a = t.Vertices[1];
+                    b = t.Vertices[2];
+                    break;
+                default:
+                    a = t.Vertices[2];
+                    b = t.Vertices[0];
+                    break;
+            }
+
+            int reciprocal = n.IndexOfEdge(a, b);
+
+            if (reciprocal < 0)
+                throw new InvalidOperationException(
+                    "Neighbor does not share the expected edge.");
+
+            Triangle? reverse = reciprocal switch
+            {
+                0 => n.Neighbor0,
+                1 => n.Neighbor1,
+                _ => n.Neighbor2
+            };
+
+            if (!ReferenceEquals(reverse, t))
+                throw new InvalidOperationException(
+                    "Neighbor relationship is not reciprocal.");
+        }
+    }
 
     public enum ColorMode : byte
     {

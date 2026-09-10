@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using static System.Math;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -21,13 +21,23 @@ namespace SKSSL.Utilities.Voronoi;
 /// </references>
 public class DelaunayTriangulator
 {
-    private readonly HashSet<Triangle> _badTriangles = [];
-    private readonly HashSet<Triangle> _visitedTriangles = [];
+    private readonly List<Triangle> _allTriangles = [];
+    private readonly List<Triangle> _badTriangles = [];
+    private readonly List<BoundaryEdge> _boundaryEdges = [];
+
     private readonly Stack<Triangle> _openTriangles = [];
+
+    // Reused every insertion. It grows to the largest cavity encountered.
+    private readonly Dictionary<Point, Triangle> _radialTriangles = [];
+
+    private int _visitStamp;
+    private int _badStamp;
+
+    private int _aliveTriangleCount;
 
     private double MaxX { get; set; }
     private double MaxY { get; set; }
-    private IEnumerable<Triangle> _border;
+    private List<Triangle> _border;
 
     #region Point Creation & Algorithms
 
@@ -68,201 +78,260 @@ public class DelaunayTriangulator
         PointDistribution distribution, double randomness)
     {
         var points = CreatePointsList(maxX, maxY);
+        var random = new Random();
 
         // Control the random-ness of the points.
         switch (distribution)
         {
             case PointDistribution.RandomJitter:
-                RandomJitter(amount, maxX, maxY, points, randomness);
+                double aspect = maxX / maxY;
+                int columns = (int)Sqrt(amount * aspect);
+                int rows = (int)Ceiling((double)amount / columns);
+                double cellWidth = maxX / columns;
+                double cellHeight = maxY / rows;
+                for (int y = 0; y < rows; y++)
+                for (int x = 0; x < columns; x++)
+                {
+                    if (points.Count >= amount)
+                        break;
+
+                    double pX = (x + 0.5 + (random.NextDouble() - 0.5) * randomness) * cellWidth;
+                    double pY = (y + 0.5 + (random.NextDouble() - 0.5) * randomness) * cellHeight;
+                    pX = Clamp(pX, 0, maxX);
+                    pY = Clamp(pY, 0, maxY);
+                    points.Add(new Point(pX, pY));
+                }
+
                 break;
-            case PointDistribution.Custom:
-                throw new Exception($"Custom distribution is invalid for defined {nameof(GeneratePoints)} call.");
-            // TODO: Add "nudged" random? Remove this todo if the todo about adding modified voronoi masking
-            //  in voronoi.cs is solved.
+
+            case PointDistribution.Custom: throw new Exception($"Custom function not fed to {nameof(GeneratePoints)}.");
             case PointDistribution.RandomSystem:
             default:
-                RandomSystem(amount, points);
+                for (int i = 0; i < amount - 4; i++)
+                {
+                    var pointX = random.NextDouble() * MaxX;
+                    var pointY = random.NextDouble() * MaxY;
+                    points.Add(new Point(pointX, pointY));
+                }
+
                 break;
         }
 
         return points;
     }
 
-    #region Distribution Algorithms
-
-    private static void RandomJitter(
-        int amount,
-        double maxX,
-        double maxY,
-        List<Point> points,
-        double randomness)
-    {
-        double aspect = maxX / maxY;
-        int columns = (int)Math.Sqrt(amount * aspect);
-        int rows = (int)Math.Ceiling((double)amount / columns);
-        double cellWidth = maxX / columns;
-        double cellHeight = maxY / rows;
-
-        var random = new Random();
-        for (int y = 0; y < rows; y++)
-        for (int x = 0; x < columns; x++)
-        {
-            if (points.Count >= amount)
-                break;
-
-            double pX = (x + 0.5 + (random.NextDouble() - 0.5) * randomness) * cellWidth;
-            double pY = (y + 0.5 + (random.NextDouble() - 0.5) * randomness) * cellHeight;
-            pX = Math.Clamp(pX, 0, maxX);
-            pY = Math.Clamp(pY, 0, maxY);
-            points.Add(new Point(pX, pY));
-        }
-    }
-
-    private void RandomSystem(int count, List<Point> points)
-    {
-        var random = new Random();
-        for (int i = 0; i < count - 4; i++)
-        {
-            var pointX = random.NextDouble() * MaxX;
-            var pointY = random.NextDouble() * MaxY;
-            points.Add(new Point(pointX, pointY));
-        }
-    }
-
     #endregion
 
-    #endregion
-
-    public IEnumerable<Triangle> BowyerWatson(IEnumerable<Point> points)
+    public IEnumerable<Triangle> BowyerWatson(Point[] points)
     {
-        var triangulation = new HashSet<Triangle>(_border);
-        Triangle start = _border.First();
-        foreach (Point point in points)
+        _allTriangles.Clear();
+        _badTriangles.Clear();
+        _boundaryEdges.Clear();
+        _radialTriangles.Clear();
+        _openTriangles.Clear();
+
+        Triangle border0 = _border[0];
+        Triangle border1 = _border[1];
+
+        border0.Alive = true;
+        border1.Alive = true;
+
+        _allTriangles.Add(border0);
+        _allTriangles.Add(border1);
+        _aliveTriangleCount = 2;
+
+        _visitStamp = 0;
+        _badStamp = 0;
+
+        Triangle start = border0;
+
+        // First four points are the rectangle corners and are
+        // already represented by the two border triangles.
+        for (int pointIndex = 4; pointIndex < points.Length - 1; pointIndex++)
         {
-            // The first four points already form the border.
-            if (point == _border.First().Vertices[0] ||
-                point == _border.First().Vertices[1] ||
-                point == _border.First().Vertices[2])
-                continue;
-
-            start = Triangle.FindContainingTriangle(point, start);
-
+            Point point = points[pointIndex];
+            start = FindContainingTriangle(point, start);
             FindBadTriangles(point, start);
+            FindHoleBoundaries();
 
-            var boundaryEdges =
-                FindHoleBoundaries(_badTriangles);
-
-            // Remove the cavity triangles.
-            foreach (Triangle triangle in _badTriangles)
+            // Kill cavity triangles.
+            foreach (Triangle dead in _badTriangles)
             {
-                var vertices = triangle.Vertices;
-                vertices[0].AdjacentTriangles.Remove(triangle);
-                vertices[1].AdjacentTriangles.Remove(triangle);
-                vertices[2].AdjacentTriangles.Remove(triangle);
-                triangulation.Remove(triangle);
+                dead.Alive = false;
+                var vertices = dead.Vertices;
+                vertices[0].AdjacentTriangles.Remove(dead);
+                vertices[1].AdjacentTriangles.Remove(dead);
+                vertices[2].AdjacentTriangles.Remove(dead);
             }
 
-            // Maps a cavity vertex to the newly-created triangle
-            // that touches it through the new point.
-            var radialTriangles = new Dictionary<Point, Triangle>(
-                boundaryEdges.Count);
+            _aliveTriangleCount -= _badTriangles.Count;
+            _radialTriangles.Clear();
 
-            foreach (BoundaryEdge boundary in boundaryEdges)
+            // Create replacement triangles.
+            foreach (BoundaryEdge boundary in _boundaryEdges)
             {
-                var newTriangle = new Triangle(
-                    point,
-                    boundary.Point1,
-                    boundary.Point2);
+                var triangle = new Triangle(point, boundary.Point1, boundary.Point2);
+                _allTriangles.Add(triangle);
+                _aliveTriangleCount++;
 
-                triangulation.Add(newTriangle);
-
-                // Connect to triangle outside the cavity.
-                if (boundary.OutsideTriangle != null)
+                // --------------------------------------------------
+                // Boundary edge -> outside triangle.
+                // --------------------------------------------------
+                Triangle? outside = boundary.Outside;
+                if (outside != null)
                 {
-                    if (boundary.OutsideEdge < 0)
-                        throw new InvalidOperationException(
-                            "Outside triangle does not contain boundary edge.");
+                    int newEdge = IndexOfEdge(triangle, boundary.Point1, boundary.Point2);
+                    int outsideEdge = IndexOfEdge(outside, boundary.Point1, boundary.Point2);
+                    if (newEdge < 0 || outsideEdge < 0)
+                        throw new InvalidOperationException();
 
-                    int newEdge = newTriangle.IndexOfEdge(boundary.Point1, boundary.Point2);
-                    ConnectNeighbors(
-                        newTriangle,
-                        newEdge,
-                        boundary.OutsideTriangle,
-                        boundary.OutsideEdge);
+                    SetNeighbor(triangle, newEdge, outside);
+                    SetNeighbor(outside, outsideEdge, triangle);
                 }
 
-                // Connect the radial edge (point, Point1).
-                if (radialTriangles.TryGetValue(boundary.Point1, out Triangle? neighbor1))
+                // --------------------------------------------------
+                // Radial edge P -> Point1.
+                // --------------------------------------------------
+                Point p1 = boundary.Point1;
+                if (_radialTriangles.TryGetValue(p1, out Triangle? previous1))
                 {
-                    int newEdge = newTriangle.IndexOfEdge(point, boundary.Point1);
-                    int neighborEdge = neighbor1.IndexOfEdge(point, boundary.Point1);
-
-                    ConnectNeighbors(
-                        newTriangle,
-                        newEdge,
-                        neighbor1,
-                        neighborEdge);
+                    int edgeA = IndexOfEdge(triangle, point, p1);
+                    int edgeB = IndexOfEdge(previous1, point, p1);
+                    SetNeighbor(triangle, edgeA, previous1);
+                    SetNeighbor(previous1, edgeB, triangle);
                 }
-                else radialTriangles.Add(boundary.Point1, newTriangle);
+                else _radialTriangles.Add(p1, triangle);
 
-                // Connect the radial edge (point, Point2).
-                if (radialTriangles.TryGetValue(boundary.Point2, out Triangle? neighbor2))
+                // --------------------------------------------------
+                // Radial edge P -> Point2.
+                // --------------------------------------------------
+                Point p2 = boundary.Point2;
+                if (_radialTriangles.TryGetValue(p2, out Triangle? previous2))
                 {
-                    int newEdge = newTriangle.IndexOfEdge(point, boundary.Point2);
-                    int neighborEdge = neighbor2.IndexOfEdge(point, boundary.Point2);
-                    ConnectNeighbors(newTriangle, newEdge, neighbor2,
-                        neighborEdge);
+                    int edgeA = IndexOfEdge(triangle, point, p2);
+                    int edgeB = IndexOfEdge(previous2, point, p2);
+                    SetNeighbor(triangle, edgeA, previous2);
+                    SetNeighbor(previous2, edgeB, triangle);
                 }
-                else radialTriangles.Add(boundary.Point2, newTriangle);
+                else _radialTriangles.Add(p2, triangle);
 
-                // The last-created triangle is a good starting point for the next point.
-                start = newTriangle;
+                start = triangle;
             }
         }
 
-        return triangulation;
+        // Compact the live triangles into the result.
+        var result = new List<Triangle>(_aliveTriangleCount);
+
+        // ReSharper disable once ForCanBeConvertedToForeach
+        for (int i = 0; i < _allTriangles.Count; i++)
+        {
+            Triangle triangle = _allTriangles[i];
+            if (triangle.Alive)
+                result.Add(triangle);
+        }
+
+
+        return result;
+
+        // Set a triangle's edge to be the neighbor of another triangle.
+        void SetNeighbor(Triangle triangle, int edge, Triangle neighbor)
+        {
+            switch (edge)
+            {
+                case 0:
+                    triangle.Neighbor0 = neighbor;
+                    break;
+
+                case 1:
+                    triangle.Neighbor1 = neighbor;
+                    break;
+
+                default:
+                    triangle.Neighbor2 = neighbor;
+                    break;
+            }
+        }
+
+        // Get int index of triangle edge based on triangle and two points.
+        int IndexOfEdge(Triangle t, Point a, Point b)
+        {
+            Point v0 = t.Vertices[0];
+            Point v1 = t.Vertices[1];
+            Point v2 = t.Vertices[2];
+
+            if ((v0 == a && v1 == b) || (v0 == b && v1 == a))
+                return 0;
+
+            if ((v1 == a && v2 == b) || (v1 == b && v2 == a))
+                return 1;
+
+            return 2;
+        }
+
+        // Given a point and a triangle starting position, get entire constructed triangle.
+        Triangle FindContainingTriangle(Point point, Triangle starting)
+        {
+            Triangle current = starting;
+            for (;;) // Infinite loop.
+            {
+                Point a = current.Vertices[0];
+                Point b = current.Vertices[1];
+                Point c = current.Vertices[2];
+
+                double cross =
+                    (b.X - a.X) * (point.Y - a.Y) -
+                    (b.Y - a.Y) * (point.X - a.X);
+
+                Triangle? next;
+                if (cross < 0)
+                {
+                    next = current.Neighbor0;
+                    if (next == null)
+                        return current;
+
+                    current = next;
+                    continue;
+                }
+
+                cross =
+                    (c.X - b.X) * (point.Y - b.Y) -
+                    (c.Y - b.Y) * (point.X - b.X);
+
+                if (cross < 0)
+                {
+                    next = current.Neighbor1;
+                    if (next == null)
+                        return current;
+
+                    current = next;
+                    continue;
+                }
+
+                cross =
+                    (a.X - c.X) * (point.Y - c.Y) -
+                    (a.Y - c.Y) * (point.X - c.X);
+
+                if (!(cross < 0))
+                    return current;
+
+                next = current.Neighbor2;
+                if (next == null)
+                    return current;
+
+                current = next;
+            }
+        }
     }
 
     #region Helpers
 
-    private static void ConnectNeighbors(Triangle a, int edgeA, Triangle b, int edgeB)
-    {
-        if (edgeA < 0 || edgeB < 0)
-            throw new InvalidOperationException("Attempted to connect triangles across a non-existent edge.");
-
-        a.SetNeighbor(edgeA, b);
-        b.SetNeighbor(edgeB, a);
-    }
-
-    private static void GetEdgePoints(Triangle triangle, int edge, out Point p1, out Point p2)
-    {
-        switch (edge)
-        {
-            case 0:
-                p1 = triangle.Vertices[0];
-                p2 = triangle.Vertices[1];
-                break;
-
-            case 1:
-                p1 = triangle.Vertices[1];
-                p2 = triangle.Vertices[2];
-                break;
-
-            case 2:
-                p1 = triangle.Vertices[2];
-                p2 = triangle.Vertices[0];
-                break;
-
-            default:
-                throw new ArgumentOutOfRangeException(nameof(edge));
-        }
-    }
-
     private void FindBadTriangles(Point point, Triangle start)
     {
         _badTriangles.Clear();
-        _visitedTriangles.Clear();
         _openTriangles.Clear();
+
+        int visitStamp = ++_visitStamp;
+        int badStamp = ++_badStamp;
 
         _openTriangles.Push(start);
 
@@ -270,48 +339,60 @@ public class DelaunayTriangulator
         {
             Triangle triangle = _openTriangles.Pop();
 
-            if (!_visitedTriangles.Add(triangle))
+            if (!triangle.Alive)
                 continue;
+
+            if (triangle.VisitStamp == visitStamp)
+                continue;
+
+            triangle.VisitStamp = visitStamp;
 
             if (!triangle.IsPointInsideCircumcircle(point))
                 continue;
 
+            triangle.BadStamp = badStamp;
             _badTriangles.Add(triangle);
 
-            Triangle? neighbor = triangle.Neighbor0;
-            if (neighbor != null)
-                _openTriangles.Push(neighbor);
+            Triangle? n0 = triangle.Neighbor0;
+            if (n0 != null && n0.Alive && n0.VisitStamp != visitStamp)
+                _openTriangles.Push(n0);
 
-            neighbor = triangle.Neighbor1;
-            if (neighbor != null)
-                _openTriangles.Push(neighbor);
+            Triangle? n1 = triangle.Neighbor1;
+            if (n1 != null && n1.Alive && n1.VisitStamp != visitStamp)
+                _openTriangles.Push(n1);
 
-            neighbor = triangle.Neighbor2;
-            if (neighbor != null)
-                _openTriangles.Push(neighbor);
+            Triangle? n2 = triangle.Neighbor2;
+            if (n2 != null && n2.Alive && n2.VisitStamp != visitStamp)
+                _openTriangles.Push(n2);
         }
     }
 
-    private static List<BoundaryEdge> FindHoleBoundaries(HashSet<Triangle> badTriangles)
+    private void FindHoleBoundaries()
     {
-        var boundaries = new List<BoundaryEdge>(badTriangles.Count * 2);
-        foreach (Triangle triangle in badTriangles)
+        _boundaryEdges.Clear();
+
+        int badStamp = _badStamp;
+
+        foreach (Triangle triangle in _badTriangles)
         {
-            for (int edge = 0; edge < 3; edge++)
+            Triangle? n = triangle.Neighbor0;
+            if (n == null || n.BadStamp != badStamp)
             {
-                Triangle? neighbor = triangle.GetNeighbor(edge);
+                _boundaryEdges.Add(new BoundaryEdge(triangle.Vertices[0], triangle.Vertices[1], n));
+            }
 
-                // This edge is internal to the cavity.
-                if (neighbor != null && badTriangles.Contains(neighbor))
-                    continue;
+            n = triangle.Neighbor1;
+            if (n == null || n.BadStamp != badStamp)
+            {
+                _boundaryEdges.Add(new BoundaryEdge(triangle.Vertices[1], triangle.Vertices[2], n));
+            }
 
-                GetEdgePoints(triangle, edge, out Point p1, out Point p2);
-                int outsideEdge = neighbor?.IndexOfEdge(p1, p2) ?? -1;
-                boundaries.Add(new BoundaryEdge(p1, p2, neighbor, outsideEdge));
+            n = triangle.Neighbor2;
+            if (n == null || n.BadStamp != badStamp)
+            {
+                _boundaryEdges.Add(new BoundaryEdge(triangle.Vertices[2], triangle.Vertices[0], n));
             }
         }
-
-        return boundaries;
     }
 
     private List<Point> CreatePointsList(double maxX, double maxY)
@@ -337,7 +418,7 @@ public class DelaunayTriangulator
 
         ConnectTriangles(tri1, tri2, point0, point2);
 
-        _border = new List<Triangle> { tri1, tri2 };
+        _border = [tri1, tri2];
         return points;
     }
 
@@ -365,18 +446,19 @@ public class DelaunayTriangulator
     }
 }
 
-internal struct BoundaryEdge
+internal readonly struct BoundaryEdge
 {
     public readonly Point Point1;
     public readonly Point Point2;
-    public readonly Triangle? OutsideTriangle;
-    public readonly int OutsideEdge;
+    public readonly Triangle? Outside;
 
-    public BoundaryEdge(Point point1, Point point2, Triangle? outsideTriangle, int outsideEdge)
+    public BoundaryEdge(
+        Point point1,
+        Point point2,
+        Triangle? outside)
     {
         Point1 = point1;
         Point2 = point2;
-        OutsideTriangle = outsideTriangle;
-        OutsideEdge = outsideEdge;
+        Outside = outside;
     }
 }
