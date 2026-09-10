@@ -16,7 +16,7 @@ public class Serialization
     {
         string absolutePath = Combine(GameDirectory.BuildDirectory, @"game\localization\en-US\Test\test.ftl");
         var fileInfo = new FileInfo(absolutePath);
-        var serializer = new Serializing.SerializerDefaultYaml();
+        var serializer = new SerializerDefaultYaml();
         var serializedA = serializer.Serialize(fileInfo);
 
         // Deserialize FilePath.

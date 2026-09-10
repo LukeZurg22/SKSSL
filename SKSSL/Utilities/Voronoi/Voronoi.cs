@@ -23,9 +23,9 @@ namespace SKSSL.Utilities.Voronoi;
 /// <remarks>
 /// This implementation assumes the calls are being handled through Monogame in the following order:<br/>
 /// 1. Instantiate the <see cref="Voronoi"/> class.<br/>
-/// 2. Insert LoadContent() into the game class.<br/>
-/// 3. Insert Draw() into the game class.<br/>
-/// 4. Call GenerateDiagram() somewhere in Update(), or wherever desired.
+/// 2. Call voronoi.LoadContent() in game.<br/>
+/// 3. Call voronoi.Draw() in game.<br/>
+/// 4. Call GenerateDiagram() in Update(), or wherever desired.
 /// </remarks>
 /// <references>
 /// 1. https://www.redblobgames.com/x/2022-voronoi-maps-tutorial/<br/>
@@ -46,7 +46,7 @@ public class Voronoi
     private readonly Dictionary<Point, VoronoiCell> _voronoiCells = [];
     private readonly Dictionary<Point, Color> _cellColors = [];
 
-    private Texture2D _pixel = null!;
+    private Texture2D _pixelMap = null!;
     private BasicEffect _effect;
 
     private readonly Random _random = new(32); // fixed seed → reproducible
@@ -60,7 +60,7 @@ public class Voronoi
     public Color PointColor = Color.Red;
 
     /// <returns>Resulting Voronoi image Diagram of Voronoi cells.</returns>
-    public Texture2D GetImage() => _pixel;
+    public Texture2D GetImage() => _pixelMap;
 
     public Voronoi(GraphicsDevice graphicsDevice) => _graphicsDevice = graphicsDevice;
 
@@ -85,8 +85,8 @@ public class Voronoi
     /// Setup image data for writing. It begins as a 1x1 white pixel, but will be expanded later.
     public void LoadContent()
     {
-        _pixel = new Texture2D(_graphicsDevice, 1, 1);
-        _pixel.SetData([Color.White]);
+        _pixelMap = new Texture2D(_graphicsDevice, 1, 1);
+        _pixelMap.SetData([Color.White]);
 
         _effect = new BasicEffect(_graphicsDevice)
         {
@@ -228,6 +228,10 @@ public class Voronoi
         spriteBatch.End();
     }
 
+    public void Draw()
+    {
+    }
+
     private void DrawPolygon(List<Point> vertices, Color color)
     {
         if (vertices.Count < 3) return;
@@ -294,7 +298,7 @@ public class Voronoi
     private void DrawPoints(SpriteBatch spriteBatch)
     {
         foreach (Point point in _points)
-            spriteBatch.Draw(_pixel, new Rectangle((int)point.X, (int)point.Y, 2, 2), PointColor);
+            spriteBatch.Draw(_pixelMap, new Rectangle((int)point.X, (int)point.Y, 2, 2), PointColor);
     }
 
     private void DrawEdges(IEnumerable<Edge> edges, Color color, float thickness, SpriteBatch spriteBatch)
@@ -312,7 +316,7 @@ public class Voronoi
         float angle = MathF.Atan2(edge.Y, edge.X);
 
         spriteBatch.Draw(
-            _pixel,
+            _pixelMap,
             start,
             null,
             color,

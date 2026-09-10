@@ -43,4 +43,9 @@ public class EngineConfig
     public int DESTROY_CACHE_LIMIT = 1024;
 
     public override string ToString() => $"{UseECS};{GumFile};{PrototypeLoader.GetType().Name}";
+
+    public static EngineConfig Default()
+    {
+        return new EngineConfig();
+    }
 }

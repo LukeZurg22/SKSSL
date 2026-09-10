@@ -44,9 +44,6 @@ public class SSLGame : Game
     /// Aspect ratio to render the game.
     public static float AspectRatio => Graphics.Viewport.AspectRatio;
 
-    /// Static getter for Instance.Config.
-    public static EngineConfig Engine => Instance.Config;
-
     /// Access the general content loader.
     public static IGameLoader PrototypeLoader => Engine.PrototypeLoader;
 
@@ -85,10 +82,11 @@ public class SSLGame : Game
     // TEMP: Consider just throwing this away. Are they ever accessed outside of this class? Probably not!
     public MouseWrapper MouseHandler;
 
+    /// User-end game settings.
     public readonly GameSettings Settings;
 
     /// Configurable engine configuration assigned from the Developer's view.
-    public readonly EngineConfig Config;
+    public static EngineConfig Engine { get; private set; } = EngineConfig.Default();
 
     // ReSharper disable once UnusedAutoPropertyAccessor.Global
     public Checksum Checksum { get; private set; }
@@ -107,6 +105,7 @@ public class SSLGame : Game
     /// Constructor for SSLGame. Runs before any inheritors.
     /// </summary>
     /// <param name="title">Title of the game window.</param>
+    // ReSharper disable once MemberCanBePrivate.Global
     protected SSLGame(string title)
     {
         Instance = this; // MonoGame priority assignments.
@@ -115,11 +114,11 @@ public class SSLGame : Game
         Window.AllowUserResizing = true;
         Window.ClientSizeChanged += HandleClientSizeChanged; // TEMP: Something tells me this doesn't work...!
         // ReSharper disable once VirtualMemberCallInConstructor
-        Config = BuildEngineConfig(); // This virtual call is desired, as the override acting first is intended.
+        Engine = BuildEngineConfig(); // This virtual call is desired, as the override acting first is intended.
 
         #region Settings
 
-        if (string.IsNullOrEmpty(Config.GumFile))
+        if (string.IsNullOrEmpty(Engine.GumFile))
         {
             //@formatter:off
             Log($"No gum project file in Content/Gum for {Title}, {nameof(SSLGame)} Class.", LOG.SYSTEM_WARNING);
@@ -127,7 +126,7 @@ public class SSLGame : Game
         }
         else
         {
-            _gumFilePath = Path.Combine("Gum", Config.GumFile); // Prepend Gum root.
+            _gumFilePath = Path.Combine("Gum", Engine.GumFile); // Prepend Gum root.
         }
 
         // Load settings, and based on game paths, create directories ordered by load order.
@@ -163,8 +162,8 @@ public class SSLGame : Game
         StringBuilder ecs_SB = new();
 
         // Display ECS status. This called after inheritors.
-        ecs_SB.AppendLine($"ECS status: {(Config.UseECS ? "on" : "off")}");
-        if (Config.UseECS)
+        ecs_SB.AppendLine($"ECS status: {(Engine.UseECS ? "on" : "off")}");
+        if (Engine.UseECS)
         {
             ecs_SB.AppendLine($"Source generator found {ComponentRegistry.Count} components:");
 
@@ -193,7 +192,9 @@ public class SSLGame : Game
     /// Creates the engine configuration before the remainder of the engine is initialized.
     /// Do not access derived instance state from this method.
     /// </summary>
-    public virtual EngineConfig BuildEngineConfig() => new();
+    // ReSharper disable once VirtualMemberNeverOverridden.Global
+    // ReSharper disable once MemberCanBeProtected.Global
+    public virtual EngineConfig BuildEngineConfig() => EngineConfig.Default();
 
     #region Utility Methods
 
@@ -327,7 +328,7 @@ public class SSLGame : Game
             Components.Add(new GameConsoleComponent(gameConsole, this, _spriteBatch));
         }
 
-        if (Config.UseECS)
+        if (Engine.UseECS)
         {
             SystemManager.Initialize();
         }
@@ -355,7 +356,7 @@ public class SSLGame : Game
     protected override void Draw(GameTime gameTime)
     {
         base.Draw(gameTime); // Draw game first.
-        if (Config.UseECS)
+        if (Engine.UseECS)
             SystemManager.Draw(gameTime);
         Gum?.Draw(); // Draw Gum UI after game draw.
     }
@@ -367,7 +368,7 @@ public class SSLGame : Game
         GameplayTime = GameplayTime.AddSeconds(gameTime.ElapsedGameTime.TotalSeconds);
         MouseWrapper.HandleForcedPosition();
         base.Update(gameTime);
-        if (Config.UseECS)
+        if (Engine.UseECS)
             SystemManager.Update(gameTime);
         Gum?.Update(gameTime); // Update Gum UI after game update.
         SoundManager.Update(gameTime); // Update sound manager. Hope it's there and not gone!

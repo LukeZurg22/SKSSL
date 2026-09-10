@@ -1,6 +1,10 @@
+#nullable enable
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+
+// ReSharper disable RedundantOverriddenMember
 
 namespace SKSSL.Tests;
 /*internal static class Program
@@ -14,7 +18,8 @@ namespace SKSSL.Tests;
 }*/
 
 /// <summary>
-/// Test game class for direct pseudo "live environment" tests.
+/// Test game class for direct pseudo "live environment" tests. Dedicated method handles can be provided for
+/// direct testing through an outer class.
 /// </summary>
 /// <remarks>
 /// Content Loader support is minimal, if nonexistent.
@@ -23,9 +28,20 @@ internal sealed class UnitGame : SSLGame
 {
     private readonly GraphicsDevice _graphics;
 
-    public UnitGame()
+    private readonly Action? InitalizeMethod = null!;
+    private readonly Action? LoadContentMethod = null!;
+    private readonly Action<GameTime>? UpdateMethod = null!;
+    private readonly Action<GameTime>? DrawMethod = null!;
+
+
+    public UnitGame(Action? initialize, Action? loadContent, Action<GameTime>? update, Action<GameTime>? draw)
     {
-        _graphics = this.GraphicsDevice;
+        InitalizeMethod = initialize;
+        LoadContentMethod = loadContent;
+        UpdateMethod = update;
+        DrawMethod = draw;
+
+        _graphics = GraphicsDevice;
 
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
@@ -33,16 +49,13 @@ internal sealed class UnitGame : SSLGame
 
     protected override void Initialize()
     {
+        InitalizeMethod?.Invoke();
         base.Initialize();
     }
 
     protected override void LoadContent()
     {
-        // Load whatever you're testing here.
-        // Example:
-        //
-        // var texture = Content.Load<Texture2D>("test_texture");
-
+        LoadContentMethod?.Invoke();
         base.LoadContent();
     }
 
@@ -50,14 +63,14 @@ internal sealed class UnitGame : SSLGame
     {
         if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
             Exit();
-
+        UpdateMethod?.Invoke(gameTime);
         base.Update(gameTime);
     }
 
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(Color.CornflowerBlue);
-
+        DrawMethod?.Invoke(gameTime);
         base.Draw(gameTime);
     }
 }

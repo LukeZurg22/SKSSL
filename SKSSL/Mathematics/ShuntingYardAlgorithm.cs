@@ -38,10 +38,7 @@ public class ShuntingYard
     /// Loops over an expression more than once. Conglomerating all of the functions into
     /// one large function is easily doable, but does not read very well.
     /// </remarks>
-    public double Evaluate(
-        string expression,
-        PackableUid? parent = null,
-        HashSet<PackableUid>? visited = null)
+    public double Evaluate(string expression, PackableUid? parent = null, HashSet<PackableUid>? visited = null)
     {
         string trace = (parent is null ? "an unknown source" : parent.ToString())!;
         var output = new Queue<string>(); // RPN output
@@ -75,8 +72,7 @@ public class ShuntingYard
                         hasDecimal = true;
                         i++;
                     }
-                    else
-                        break;
+                    else break;
                 }
 
                 string number = expression[start..(i + 1)];

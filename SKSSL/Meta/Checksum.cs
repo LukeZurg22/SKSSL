@@ -25,7 +25,7 @@ public class Checksum
     public static Checksum Generate(SSLGame game)
     {
         int totalRegistryCount = MasterRegistryManager.Count();
-        byte[] regBytes = Encoding.UTF8.GetBytes($"ENGINE_CONFIG_HASH:{game.Config.GetHashCode()};");
+        byte[] regBytes = Encoding.UTF8.GetBytes($"ENGINE_CONFIG_HASH:{SSLGame.Engine.GetHashCode()};");
         byte[] configBytes = Encoding.UTF8.GetBytes(SSLGame.Engine.ToString());
         byte[] texBytes = Encoding.UTF8.GetBytes($"$TEXTURES:{XNAContentLoader.HandleToContentPath.Count}");
 
