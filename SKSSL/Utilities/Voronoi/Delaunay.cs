@@ -25,31 +25,103 @@ public class DelaunayTriangulator
     private double MaxY { get; set; }
     private IEnumerable<Triangle> border;
 
-    public IEnumerable<Point> GeneratePoints(int amount, double maxX, double maxY)
+    /// <summary>
+    /// Generate points using a custom algorithm instead of using the switch of pre-made distributors.
+    /// </summary>
+    /// <param name="amount"></param>
+    /// <param name="maxX"></param>
+    /// <param name="maxY"></param>
+    /// <param name="customSamplingAlgorithm">
+    /// A function that takes point count and a list of points as parameters. This is the custom implementation for
+    /// randomized points.
+    /// </param>
+    /// <returns></returns>
+    public IEnumerable<Point> GeneratePoints(
+        int amount,
+        double maxX,
+        double maxY,
+        Action<int, List<Point>> customSamplingAlgorithm)
     {
-        MaxX = maxX;
-        MaxY = maxY;
+        var points = CreatePointsList(maxX, maxY);
+        customSamplingAlgorithm(amount, points);
+        return points;
+    }
 
-        // TODO make more beautiful
-        var point0 = new Point(0, 0);
-        var point1 = new Point(0, MaxY);
-        var point2 = new Point(MaxX, MaxY);
-        var point3 = new Point(MaxX, 0);
-        var points = new List<Point> { point0, point1, point2, point3 };
-        var tri1 = new Triangle(point0, point1, point2);
-        var tri2 = new Triangle(point0, point2, point3);
-        border = new List<Triangle> { tri1, tri2 };
+    /// <summary>
+    /// Create a list of seeded points with varying degrees of spread and randomization.
+    /// </summary>
+    /// <param name="amount"></param>
+    /// <param name="maxX"></param>
+    /// <param name="maxY"></param>
+    /// <param name="distribution"></param>
+    /// <param name="randomness"></param>
+    /// <returns></returns>
+    public IEnumerable<Point> GeneratePoints(int amount,
+        double maxX,
+        double maxY,
+        PointDistribution distribution, double randomness)
+    {
+        var points = CreatePointsList(maxX, maxY);
+
+        // Control the random-ness of the points.
+        switch (distribution)
+        {
+            case PointDistribution.RandomJitter:
+                RandomJitter(amount, maxX, maxY, points, randomness);
+                break;
+            case PointDistribution.Custom:
+                throw new Exception($"Custom distribution is invalid for defined {nameof(GeneratePoints)} call.");
+            case PointDistribution.RandomSystem:
+            default:
+                RandomSystem(amount, points);
+                break;
+        }
+
+        return points;
+    }
+
+    #region Distribution Algorithms
+
+    private static void RandomJitter(
+        int amount,
+        double maxX,
+        double maxY,
+        List<Point> points,
+        double randomness)
+    {
+        double aspect = maxX / maxY;
+        int columns = (int)Math.Sqrt(amount * aspect);
+        int rows = (int)Math.Ceiling((double)amount / columns);
+        double cellWidth = maxX / columns;
+        double cellHeight = maxY / rows;
 
         var random = new Random();
-        for (int i = 0; i < amount - 4; i++)
+        for (int y = 0; y < rows; y++)
+        for (int x = 0; x < columns; x++)
+        {
+            if (points.Count >= amount)
+                break;
+
+            double pX = (x + 0.5 + (random.NextDouble() - 0.5) * randomness) * cellWidth;
+            double pY = (y + 0.5 + (random.NextDouble() - 0.5) * randomness) * cellHeight;
+            pX = Math.Clamp(pX, 0, maxX);
+            pY = Math.Clamp(pY, 0, maxY);
+            points.Add(new Point(pX, pY));
+        }
+    }
+
+    private void RandomSystem(int count, List<Point> points)
+    {
+        var random = new Random();
+        for (int i = 0; i < count - 4; i++)
         {
             var pointX = random.NextDouble() * MaxX;
             var pointY = random.NextDouble() * MaxY;
             points.Add(new Point(pointX, pointY));
         }
-
-        return points;
     }
+
+    #endregion
 
     public IEnumerable<Triangle> BowyerWatson(IEnumerable<Point> points)
     {
@@ -75,6 +147,25 @@ public class DelaunayTriangulator
 
         //triangulation.RemoveWhere(o => o.Vertices.Any(v => supraTriangle.Vertices.Contains(v)));
         return triangulation;
+    }
+
+    #region Helpers
+
+    private List<Point> CreatePointsList(double maxX, double maxY)
+    {
+        MaxX = maxX;
+        MaxY = maxY;
+
+        // TODO make more beautiful
+        var point0 = new Point(0, 0);
+        var point1 = new Point(0, MaxY);
+        var point2 = new Point(MaxX, MaxY);
+        var point3 = new Point(MaxX, 0);
+        var points = new List<Point> { point0, point1, point2, point3 };
+        var tri1 = new Triangle(point0, point1, point2);
+        var tri2 = new Triangle(point0, point2, point3);
+        border = new List<Triangle> { tri1, tri2 };
+        return points;
     }
 
     private static List<Edge> FindHoleBoundaries(ISet<Triangle> badTriangles)
@@ -112,4 +203,15 @@ public class DelaunayTriangulator
     /// Finds bad triangles.
     private static HashSet<Triangle> FindBadTriangles(Point point, HashSet<Triangle> triangles)
         => [..triangles.Where(o => o.IsPointInsideCircumcircle(point))];
+
+    #endregion
+
+    public enum PointDistribution
+    {
+        Custom = 0,
+        RandomSystem = 1,
+
+        /// Accepts evenness parameter.
+        RandomJitter = 2,
+    }
 }
