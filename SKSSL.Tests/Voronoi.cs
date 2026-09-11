@@ -51,7 +51,9 @@ public class Voronoi
             return;
         }
 
-        _diagram = _voronoi.GenerateDiagram(1260,
+        _diagram = _voronoi.GenerateDiagram(
+            pointCount: 2060,
+            boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
             distribution: DelaunayTriangulator.PointDistribution.RandomJitter,
             flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells);
         generated = true;

@@ -1,14 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-
-/*
- * CREDIT:
-
- */
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -61,6 +55,31 @@ public class Voronoi
     public ColorMode CellDrawMode;
     public Color UnifiedColor;
     public Color PointColor;
+
+    private VoronoiBoundaryMode _boundaryMode = VoronoiBoundaryMode.Culled;
+
+    public VoronoiBoundaryMode BoundaryMode
+    {
+        get => _boundaryMode;
+        set
+        {
+            if (_boundaryMode == value)
+                return;
+
+            _boundaryMode = value;
+            _textureValid = false;
+        }
+    }
+
+
+    /// Toggle handling for <see cref="GetTexture"/> to check if something was generated.
+    private VoronoiRenderingFlags _previousFlags;
+
+    private VoronoiBoundaryMode _previousBoundaryMode;
+    private float _previousThickness;
+    private float _previousPointSize;
+    private bool _textureValid;
+
 
     public Voronoi(
         GraphicsDevice graphicsDevice,
@@ -152,6 +171,7 @@ public class Voronoi
     /// Provided custom method with integer and an empty list of <see cref="Point"/>s as parameters.
     /// Must algorithmically decide the positioning of the point X and Y positions.
     /// </param>
+    /// <param name="boundaryMode"></param>
     /// <param name="flags">Convenient Enum toggle of various parts of a Voronoi diagram.</param>
     /// <param name="thickness">Thickness of Edges, if they are rendered.</param>
     /// <param name="pointSize">Size of Points, if they are rendered.</param>
@@ -162,13 +182,18 @@ public class Voronoi
         DelaunayTriangulator.PointDistribution distribution = DelaunayTriangulator.PointDistribution.RandomSystem,
         double randomness = 0.8,
         Action<int, List<Point>>? customSamplingAlgorithm = null,
+        VoronoiBoundaryMode boundaryMode = VoronoiBoundaryMode.Culled,
         VoronoiRenderingFlags flags = VoronoiRenderingFlags.Cells,
         float thickness = 1f,
         float pointSize = 2f)
     {
         _isGenerated = false;
+        _boundaryMode = boundaryMode;
+
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
+        UpdateProjection();
+
 
         //@formatter:off
         // Depending on the distribution type, and the custom sampling algorithm provided, there are multiple ways
@@ -202,56 +227,85 @@ public class Voronoi
         foreach (Triangle triangle in triangulation)
         {
             // POINTS
-            foreach (Point site in triangle.Vertices) // Every vertex of a Delaunay triangle is a Voronoi site
+            foreach (Point site in triangle.Vertices)
             {
                 if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
                 {
-                    cell = new VoronoiCell { Site = site, Vertices = [] };
+                    cell = new VoronoiCell(site, []);
                     _voronoiCells[site] = cell;
                 }
 
-                // The circumcenter becomes a vertex of that site’s cell.
+                // The circumcenter becomes a vertex of that site's cell.
                 cell.Vertices.Add(triangle.Circumcenter);
             }
 
-            // VORONOI EDGES
-            // Triangulation edges moved here from call above in order to prevent multiple-reiterations of the list.
-            _triangulationEdges.Add(new Edge(triangle.Vertices[0], triangle.Vertices[1]));
-            _triangulationEdges.Add(new Edge(triangle.Vertices[1], triangle.Vertices[2]));
-            _triangulationEdges.Add(new Edge(triangle.Vertices[2], triangle.Vertices[0]));
+            // TRIANGULATION EDGES
+            _triangulationEdges.Add(
+                new Edge(triangle.Vertices[0], triangle.Vertices[1]));
 
-            // Add edge to voronoi edges.
-            foreach (Triangle? neighbor in triangle.Neighbors)
-            {
-                if (neighbor != null && triangle.Id < neighbor.Id)
-                    _voronoiEdges.Add(new Edge(triangle.Circumcenter, neighbor.Circumcenter));
-            }
+            _triangulationEdges.Add(
+                new Edge(triangle.Vertices[1], triangle.Vertices[2]));
+
+            _triangulationEdges.Add(
+                new Edge(triangle.Vertices[2], triangle.Vertices[0]));
+
+            // VORONOI EDGES
+            AddVoronoiEdges(triangle, boundaryMode);
         }
 
-        // Order the vertices of every cell clockwise / counter-clockwise.
+        // Order the vertices of every cell.
         foreach (VoronoiCell cell in _voronoiCells.Values)
         {
             cell.Vertices = cell.Vertices
-                .Distinct() // remove duplicates
-                .OrderBy(v => Math.Atan2(v.Y - cell.Site.Y, v.X - cell.Site.X))
+                .Distinct()
+                .OrderBy(v =>
+                    Math.Atan2(
+                        v.Y - cell.Site.Y,
+                        v.X - cell.Site.X))
                 .ToList();
 
-            // Simple deterministic color from the site’s position
+            bool touchesOutside =
+                cell.Vertices.Any(v =>
+                    v.X < 0 ||
+                    v.X > _width ||
+                    v.Y < 0 ||
+                    v.Y > _height);
+
+            if (touchesOutside)
+            {
+                if (boundaryMode == VoronoiBoundaryMode.Culled)
+                {
+                    // This is an unbounded boundary cell.
+                    // Do not render it.
+                    cell.Vertices.Clear();
+                }
+                else
+                {
+                    // Flatten the cell against the diagram boundary.
+                    cell.Vertices = ClipPolygonToBounds(
+                        cell.Vertices,
+                        _width,
+                        _height);
+                }
+            }
+
             _cellColors[cell.Site] = GetCellColor(cell);
         }
 
         _isGenerated = true;
         // Update the existing internal pixel map with visual changes.
-        GetTexture(flags, thickness, pointSize);
+        GetTexture(boundaryMode, flags, thickness, pointSize);
         return _pixelMap;
     }
 
-    /// Toggle handling for <see cref="GetTexture"/> to check if something was generated.
-    private VoronoiRenderingFlags _previousFlags;
-
-    private float _previousThickness;
-    private float _previousPointSize;
-    private bool _textureValid;
+    private void UpdateProjection() =>
+        _effect.Projection = Matrix.CreateOrthographicOffCenter(
+            0,
+            _width,
+            _height,
+            0,
+            0,
+            1);
 
     /// <summary>
     /// Gets the voronoi object's rasterized texture, or creates one.
@@ -263,7 +317,11 @@ public class Voronoi
     /// </remarks>
     // ReSharper disable once UnusedMember.Global
     // ReSharper disable once UnusedMethodReturnValue.Global
-    public Texture2D GetTexture(VoronoiRenderingFlags flags, float thickness, float pointSize)
+    public Texture2D GetTexture(
+        VoronoiBoundaryMode boundaryMode,
+        VoronoiRenderingFlags flags,
+        float thickness,
+        float pointSize)
     {
         if (!_isGenerated)
             throw new InvalidOperationException("Attempted to get Voronoi texture before generating a diagram.");
@@ -272,6 +330,7 @@ public class Voronoi
         //  was generated.
         if (_textureValid &&
             flags == _previousFlags &&
+            boundaryMode == _previousBoundaryMode &&
             Math.Abs(thickness - _previousThickness) < 0.01f &&
             Math.Abs(pointSize - _previousPointSize) < 0.01f)
             return _pixelMap;
@@ -305,7 +364,11 @@ public class Voronoi
 
             // Drawing edges.
             if (flags.HasFlag(VoronoiRenderingFlags.Edges))
+            {
                 DrawEdges(_voronoiEdges, Color.DarkGray, thickness);
+                if (BoundaryMode == VoronoiBoundaryMode.HardEdge)
+                    DrawBoundaryEdges(Color.DarkGray, thickness);
+            }
 
             // Drawing the dots.
             if (flags.HasFlag(VoronoiRenderingFlags.Points))
@@ -318,9 +381,12 @@ public class Voronoi
 
         Texture2D oldTexture = _pixelMap;
         _pixelMap = output;
-        _previousFlags = flags;
+
+        _previousBoundaryMode = boundaryMode;
         _previousThickness = thickness;
         _previousPointSize = pointSize;
+        _previousFlags = flags;
+
         _textureValid = true;
         if (oldTexture is RenderTarget2D oldTarget)
             oldTarget.Dispose();
@@ -343,7 +409,7 @@ public class Voronoi
         {
             if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
             {
-                cell = new VoronoiCell { Site = site, Vertices = [] };
+                cell = new VoronoiCell(site, []);
                 _voronoiCells[site] = cell;
             }
 
@@ -356,11 +422,19 @@ public class Voronoi
         foreach (VoronoiCell cell in _voronoiCells.Values)
         {
             cell.Vertices = cell.Vertices
-                .Distinct() // remove duplicates
-                .OrderBy(v => Math.Atan2(v.Y - cell.Site.Y, v.X - cell.Site.X))
+                .Distinct()
+                .OrderBy(v =>
+                    Math.Atan2(
+                        v.Y - cell.Site.Y,
+                        v.X - cell.Site.X))
                 .ToList();
 
-            // Simple deterministic color from the site’s position
+            // Constrain the cell to the requested diagram rectangle.
+            cell.Vertices = ClipPolygonToBounds(
+                cell.Vertices,
+                _width,
+                _height);
+
             _cellColors[cell.Site] = GetCellColor(cell);
         }
     }
@@ -374,7 +448,12 @@ public class Voronoi
     private void DrawEdges(IEnumerable<Edge> edges, Color color, float thickness)
     {
         foreach (Edge edge in edges)
-            DrawLine(edge.Point1, edge.Point2, color, thickness);
+        {
+            if (ClipLineToBounds(edge.Point1, edge.Point2, out Point p1, out Point p2))
+            {
+                DrawLine(p1, p2, color, thickness);
+            }
+        }
     }
 
     private void DrawLine(Point p1, Point p2, Color color, float thickness)
@@ -448,7 +527,8 @@ public class Voronoi
 
     private void DrawPolygon(List<Point> vertices, Color color)
     {
-        if (vertices.Count < 3) return;
+        if (vertices.Count < 3)
+            return;
 
         // Convert to VertexPositionColor once
         var verts = new VertexPositionColor[vertices.Count];
@@ -534,7 +614,11 @@ public class Voronoi
             DrawEdges(_triangulationEdges, Color.Transparent, thickness, spriteBatch);
 
         if ((flags & VoronoiRenderingFlags.Edges) != 0)
+        {
             DrawEdges(_voronoiEdges, Color.DarkGray, thickness, spriteBatch);
+            if (BoundaryMode == VoronoiBoundaryMode.HardEdge)
+                DrawBoundaryEdges(Color.DarkGray, thickness, spriteBatch);
+        }
 
         if ((flags & VoronoiRenderingFlags.Points) != 0)
             DrawPoints(spriteBatch);
@@ -554,7 +638,12 @@ public class Voronoi
     private void DrawEdges(IEnumerable<Edge> edges, Color color, float thickness, SpriteBatch spriteBatch)
     {
         foreach (Edge edge in edges)
-            DrawLine(edge.Point1, edge.Point2, color, thickness, spriteBatch);
+        {
+            if (ClipLineToBounds(edge.Point1, edge.Point2, out Point p1, out Point p2))
+            {
+                DrawLine(p1, p2, color, thickness, spriteBatch);
+            }
+        }
     }
 
     private void DrawLine(Point p1, Point p2, Color color, float thickness, SpriteBatch spriteBatch)
@@ -580,6 +669,478 @@ public class Voronoi
     #endregion
 
     #region Helper(s)
+
+    private void DrawBoundaryEdges(Color color, float thickness)
+    {
+        DrawLine(
+            new Point(0, 0),
+            new Point(_width, 0),
+            color,
+            thickness);
+
+        DrawLine(
+            new Point(_width, 0),
+            new Point(_width, _height),
+            color,
+            thickness);
+
+        DrawLine(
+            new Point(_width, _height),
+            new Point(0, _height),
+            color,
+            thickness);
+
+        DrawLine(
+            new Point(0, _height),
+            new Point(0, 0),
+            color,
+            thickness);
+    }
+
+    private void DrawBoundaryEdges(
+        Color color,
+        float thickness,
+        SpriteBatch spriteBatch)
+    {
+        DrawLine(
+            new Point(0, 0),
+            new Point(_width, 0),
+            color,
+            thickness,
+            spriteBatch);
+
+        DrawLine(
+            new Point(_width, 0),
+            new Point(_width, _height),
+            color,
+            thickness,
+            spriteBatch);
+
+        DrawLine(
+            new Point(_width, _height),
+            new Point(0, _height),
+            color,
+            thickness,
+            spriteBatch);
+
+        DrawLine(
+            new Point(0, _height),
+            new Point(0, 0),
+            color,
+            thickness,
+            spriteBatch);
+    }
+
+    private bool ClipLineToBounds(
+        Point p1,
+        Point p2,
+        out Point clipped1,
+        out Point clipped2)
+    {
+        float x1 = (float)p1.X;
+        float y1 = (float)p1.Y;
+        float x2 = (float)p2.X;
+        float y2 = (float)p2.Y;
+
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+
+        float t0 = 0f;
+        float t1 = 1f;
+
+        // Left: x >= 0
+        if (!Clip(-dx, x1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        // Right: x <= width
+        if (!Clip(dx, _width - x1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        // Top: y >= 0
+        if (!Clip(-dy, y1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        // Bottom: y <= height
+        if (!Clip(dy, _height - y1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        clipped1 = new Point(
+            (int)Math.Round(x1 + dx * t0),
+            (int)Math.Round(y1 + dy * t0));
+
+        clipped2 = new Point(
+            (int)Math.Round(x1 + dx * t1),
+            (int)Math.Round(y1 + dy * t1));
+
+        return true;
+
+        bool Clip(float p, float q)
+        {
+            if (Math.Abs(p) < 0.000001f)
+                return q >= 0f;
+
+            float r = q / p;
+
+            if (p < 0f)
+            {
+                if (r > t1)
+                    return false;
+
+                if (r > t0)
+                    t0 = r;
+            }
+            else
+            {
+                if (r < t0)
+                    return false;
+
+                if (r < t1)
+                    t1 = r;
+            }
+
+            return true;
+        }
+    }
+
+    private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode boundaryMode)
+    {
+        // Edge 0: vertices 0 -> 1
+        AddVoronoiEdge(
+            triangle,
+            triangle.Neighbor0,
+            triangle.Vertices[0],
+            triangle.Vertices[1],
+            boundaryMode);
+
+        // Edge 1: vertices 1 -> 2
+        AddVoronoiEdge(
+            triangle,
+            triangle.Neighbor1,
+            triangle.Vertices[1],
+            triangle.Vertices[2],
+            boundaryMode);
+
+        // Edge 2: vertices 2 -> 0
+        AddVoronoiEdge(
+            triangle,
+            triangle.Neighbor2,
+            triangle.Vertices[2],
+            triangle.Vertices[0],
+            boundaryMode);
+    }
+
+    private void AddVoronoiEdge(
+        Triangle triangle,
+        Triangle? neighbor,
+        Point a,
+        Point b,
+        VoronoiBoundaryMode boundaryMode)
+    {
+        if (neighbor != null)
+        {
+            // Interior Delaunay edge:
+            // the Voronoi edge connects the two circumcenters.
+            if (triangle.Id < neighbor.Id)
+            {
+                _voronoiEdges.Add(
+                    new Edge(
+                        triangle.Circumcenter,
+                        neighbor.Circumcenter));
+            }
+
+            return;
+        }
+
+        // No neighboring triangle means this is a convex-hull edge,
+        // so its Voronoi edge extends to infinity.
+        if (boundaryMode == VoronoiBoundaryMode.Culled)
+            return;
+
+        if (TryGetBoundaryVoronoiEdge(
+                triangle,
+                a,
+                b,
+                out Point start,
+                out Point end))
+        {
+            _voronoiEdges.Add(new Edge(start, end));
+        }
+    }
+
+    private bool TryGetBoundaryVoronoiEdge(
+        Triangle triangle,
+        Point a,
+        Point b,
+        out Point start,
+        out Point end)
+    {
+        Vector2 origin = new((float)triangle.Circumcenter.X, (float)triangle.Circumcenter.Y);
+
+        Vector2 va = new((float)a.X, (float)a.Y);
+        Vector2 vb = new((float)b.X, (float)b.Y);
+
+        Vector2 edge = vb - va;
+
+        if (edge.LengthSquared() < 0.000001f)
+        {
+            start = default;
+            end = default;
+            return false;
+        }
+
+        /*
+         * There are two possible normals to the Delaunay edge.
+         *
+         * Pick the one pointing AWAY from the third vertex of the
+         * triangle. That is the direction of the unbounded Voronoi ray.
+         */
+
+        Vector2 normal = new(
+            -edge.Y,
+            edge.X);
+
+        normal.Normalize();
+
+        Vector2 midpoint = (va + vb) * 0.5f;
+
+        Point thirdPoint;
+
+        if (triangle.Vertices[0] != a &&
+            triangle.Vertices[0] != b)
+        {
+            thirdPoint = triangle.Vertices[0];
+        }
+        else if (triangle.Vertices[1] != a &&
+                 triangle.Vertices[1] != b)
+        {
+            thirdPoint = triangle.Vertices[1];
+        }
+        else
+        {
+            thirdPoint = triangle.Vertices[2];
+        }
+
+        Vector2 third = new(
+            (float)thirdPoint.X,
+            (float)thirdPoint.Y);
+
+        // Make normal point away from the triangle.
+        if (Vector2.Dot(normal, third - midpoint) > 0f)
+            normal = -normal;
+
+        /*
+         * Intersect the ray:
+         *
+         *     origin + normal * t
+         *
+         * with the diagram rectangle.
+         *
+         * This gives us the portion of the infinite Voronoi ray
+         * that is actually visible inside the diagram.
+         */
+
+        float tMin = 0f;
+        float tMax = float.MaxValue;
+
+        if (!ClipRayAxis(
+                origin.X,
+                normal.X,
+                0f,
+                _width,
+                ref tMin,
+                ref tMax))
+        {
+            start = default;
+            end = default;
+            return false;
+        }
+
+        if (!ClipRayAxis(
+                origin.Y,
+                normal.Y,
+                0f,
+                _height,
+                ref tMin,
+                ref tMax))
+        {
+            start = default;
+            end = default;
+            return false;
+        }
+
+        if (tMax < tMin || tMax < 0f)
+        {
+            start = default;
+            end = default;
+            return false;
+        }
+
+        tMin = Math.Max(tMin, 0f);
+
+        Vector2 p1 = origin + normal * tMin;
+        Vector2 p2 = origin + normal * tMax;
+
+        start = new Point(
+            (int)Math.Round(Math.Clamp(p1.X, 0f, _width)),
+            (int)Math.Round(Math.Clamp(p1.Y, 0f, _height)));
+
+        end = new Point(
+            (int)Math.Round(Math.Clamp(p2.X, 0f, _width)),
+            (int)Math.Round(Math.Clamp(p2.Y, 0f, _height)));
+
+        return start != end;
+    }
+
+    private static bool ClipRayAxis(
+        float origin,
+        float direction,
+        float min,
+        float max,
+        ref float tMin,
+        ref float tMax)
+    {
+        if (Math.Abs(direction) < 0.000001f)
+        {
+            // Ray is parallel to this axis.
+            return origin >= min && origin <= max;
+        }
+
+        float t1 = (min - origin) / direction;
+        float t2 = (max - origin) / direction;
+
+        if (t1 > t2)
+            (t1, t2) = (t2, t1);
+
+        tMin = Math.Max(tMin, t1);
+        tMax = Math.Min(tMax, t2);
+
+        return tMin <= tMax;
+    }
+
+    private static List<Point> ClipPolygonToBounds(
+        List<Point> polygon,
+        int width,
+        int height)
+    {
+        if (polygon.Count < 3)
+            return [];
+
+        var result = polygon;
+
+        result = ClipPolygon(
+            result,
+            p => p.X >= 0,
+            (a, b) => IntersectVertical(a, b, 0));
+
+        result = ClipPolygon(
+            result,
+            p => p.X <= width,
+            (a, b) => IntersectVertical(a, b, width));
+
+        result = ClipPolygon(
+            result,
+            p => p.Y >= 0,
+            (a, b) => IntersectHorizontal(a, b, 0));
+
+        result = ClipPolygon(
+            result,
+            p => p.Y <= height,
+            (a, b) => IntersectHorizontal(a, b, height));
+
+        return result;
+    }
+
+    private static List<Point> ClipPolygon(
+        List<Point> polygon,
+        Func<Point, bool> inside,
+        Func<Point, Point, Point> intersection)
+    {
+        if (polygon.Count == 0)
+            return [];
+
+        var result = new List<Point>();
+
+        Point previous = polygon[^1];
+        bool previousInside = inside(previous);
+
+        foreach (Point current in polygon)
+        {
+            bool currentInside = inside(current);
+
+            if (currentInside)
+            {
+                if (!previousInside)
+                    result.Add(intersection(previous, current));
+
+                result.Add(current);
+            }
+            else if (previousInside)
+            {
+                result.Add(intersection(previous, current));
+            }
+
+            previous = current;
+            previousInside = currentInside;
+        }
+
+        return result
+            .Distinct()
+            .ToList();
+    }
+
+    private static Point IntersectVertical(
+        Point a,
+        Point b,
+        float x)
+    {
+        var dx = (b.X - a.X);
+
+        if (Math.Abs(dx) < 0.000001f)
+            return new Point(
+                (int)Math.Round(x),
+                a.Y);
+
+        var t = ((x - a.X) / dx);
+        var y = (a.Y + (b.Y - a.Y) * t);
+
+        return new Point((int)Math.Round(x), (int)Math.Round(y));
+    }
+
+    private static Point IntersectHorizontal(
+        Point a,
+        Point b,
+        float y)
+    {
+        var dy = b.Y - a.Y;
+
+        if (Math.Abs(dy) < 0.000001f)
+            return new Point(
+                a.X,
+                (int)Math.Round(y));
+
+        var t = (y - a.Y) / dy;
+        var x = a.X + (b.X - a.X) * t;
+
+        return new Point(
+            (int)Math.Round(x),
+            (int)Math.Round(y));
+    }
 
     public Color GetCellColor(VoronoiCell cell)
     {
@@ -686,6 +1247,12 @@ public class Voronoi
                 throw new InvalidOperationException(
                     "Neighbor relationship is not reciprocal.");
         }
+    }
+
+    public enum VoronoiBoundaryMode : byte
+    {
+        Culled,
+        HardEdge
     }
 
     public enum ColorMode : byte
