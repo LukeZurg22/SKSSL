@@ -30,9 +30,9 @@ namespace SKSSL.Utilities.Voronoi;
 /// </references>
 public class Voronoi
 {
+    private const int DefaultPointCount = 2000;
     private readonly DelaunayTriangulator _delaunay = new();
     public readonly GraphicsDevice _graphicsDevice;
-    public const int DefaultPointCount = 2000;
     private Point[] _points = [];
 
     /// <value>_graphicsDevice.Viewport.Width</value>
@@ -41,11 +41,18 @@ public class Voronoi
     /// <value>_graphicsDevice.Viewport.Height</value>
     private int _height;
 
+    // Data Storage
     private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
-
     private readonly Dictionary<Point, VoronoiCell> _voronoiCells = [];
-    private readonly Dictionary<Point, Color> _cellColors = [];
+    private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
 
+    // Coloring and Visualization
+    private readonly Dictionary<Point, Color> _cellRawColors = []; // Raw "provincial" colors of cells.
+    private readonly Dictionary<Point, Color> _cellOverrideColors = []; // Override colors for cells.
+    private readonly HashSet<int> _usedColors = []; // avoid exact RGB collisions
+    private readonly Random _random = new(32); // fixed seed → reproducible
+
+    // Data Caching
     private VertexPositionColor[] _cellBatchVertices = [];
     private int _cellBatchPrimitiveCount;
     private VertexPositionColor[] _edgeBatchVertices = [];
@@ -57,46 +64,23 @@ public class Voronoi
     private VertexPositionColor[] _highlightBatchVertices = [];
     private int _highlightBatchPrimitiveCount;
 
-    private readonly Texture2D _whitePixel;
+    // Rendering Basics
     private Texture2D _pixelMap = null!;
-    private bool _isGenerated = false;
     private BasicEffect _effect;
 
-    private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
-
-    private readonly Random _random = new(32); // fixed seed → reproducible
-    private readonly HashSet<int> _usedColors = []; // avoid exact RGB collisions
-
-    // ReSharper disable once FieldCanBeMadeReadOnly.Global
-    // ReSharper disable once ConvertToConstant.Global
-    // ReSharper disable MemberCanBePrivate.Global
-    public ColorMode CellDrawMode;
-    public Color UnifiedColor;
-    public Color PointColor;
-
+    // Rendering Options
     private VoronoiBoundaryMode _boundaryMode = VoronoiBoundaryMode.Culled;
+    private readonly ColorMode CellDrawMode;
+    private readonly Color _pointColor;
+    private readonly Color _edgeColor;
 
-    public VoronoiBoundaryMode BoundaryMode
-    {
-        get => _boundaryMode;
-        set
-        {
-            if (_boundaryMode == value)
-                return;
-
-            _boundaryMode = value;
-            _textureValid = false;
-        }
-    }
-
-
-    /// Toggle handling for <see cref="GetTexture"/> to check if something was generated.
+    // Cache Flags
     private VoronoiRenderingFlags _previousFlags;
-
     private VoronoiBoundaryMode _previousBoundaryMode;
     private float _previousThickness;
     private float _previousPointSize;
     private bool _textureValid;
+    private bool _isGenerated = false;
 
     #region Construction & Mono Code
 
@@ -107,13 +91,9 @@ public class Voronoi
         Color? pointColor = null)
     {
         _graphicsDevice = graphicsDevice;
-
         CellDrawMode = cellDrawMode;
-        UnifiedColor = unifiedColor ?? Color.White;
-        PointColor = pointColor ?? Color.Red;
-
-        _whitePixel = new Texture2D(_graphicsDevice, 1, 1);
-        _whitePixel.SetData([Color.White]);
+        _edgeColor = unifiedColor ?? Color.Gray;
+        _pointColor = pointColor ?? Color.Red;
     }
 
     /// Setup image data for writing. It begins as a 1x1 white pixel, but will be expanded later.
@@ -135,10 +115,12 @@ public class Voronoi
         SetDiagramProjection();
     }
 
-    private void SetDiagramProjection()
+    private void SetDiagramProjection(Matrix? world = null, Matrix? view = null)
     {
-        _effect.World = Matrix.Identity;
-        _effect.View = Matrix.Identity;
+        world ??= Matrix.Identity;
+        view ??= Matrix.Identity;
+        _effect.World = world.Value;
+        _effect.View = view.Value;
         _effect.Projection =
             Matrix.CreateOrthographicOffCenter(
                 0f,
@@ -149,20 +131,21 @@ public class Voronoi
                 1f);
     }
 
-    private Matrix GetScreenProjection()
+    private void SetScreenProjection()
     {
         Viewport viewport = _graphicsDevice.Viewport;
-        return Matrix.CreateOrthographicOffCenter(
-            0f,
-            viewport.Width,
-            viewport.Height,
-            0f,
-            0f,
-            1f);
-    }
 
-    private Matrix GetDiagramProjection()
-        => Matrix.CreateOrthographicOffCenter(0f, _width, _height, 0f, 0f, 1f);
+        _effect.World = Matrix.Identity;
+        _effect.View = Matrix.Identity;
+        _effect.Projection =
+            Matrix.CreateOrthographicOffCenter(
+                0f,
+                viewport.Width,
+                viewport.Height,
+                0f,
+                0f,
+                1f);
+    }
 
     #endregion
 
@@ -257,7 +240,7 @@ public class Voronoi
          */
         // Clear old data.
         _voronoiCells.Clear();
-        _cellColors.Clear();
+        _cellRawColors.Clear();
         _voronoiEdges.Clear();
         _usedColors.Clear();
         _cellVoronoiEdges.Clear();
@@ -265,7 +248,7 @@ public class Voronoi
         _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, pointCount * 3);
 
         _voronoiCells.EnsureCapacity(_points.Length);
-        _cellColors.EnsureCapacity(_points.Length);
+        _cellRawColors.EnsureCapacity(_points.Length);
 
         // ReSharper disable once PossibleMultipleEnumeration
         foreach (Triangle triangle in triangulation)
@@ -343,7 +326,7 @@ public class Voronoi
                 }
             }
 
-            _cellColors[cell.Site] = GetCellColor(cell);
+            _cellRawColors[cell.Site] = GetCellColor(cell);
         }
 
         // Every IsBoundary value is now final. It's important that this be here and not in the initial loop
@@ -467,6 +450,7 @@ public class Voronoi
 
     #region Utility
 
+    // ReSharper disable once UnusedMethodReturnValue.Global
     public bool TryGetCellAt(System.Drawing.Point position, out VoronoiCell? cell)
     {
         cell = null;
@@ -492,81 +476,6 @@ public class Voronoi
         }
 
         return cell != null;
-    }
-
-    // TODO: Make this more efficient by storing the cell references in bulk.
-    /// <summary>
-    /// Draw a highlight around a particular cell.
-    /// </summary>
-    /// <param name="spriteBatch">Spritebatch to draw on.</param>
-    /// <param name="cell">Cell to highlight.</param>
-    /// <param name="color">Color of outline.</param>
-    /// <param name="thickness">Thickness of outline.</param>
-    /// <code>
-    /// // This is the usage of the drawing cell highlight.
-    /// // The covered cell is obtained by TryGetCellAt.
-    /// void Draw(GameTime gameTime)
-    /// {
-    ///     spriteBatch?.Begin();
-    ///     spriteBatch?.Draw(_diagram, Vector2.Zero, Color.White);
-    ///     if (_hoveredCell != null and spriteBatch != null)
-    ///     {
-    ///         _voronoi.DrawCellHighlight(spriteBatch, _hoveredCell, Color.Yellow, 3f);
-    ///     }
-    ///     spriteBatch?.End();
-    /// }
-    /// </code>
-    public void DrawCellHighlight(
-        SpriteBatch spriteBatch,
-        VoronoiCell cell,
-        Color color,
-        float thickness = 1f)
-    {
-        if (cell.Vertices.Count < 2)
-            return;
-
-        for (int i = 0; i < cell.Vertices.Count; i++)
-        {
-            Point a = cell.Vertices[i];
-            Point b = cell.Vertices[(i + 1) % cell.Vertices.Count];
-
-            if (ClipLineToBounds(a, b, out Point clippedA, out Point clippedB))
-                DrawHighlightLine(
-                    clippedA,
-                    clippedB,
-                    color,
-                    thickness,
-                    spriteBatch);
-        }
-    }
-
-    private void DrawHighlightLine(
-        Point p1,
-        Point p2,
-        Color color,
-        float thickness,
-        SpriteBatch spriteBatch)
-    {
-        Vector2 start = new((float)p1.X, (float)p1.Y);
-        Vector2 end = new((float)p2.X, (float)p2.Y);
-        Vector2 edge = end - start;
-
-        float length = edge.Length();
-        if (length <= 0f)
-            return;
-
-        float angle = MathF.Atan2(edge.Y, edge.X);
-
-        spriteBatch.Draw(
-            _whitePixel,
-            start,
-            null,
-            color,
-            angle,
-            Vector2.Zero,
-            new Vector2(length, thickness),
-            SpriteEffects.None,
-            0f);
     }
 
     public void SetHighlightedCells(
@@ -629,18 +538,15 @@ public class Voronoi
         if (_highlightBatchPrimitiveCount == 0)
             return;
 
-        SetDiagramProjection();
+        SetScreenProjection();
 
         BlendState previousBlend = _graphicsDevice.BlendState;
         RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;
 
         try
         {
-            _graphicsDevice.BlendState =
-                BlendState.AlphaBlend;
-
-            _graphicsDevice.RasterizerState =
-                RasterizerState.CullNone;
+            _graphicsDevice.BlendState = BlendState.AlphaBlend;
+            _graphicsDevice.RasterizerState = RasterizerState.CullNone;
 
             foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
             {
@@ -1159,13 +1065,13 @@ public class Voronoi
             Vector3 c = new(x + half, y + half, 0f);
             Vector3 d = new(x - half, y + half, 0f);
 
-            vertices.Add(new VertexPositionColor(a, PointColor));
-            vertices.Add(new VertexPositionColor(b, PointColor));
-            vertices.Add(new VertexPositionColor(c, PointColor));
+            vertices.Add(new VertexPositionColor(a, _pointColor));
+            vertices.Add(new VertexPositionColor(b, _pointColor));
+            vertices.Add(new VertexPositionColor(c, _pointColor));
 
-            vertices.Add(new VertexPositionColor(a, PointColor));
-            vertices.Add(new VertexPositionColor(c, PointColor));
-            vertices.Add(new VertexPositionColor(d, PointColor));
+            vertices.Add(new VertexPositionColor(a, _pointColor));
+            vertices.Add(new VertexPositionColor(c, _pointColor));
+            vertices.Add(new VertexPositionColor(d, _pointColor));
         }
 
         _pointBatchVertices = vertices.ToArray();
@@ -1248,16 +1154,15 @@ public class Voronoi
             Vector3 b = new(start - perpendicular, 0f);
             Vector3 c = new(end - perpendicular, 0f);
             Vector3 d = new(end + perpendicular, 0f);
-            Color color = Color.DarkGray;
 
             // Two triangles.
-            vertices.Add(new VertexPositionColor(a, color));
-            vertices.Add(new VertexPositionColor(b, color));
-            vertices.Add(new VertexPositionColor(c, color));
+            vertices.Add(new VertexPositionColor(a, _edgeColor));
+            vertices.Add(new VertexPositionColor(b, _edgeColor));
+            vertices.Add(new VertexPositionColor(c, _edgeColor));
 
-            vertices.Add(new VertexPositionColor(a, color));
-            vertices.Add(new VertexPositionColor(c, color));
-            vertices.Add(new VertexPositionColor(d, color));
+            vertices.Add(new VertexPositionColor(a, _edgeColor));
+            vertices.Add(new VertexPositionColor(c, _edgeColor));
+            vertices.Add(new VertexPositionColor(d, _edgeColor));
         }
 
         _edgeBatchVertices = vertices.ToArray();
@@ -1284,7 +1189,7 @@ public class Voronoi
             if (vertices.Count < 3)
                 continue;
 
-            Color color = _cellColors[cell.Site];
+            Color color = _cellRawColors[cell.Site];
             Vector3 origin = new((float)vertices[0].X, (float)vertices[0].Y, 0f);
 
             for (int i = 1; i < vertices.Count - 1; i++)
@@ -1359,7 +1264,7 @@ public class Voronoi
                 break;
             case ColorMode.Unified:
             default:
-                color = UnifiedColor;
+                color = _edgeColor;
                 break;
         }
 
