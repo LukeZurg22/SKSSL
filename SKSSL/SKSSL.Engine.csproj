@@ -83,6 +83,9 @@
     <ItemGroup>
         <!-- Explicitly pack the generator DLL (adjust path if needed) -->
         <None Include="..\SKSSL.Generator\bin\$(Configuration)\netstandard2.0\SKSSL.Generator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="true"/>
+        <None Update="Utilities\Voronoi\ObsoleteFunctions">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </None>
     </ItemGroup>
 
     <ItemGroup>
