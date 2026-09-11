@@ -536,8 +536,21 @@ public class Voronoi
     private void DrawPoints(SpriteBatch spriteBatch)
     {
         foreach (Point point in _points)
-            spriteBatch.Draw(_pixelMap, new Rectangle((int)point.X, (int)point.Y, 2, 2), PointColor);
+        {
+            if (IsCulledBoundaryCell(point))
+                continue;
+
+            spriteBatch.Draw(
+                _pixelMap,
+                new Rectangle((int)point.X, (int)point.Y, 2, 2),
+                PointColor);
+        }
     }
+
+    private bool IsCulledBoundaryCell(Point site) =>
+        BoundaryMode == VoronoiBoundaryMode.Culled &&
+        _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
+        cell.IsBoundary;
 
     private void DrawEdges(IEnumerable<Edge> edges, Color color, float thickness, SpriteBatch spriteBatch)
     {
@@ -1081,6 +1094,12 @@ public class Voronoi
         _pointBatchVertices = new VertexPositionColor[_points.Length * 6];
         foreach (Point point in _points)
         {
+            // In order to avoid rendering points on outer cells, one must avoid putting those points there.
+            // They are outer cells, they should not technically exist despite culling not being a strictly
+            //  hard-edge.
+            if (IsCulledBoundaryCell(point))
+                continue;
+
             var x = (float)point.X;
             var y = (float)point.Y;
 
@@ -1097,8 +1116,7 @@ public class Voronoi
             _pointBatchVertices[index++] = new VertexPositionColor(d, PointColor);
         }
 
-        _pointBatchPrimitiveCount =
-            _pointBatchVertices.Length / 3;
+        _pointBatchPrimitiveCount = _pointBatchVertices.Length / 3;
     }
 
     private void DrawPointBatch()

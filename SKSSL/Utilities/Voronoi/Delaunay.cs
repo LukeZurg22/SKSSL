@@ -439,9 +439,11 @@ public class DelaunayTriangulator
     public enum PointDistribution
     {
         Custom = 0,
+
+        /// Produces sharper, more "raw" triangular cells.
         RandomSystem = 1,
 
-        /// Accepts evenness parameter.
+        /// Accepts evenness parameter. Produces cleaner cells.
         RandomJitter = 2,
     }
 }

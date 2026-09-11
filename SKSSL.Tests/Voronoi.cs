@@ -52,10 +52,11 @@ public class Voronoi
         }
 
         _diagram = _voronoi.GenerateDiagram(
-            pointCount: 2060,
+            width: 800,
+            pointCount: 3000,
             boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
-            distribution: DelaunayTriangulator.PointDistribution.RandomJitter,
-            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells);
+            distribution: DelaunayTriangulator.PointDistribution.RandomSystem,
+            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.All);
         generated = true;
     }
 }
