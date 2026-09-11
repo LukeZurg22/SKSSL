@@ -55,7 +55,7 @@ public class Voronoi
             width: 800,
             pointCount: 3000,
             boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
-            distribution: DelaunayTriangulator.PointDistribution.RandomSystem,
+            distribution: DelaunayTriangulator.PointDistribution.RandomJitter,
             flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.All);
         generated = true;
     }

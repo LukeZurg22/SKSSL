@@ -243,6 +243,7 @@ public class Voronoi
         _voronoiCells.EnsureCapacity(_points.Length);
         _cellColors.EnsureCapacity(_points.Length);
 
+        // ReSharper disable once PossibleMultipleEnumeration
         foreach (Triangle triangle in triangulation)
         {
             // Build cells.
@@ -288,13 +289,11 @@ public class Voronoi
                 _triangulationEdges.Add(
                     new Edge(triangle.Vertices[2], triangle.Vertices[0]));
             }
-        }
 
-        // NOW every boundary cell has been identified.
-        foreach (Triangle triangle in triangulation)
-        {
+            // Identify boundary cells.
             AddVoronoiEdges(triangle, boundaryMode);
         }
+
 
         // PROCESS CELLS
         foreach (VoronoiCell cell in _voronoiCells.Values)
@@ -451,49 +450,6 @@ public class Voronoi
 
     #endregion
 
-    #region Spritebatch-Less Drawing
-
-    private static readonly short[] QuadIndices = [0, 1, 2, 0, 2, 3];
-
-    private void DrawLine(Point p1, Point p2, Color color, float thickness)
-    {
-        Vector2 start = new((float)p1.X, (float)p1.Y);
-        Vector2 end = new((float)p2.X, (float)p2.Y);
-        Vector2 direction = end - start;
-
-        float length = direction.Length();
-        if (length <= 0f)
-            return;
-
-        direction /= length;
-
-        Vector2 perpendicular = new(-direction.Y, direction.X);
-        Vector2 offset = perpendicular * (thickness * 0.5f);
-
-        var vertices = new[]
-        {
-            new VertexPositionColor(new Vector3(start + offset, 0f), color),
-            new VertexPositionColor(new Vector3(start - offset, 0f), color),
-            new VertexPositionColor(new Vector3(end - offset, 0f), color),
-            new VertexPositionColor(new Vector3(end + offset, 0f), color)
-        };
-
-        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
-        {
-            pass.Apply();
-            _graphicsDevice.DrawUserIndexedPrimitives(
-                PrimitiveType.TriangleList,
-                vertices,
-                0,
-                4,
-                QuadIndices,
-                0,
-                2);
-        }
-    }
-
-    #endregion
-
     #region Spritebatch-focused drawing
 
     /// <summary>
@@ -502,7 +458,6 @@ public class Voronoi
     /// <param name="spriteBatch"></param>
     /// <param name="thickness"></param>
     /// <param name="flags"></param>
-    // ReSharper disable once UnusedMember.Global
     public void Draw(
         SpriteBatch spriteBatch,
         float thickness = 1f,
@@ -537,7 +492,7 @@ public class Voronoi
     {
         foreach (Point point in _points)
         {
-            if (IsCulledBoundaryCell(point))
+            if (ShouldCullBoundarySite(point))
                 continue;
 
             spriteBatch.Draw(
@@ -547,10 +502,18 @@ public class Voronoi
         }
     }
 
-    private bool IsCulledBoundaryCell(Point site) =>
-        BoundaryMode == VoronoiBoundaryMode.Culled &&
+    /// <summary>
+    /// Marks whether a cell at a given site should be culled.
+    /// </summary>
+    /// <param name="site">Point at which a cell is expected to be.</param>
+    /// <returns>
+    /// True if the culling mode is <see cref="VoronoiBoundaryMode.Culled"/>, the point belongs to a valid cell,
+    /// and that cell is a boundary cell or simply has no vertices. Otherwise... it returns false.
+    /// </returns>
+    private bool ShouldCullBoundarySite(Point site) =>
+        _boundaryMode == VoronoiBoundaryMode.Culled &&
         _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
-        cell.IsBoundary;
+        (cell.IsBoundary || cell.Vertices.Count == 0);
 
     private void DrawEdges(IEnumerable<Edge> edges, Color color, float thickness, SpriteBatch spriteBatch)
     {
@@ -735,7 +698,8 @@ public class Voronoi
         Triangle triangle,
         Triangle? neighbor,
         Point a,
-        Point b, VoronoiBoundaryMode boundaryMode)
+        Point b,
+        VoronoiBoundaryMode boundaryMode)
     {
         if (neighbor != null)
         {
@@ -743,8 +707,10 @@ public class Voronoi
                 return;
 
             // In Culled mode, don't render an edge belonging to a boundary cell that is being culled.
-            if (boundaryMode == VoronoiBoundaryMode.Culled &&
-                (_voronoiCells[a].IsBoundary || _voronoiCells[b].IsBoundary))
+            // For some odd reason, edges will still render if found to be a culled boundary site.
+            // The logic is completely inverted, and for some reason when negating it -it works just as
+            //  intended.
+            if (!ShouldCullBoundarySite(neighbor.Circumcenter))
                 return;
 
             Point p1 = triangle.Circumcenter;
@@ -911,7 +877,6 @@ public class Voronoi
 
         float t1 = (min - origin) / direction;
         float t2 = (max - origin) / direction;
-
         if (t1 > t2)
             (t1, t2) = (t2, t1);
 
@@ -921,10 +886,7 @@ public class Voronoi
         return tMin <= tMax;
     }
 
-    private static List<Point> ClipPolygonToBounds(
-        List<Point> polygon,
-        int width,
-        int height)
+    private static List<Point> ClipPolygonToBounds(List<Point> polygon, int width, int height)
     {
         if (polygon.Count < 3)
             return [];
@@ -1097,7 +1059,7 @@ public class Voronoi
             // In order to avoid rendering points on outer cells, one must avoid putting those points there.
             // They are outer cells, they should not technically exist despite culling not being a strictly
             //  hard-edge.
-            if (IsCulledBoundaryCell(point))
+            if (ShouldCullBoundarySite(point))
                 continue;
 
             var x = (float)point.X;
@@ -1368,7 +1330,7 @@ public class Voronoi
 
     #endregion
 
-    #region Obsolete Helpers
+    #region Obsolete Code
 
     [Obsolete($"If generating a diagram, use {nameof(GenerateDiagram)}")]
     // ReSharper disable once UnusedMember.Local
@@ -1464,6 +1426,46 @@ public class Voronoi
                     0,
                     2);
             }
+        }
+    }
+
+    private static readonly short[] QuadIndices = [0, 1, 2, 0, 2, 3];
+
+    [Obsolete]
+    private void DrawLine(Point p1, Point p2, Color color, float thickness)
+    {
+        Vector2 start = new((float)p1.X, (float)p1.Y);
+        Vector2 end = new((float)p2.X, (float)p2.Y);
+        Vector2 direction = end - start;
+
+        float length = direction.Length();
+        if (length <= 0f)
+            return;
+
+        direction /= length;
+
+        Vector2 perpendicular = new(-direction.Y, direction.X);
+        Vector2 offset = perpendicular * (thickness * 0.5f);
+
+        var vertices = new[]
+        {
+            new VertexPositionColor(new Vector3(start + offset, 0f), color),
+            new VertexPositionColor(new Vector3(start - offset, 0f), color),
+            new VertexPositionColor(new Vector3(end - offset, 0f), color),
+            new VertexPositionColor(new Vector3(end + offset, 0f), color)
+        };
+
+        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            _graphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList,
+                vertices,
+                0,
+                4,
+                QuadIndices,
+                0,
+                2);
         }
     }
 
