@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+#nullable enable
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Xna.Framework;
@@ -14,10 +14,9 @@ namespace SKSSL.Tests;
 public class Voronoi
 {
     private const bool TOGGLE_EXECUTABLE_CLOSURE = false;
-    private Utilities.Voronoi.Voronoi _voronoi;
-    bool generated = false;
-    private UnitGame _game;
-    private Texture2D _diagram = null!;
+    private Utilities.Voronoi.Voronoi _voronoi = null!;
+    private bool generated = false;
+    private UnitGame _game = null!;
     private VoronoiCell? _hoveredCell;
 
     [TestMethod, UsedImplicitly]
@@ -33,14 +32,7 @@ public class Voronoi
         return;
 
         // ReSharper disable AccessToModifiedClosure
-        void Draw(GameTime gameTime)
-        {
-            if (spriteBatch != null)
-            {
-                _voronoi.Draw(spriteBatch);
-            }
-
-        }
+        void Draw(GameTime gameTime) => _voronoi.Draw(spriteBatch);
     }
 
 
@@ -52,8 +44,9 @@ public class Voronoi
             Point mousePosition = new(mouse.X, mouse.Y);
 
             _voronoi.TryGetCellAt(mousePosition, out _hoveredCell);
-            _voronoi.SetHighlightedCells([_hoveredCell], Color.Black);
-            
+            if (_hoveredCell != null)
+                _voronoi.SetHighlightedCells([_hoveredCell], Color.Black);
+
             if (TOGGLE_EXECUTABLE_CLOSURE)
 #pragma warning disable CS0162
                 // ReSharper disable once HeuristicUnreachableCode
@@ -63,14 +56,19 @@ public class Voronoi
             return;
         }
 
-        _diagram = _voronoi.GenerateDiagram(
-            width: 800,
-            pointCount: 3000,
-            boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
+        _voronoi.GenerateDiagram(pointCount: 5000,
+            width: 1200,
+            height: 800,
             distribution: DelaunayTriangulator.PointDistribution.RandomJitter,
-            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points |
-                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
-                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges);
+            boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
+            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells);
+
+        for (int i = 0; i <= 2040; i++)
+        {
+            _voronoi.MarkCell(i);
+        }
+
+        _voronoi.ColorMarkedCells(Color.BlanchedAlmond);
 
         generated = true;
     }

@@ -1,5 +1,22 @@
 // I saved this obsolete code because I spent too long on it enough to develop nostalgia.
 
+    /// <code>
+    /// // Generate points.
+    /// _points = [.._delaunay.GeneratePoints(PointCount, width, height)];
+    /// ...
+    /// // Make the triangles.
+    /// var triangulation = _delaunay.BowyerWatson(_points).ToList();
+    /// ...
+    /// // Create Cells.
+    /// GenerateCells(triangulation);
+    /// ...
+    /// // Clear the edges used to make the triangles.
+    /// _triangulationEdges.Clear();
+    /// ...
+    /// // Generate the voronoi edges.
+    /// _voronoiEdges = [..GenerateEdgesFromDelaunay(triangulation)];
+    /// </code>
+
     [Obsolete($"If generating a diagram, use {nameof(GenerateDiagram)}")]
     // ReSharper disable once UnusedMember.Local
     // ReSharper disable once UnusedMember.Global

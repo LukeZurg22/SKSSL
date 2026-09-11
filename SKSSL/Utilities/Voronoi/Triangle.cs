@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -10,21 +9,6 @@ public class Triangle
 
     private static int nextId;
     internal readonly int Id = nextId++;
-
-    public IEnumerable<Triangle?> Neighbors
-    {
-        get
-        {
-            if (Neighbor0 != null)
-                yield return Neighbor0;
-
-            if (Neighbor1 != null)
-                yield return Neighbor1;
-
-            if (Neighbor2 != null)
-                yield return Neighbor2;
-        }
-    }
 
     private double _radiusSquared;
     public Triangle? Neighbor0;
@@ -39,7 +23,7 @@ public class Triangle
     public Triangle(Point point1, Point point2, Point point3)
     {
         if (point1 == point2 || point1 == point3 || point2 == point3)
-            throw new ArgumentException("Must be 3 distinct points");
+            throw new ArgumentException("Triangle consist of 3 distinct points.");
 
         bool IsCounterClockwise =
             (point2.X - point1.X) * (point3.Y - point1.Y) -
