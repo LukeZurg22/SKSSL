@@ -3,7 +3,6 @@ Study this: https://github.com/alexmuab/unit-testing-csharp-example
 // Note to self: Dynamic prototype loading for Hot-Reloads? Not sure about that.
 
 TODO: (DOCUMENTATION)
-+ Voronoi Image Generator
 + Shunting Yard
 + Prototypes (Auto-Registered)
     +> Prototype Class Inheritance

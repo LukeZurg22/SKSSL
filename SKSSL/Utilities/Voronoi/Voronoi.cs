@@ -97,10 +97,19 @@ public class Voronoi
 
     // TODO: Add support for point settling / re-centering. Generating is an odd one, as vertices will be needed.
 
+    // TODO: Add TryGetCell(int ID, out VoronoiCell? cell) which attempts to get a cell using ID.
+
     // TODO: For more performance, converting Triangles to structs might help. Neighbors will be a little more tedious
     //  to calculate, but it might make some difference in memory?
 
     // TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
+
+    // TODO: Add a MarkCell(System.Drawing.Point point) function to mark a cell found at a point.
+    //      This calls TryGetCell(Point, out VoronoiCell) and add the cell to Marked IDs.
+    // TODO: Add a flashing "Selected" highlight which uses Marked Cells. This will be rough.
+    //      To make this performant, recreate a Color highlight map every time a cell is marked, then:
+    //      - Simply decrease and increase opacity in the draw call via a Math.Lerp() or something.
+    //      Replace existing "highlight" terminology with "selected", and then use "highlight" for the literal highlighting.
 
     // TODO: I am terrified. I don't want to, but i must... find a way to serialize all this crap.
     //  - Serialize cell data:
@@ -548,11 +557,11 @@ public class Voronoi
     #region Cell Highlighting
 
     /// <summary>
-    /// 
+    /// Attempt to get a cell at a provided screen position.
     /// </summary>
-    /// <param name="position"></param>
-    /// <param name="cell"></param>
-    /// <returns></returns>
+    /// <param name="position">Mouse position / screen position.</param>
+    /// <param name="cell">Output cell for use elsewhere. Null if not found.</param>
+    /// <returns>True if found cell, false if not. Out will be null if false.</returns>
     /// <remarks>May cause lag at immense diagram sizes, mostly around 50k and beyond.</remarks>
     // ReSharper disable once UnusedMethodReturnValue.Global
     public bool TryGetCellAt(System.Drawing.Point position, out VoronoiCell? cell)
