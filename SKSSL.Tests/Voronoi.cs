@@ -57,11 +57,14 @@ public class Voronoi
             return;
         }
 
-        /*await Task.Run(() =>*/ _voronoi.GenerateDiagram(pointCount: 30000,
-            width: 1200,
-            height: 800,
+        // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
+        //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
+        //  some kind of culling.
+        /*await Task.Run(() =>*/ _voronoi.GenerateDiagram(pointCount: 40000,
+            //width: 1200,
+            //height: 800,
             distribution: DelaunayTriangulator.PointDistribution.RandomJitter,
-            boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
+            boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.HardEdge,
             flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells)/*)*/;
 
         for (int i = 0; i <= 2040; i++) _voronoi.MarkCell(i);
