@@ -88,8 +88,8 @@ public class Voronoi
 
     // Spacial Dividing
     /*Because a graph may become too large, it'll need to be divided into "chunks" or spacial grids.*/
-    private int _spatialGridSize;
     private List<VoronoiCell>[] _spatialGrid = [];
+    private int _spatialGridSize;
     private float _gridCellWidth;
     private float _gridCellHeight;
 
@@ -425,26 +425,30 @@ public class Voronoi
     {
         // ReSharper disable once PossibleLossOfFraction
         _spatialGridSize = Math.Max(10, (int)Math.Sqrt(_voronoiCells.Count / 4));
-        int bucketCount = _spatialGridSize * _spatialGridSize;
+        _gridCellWidth = (float)_width / _spatialGridSize;
+        _gridCellHeight = (float)_height / _spatialGridSize;
 
+        var cells = _voronoiCells.Values.ToArray();
+        var bucketIndices = new int[cells.Length];
+
+        // Build bucket indices beforehand to avoid weird List<T> parallelization issues.
+        Parallel.For(0, cells.Length, i =>
+        {
+            VoronoiCell cell = cells[i];
+            int x = Math.Clamp((int)(cell.Site.X / _gridCellWidth), 0, _spatialGridSize - 1);
+            int y = Math.Clamp((int)(cell.Site.Y / _gridCellHeight), 0, _spatialGridSize - 1);
+            bucketIndices[i] = y * _spatialGridSize + x;
+        });
+
+        // Build the buckets sequentially.
+        int bucketCount = _spatialGridSize * _spatialGridSize;
         _spatialGrid = new List<VoronoiCell>[bucketCount];
         for (int i = 0; i < bucketCount; i++)
             _spatialGrid[i] = [];
 
-        _gridCellWidth = (float)_width / _spatialGridSize;
-        _gridCellHeight = (float)_height / _spatialGridSize;
-
-        Parallel.ForEach(_voronoiCells.Values, cell =>
-        {
-            // This caused crashes, but I am not entirely sure if I should completely do-away with it.
-            //if (_boundaryMode == VoronoiBoundaryMode.Culled &&
-            //    cell.IsBoundary)
-            //    return;
-
-            int x = Math.Clamp((int)(cell.Site.X / _gridCellWidth), 0, _spatialGridSize - 1);
-            int y = Math.Clamp((int)(cell.Site.Y / _gridCellHeight), 0, _spatialGridSize - 1);
-            _spatialGrid[y * _spatialGridSize + x].Add(cell);
-        });
+        // The buckets being constructed earlier will help prevent null exceptions.
+        for (int i = 0; i < cells.Length; i++)
+            _spatialGrid[bucketIndices[i]].Add(cells[i]);
     }
 
     /// <summary>
@@ -550,7 +554,7 @@ public class Voronoi
     public bool TryGetCellAt(System.Drawing.Point position, out VoronoiCell? cell)
     {
         cell = null;
-       
+
         if (_spatialGrid.Length == 0)
             return false;
 
@@ -560,16 +564,24 @@ public class Voronoi
         long bestDistance = long.MaxValue;
         for (int y = gridY - 1; y <= gridY + 1; y++)
         {
-            if (y < 0 || y >= _spatialGridSize) continue; // Short-circuit.
+            if (y < 0 || y >= _spatialGridSize)
+                continue;
+
             for (int x = gridX - 1; x <= gridX + 1; x++)
             {
-                if (x < 0 || x >= _spatialGridSize) continue; // Short-circuit.
+                if (x < 0 || x >= _spatialGridSize)
+                    continue;
+
                 var bucket = _spatialGrid[y * _spatialGridSize + x];
+                if (bucket == null)
+                    throw new NullReferenceException($"NULL BUCKET: x={x}, y={y}");
+
                 foreach (VoronoiCell candidate in bucket)
                 {
                     long dx = (long)(candidate.Site.X - position.X);
                     long dy = (long)(candidate.Site.Y - position.Y);
                     long distance = dx * dx + dy * dy;
+
                     if (distance >= bestDistance)
                         continue;
 
