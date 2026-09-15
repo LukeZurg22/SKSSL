@@ -19,16 +19,16 @@ namespace SKSSL.Utilities.Voronoi;
 /// 3. https://louis-dr.github.io/voronoimap.html<br/>
 /// 4. https://mapbox.github.io/delaunator/
 /// </references>
-public class DelaunayTriangulator
+public class DelaunayTriangulator : IDisposable
 {
-    private readonly List<Triangle> _allTriangles = [];
-    private readonly List<Triangle> _badTriangles = [];
-    private readonly List<BoundaryEdge> _boundaryEdges = [];
+    private List<Triangle> _allTriangles = [];
+    private List<Triangle> _badTriangles = [];
+    private List<BoundaryEdge> _boundaryEdges = [];
 
-    private readonly Stack<Triangle> _openTriangles = [];
+    private Stack<Triangle> _openTriangles = [];
 
     // Reused every insertion. It grows to the largest cavity encountered.
-    private readonly Dictionary<Point, Triangle> _radialTriangles = [];
+    private Dictionary<Point, Triangle> _radialTriangles = [];
 
     private int _visitStamp;
     private int _badStamp;
@@ -445,6 +445,20 @@ public class DelaunayTriangulator
 
         /// Accepts evenness parameter. Produces cleaner cells.
         RandomJitter = 2,
+    }
+
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+        _allTriangles = [];
+        _badTriangles = [];
+        _boundaryEdges = [];
+        _openTriangles = [];
+        _radialTriangles = [];
+        _visitStamp = default;
+        _badStamp = default;
+        _aliveTriangleCount = default;
+        _border = [];
     }
 }
 
