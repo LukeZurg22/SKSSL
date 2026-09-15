@@ -49,6 +49,9 @@ public class Voronoi
     private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
     private readonly Dictionary<Point, List<CellVoronoiEdge>> _edgesByCell = [];
 
+    //      A graph may become too large, it'll need to be divided into "chunks" / spacial grids.
+    private SpatialGrid? _spatialGrid;
+
     // Coloring and Visualization
     private Color[] _cellOverrideColors; // Override colors for cells. Indexed by ID.
     private Color[] _cellRawColors; // Raw "provincial" colors of cells. Indexed by ID.
@@ -86,17 +89,11 @@ public class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
-    // Spacial Dividing
-    /*Because a graph may become too large, it'll need to be divided into "chunks" or spacial grids.*/
-    private List<VoronoiCell>[] _spatialGrid = [];
-    private int _spatialGridSize;
-    private float _gridCellWidth;
-    private float _gridCellHeight;
-
     // TODO: Allow the ability to generate / render a set of cells that follow explicitly-provided borders.
     //  a. Feed image
     //   1. determine functional edges. color-coding may be needed.
     //  b. Generate random series of larger polygons. If using voronoi, the edges will be useful.
+    //  c. Generate a voronoi graph using an image declaring density. A density-map would be lovely for SolKom.
 
     // TODO: Add support for point settling / re-centering. Generating is an odd one, as vertices will be needed.
 
@@ -392,6 +389,42 @@ public class Voronoi
         BuildSpatialGrid();
     }
 
+    private void BuildSpatialGrid()
+    {
+        // ReSharper disable once PossibleLossOfFraction
+        int gridSize = Math.Max(
+            10,
+            (int)Math.Sqrt(_voronoiCells.Count / 4));
+
+        float cellWidth = (float)_width / gridSize;
+        float cellHeight = (float)_height / gridSize;
+
+        var cells = _voronoiCells.Values.ToArray();
+        var bucketIndices = new int[cells.Length];
+
+        // Determine the bucket for every cell in parallel.
+        Parallel.For(0, cells.Length, i =>
+        {
+            VoronoiCell cell = cells[i];
+            int x = Math.Clamp((int)(cell.Site.X / cellWidth), 0, gridSize - 1);
+            int y = Math.Clamp((int)(cell.Site.Y / cellHeight), 0, gridSize - 1);
+            bucketIndices[i] = y * gridSize + x;
+        });
+
+        int bucketCount = gridSize * gridSize;
+        var buckets = new List<VoronoiCell>[bucketCount];
+
+        for (int i = 0; i < bucketCount; i++)
+            buckets[i] = [];
+
+        // Populate buckets after all parallel work has completed.
+        for (int i = 0; i < cells.Length; i++)
+            buckets[bucketIndices[i]].Add(cells[i]);
+
+        // Publish the completed grid as one atomic-ish snapshot.
+        _spatialGrid = new SpatialGrid(buckets, gridSize, cellWidth, cellHeight);
+    }
+
     private void BuildEdgesByCell()
     {
         _edgesByCell.Clear();
@@ -421,35 +454,6 @@ public class Voronoi
         }
     }
 
-    private void BuildSpatialGrid()
-    {
-        // ReSharper disable once PossibleLossOfFraction
-        _spatialGridSize = Math.Max(10, (int)Math.Sqrt(_voronoiCells.Count / 4));
-        _gridCellWidth = (float)_width / _spatialGridSize;
-        _gridCellHeight = (float)_height / _spatialGridSize;
-
-        var cells = _voronoiCells.Values.ToArray();
-        var bucketIndices = new int[cells.Length];
-
-        // Build bucket indices beforehand to avoid weird List<T> parallelization issues.
-        Parallel.For(0, cells.Length, i =>
-        {
-            VoronoiCell cell = cells[i];
-            int x = Math.Clamp((int)(cell.Site.X / _gridCellWidth), 0, _spatialGridSize - 1);
-            int y = Math.Clamp((int)(cell.Site.Y / _gridCellHeight), 0, _spatialGridSize - 1);
-            bucketIndices[i] = y * _spatialGridSize + x;
-        });
-
-        // Build the buckets sequentially.
-        int bucketCount = _spatialGridSize * _spatialGridSize;
-        _spatialGrid = new List<VoronoiCell>[bucketCount];
-        for (int i = 0; i < bucketCount; i++)
-            _spatialGrid[i] = [];
-
-        // The buckets being constructed earlier will help prevent null exceptions.
-        for (int i = 0; i < cells.Length; i++)
-            _spatialGrid[bucketIndices[i]].Add(cells[i]);
-    }
 
     /// <summary>
     /// Gets the voronoi object's rasterized texture, or creates one.
@@ -555,28 +559,26 @@ public class Voronoi
     {
         cell = null;
 
-        if (_spatialGrid.Length == 0)
+        // Creating a duplicate reference so as to avoid a crash.
+        SpatialGrid? grid = _spatialGrid;
+        if (grid == null || grid.Buckets.Length == 0)
             return false;
 
-        int gridX = Math.Clamp((int)(position.X / _gridCellWidth), 0, _spatialGridSize - 1);
-        int gridY = Math.Clamp((int)(position.Y / _gridCellHeight), 0, _spatialGridSize - 1);
-
+        int gridX = Math.Clamp((int)(position.X / grid.CellWidth), 0, grid.Size - 1);
+        int gridY = Math.Clamp((int)(position.Y / grid.CellHeight), 0, grid.Size - 1);
         long bestDistance = long.MaxValue;
+
         for (int y = gridY - 1; y <= gridY + 1; y++)
         {
-            if (y < 0 || y >= _spatialGridSize)
+            if (y < 0 || y >= grid.Size)
                 continue;
 
             for (int x = gridX - 1; x <= gridX + 1; x++)
             {
-                if (x < 0 || x >= _spatialGridSize)
+                if (x < 0 || x >= grid.Size)
                     continue;
 
-                var bucket = _spatialGrid[y * _spatialGridSize + x];
-                if (bucket == null)
-                    throw new NullReferenceException($"NULL BUCKET: x={x}, y={y}");
-
-                foreach (VoronoiCell candidate in bucket)
+                foreach (VoronoiCell candidate in grid.Buckets[y * grid.Size + x])
                 {
                     long dx = (long)(candidate.Site.X - position.X);
                     long dy = (long)(candidate.Site.Y - position.Y);
@@ -1640,11 +1642,7 @@ internal readonly struct CellVoronoiEdge
     public readonly Point Point1;
     public readonly Point Point2;
 
-    public CellVoronoiEdge(
-        Point siteA,
-        Point? siteB,
-        Point point1,
-        Point point2)
+    public CellVoronoiEdge(Point siteA, Point? siteB, Point point1, Point point2)
     {
         SiteA = siteA;
         SiteB = siteB;
