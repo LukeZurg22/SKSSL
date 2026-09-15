@@ -15,7 +15,7 @@ public static class GameManager
     public static void Exit()
     {
         // Safely exit without suicidal tendencies.
-        SSLGame.Quit();
+        SSLGame.Instance.Quit();
     }
 
     /// Force game status reset.

@@ -8,13 +8,14 @@ using Microsoft.Xna.Framework.Graphics;
 using Newtonsoft.Json;
 using SKSSL.Extensions;
 using SKSSL.Scenes;
+using SKSSL.Serializing;
 using YamlDotNet.Serialization;
 
 namespace SKSSL.ECS;
 
 /// <summary>
 /// Instanced Entity representing an object present within game memory. Entities are contained within a
-/// <see cref="World"/>, and contain <see cref="ComponentRegistry"/> Component Indices for pointing to component arrays.
+/// <see cref="ParentWorld"/>, and contain <see cref="ComponentRegistry"/> Component Indices for pointing to component arrays.
 /// </summary>
 /// <inheritdoc cref="Prototype"/>
 /// <code>
@@ -29,6 +30,17 @@ namespace SKSSL.ECS;
 [JsonObject]
 public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity>
 {
+    /// Reverse-reference back to the world that this entity inhabits.
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    public EntityManager SourceManager { get; set; }
+
+    /// Reverse-reference back to the world that this entity inhabits.
+    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
+    public World ParentWorld { get; set; }
+
+    public EntityContext Context => new(this);
+
+
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool Abstract { get; set; } = false;
 
@@ -45,31 +57,24 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
      * not need to contain a name.
      */
 
-    #region Name / Description
+    // TEMP: Consider moving these qualities into some MetaData type.
+    // TODO: Wrap these strings with a "LocaleKey" type w. a function ".Localized()"
+
+    #region Name / Description / Meta-Data
 
     /// Non-localized name key.
     [YamlMember(Alias = "name", Order = 4), JsonProperty("Name")]
-    public string? NameKey;
-
-    /// <returns>Localized name from Name Key.</returns>
-    public void GetName() => Loc.Get(NameKey);
+    public LocKey Name = new(string.Empty);
 
     /// Non-localized description key.
     [YamlMember(Alias = "description", Order = 5), JsonProperty("Description")]
-    public string? DescriptionKey;
-
-    /// <returns>Localized Description from Description Key.</returns>
-    public void GetDescription() => Loc.Get(DescriptionKey);
+    public LocKey Description = new(string.Empty);
 
     #endregion
 
     /// [De]serialized component entries part of this prototype. Put on end of order.
     [YamlMember(Alias = "components", Order = 99)]
     public List<ComponentYaml>? YamlComponents = [];
-
-    /// Reverse-reference back to the world that this entity inhabits.
-    [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
-    public World? World { get; set; }
 
     /// Exclaim if this entity and its components require updating.
     [MemoryPackIgnore, YamlIgnore, System.Text.Json.Serialization.JsonIgnore]
@@ -117,9 +122,10 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
         base.CopyFrom(source); // Copy base-prototype stuff.
         Abstract = source.Abstract;
         Inherit = source.Inherit;
-        NameKey = source.NameKey;
-        DescriptionKey = source.DescriptionKey;
-        World = source.World;
+        Name = source.Name;
+        Description = source.Description;
+        SourceManager = source.SourceManager;
+        ParentWorld = source.ParentWorld;
         if (source.YamlComponents != null && YamlComponents != null)
             YamlComponents = YamlComponents
                 .Select(c => c.Clone())
@@ -132,11 +138,9 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
 
     /// <summary>
     /// Clones an entity. Uid is NOT copied. Do NOT call this directly upon an entity!
+    /// Use <see cref="EntityManager.Clone"/> instead.
     /// </summary>
-    public Entity Clone()
-    {
-        return new Entity().CopyFrom(this);
-    }
+    public virtual Entity Clone() => new Entity().CopyFrom(this);
 
     /// <summary>
     /// Special initialization logic for Entity.
@@ -180,7 +184,7 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
     }
 
     [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
-    public override int GetHashCode() => HashCode.Combine(Handle, Inherit, IsDirty, World, _uid);
+    public override int GetHashCode() => HashCode.Combine(Handle, Inherit, IsDirty, ParentWorld, _uid);
 
 
     /// Equates handles only.

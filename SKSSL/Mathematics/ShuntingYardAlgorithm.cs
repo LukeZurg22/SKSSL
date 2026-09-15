@@ -1,19 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using SKSSL.ECS;
-using SyntaxErrorException = System.Data.SyntaxErrorException;
 
 namespace SKSSL.Mathematics;
-
-/// <inheritdoc />
-public class EmptyStatisticsListException(string s) : Exception(s);
-
-/// <inheritdoc />
-public class MissingStatisticException(string s) : Exception(s);
-
-/// <inheritdoc />
-public class RecursiveEvaluateException(string s) : Exception(s);
 
 /// <summary>
 /// Algorithmically calculates values based on string input. This class was written to align with the
@@ -47,13 +38,9 @@ public class ShuntingYard
     /// Loops over an expression more than once. Conglomerating all of the functions into
     /// one large function is easily doable, but does not read very well.
     /// </remarks>
-    public double Evaluate(
-        string expression,
-        PackableUid? parent = null,
-        HashSet<PackableUid>? visited = null)
+    public double Evaluate(string expression, PackableUid? parent = null, HashSet<PackableUid>? visited = null)
     {
-        string trace = parent is null ? "an unknown source" : parent.ToString();
-
+        string trace = (parent is null ? "an unknown source" : parent.ToString())!;
         var output = new Queue<string>(); // RPN output
         var operators = new Stack<string>(); // Operator stack
 
@@ -85,8 +72,7 @@ public class ShuntingYard
                         hasDecimal = true;
                         i++;
                     }
-                    else
-                        break;
+                    else break;
                 }
 
                 string number = expression[start..(i + 1)];

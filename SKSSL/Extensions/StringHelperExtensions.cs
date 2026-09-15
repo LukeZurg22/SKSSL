@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using SKSSL.Mathematics;
 using static System.Globalization.CultureInfo;
 using static System.Globalization.NumberStyles;
 
@@ -96,48 +93,6 @@ public static class StringHelpers
         };
     }
 
-    /// <summary>
-    /// Calls <see cref="TryParseValue{T}"/> to attempt to wanton-grab a value, rather than being predictive.
-    /// </summary>
-    /// <returns>Object value of parsed value.</returns>
-    [Obsolete("Use TryParseValue(this string...) instead.")]
-    public static object? TryParseValue(string line, Type? enumType = null)
-    {
-        line = line.Split('#')[0].Trim(); // remove comments
-        if (string.IsNullOrEmpty(line))
-            return null;
-
-        // Try bool
-        var boolResult = TryParseValue<bool>(line);
-        if (boolResult.HasValue) return boolResult.Value;
-
-        // Try integer
-        var intResult = TryParseValue<int>(line);
-        if (intResult.HasValue) return intResult.Value;
-
-        // Try short
-        var shortResult = TryParseValue<short>(line);
-        if (shortResult.HasValue) return shortResult.Value;
-
-        // Try long
-        var longResult = TryParseValue<long>(line);
-        if (longResult.HasValue) return longResult.Value;
-
-        // Try floats/doubles
-        var floatResult = TryParseValue<float>(line);
-        if (floatResult.HasValue) return floatResult.Value;
-
-        // Try double
-        var doubleResult = TryParseValue<double>(line);
-        if (doubleResult.HasValue) return doubleResult.Value;
-
-        // Try enum if provided
-        if (enumType != null && Enum.IsDefined(enumType, line))
-            return Enum.Parse(enumType, line);
-
-        return line; // Default to string
-    }
-
     /// Returns new string in camel_case.
     public static string ToCamelCase(this string input)
     {
@@ -153,6 +108,14 @@ public static class StringHelpers
         return char.ToLower(result[0]) + result[1..];
     }
 
+    public static string NormalizePath(this string path)
+    {
+        path = path.Replace('\\', '/');
+        while (path.StartsWith("./"))
+            path = path[2..];
+        return path.TrimStart('/').ToLowerInvariant();
+    }
+    
     /// <summary>
     /// Extension method for <see cref="string.IsNullOrEmpty"/>
     /// </summary>

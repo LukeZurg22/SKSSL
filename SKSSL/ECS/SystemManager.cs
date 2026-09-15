@@ -14,7 +14,7 @@ namespace SKSSL.ECS;
 /// <summary>
 /// Manages all system draw and update calls. Should be added once per Game instance.
 /// </summary>
-public abstract class SystemManager
+public abstract class SystemManager // TODO: Move to game services, or even better, make into a Drawable game component.
 {
     private static readonly List<int> _updateSystemIndices = [];
     private static readonly List<int> _drawSystemIndices = [];

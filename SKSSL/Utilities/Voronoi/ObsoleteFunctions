@@ -1,0 +1,248 @@
+// I saved this obsolete code because I spent too long on it enough to develop nostalgia.
+
+    /// <code>
+    /// // Generate points.
+    /// _points = [.._delaunay.GeneratePoints(PointCount, width, height)];
+    /// ...
+    /// // Make the triangles.
+    /// var triangulation = _delaunay.BowyerWatson(_points).ToList();
+    /// ...
+    /// // Create Cells.
+    /// GenerateCells(triangulation);
+    /// ...
+    /// // Clear the edges used to make the triangles.
+    /// _triangulationEdges.Clear();
+    /// ...
+    /// // Generate the voronoi edges.
+    /// _voronoiEdges = [..GenerateEdgesFromDelaunay(triangulation)];
+    /// </code>
+
+    [Obsolete($"If generating a diagram, use {nameof(GenerateDiagram)}")]
+    // ReSharper disable once UnusedMember.Local
+    // ReSharper disable once UnusedMember.Global
+    public void GenerateCells(IEnumerable<Triangle> triangulation)
+    {
+        _voronoiCells.Clear();
+        foreach (Triangle triangle in triangulation)
+        foreach (Point site in triangle.Vertices) // Every vertex of a Delaunay triangle is a Voronoi site
+        {
+            if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
+            {
+                cell = new VoronoiCell(site, []);
+                _voronoiCells[site] = cell;
+            }
+
+            // The circumcenter becomes a vertex of that site’s cell.
+            cell.Vertices.Add(triangle.Circumcenter);
+        }
+
+        // Order the vertices of every cell clockwise / counter-clockwise.
+        _cellColors.Clear();
+        foreach (VoronoiCell cell in _voronoiCells.Values)
+        {
+            if (cell.IsBoundary && _boundaryMode == VoronoiBoundaryMode.Culled)
+            {
+                cell.Vertices.Clear();
+                _cellColors[cell.Site] = GetCellColor(cell);
+                continue;
+            }
+
+            cell.Vertices = cell.Vertices
+                .Distinct()
+                .OrderBy(v =>
+                    Math.Atan2(
+                        v.Y - cell.Site.Y,
+                        v.X - cell.Site.X))
+                .ToList();
+
+            if (cell.IsBoundary && _boundaryMode == VoronoiBoundaryMode.HardEdge)
+            {
+                cell.Vertices = ClipPolygonToBounds(
+                    cell.Vertices,
+                    _width,
+                    _height);
+            }
+
+            _cellColors[cell.Site] = GetCellColor(cell);
+        }
+    }
+
+    // ReSharper disable once UnusedMember.Local
+    [Obsolete]
+    private void DrawEdges(IEnumerable<Edge> edges, Color color, float thickness)
+    {
+        foreach (Edge edge in edges)
+        {
+            if (ClipLineToBounds(edge.Point1, edge.Point2, out Point p1, out Point p2))
+            {
+                DrawLine(p1, p2, color, thickness);
+            }
+        }
+    }
+
+    // ReSharper disable once UnusedMember.Local
+    [Obsolete]
+    private void DrawPoints(float size = 2f)
+    {
+        float halfSize = size * 0.5f;
+
+        foreach (Point point in _points)
+        {
+            float x = (float)point.X;
+            float y = (float)point.Y;
+
+            var vertices = new[]
+            {
+                new VertexPositionColor(new Vector3(x - halfSize, y - halfSize, 0f), PointColor),
+                new VertexPositionColor(new Vector3(x + halfSize, y - halfSize, 0f), PointColor),
+                new VertexPositionColor(new Vector3(x + halfSize, y + halfSize, 0f), PointColor),
+                new VertexPositionColor(new Vector3(x - halfSize, y + halfSize, 0f), PointColor)
+            };
+
+            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                _graphicsDevice.DrawUserIndexedPrimitives(
+                    PrimitiveType.TriangleList,
+                    vertices,
+                    0,
+                    4,
+                    QuadIndices,
+                    0,
+                    2);
+            }
+        }
+    }
+
+    private static readonly short[] QuadIndices = [0, 1, 2, 0, 2, 3];
+
+    [Obsolete]
+    private void DrawLine(Point p1, Point p2, Color color, float thickness)
+    {
+        Vector2 start = new((float)p1.X, (float)p1.Y);
+        Vector2 end = new((float)p2.X, (float)p2.Y);
+        Vector2 direction = end - start;
+
+        float length = direction.Length();
+        if (length <= 0f)
+            return;
+
+        direction /= length;
+
+        Vector2 perpendicular = new(-direction.Y, direction.X);
+        Vector2 offset = perpendicular * (thickness * 0.5f);
+
+        var vertices = new[]
+        {
+            new VertexPositionColor(new Vector3(start + offset, 0f), color),
+            new VertexPositionColor(new Vector3(start - offset, 0f), color),
+            new VertexPositionColor(new Vector3(end - offset, 0f), color),
+            new VertexPositionColor(new Vector3(end + offset, 0f), color)
+        };
+
+        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            _graphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList,
+                vertices,
+                0,
+                4,
+                QuadIndices,
+                0,
+                2);
+        }
+    }
+
+    // ReSharper disable once UnusedMember.Local
+    [Obsolete]
+    private void DrawPolygon(List<Point> vertices, Color color)
+    {
+        if (vertices.Count < 3)
+            return;
+
+        // Convert to VertexPositionColor once
+        var verts = new VertexPositionColor[vertices.Count];
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            verts[i] = new VertexPositionColor(
+                new Vector3((float)vertices[i].X, (float)vertices[i].Y, 0), color);
+        }
+
+        // Triangle-fan indices: 0-1-2, 0-2-3, 0-3-4, …
+        int triangleCount = vertices.Count - 2;
+        var indices = new short[triangleCount * 3];
+        for (int i = 0; i < triangleCount; i++)
+        {
+            indices[i * 3 + 0] = 0;
+            indices[i * 3 + 1] = (short)(i + 1);
+            indices[i * 3 + 2] = (short)(i + 2);
+        }
+
+        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            _graphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList,
+                verts,
+                0,
+                verts.Length,
+                indices,
+                0,
+                triangleCount);
+        }
+    }
+
+
+    // ReSharper disable once UnusedMember.Local
+    [Obsolete]
+    private void DrawTriangle(Triangle triangle, Color color)
+    {
+        var vertices = new[]
+        {
+            //@formatter:off
+            new VertexPositionColor(new Vector3((float)triangle.Vertices[0].X, (float)triangle.Vertices[0].Y, 0), color),
+            new VertexPositionColor(new Vector3((float)triangle.Vertices[1].X, (float)triangle.Vertices[1].Y, 0), color),
+            new VertexPositionColor(new Vector3((float)triangle.Vertices[2].X, (float)triangle.Vertices[2].Y, 0), color),
+            //@formatter:on
+        };
+
+        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            _graphicsDevice.DrawUserPrimitives(
+                PrimitiveType.TriangleList,
+                vertices,
+                0,
+                1);
+        }
+    }
+
+    // ReSharper disable once UnusedMember.Local
+    [Obsolete]
+    private void DrawBoundaryEdges(Color color, float thickness)
+    {
+        DrawLine(
+            new Point(0, 0),
+            new Point(_width, 0),
+            color,
+            thickness);
+
+        DrawLine(
+            new Point(_width, 0),
+            new Point(_width, _height),
+            color,
+            thickness);
+
+        DrawLine(
+            new Point(_width, _height),
+            new Point(0, _height),
+            color,
+            thickness);
+
+        DrawLine(
+            new Point(0, _height),
+            new Point(0, 0),
+            color,
+            thickness);
+    }

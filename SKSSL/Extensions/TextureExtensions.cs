@@ -12,8 +12,8 @@ public static class TextureExtensions
     /// </summary>
     public static Texture2D ToMipMapped(this Texture2D source)
     {
-        GraphicsDevice graphicsDevice = source.GraphicsDevice;
         ArgumentNullException.ThrowIfNull(source);
+        GraphicsDevice graphicsDevice = source.GraphicsDevice;
 
         // Create a new texture that supports mipmaps
         using var renderTarget = new RenderTarget2D(
@@ -58,6 +58,7 @@ public static class TextureExtensions
             mipMappedTexture.SetData(level, null, data, 0, elementCount);
         }
 
+        source.Dispose();
         return mipMappedTexture;
     }
 }

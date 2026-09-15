@@ -54,6 +54,8 @@ internal class ConsoleRenderer
     private readonly float oneCharacterWidth;
     private readonly int maxCharactersPerLine;
 
+    public Vector2 NextPos;
+
     public ConsoleRenderer(XnaGame? game, SpriteBatch? spriteBatch, InputProcessor inputProcessor)
     {
         currentState = State.Closed;
@@ -71,7 +73,7 @@ internal class ConsoleRenderer
         pixel?.SetData([Color.White]);
         firstCommandPositionOffset = Vector2.Zero;
         oneCharacterWidth =
-            GameConsoleOptions.Options.Font.MeasureString("x").X; // IMPL: May be the source of the alignment issue.
+            GameConsoleOptions.Options.Font.MeasureString("x").X; // TEMP: May be the source of the alignment issue.
         maxCharactersPerLine = (int)((Bounds.Width - GameConsoleOptions.Options.Padding * 2) / oneCharacterWidth);
     }
 
@@ -101,8 +103,6 @@ internal class ConsoleRenderer
         }
     }
 
-    public Vector2 nextPos;
-
     public void Draw(GameTime gameTime)
     {
         //Do not draw if the console is closed
@@ -127,7 +127,7 @@ internal class ConsoleRenderer
         IsJumping = false;
     }
 
-    /*private void DrawRoundedEdges() // WARN: Causes a crash. Something about "texture" parameter being null.
+    /*private void DrawRoundedEdges() // ERR: Causes a crash. Something about "texture" parameter being null.
     {
         //Bottom-left edge
         spriteBatch.Draw(GameConsoleOptions.Options.RoundedCorner,
@@ -146,7 +146,7 @@ internal class ConsoleRenderer
                 GameConsoleOptions.Options.RoundedCorner.Height), GameConsoleOptions.Options.BackgroundColor);
     }*/
 
-    void DrawCursor(Vector2 pos, GameTime gameTime)
+    private void DrawCursor(Vector2 pos, GameTime gameTime)
     {
         if (!IsInBounds(pos.Y))
         {
@@ -174,6 +174,7 @@ internal class ConsoleRenderer
         var splitLines = command.Length > maxCharactersPerLine
             ? SplitCommand(command, maxCharactersPerLine)
             : [command];
+        
         foreach (var line in splitLines)
         {
             if (IsInBounds(pos.Y))
@@ -194,9 +195,9 @@ internal class ConsoleRenderer
         var lines = new List<string>();
         while (command.Length > max)
         {
-            var splitCommand = command.Substring(0, max);
+            var splitCommand = command[..max];
             lines.Add(splitCommand);
-            command = command.Substring(max, command.Length - max);
+            command = command[max..];
         }
 
         lines.Add(command);

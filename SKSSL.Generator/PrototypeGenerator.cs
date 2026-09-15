@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static SKSSL.Generator.SharedMethods;
 
 namespace SKSSL.Generator;
 
@@ -39,21 +39,20 @@ public class PrototypeGenerator : IIncrementalGenerator
         if (classes.IsDefaultOrEmpty) return;
 
         INamedTypeSymbol? prototypeSymbol
-            = compilation.GetTypeByMetadataName(PrototypeBaseName) ?? FindPrototypeInCompilation(compilation);
+            = compilation.GetTypeByMetadataName(PrototypeBaseName) ??
+              FindInCompilation(compilation, PrototypeBaseName);
 
         if (prototypeSymbol == null) return;
 
         var prototypes = new List<INamedTypeSymbol>();
 
-        foreach (ClassDeclarationSyntax? classDecl in classes)
+        foreach (INamedTypeSymbol? classDecl in GetAllTypes(compilation))
         {
-            SemanticModel semanticModel = compilation.GetSemanticModel(classDecl.SyntaxTree);
-
-            if (semanticModel.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol typeSymbol || typeSymbol.IsAbstract)
+            if (classDecl is null || classDecl.IsAbstract)
                 continue;
 
-            if (IsDerivedFrom(typeSymbol, prototypeSymbol))
-                prototypes.Add(typeSymbol);
+            if (IsDerivedFrom(classDecl, prototypeSymbol))
+                prototypes.Add(classDecl);
         }
 
         if (prototypes.Count == 0) return;
@@ -83,8 +82,6 @@ public class PrototypeGenerator : IIncrementalGenerator
         sb.AppendLine("      {");
         sb.AppendLine("            // Wipe any pre-existing prototype / entity definitions.");
         sb.AppendLine("            SKSSL.ECS.Registry.MasterRegistryManager.Clear();");
-        // Accommodating base-entity type, which can exist out in the wild. Base-prototype, however, cannot!
-        sb.AppendLine("            SKSSL.ECS.Registry.MasterRegistryManager.RegisterTypeDefinition(\"Entity\", typeof(global::SKSSL.ECS.Entity));");
         foreach (INamedTypeSymbol? proto in prototypes)
         {
             var fullName = proto.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -92,44 +89,14 @@ public class PrototypeGenerator : IIncrementalGenerator
             if (shortName.EndsWith("Prototype", StringComparison.OrdinalIgnoreCase))
                 shortName = shortName[..^9];
             
-            if (string.IsNullOrWhiteSpace(shortName)) continue;
+            if (string.IsNullOrWhiteSpace(shortName))
+                continue;
+
             sb.AppendLine($"            SKSSL.ECS.Registry.MasterRegistryManager.RegisterTypeDefinition(\"{shortName}\", typeof({fullName}));");
         }
         sb.AppendLine("      }");
         sb.AppendLine("}");
         return sb;
         //@formatter:on
-    }
-
-    private static INamedTypeSymbol? FindPrototypeInCompilation(Compilation compilation)
-    {
-        // Fallback: search all types
-        return compilation.GlobalNamespace
-            .GetNamespaceMembers()
-            .SelectMany(GetAllTypes)
-            .FirstOrDefault(t => t.Name == PrototypeBaseName && !t.IsGenericType);
-    }
-
-    private static IEnumerable<INamedTypeSymbol> GetAllTypes(INamespaceSymbol ns)
-    {
-        foreach (INamedTypeSymbol? type in ns.GetTypeMembers())
-            yield return type;
-
-        foreach (INamespaceSymbol? nestedNs in ns.GetNamespaceMembers())
-        foreach (INamedTypeSymbol? type in GetAllTypes(nestedNs))
-            yield return type;
-    }
-
-    private static bool IsDerivedFrom(ITypeSymbol type, ITypeSymbol baseType)
-    {
-        INamedTypeSymbol? current = type.BaseType;
-        while (current != null)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                return true;
-            current = current.BaseType;
-        }
-
-        return false;
     }
 }

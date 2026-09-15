@@ -12,7 +12,6 @@ public static unsafe class DrawVertDeclaration
     static DrawVertDeclaration()
     {
         Size = sizeof(ImDrawVert);
-
         Declaration = new VertexDeclaration(Size,
             // Position
             new VertexElement(0, VertexElementFormat.Vector2, VertexElementUsage.Position, 0),

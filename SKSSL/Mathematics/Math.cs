@@ -29,7 +29,7 @@ public static class CharacterExtensions
     public static bool IsOperator(this char token) => token is '+' or '-' or '*' or '/' or '^';
     public static bool IsBracket(this char token) => token is '(' or ')' or '{' or '}' or '[' or ']';
     public static bool IsOperator(this string token) => token is "+" or "-" or "*" or "/" or "^" or "u-";
-    
+
     // TODO: MATH FUNCTIONS NOT CURRENTLY SUPPORTED OR USED!
     public static bool IsMathFunction(this string token) => token is "sin" or "cos" or "tan";
 }
