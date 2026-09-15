@@ -31,7 +31,6 @@ namespace SKSSL.Utilities.Voronoi;
 public class Voronoi
 {
     // I/O and Seeding
-    private readonly DelaunayTriangulator _delaunay = new();
     private readonly GraphicsDevice _graphicsDevice;
     private const int DefaultPointCount = 2000;
     private Point[] _points = [];
@@ -220,6 +219,8 @@ public class Voronoi
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
         SetDiagramProjection();
+
+        using DelaunayTriangulator _delaunay = new();
 
         // Depending on the distribution type, and the custom sampling algorithm provided, there are multiple ways
         //  to generate a set of points.
