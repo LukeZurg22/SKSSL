@@ -20,19 +20,19 @@ public class ExampleImGUIGame : Game
 {
     #region "Other" Game Code
 
-    readonly GraphicsDeviceManager graphics;
-    SpriteBatch spriteBatch;
+    private readonly GraphicsDeviceManager graphics;
+    private SpriteBatch spriteBatch;
 
-    ImGuiRenderer GuiRenderer;
+    private ImGuiRenderer GuiRenderer;
 
-    bool WasResized = false;
+    private bool WasResized = false;
     private Model suzanne;
 
+    //@formatter:off
     private Matrix world = Matrix.CreateScale(1.5f, 1.5f, 1.5f) * Matrix.CreateRotationX(-1.5f);
     private Matrix view = Matrix.CreateLookAt(new Vector3(0, 0, 10), new Vector3(0, 0, 0), Vector3.UnitY);
-
-    private Matrix projection =
-        Matrix.CreatePerspectiveFieldOfView(MathHelper.ToRadians(45), 800f / 480f, 0.1f, 100.0f);
+    private Matrix projection = Matrix.CreatePerspectiveFieldOfView(MathHelper.ToRadians(45), 800f / 480f, 0.1f, 100.0f);
+    //@formatter:on
 
     public ExampleImGUIGame()
     {
@@ -229,9 +229,9 @@ public class ExampleImGUIGame : Game
     #region Overlay
 
     //OverlayVariables
-    float distanceX = 10.0f;
-    float distanceY = 10.0f;
-    int corner = 0;
+    private float distanceX = 10.0f;
+    private float distanceY = 10.0f;
+    private int corner = 0;
 
     private void DrawImGuiOverlay(float frameRate)
     {
@@ -464,13 +464,13 @@ public class ExampleImGUIGame : Game
 
     #region DebugLog
 
-    static readonly List<string> debug_log = [];
-    static bool AutoScroll = true;
+    private static readonly List<string> debug_log = [];
+    private static bool AutoScroll = true;
 
     unsafe private struct ImGuiDebugLog
     {
         //ImGuiTextBufferPtr Buf;
-        ImGuiTextFilterPtr Filter;
+        private ImGuiTextFilterPtr Filter;
         //ImVector<int> LineOffsets;
         //bool AutoScroll;
 
@@ -600,13 +600,13 @@ public class ExampleImGUIGame : Game
 
     #region AppConsole
 
-    static readonly List<string> console_log = [];
-    static readonly List<string> console_history = [];
-    static bool AutoScroll_Console = true;
+    private static readonly List<string> console_log = [];
+    private static readonly List<string> console_history = [];
+    private static bool AutoScroll_Console = true;
 
     private unsafe struct ImGuiExampleAppConsole
     {
-        ImGuiTextFilterPtr Filter;
+        private ImGuiTextFilterPtr Filter;
 
         public void ExampleAppConsole()
         {
@@ -800,7 +800,7 @@ public class ExampleImGUIGame : Game
             ImGui.End();
         }
 
-        void ExecCommand(string command)
+        private void ExecCommand(string command)
         {
             //History
             if (console_history.Count == 10)
@@ -867,33 +867,33 @@ public class ExampleImGUIGame : Game
     #region DrawDemoWindowVariables
 
     // Window options
-    bool no_titlebar = false;
-    bool no_scrollbar = false;
-    bool no_menu = false;
-    bool no_move = false;
-    bool no_resize = false;
+    private bool no_titlebar = false;
+    private bool no_scrollbar = false;
+    private bool no_menu = false;
+    private bool no_move = false;
+    private bool no_resize = false;
 
-    bool no_collapse = false;
+    private bool no_collapse = false;
 
     //bool no_close = false;
-    bool no_nav = false;
-    bool no_background = false;
+    private bool no_nav = false;
+    private bool no_background = false;
 
-    bool no_bring_to_front = false;
+    private bool no_bring_to_front = false;
 
     // Examples
-    bool show_app_main_menu_bar = false;
-    bool show_app_log = false;
-    bool show_app_simple_overlay = false;
-    bool show_native_examples = false;
-    static bool show_app_console = false;
+    private bool show_app_main_menu_bar = false;
+    private bool show_app_log = false;
+    private bool show_app_simple_overlay = false;
+    private bool show_native_examples = false;
+    private static bool show_app_console = false;
 
-    bool show_monogame_settings = true;
+    private bool show_monogame_settings = true;
 
     // Tools
-    bool show_app_style_editor = false;
-    bool show_app_metrics = false;
-    bool show_app_about = false;
+    private bool show_app_style_editor = false;
+    private bool show_app_metrics = false;
+    private bool show_app_about = false;
 
     #endregion
 
@@ -1096,130 +1096,130 @@ public class ExampleImGUIGame : Game
     #region DemoWindowWidgetsVariables
 
     //Basic Input
-    int clicked = 0;
-    bool check = true;
-    int e = 0;
-    int counter = 0;
-    int item_current = 0;
-    string str0 = "Hello, world!";
-    string str1 = "";
-    int i0 = 123;
-    float f0 = 0.001f;
-    double d0 = 999999.00000001;
-    float f1 = 1.42f;
+    private int clicked = 0;
+    private bool check = true;
+    private int e = 0;
+    private int counter = 0;
+    private int item_current = 0;
+    private string str0 = "Hello, world!";
+    private string str1 = "";
+    private int i0 = 123;
+    private float f0 = 0.001f;
+    private double d0 = 999999.00000001;
+    private float f1 = 1.42f;
 
-    Vec3 vec3 = new Vec3(0.10f, 0.20f, 0.30f);
+    private Vec3 vec3 = new Vec3(0.10f, 0.20f, 0.30f);
 
     //Basic Drag & Slider
-    int i1 = 50, i2 = 42;
-    float f2 = 1.00f, f3 = 0.0067f;
-    int i3 = 0;
-    float f4 = 0.123f;
-    float angle = 0.0f;
-    Vec3 col1 = new Vec3(1.0f, 0.0f, 0.2f);
-    Vec4 col2 = new Vec4(0.4f, 0.7f, 0.0f, 0.5f);
+    private int i1 = 50, i2 = 42;
+    private float f2 = 1.00f, f3 = 0.0067f;
+    private int i3 = 0;
+    private float f4 = 0.123f;
+    private float angle = 0.0f;
+    private Vec3 col1 = new Vec3(1.0f, 0.0f, 0.2f);
+    private Vec4 col2 = new Vec4(0.4f, 0.7f, 0.0f, 0.5f);
 
-    int current_fruit = 1;
+    private int current_fruit = 1;
 
     //Trees
-    bool base_flags_first_run = true;
-    uint base_flags = 0;
-    bool align_label_with_current_x_position = false;
+    private bool base_flags_first_run = true;
+    private uint base_flags = 0;
+    private bool align_label_with_current_x_position = false;
 
-    int index_selected = 0;
+    private int index_selected = 0;
 
     //bool test_drag_and_drop = false;
     //Collapsing headers
-    bool closable_group = true;
+    private bool closable_group = true;
 
     //Word wrapping
-    float wrap_width = 200.0f;
+    private float wrap_width = 200.0f;
 
     //Images
-    int pressed_count = 0;
+    private int pressed_count = 0;
 
     //Combo
-    uint flags = 0; //ImGuiComboFlags
-    int item_current_idx = 0;
-    int item_current_2 = 0;
+    private uint flags = 0; //ImGuiComboFlags
+    private int item_current_idx = 0;
+    private int item_current_2 = 0;
 
-    int item_current_3 = -1;
+    private int item_current_3 = -1;
 
     //List boxes
-    int item_current_idx_lb = 0;
+    private int item_current_idx_lb = 0;
 
     //Selectables
-    readonly bool[] selection = [false, true, false, false, false];
-    int selected = -1;
-    readonly bool[] selection_ms = [false, false, false, false, false];
-    readonly bool[] selected_rend = [false, false, false];
+    private readonly bool[] selection = [false, true, false, false, false];
+    private int selected = -1;
+    private readonly bool[] selection_ms = [false, false, false, false, false];
+    private readonly bool[] selected_rend = [false, false, false];
 
-    readonly bool[] selected_align = [true, false, true, false, true, false, true, false, true];
+    private readonly bool[] selected_align = [true, false, true, false, true, false, true, false, true];
 
     //Text input
-    bool flags_ti_first_run = true;
-    uint flags_ti = 0;
-    string buf1 = "";
-    string buf2 = "";
-    string buf3 = "";
-    string buf4 = "";
-    string buf5 = "";
+    private bool flags_ti_first_run = true;
+    private uint flags_ti = 0;
+    private string buf1 = "";
+    private string buf2 = "";
+    private string buf3 = "";
+    private string buf4 = "";
+    private string buf5 = "";
 
-    string password = "password123";
+    private string password = "password123";
 
     //Tabs
-    bool flags_tabs_first_run = true;
-    uint tab_bar_flags = 0;
+    private bool flags_tabs_first_run = true;
+    private uint tab_bar_flags = 0;
 
-    readonly bool[] opened = [true, true, true, true];
+    private readonly bool[] opened = [true, true, true, true];
 
     //Plots Widgets
-    bool animate = true;
-    readonly float[] values = new float[90];
-    int values_offset = 0;
-    double refresh_time = 0.0;
-    float phase = 0.0f;
+    private bool animate = true;
+    private readonly float[] values = new float[90];
+    private int values_offset = 0;
+    private double refresh_time = 0.0;
+    private float phase = 0.0f;
 
-    float progress = 0.0f, progress_dir = 1.0f;
+    private float progress = 0.0f, progress_dir = 1.0f;
 
     //Color Widgets
-    Vec3 color_vec3 = new Vec3(114.0f / 255.0f, 144.0f / 255.0f, 154 / 255.0f);
-    Vec4 color_vec4 = new Vec4(114.0f / 255.0f, 144.0f / 255.0f, 154 / 255.0f, 200.0f / 255.0f);
-    bool alpha_preview = true;
-    bool alpha_half_preview = false;
-    bool drag_and_drop = true;
-    bool options_menu = true;
-    bool hdr = false;
-    bool alpha = true;
-    bool alpha_bar = true;
-    bool side_preview = true;
-    bool ref_color = false;
-    Vec4 ref_color_v = new Vec4(1.0f, 0.0f, 1.0f, 0.5f);
-    int display_mode = 0;
-    int picker_mode = 0;
+    private Vec3 color_vec3 = new Vec3(114.0f / 255.0f, 144.0f / 255.0f, 154 / 255.0f);
+    private Vec4 color_vec4 = new Vec4(114.0f / 255.0f, 144.0f / 255.0f, 154 / 255.0f, 200.0f / 255.0f);
+    private bool alpha_preview = true;
+    private bool alpha_half_preview = false;
+    private bool drag_and_drop = true;
+    private bool options_menu = true;
+    private bool hdr = false;
+    private bool alpha = true;
+    private bool alpha_bar = true;
+    private bool side_preview = true;
+    private bool ref_color = false;
+    private Vec4 ref_color_v = new Vec4(1.0f, 0.0f, 1.0f, 0.5f);
+    private int display_mode = 0;
+    private int picker_mode = 0;
 
-    Vec4 color_hsv = new Vec4(0.23f, 1.0f, 1.0f, 1.0f);
+    private Vec4 color_hsv = new Vec4(0.23f, 1.0f, 1.0f, 1.0f);
 
     //Range Widgets
-    float begin = 10, end = 90;
+    private float begin = 10, end = 90;
 
-    int begin_i = 100, end_i = 1000;
+    private int begin_i = 100, end_i = 1000;
 
     //Multi component Widgets
-    Vec2 vec2f = new Vec2(0.10f, 0.20f);
-    Vec3 vec3f = new Vec3(0.10f, 0.20f, 0.30f);
-    Vec4 vec4f = new Vec4(0.10f, 0.20f, 0.30f, 0.44f);
+    private Vec2 vec2f = new Vec2(0.10f, 0.20f);
+    private Vec3 vec3f = new Vec3(0.10f, 0.20f, 0.30f);
+    private Vec4 vec4f = new Vec4(0.10f, 0.20f, 0.30f, 0.44f);
 
-    readonly int[] vec4i = [1, 5, 100, 255];
+    private readonly int[] vec4i = [1, 5, 100, 255];
 
     //Vertical Sliders
-    readonly float spacing = 4;
-    int int_value = 0;
-    readonly float[] values_vert = [0.0f, 0.60f, 0.35f, 0.9f, 0.70f, 0.20f, 0.0f];
-    float col_red = 1.0f;
-    float col_green = 1.0f;
-    float col_blue = 1.0f;
-    readonly float[] values2 = [0.20f, 0.80f, 0.40f, 0.25f];
+    private readonly float spacing = 4;
+    private int int_value = 0;
+    private readonly float[] values_vert = [0.0f, 0.60f, 0.35f, 0.9f, 0.70f, 0.20f, 0.0f];
+    private float col_red = 1.0f;
+    private float col_green = 1.0f;
+    private float col_blue = 1.0f;
+    private readonly float[] values2 = [0.20f, 0.80f, 0.40f, 0.25f];
 
     #endregion
 
@@ -2420,35 +2420,35 @@ public class ExampleImGUIGame : Game
     #region DemoWindowLayoutVariables
 
     //Child windows
-    bool disable_mouse_wheel = false;
-    bool disable_menu = false;
+    private bool disable_mouse_wheel = false;
+    private bool disable_menu = false;
 
-    int offset_x = 0;
+    private int offset_x = 0;
 
     //Widgets Width
-    float f = 0.0f;
+    private float f = 0.0f;
 
-    bool show_indented_items = true;
+    private bool show_indented_items = true;
 
     //Basic Horizontal Layout
-    bool c1 = false;
-    bool c2 = false;
-    bool c3 = false;
-    bool c4 = false;
-    float bf0 = 1.0f;
-    float bf1 = 2.0f;
-    float bf2 = 3.0f;
-    readonly string[] items = ["AAAA", "BBBB", "CCCC", "DDDD"];
-    int item = -1;
+    private bool c1 = false;
+    private bool c2 = false;
+    private bool c3 = false;
+    private bool c4 = false;
+    private float bf0 = 1.0f;
+    private float bf1 = 2.0f;
+    private float bf2 = 3.0f;
+    private readonly string[] items = ["AAAA", "BBBB", "CCCC", "DDDD"];
+    private int item = -1;
 
-    readonly int[] bselection = [0, 1, 2, 3];
+    private readonly int[] bselection = [0, 1, 2, 3];
 
     //Scrolling
-    int track_item = 50;
-    bool enable_track = true;
-    bool enable_extra_decorations = false;
-    float scroll_to_off_px = 0.0f;
-    float scroll_to_pos_px = 200.0f;
+    private int track_item = 50;
+    private bool enable_track = true;
+    private bool enable_extra_decorations = false;
+    private float scroll_to_off_px = 0.0f;
+    private float scroll_to_pos_px = 200.0f;
 
     #endregion
 
@@ -3079,21 +3079,21 @@ public class ExampleImGUIGame : Game
     #region DemoWindowPopupsVariables
 
     //Popups
-    int selected_fish = -1;
+    private int selected_fish = -1;
 
-    readonly bool[] toggles = [true, false, false, false, false];
+    private readonly bool[] toggles = [true, false, false, false, false];
 
     //Context menus
-    float value = 0.5f;
+    private float value = 0.5f;
 
-    string name = "Label1";
+    private string name = "Label1";
 
     //Modals
-    bool show = false;
-    bool show_stacked = false;
-    bool dont_ask_me_next_time = false;
-    int item_mod = 1;
-    Vec4 color = new Vec4(0.4f, 0.7f, 0.0f, 0.5f);
+    private bool show = false;
+    private bool show_stacked = false;
+    private bool dont_ask_me_next_time = false;
+    private int item_mod = 1;
+    private Vec4 color = new Vec4(0.4f, 0.7f, 0.0f, 0.5f);
 
     #endregion
 
@@ -3365,7 +3365,7 @@ public class ExampleImGUIGame : Game
 
     #region DemoWindowMiscVariables
 
-    string buf = "hello";
+    private string buf = "hello";
 
     #endregion
 
@@ -3486,19 +3486,22 @@ public class ExampleImGUIGame : Game
 
     #region DrawMonoGameWindowVariables
 
-    bool show_main_window = true;
-    bool exit_app = false;
-    int current_res = 0;
-    int select_res = 0;
-    int render_model = 1;
+    private bool show_main_window = true;
+    private bool exit_app = false;
+    private int current_res = 0;
+    private int select_res = 0;
+    private int render_model = 1;
 
-    readonly string[] resolution =
+    private readonly string[] resolution =
         ["1024x768", "1280x720", "1280x960", "1366x768", "1440x1080", "1680x1050", "1600x1200", "1920x1080"];
 
-    readonly Vec4 monogame_color = new Vec4(231.0f / 255.0f, 60.0f / 255.0f, 0.0f / 255.0f, 200.0f / 255.0f);
-    readonly Vec4 monogame_framebg = new Vec4(227.0f / 255.0f, 227.0f / 255.0f, 227.0f / 255.0f, 255.0f / 255.0f);
-    readonly Vec4 color_black = new Vec4(0.0f / 255.0f, 0.0f / 0.0f, 0.0f / 255.0f, 200.0f / 255.0f);
-    readonly Vec4 color_white = new Vec4(255.0f / 255.0f, 255.0f / 255.0f, 255.0f / 255.0f, 242.0f / 255.0f);
+    private readonly Vec4 monogame_color = new Vec4(231.0f / 255.0f, 60.0f / 255.0f, 0.0f / 255.0f, 200.0f / 255.0f);
+
+    private readonly Vec4 monogame_framebg =
+        new Vec4(227.0f / 255.0f, 227.0f / 255.0f, 227.0f / 255.0f, 255.0f / 255.0f);
+
+    private readonly Vec4 color_black = new Vec4(0.0f / 255.0f, 0.0f / 0.0f, 0.0f / 255.0f, 200.0f / 255.0f);
+    private readonly Vec4 color_white = new Vec4(255.0f / 255.0f, 255.0f / 255.0f, 255.0f / 255.0f, 242.0f / 255.0f);
 
     #endregion
 
