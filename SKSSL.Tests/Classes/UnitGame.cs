@@ -26,13 +26,12 @@ namespace SKSSL.Tests.Classes;
 /// </remarks>
 internal sealed class UnitGame : SSLGame
 {
+    // ReSharper disable once NotAccessedField.Local
     private readonly GraphicsDevice _graphics;
-
     private readonly Action? InitalizeMethod = null!;
     private readonly Action? LoadContentMethod = null!;
     private readonly Action<GameTime>? UpdateMethod = null!;
     private readonly Action<GameTime>? DrawMethod = null!;
-
 
     public UnitGame(Action? initialize, Action? loadContent, Action<GameTime>? update, Action<GameTime>? draw)
     {
