@@ -1,4 +1,5 @@
 #nullable enable
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Xna.Framework;
@@ -36,7 +37,7 @@ public class Voronoi
     }
 
 
-    private void Update(GameTime gameTime)
+    private /*async*/ void Update(GameTime gameTime)
     {
         if (generated)
         {
@@ -56,20 +57,16 @@ public class Voronoi
             return;
         }
 
-        _voronoi.GenerateDiagram(pointCount: 5000,
+        /*await Task.Run(() =>*/ _voronoi.GenerateDiagram(pointCount: 30000,
             width: 1200,
             height: 800,
             distribution: DelaunayTriangulator.PointDistribution.RandomJitter,
             boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
-            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells);
+            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells)/*)*/;
 
-        for (int i = 0; i <= 2040; i++)
-        {
-            _voronoi.MarkCell(i);
-        }
+        for (int i = 0; i <= 2040; i++) _voronoi.MarkCell(i);
 
-        _voronoi.ColorMarkedCells(Color.BlanchedAlmond);
-
+        _voronoi.ColorMarkedCells(Color.BlanchedAlmond, Color.DarkGreen);
         generated = true;
     }
 }
