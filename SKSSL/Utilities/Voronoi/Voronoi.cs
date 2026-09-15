@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -45,6 +47,7 @@ public class Voronoi
     private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
     private readonly Dictionary<Point, VoronoiCell> _voronoiCells = [];
     private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
+    private readonly Dictionary<Point, List<CellVoronoiEdge>> _edgesByCell = [];
 
     // Coloring and Visualization
     private Color[] _cellOverrideColors; // Override colors for cells. Indexed by ID.
@@ -83,6 +86,13 @@ public class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
+    // Spacial Dividing
+    /*Because a graph may become too large, it'll need to be divided into "chunks" or spacial grids.*/
+    private int _spatialGridSize;
+    private List<VoronoiCell>[] _spatialGrid = [];
+    private float _gridCellWidth;
+    private float _gridCellHeight;
+
     // TODO: Allow the ability to generate / render a set of cells that follow explicitly-provided borders.
     //  a. Feed image
     //   1. determine functional edges. color-coding may be needed.
@@ -107,7 +117,7 @@ public class Voronoi
 
     public Voronoi(
         GraphicsDevice graphicsDevice,
-        ColorMode cellDrawMode = ColorMode.Unique,
+        ColorMode cellDrawMode = ColorMode.Semi_Deterministic_Unique,
         Color? unifiedColor = null,
         Color? pointColor = null,
         Color? flatColor = null)
@@ -291,62 +301,70 @@ public class Voronoi
             #endregion
         }
 
-        // PROCESS CELLS
+        #region PROCESS CELLS, TRIANGLES, COLORS
+
+        _usedColors.Clear();
         int triangleCount = 0;
-        foreach (VoronoiCell cell in _voronoiCells.Values)
-        {
-            cell.Vertices = cell.Vertices
-                .Distinct()
-                .ToList();
+        Parallel.ForEach(_voronoiCells.Values,
 
-            cell.Vertices.Sort((a, b) =>
+            // Thread-local Accumulator.
+            () => 0,
+            (cell, _, localTriangleCount) =>
             {
-                double aa = Math.Atan2(a.Y - cell.Site.Y, a.X - cell.Site.X);
-                double ab = Math.Atan2(b.Y - cell.Site.Y, b.X - cell.Site.X);
-                return aa.CompareTo(ab);
-            });
+                cell.Vertices = cell.Vertices
+                    .Distinct()
+                    .ToList();
 
-            bool touchesOutside =
-                cell.Vertices.Any(v =>
-                    v.X < 0 ||
-                    v.X > _width ||
-                    v.Y < 0 ||
-                    v.Y > _height);
-
-            if (touchesOutside)
-            {
-                if (boundaryMode == VoronoiBoundaryMode.Culled)
+                cell.Vertices.Sort((a, b) =>
                 {
-                    // This is an unbounded boundary cell.
-                    // Do not render it.
-                    cell.Vertices.Clear();
-                }
-                else
+                    double aa = Math.Atan2(a.Y - cell.Site.Y, a.X - cell.Site.X);
+                    double ab = Math.Atan2(b.Y - cell.Site.Y, b.X - cell.Site.X);
+                    return aa.CompareTo(ab);
+                });
+
+                bool touchesOutside = cell.Vertices.Any(v => v.X < 0 || v.X > _width || v.Y < 0 || v.Y > _height);
+                if (touchesOutside)
                 {
-                    // Flatten the cell against the diagram boundary.
-                    cell.Vertices = ClipPolygonToBounds(cell.Vertices, _width, _height);
+                    switch (boundaryMode)
+                    {
+                        case VoronoiBoundaryMode.Culled:
+                            cell.Vertices.Clear();
+                            break;
+                        case VoronoiBoundaryMode.HardEdge:
+                        default:
+                            cell.Vertices = ClipPolygonToBounds(cell.Vertices, _width, _height);
+                            break;
+                    }
                 }
-            }
 
-            // It's presumptuous, but this is for calculating cell batch vertices preemptively, which makes the bolt
-            //  assumption that cells will always be rendered. If they aren't, this is a waste of runtime performance.
-            // It is likely that cell mode will be on the most frequently, making this slightly save on run cost by
-            //  shaving away an entire re-iterated loop of the voronoi cells list.
-            if (cell.Vertices.Count >= 3)
-                triangleCount += cell.Vertices.Count - 2;
+                if (cell.Vertices.Count >= 3)
+                    localTriangleCount += cell.Vertices.Count - 2;
 
-            _cellRawColors[cell.Site._instanceId] = GetCellColor(cell);
-        }
+                // Colors are deterministic, so this can be kept within the parallel loop.
+                _cellRawColors[cell.Site._instanceId] = GetCellColor(cell);
+
+                return localTriangleCount;
+            },
+
+            // Merge thread-local results
+            localTriangleCount => { Interlocked.Add(ref triangleCount, localTriangleCount); }
+        );
 
         // Part of the cell batch pre-calc.
         _cellBatchVertices = new VertexPositionColor[triangleCount * 3];
         _cellBatchPrimitiveCount = _cellBatchVertices.Length / 3;
+
+        #endregion
 
         // Every IsBoundary value is now final. It's important that this be here and not in the initial loop
         // or else it will generate edges outside of the graph.
         // ReSharper disable once PossibleMultipleEnumeration
         foreach (Triangle triangle in triangulation)
             AddVoronoiEdges(triangle, boundaryMode);
+
+        // Pre-building for the highlighter. This is here for caching to improve performance during
+        // active runtime update calls.
+        BuildEdgesByCell();
 
         // Points.
         if ((flags & VoronoiRenderingFlags.Points) != 0)
@@ -368,6 +386,65 @@ public class Voronoi
         _isGenerated = true;
         // Update the existing internal pixel map with visual changes.
         UpdateTexture(boundaryMode, flags, thickness, pointSize);
+
+        // A spatial grid, aka a bucket grid is needed to subdivide the voronoi map into workable chunks.
+        // This is for performance.
+        BuildSpatialGrid();
+    }
+
+    private void BuildEdgesByCell()
+    {
+        _edgesByCell.Clear();
+
+        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
+        {
+            if (!_edgesByCell.TryGetValue(edge.SiteA, out var edgesA))
+            {
+                edgesA = [];
+                _edgesByCell.Add(edge.SiteA, edgesA);
+            }
+
+            edgesA.Add(edge);
+
+            if (!edge.SiteB.HasValue)
+                continue;
+
+            Point siteB = edge.SiteB.Value;
+
+            if (!_edgesByCell.TryGetValue(siteB, out var edgesB))
+            {
+                edgesB = [];
+                _edgesByCell.Add(siteB, edgesB);
+            }
+
+            edgesB.Add(edge);
+        }
+    }
+
+    private void BuildSpatialGrid()
+    {
+        // ReSharper disable once PossibleLossOfFraction
+        _spatialGridSize = Math.Max(10, (int)Math.Sqrt(_voronoiCells.Count / 4));
+        int bucketCount = _spatialGridSize * _spatialGridSize;
+
+        _spatialGrid = new List<VoronoiCell>[bucketCount];
+        for (int i = 0; i < bucketCount; i++)
+            _spatialGrid[i] = [];
+
+        _gridCellWidth = (float)_width / _spatialGridSize;
+        _gridCellHeight = (float)_height / _spatialGridSize;
+
+        Parallel.ForEach(_voronoiCells.Values, cell =>
+        {
+            // This caused crashes, but I am not entirely sure if I should completely do-away with it.
+            //if (_boundaryMode == VoronoiBoundaryMode.Culled &&
+            //    cell.IsBoundary)
+            //    return;
+
+            int x = Math.Clamp((int)(cell.Site.X / _gridCellWidth), 0, _spatialGridSize - 1);
+            int y = Math.Clamp((int)(cell.Site.Y / _gridCellHeight), 0, _spatialGridSize - 1);
+            _spatialGrid[y * _spatialGridSize + x].Add(cell);
+        });
     }
 
     /// <summary>
@@ -462,29 +539,44 @@ public class Voronoi
 
     #region Cell Highlighting
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="position"></param>
+    /// <param name="cell"></param>
+    /// <returns></returns>
+    /// <remarks>May cause lag at immense diagram sizes, mostly around 50k and beyond.</remarks>
     // ReSharper disable once UnusedMethodReturnValue.Global
     public bool TryGetCellAt(System.Drawing.Point position, out VoronoiCell? cell)
     {
         cell = null;
-
-        if (_voronoiCells.Count == 0)
+       
+        if (_spatialGrid.Length == 0)
             return false;
 
+        int gridX = Math.Clamp((int)(position.X / _gridCellWidth), 0, _spatialGridSize - 1);
+        int gridY = Math.Clamp((int)(position.Y / _gridCellHeight), 0, _spatialGridSize - 1);
+
         long bestDistance = long.MaxValue;
-        foreach (VoronoiCell candidate in _voronoiCells.Values)
+        for (int y = gridY - 1; y <= gridY + 1; y++)
         {
-            // Culled boundary cells don't visually exist.
-            if (_boundaryMode == VoronoiBoundaryMode.Culled && candidate.IsBoundary)
-                continue;
+            if (y < 0 || y >= _spatialGridSize) continue; // Short-circuit.
+            for (int x = gridX - 1; x <= gridX + 1; x++)
+            {
+                if (x < 0 || x >= _spatialGridSize) continue; // Short-circuit.
+                var bucket = _spatialGrid[y * _spatialGridSize + x];
+                foreach (VoronoiCell candidate in bucket)
+                {
+                    long dx = (long)(candidate.Site.X - position.X);
+                    long dy = (long)(candidate.Site.Y - position.Y);
+                    long distance = dx * dx + dy * dy;
+                    if (distance >= bestDistance)
+                        continue;
 
-            long dx = (long)(candidate.Site.X - position.X);
-            long dy = (long)(candidate.Site.Y - position.Y);
-            long distance = dx * dx + dy * dy;
-            if (distance >= bestDistance)
-                continue;
-
-            bestDistance = distance;
-            cell = candidate;
+                    bestDistance = distance;
+                    cell = candidate;
+                }
+            }
         }
 
         return cell != null;
@@ -492,54 +584,91 @@ public class Voronoi
 
     public void SetHighlightedCells(IEnumerable<VoronoiCell> cells, Color color, float thickness = 1f)
     {
-        var highlightedSites = new HashSet<Point>();
-        foreach (VoronoiCell cell in cells)
+        var highlightedSites = cells
+            .Where(cell => !ShouldCullBoundarySite(cell.Site))
+            .Select(cell => cell.Site)
+            .ToHashSet();
+
+        var vertices = new List<VertexPositionColor>();
+        foreach (Point site in highlightedSites)
         {
-            if (ShouldCullBoundarySite(cell.Site))
+            if (!_edgesByCell.TryGetValue(site, out var edges))
                 continue;
 
-            highlightedSites.Add(cell.Site);
-        }
+            foreach (CellVoronoiEdge edge in edges)
+            {
+                bool aHighlighted = highlightedSites.Contains(edge.SiteA);
+                bool bHighlighted =
+                    edge.SiteB.HasValue &&
+                    highlightedSites.Contains(edge.SiteB.Value);
 
-        var vertices = new List<VertexPositionColor>(_cellVoronoiEdges.Count * 6);
-        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
-        {
-            bool aHighlighted = highlightedSites.Contains(edge.SiteA);
-            bool bHighlighted = edge.SiteB.HasValue && highlightedSites.Contains(edge.SiteB.Value);
+                // Internal edge of highlighted region.
+                if (aHighlighted == bHighlighted)
+                    continue;
 
-            // We only want the outside boundary of the highlighted region.
-            if (aHighlighted == bHighlighted)
-                continue;
-
-            Vector2 start = new((float)edge.Point1.X, (float)edge.Point1.Y);
-            Vector2 end = new((float)edge.Point2.X, (float)edge.Point2.Y);
-            Vector2 direction = end - start;
-
-            float lengthSquared = direction.LengthSquared();
-            if (lengthSquared <= 0.000001f)
-                continue;
-
-            direction *= 1f / MathF.Sqrt(lengthSquared);
-
-            // (perpendicular vector) * half thickness
-            // This is deliberate.
-            Vector2 perpendicular = new Vector2(-direction.Y, direction.X) * (thickness * 0.5f);
-
-            Vector3 a = new(start + perpendicular, 0f);
-            Vector3 b = new(start - perpendicular, 0f);
-            Vector3 c = new(end - perpendicular, 0f);
-            Vector3 d = new(end + perpendicular, 0f);
-
-            vertices.Add(new VertexPositionColor(a, color));
-            vertices.Add(new VertexPositionColor(b, color));
-            vertices.Add(new VertexPositionColor(c, color));
-            vertices.Add(new VertexPositionColor(a, color));
-            vertices.Add(new VertexPositionColor(c, color));
-            vertices.Add(new VertexPositionColor(d, color));
+                AddHighlightEdge(
+                    vertices,
+                    edge.Point1,
+                    edge.Point2,
+                    color,
+                    thickness);
+            }
         }
 
         _highlightBatchVertices = vertices.ToArray();
-        _highlightBatchPrimitiveCount = _highlightBatchVertices.Length / 3;
+        _highlightBatchPrimitiveCount =
+            _highlightBatchVertices.Length / 3;
+    }
+
+    private static void AddHighlightEdge(
+        List<VertexPositionColor> vertices,
+        Point point1,
+        Point point2,
+        Color color,
+        float thickness)
+    {
+        Vector2 p1 = new((float)point1.X, (float)point1.Y);
+        Vector2 p2 = new((float)point2.X, (float)point2.Y);
+
+        Vector2 direction = p2 - p1;
+
+        if (direction.LengthSquared() <= float.Epsilon)
+            return;
+
+        direction.Normalize();
+
+        // Perpendicular vector used to give the line thickness.
+        Vector2 normal = new(-direction.Y, direction.X);
+        normal *= thickness * 0.5f;
+
+        Vector2 v1 = p1 - normal;
+        Vector2 v2 = p1 + normal;
+        Vector2 v3 = p2 + normal;
+        Vector2 v4 = p2 - normal;
+
+        vertices.Add(new VertexPositionColor(
+            new Vector3(v1, 0f),
+            color));
+
+        vertices.Add(new VertexPositionColor(
+            new Vector3(v2, 0f),
+            color));
+
+        vertices.Add(new VertexPositionColor(
+            new Vector3(v3, 0f),
+            color));
+
+        vertices.Add(new VertexPositionColor(
+            new Vector3(v1, 0f),
+            color));
+
+        vertices.Add(new VertexPositionColor(
+            new Vector3(v3, 0f),
+            color));
+
+        vertices.Add(new VertexPositionColor(
+            new Vector3(v4, 0f),
+            color));
     }
 
     private void DrawHighlightedCells()
@@ -595,17 +724,21 @@ public class Voronoi
     /// Calls <see cref="ChangeCellColors"/> using the cell ids marked by <see cref="MarkCell"/>.
     /// </summary>
     /// <param name="color">Color to replace cells.</param>
-    /// <param name="clear">Clears internal marked cells. False by default.</param>
-    public void ColorMarkedCells(Color color, bool clear = false)
+    /// <param name="blankColor"></param>
+    /// <param name="ignoreFlatColor"></param>
+    /// <param name="clear">Clear internally marked cells. False by default.</param>
+    public void ColorMarkedCells(
+        Color color,
+        Color? blankColor = null,
+        bool ignoreFlatColor = false,
+        bool clear = false)
     {
-        ChangeCellColors(_markedCells, color);
-        if (clear) _markedCells.Clear();
+        blankColor ??= _flatColor;
+        ChangeCellColors(_markedCells, color, blankColor.Value, ignoreFlatColor);
+        if (clear) ClearMarkedCells();
     }
 
-    public void ClearMarkedCells()
-    {
-        _markedCells.Clear();
-    }
+    public void ClearMarkedCells() => _markedCells.Clear();
 
     /// <summary>
     /// Sets all cells to a single color, which defaults to a provided/default flat color.
@@ -624,14 +757,16 @@ public class Voronoi
     /// </summary>
     /// <param name="idsAffected"></param>
     /// <param name="color"></param>
-    private void ChangeCellColors(List<int> idsAffected, Color color)
+    /// <param name="blankColor"></param>
+    /// <param name="ignoreFlatColor"></param>
+    private void ChangeCellColors(List<int> idsAffected, Color color, Color blankColor, bool ignoreFlatColor)
     {
         if (!_isGenerated)
             return;
 
         // Rebuild french cell batch with colors provided. Internal logic will handle the way they are colored,
         //  and outside of this function they are handled as if no ids were affected.
-        BuildCellBatch(idsAffected, (color, _flatColor));
+        BuildCellBatch(idsAffected, (color, blankColor), ignoreFlatColor);
         UpdateTexture(
             _previousBoundaryMode,
             _previousFlags,
@@ -656,7 +791,7 @@ public class Voronoi
                 hash ^= hash >> 16;
                 b = (byte)hash;
                 color = new Color((int)r, g, b, 255);
-                break;
+                return color;
             case ColorMode.Deterministic_Random: // Throw together a lazy hash based on cell Site vertex.
                 hash = (uint)cell.Site.X ^ (uint)cell.Site.Y;
                 hash ^= hash >> 16;
@@ -668,18 +803,41 @@ public class Voronoi
                 hash ^= hash >> 16;
                 b = (byte)hash;
                 color = new Color((int)r, g, b, 255);
-                break;
+                return color;
             case ColorMode.Random: // Truly random 0 -> 255
                 color = new Color(
                     _random.Next(0, 256),
                     _random.Next(0, 256),
                     _random.Next(0, 256),
                     255);
-                break;
+                return color;
+            case ColorMode.Semi_Deterministic_Unique:
+                // Grab a deterministic semi-unique color and go an integer check.
+                // Naturally if it isn't unique, then it is reaching the birthday-paradox point
+                color = ColorUtilities.GetSemiUniqueColor((uint)cell.Site._instanceId);
+                int reversed = (color.R << 16) | (color.G << 8) | color.B;
+                lock (_usedColors)
+                {
+                    // If the semi-unique color turns out to no longer be unique, then
+                    // defaulting to the thread-dangerous unique color generator is the
+                    // next best option. I am aware this causes an inner-dependency, and
+                    // may also cause a little overhead. The deterministic method is faster
+                    // than relying on the Random class to do its calls, and that for maps
+                    // approximately smaller than 2000x2000, this would be incredibly efficient.
+                    // As far as I see it, it's a small, but nevertheless preferred -optimization.
+                    if (!_usedColors.Add(reversed)) goto case ColorMode.Unique;
+                }
+
+                return color;
             case ColorMode.Unique: // Pure random RGB – three integer ops, no floats
                 int rgb;
-                do rgb = _random.Next(0x1000000); // 0 … 16 777 215
-                while (!_usedColors.Add(rgb));
+                lock (_random)
+                lock (_usedColors)
+                {
+                    do rgb = _random.Next(0x1000000); // 0 … 16 777 215
+                    while (!_usedColors.Add(rgb));
+                }
+
                 color = new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 220);
                 break;
             case ColorMode.Unified:
@@ -1002,11 +1160,9 @@ public class Voronoi
         ref float tMin,
         ref float tMax)
     {
+        // Ray is parallel to this axis.
         if (Math.Abs(direction) < 0.000001f)
-        {
-            // Ray is parallel to this axis.
             return origin >= min && origin <= max;
-        }
 
         float t1 = (min - origin) / direction;
         float t2 = (max - origin) / direction;
@@ -1301,34 +1457,67 @@ public class Voronoi
         _edgeBatchPrimitiveCount = _edgeBatchVertices.Length / 3;
     }
 
-    private void BuildCellBatch(List<int> overrideIds, (Color cell, Color blank)? @override = null)
+    private void BuildCellBatch(
+        List<int> overrideIds,
+        (Color cell, Color blank)? @override = null,
+        bool ignoreFlatColor = false)
     {
-        int vertexIndex = 0;
-        foreach (VoronoiCell cell in _voronoiCells.Values)
-        {
-            var vertices = cell.Vertices;
-            if (vertices.Count < 3)
-                continue;
+        var overrideSet = @override != null ? overrideIds.ToHashSet() : null;
+        var cells = _voronoiCells.Values.ToArray();
 
-            // Based on if an override is provided, and the IDs expected to override, some cells may have special
-            // colors shared between each other.
+        // Building an offset array.
+        int[] offsets = new int[cells.Length];
+        int offset = 0;
+        for (int i = 0; i < cells.Length; i++)
+        {
+            offsets[i] = offset;
+            int vertexCount = cells[i].Vertices.Count;
+            if (vertexCount >= 3)
+                offset += (vertexCount - 2) * 3;
+        }
+
+        Parallel.For(0, cells.Length, i =>
+        {
+            VoronoiCell cell = cells[i];
+            var vertices = cell.Vertices;
+
+            if (vertices.Count < 3)
+                return;
+
             int id = cell.Site._instanceId;
-            Color color = @override != null && overrideIds.Contains(id)
-                ? overrideIds.Contains(id) ? @override.Value.cell : @override.Value.blank
-                : _cellRawColors[id];
+
+            /*
+             * Multiple options for selecting colour are handled here.
+             * If an override is not provided, then it will use the raw colours.
+             * Assuming an override is provided, it will colour cells appropriately unless marked cells
+             * aren't being referenced, in which case they will either use the provided "blank" color, or
+             * the raw unique cell color.
+             */
+            Color color;
+            if (@override != null)
+                if (overrideSet!.Contains(id)) color = @override.Value.cell;
+                else if (!ignoreFlatColor) color = @override.Value.blank;
+                else color = _cellRawColors[id];
+            else color = _cellRawColors[id];
+
+            int vertexIndex = offsets[i];
 
             Vector3 origin = new((float)vertices[0].X, (float)vertices[0].Y, 0f);
-            for (int i = 1; i < vertices.Count - 1; i++)
+            for (int j = 1; j < vertices.Count - 1; j++)
             {
-                //@formatter:off
-                _cellBatchVertices[vertexIndex++] = new VertexPositionColor(origin, color);
-                _cellBatchVertices[vertexIndex++] = new VertexPositionColor(new Vector3((float)vertices[i].X, (float)vertices[i].Y, 0f), color);
-                _cellBatchVertices[vertexIndex++] = new VertexPositionColor(new Vector3((float)vertices[i + 1].X, (float)vertices[i + 1].Y, 0f), color);
-                //@formatter:on
+                _cellBatchVertices[vertexIndex++] =
+                    new VertexPositionColor(origin, color);
+
+                _cellBatchVertices[vertexIndex++] =
+                    new VertexPositionColor(new Vector3((float)vertices[j].X, (float)vertices[j].Y, 0f), color);
+
+                _cellBatchVertices[vertexIndex++] =
+                    new VertexPositionColor(new Vector3((float)vertices[j + 1].X, (float)vertices[j + 1].Y, 0f), color);
             }
-        }
+        });
     }
 
+    /// <remarks>Needed for debug in order to confirm nothings gone wrong.</remarks>
     private static void ValidateNeighbors(List<Triangle> triangles)
     {
         foreach (Triangle t in triangles)
@@ -1400,6 +1589,9 @@ public class Voronoi
     {
         Unified,
         Unique,
+
+        /// Half deterministic color creation, which defaults to unique during conflicts.
+        Semi_Deterministic_Unique,
         Deterministic_Random,
         Deterministic_Lines,
         Random,
