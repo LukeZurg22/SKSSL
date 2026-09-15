@@ -8,7 +8,7 @@ namespace SKSSL.Types;
 /// </summary>
 /// <typeparam name="T">Dynamic object Type contained within internal grid cells.</typeparam>
 /// <remarks>T can be a List if desired, for whatever reason.</remarks>
-public class SpatialHashGrid<T> where T : class
+public abstract class SpatialHashGrid<T> where T : class
 {
     /// Maximum cell size of the hash grid. Set by the constructor.
     public readonly Vector2Int Size;
