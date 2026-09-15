@@ -177,6 +177,15 @@
         <Compile Update="Meta\TextureType.cs">
             <DependentUpon>TextureManager.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Flags\Circle.cs">
+          <DependentUpon>ShapeLayer.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Flags\Rectangle.cs">
+          <DependentUpon>ShapeLayer.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Flags\ShapeLayer.cs">
+          <DependentUpon>IFlag.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>
