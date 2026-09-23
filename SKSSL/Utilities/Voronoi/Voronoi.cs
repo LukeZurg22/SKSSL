@@ -45,7 +45,7 @@ public class Voronoi
 
     // Data Storage
     private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
-    private readonly Dictionary<Point, VoronoiCell> _voronoiCells = [];
+    private readonly Dictionary<Point, VoronoiCell> _voronoiCells = []; // TODO: use an array.
     private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
     private readonly Dictionary<Point, List<CellVoronoiEdge>> _edgesByCell = [];
 
@@ -236,15 +236,15 @@ public class Voronoi
         _height = height ??= _graphicsDevice.Viewport.Height;
         SetDiagramProjection();
 
-        using DelaunayTriangulator _delaunay = new();
+        using DelaunayTriangulator delaunay = new();
 
         // Depending on the distribution type, and the custom sampling algorithm provided, there are multiple ways
         //  to generate a set of points.
         _points = distribution == DelaunayTriangulator.PointDistribution.Custom && customSamplingAlgorithm == null
             ? throw new NullReferenceException("Specified custom distribution without providing an algorithm!")
             : distribution == DelaunayTriangulator.PointDistribution.Custom
-                ? [.._delaunay.GeneratePoints(pointCount, width.Value, height.Value, customSamplingAlgorithm!)]
-                : [.._delaunay.GeneratePoints(pointCount, width.Value, height.Value, distribution, randomness)];
+                ? [..delaunay.GeneratePoints(pointCount, width.Value, height.Value, customSamplingAlgorithm!)]
+                : [..delaunay.GeneratePoints(pointCount, width.Value, height.Value, distribution, randomness)];
 
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
         Array.Clear(_cellOverrideColors, 0, _cellRawColors.Length);
@@ -253,7 +253,7 @@ public class Voronoi
         Array.Resize(ref _cellRawColors, _points.Length + 1);
 
         // Make the triangles.
-        var triangulation = _delaunay.BowyerWatson(_points);
+        var triangulation = delaunay.BowyerWatson(_points);
 
 #if DEBUG
         ValidateNeighbors((List<Triangle>)triangulation);
@@ -317,10 +317,7 @@ public class Voronoi
             () => 0,
             (cell, _, localTriangleCount) =>
             {
-                cell.Vertices = cell.Vertices
-                    .Distinct()
-                    .ToList();
-
+                cell.Vertices = cell.Vertices.Distinct().ToList();
                 cell.Vertices.Sort((a, b) =>
                 {
                     double aa = Math.Atan2(a.Y - cell.Site.Y, a.X - cell.Site.X);
@@ -390,6 +387,7 @@ public class Voronoi
             BuildCellBatch([]);
 
         _isGenerated = true;
+        
         // Update the existing internal pixel map with visual changes.
         UpdateTexture(boundaryMode, flags, thickness, pointSize);
 
@@ -401,9 +399,7 @@ public class Voronoi
     private void BuildSpatialGrid()
     {
         // ReSharper disable once PossibleLossOfFraction
-        int gridSize = Math.Max(
-            10,
-            (int)Math.Sqrt(_voronoiCells.Count / 4));
+        int gridSize = Math.Max(10, (int)Math.Sqrt(_voronoiCells.Count / 4));
 
         float cellWidth = (float)_width / gridSize;
         float cellHeight = (float)_height / gridSize;
@@ -422,7 +418,6 @@ public class Voronoi
 
         int bucketCount = gridSize * gridSize;
         var buckets = new List<VoronoiCell>[bucketCount];
-
         for (int i = 0; i < bucketCount; i++)
             buckets[i] = [];
 
@@ -529,12 +524,10 @@ public class Voronoi
 
         Texture2D oldTexture = _pixelMap;
         _pixelMap = output;
-
         _previousBoundaryMode = boundaryMode;
         _previousThickness = thickness;
         _previousPointSize = pointSize;
         _previousFlags = flags;
-
         _textureValid = true;
         if (oldTexture is RenderTarget2D oldTarget)
             oldTarget.Dispose();
@@ -669,29 +662,12 @@ public class Voronoi
         Vector2 v3 = p2 + normal;
         Vector2 v4 = p2 - normal;
 
-        vertices.Add(new VertexPositionColor(
-            new Vector3(v1, 0f),
-            color));
-
-        vertices.Add(new VertexPositionColor(
-            new Vector3(v2, 0f),
-            color));
-
-        vertices.Add(new VertexPositionColor(
-            new Vector3(v3, 0f),
-            color));
-
-        vertices.Add(new VertexPositionColor(
-            new Vector3(v1, 0f),
-            color));
-
-        vertices.Add(new VertexPositionColor(
-            new Vector3(v3, 0f),
-            color));
-
-        vertices.Add(new VertexPositionColor(
-            new Vector3(v4, 0f),
-            color));
+        vertices.Add(new VertexPositionColor(new Vector3(v1, 0f), color));
+        vertices.Add(new VertexPositionColor(new Vector3(v2, 0f), color));
+        vertices.Add(new VertexPositionColor(new Vector3(v3, 0f), color));
+        vertices.Add(new VertexPositionColor(new Vector3(v1, 0f), color));
+        vertices.Add(new VertexPositionColor(new Vector3(v3, 0f), color));
+        vertices.Add(new VertexPositionColor(new Vector3(v4, 0f), color));
     }
 
     private void DrawHighlightedCells()
@@ -1329,12 +1305,9 @@ public class Voronoi
 
     private void BuildTriangleBatch(IEnumerable<Triangle> triangulation)
     {
-        var triangles =
-            triangulation as ICollection<Triangle> ??
-            triangulation.ToList();
+        var triangles = triangulation as ICollection<Triangle> ?? triangulation.ToList();
 
-        _triangleBatchVertices =
-            new VertexPositionColor[triangles.Count * 3];
+        _triangleBatchVertices = new VertexPositionColor[triangles.Count * 3];
 
         int vertexIndex = 0;
 
@@ -1528,12 +1501,9 @@ public class Voronoi
             Vector3 origin = new((float)vertices[0].X, (float)vertices[0].Y, 0f);
             for (int j = 1; j < vertices.Count - 1; j++)
             {
-                _cellBatchVertices[vertexIndex++] =
-                    new VertexPositionColor(origin, color);
-
+                _cellBatchVertices[vertexIndex++] = new VertexPositionColor(origin, color);
                 _cellBatchVertices[vertexIndex++] =
                     new VertexPositionColor(new Vector3((float)vertices[j].X, (float)vertices[j].Y, 0f), color);
-
                 _cellBatchVertices[vertexIndex++] =
                     new VertexPositionColor(new Vector3((float)vertices[j + 1].X, (float)vertices[j + 1].Y, 0f), color);
             }
@@ -1622,7 +1592,7 @@ public class Voronoi
 
     [Flags]
     // ReSharper disable UnusedMember.Global
-    public enum VoronoiRenderingFlags
+    public enum VoronoiRenderingFlags : byte
     {
         //@formatter:off
         /// Used as a "render nothing" and a null toggle.

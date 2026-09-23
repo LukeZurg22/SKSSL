@@ -72,10 +72,12 @@ public class DelaunayTriangulator : IDisposable
     /// <param name="distribution"></param>
     /// <param name="randomness"></param>
     /// <returns></returns>
-    public IEnumerable<Point> GeneratePoints(int amount,
+    public IEnumerable<Point> GeneratePoints(
+        int amount,
         double maxX,
         double maxY,
-        PointDistribution distribution, double randomness)
+        PointDistribution distribution,
+        double randomness)
     {
         var points = CreatePointsList(maxX, maxY);
         var random = new Random();
@@ -440,10 +442,11 @@ public class DelaunayTriangulator : IDisposable
     {
         Custom = 0,
 
-        /// Produces sharper, more "raw" triangular cells.
+        /// Produces sharper, more "raw" triangular cells. IDs are completely random.
         RandomSystem = 1,
 
-        /// Accepts evenness parameter. Produces cleaner cells.
+        /// Accepts randomness parameter.
+        /// Produces cleaner cells. IDs are linear (top left = 0) to end (bottom right = n).
         RandomJitter = 2,
     }
 
@@ -468,10 +471,7 @@ internal readonly struct BoundaryEdge
     public readonly Point Point2;
     public readonly Triangle? Outside;
 
-    public BoundaryEdge(
-        Point point1,
-        Point point2,
-        Triangle? outside)
+    public BoundaryEdge(Point point1, Point point2, Triangle? outside)
     {
         Point1 = point1;
         Point2 = point2;

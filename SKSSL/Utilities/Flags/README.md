@@ -1,6 +1,6 @@
 # Flags
 
-Not to be confused with the mathematical term, **Flags** as implemented here are the literal representation of
+Not to be confused with _bit flags_, **Flags** as implemented here are the literal representation of
 National and State flags.
 
 The classes provided are for the abstractions and later creations of country flags. Everything is handled through the
