@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
 
 namespace SKSSL;
 
@@ -115,30 +114,28 @@ public static partial class DustLogger
 
     static DustLogger()
     {
-        using ILoggerFactory loggerFactory = LoggerFactory.Create(builder
-            => builder.SetMinimumLevel(LogLevel.Debug).AddConsole(options =>
-            {
-                _ = new ConsoleFormatterOptions
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder
+                .SetMinimumLevel(LogLevel.Debug)
+                .AddSimpleConsole(options =>
                 {
-                    IncludeScopes = false,
-                    TimestampFormat = "HH:mm:ss"
-                };
-            }).AddSimpleConsole(options =>
-            {
-                options.IncludeScopes = false;
-                options.SingleLine = true;
-                options.TimestampFormat = "HH:mm:ss ";
-            })); // Should work with console.
+                    options.IncludeScopes = false;
+                    options.TimestampFormat = "HH:mm:ss ";
+                    options.SingleLine = true;
+                });
+        });
 
         logger = loggerFactory.CreateLogger("SKSSL");
 
         // Establish writer for log output.
         _logFilePath = Path.Combine(GameDirectory.RootDirectory, "log.txt");
-        StreamWriter writer = File.CreateText(_logFilePath);
-        writer.Close(); // Wipe the old file.
+
+        // Wipe the old file.
+        using StreamWriter writer = File.CreateText(_logFilePath);
 
         // TODO: implement storing antiquated logs up to a certain amount of times.
-        //  Also include different loging types split between different files..
+        // TODO: include different logging types split between different files.
     }
 
     /// <summary>

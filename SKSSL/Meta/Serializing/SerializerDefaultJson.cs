@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using SKSSL.ECS;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedMember.Global
