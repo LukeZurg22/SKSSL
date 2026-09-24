@@ -71,7 +71,7 @@ public class Voronoi
             _game.GraphicsDevice.Viewport.Height
         );
 
-        DistributorImage distributor = new(_densityTexture, 2);
+        DistributorImage distributor = new(_densityTexture);
 
         // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require

@@ -12,47 +12,72 @@ public class DistributorImage : IPointDistributor
     private readonly int _width;
     private readonly int _height;
     private readonly ImageDensityMode _mode;
-    private float[] _density;
-    private readonly double _densityIntensity;
 
-    // ReSharper disable once UnusedMember.Global
-    public DistributorImage(byte[] pixels, int width, int height, ImageDensityMode mode = ImageDensityMode.Luminance)
+    private readonly float[] _density;
+    private readonly float[] _densityCurve;
+
+    private readonly double _densityIntensity;
+    private readonly double _minSpacingFactor;
+    private readonly double _maxSpacingFactor;
+
+    private const double defaultIntensity = 1.1;
+    private const double defaultMinSpacingFactor = 0.75;
+    private const double defaultMaxSpacingFactor = 4.00;
+
+    public DistributorImage(
+        byte[] pixels,
+        int width,
+        int height,
+        ImageDensityMode mode = ImageDensityMode.Luminance,
+        double densityIntensity = defaultIntensity,
+        double minSpacingFactor = defaultMinSpacingFactor,
+        double maxSpacingFactor = defaultMaxSpacingFactor)
     {
+        ArgumentNullException.ThrowIfNull(pixels);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+
+        if (pixels.Length < width * height * 4)
+            throw new ArgumentException(
+                "Pixel buffer must contain at least width * height * 4 bytes.",
+                nameof(pixels));
+
         _width = width;
         _height = height;
         _pixels = pixels;
         _mode = mode;
+        _densityIntensity = densityIntensity;
+        _minSpacingFactor = minSpacingFactor;
+        _maxSpacingFactor = maxSpacingFactor;
 
         BuildDensity();
     }
 
-    public DistributorImage(Texture2D texture, 
-        double densityIntensity = 1.6,
-        ImageDensityMode mode = ImageDensityMode.Luminance)
+    public DistributorImage(
+        Texture2D texture,
+        ImageDensityMode mode = ImageDensityMode.Luminance,
+        double densityIntensity = defaultIntensity,
+        double minSpacingFactor = defaultMinSpacingFactor,
+        double maxSpacingFactor = defaultMaxSpacingFactor)
     {
         ArgumentNullException.ThrowIfNull(texture);
+
         _width = texture.Width;
         _height = texture.Height;
-        _pixels = new byte[_width * _height * 4];
         _mode = mode;
         _densityIntensity = densityIntensity;
+        _minSpacingFactor = minSpacingFactor;
+        _maxSpacingFactor = maxSpacingFactor;
+
+        int length = _width * _height;
+        _pixels = new byte[length * 4];
+        _density = new float[length];
+        _densityCurve = new float[4096];
 
         texture.GetData(_pixels);
         BuildDensity();
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="points"></param>
-    /// <param name="amount"></param>
-    /// <param name="maxX"></param>
-    /// <param name="maxY"></param>
-    /// <param name="randomness">
-    ///     How image-driven the point generation is. 0 is entirely image-driven, 1 is
-    ///     entirely randomized.
-    /// </param>
-    /// <exception cref="InvalidOperationException"></exception>
     public void Generate(ref List<Point> points, int amount, double maxX, double maxY, double randomness)
     {
         ArgumentNullException.ThrowIfNull(points);
@@ -65,50 +90,52 @@ public class DistributorImage : IPointDistributor
             return;
 
         randomness = Clamp(randomness, 0.0, 1.0);
-
-        Random random = Random.Shared;
-
-        /*
-         * randomness = 0:
-         *     entirely controlled by the image.
-         *
-         * randomness = 1:
-         *     completely uniform spacing.
-         */
         double densityInfluence = 1.0 - randomness;
-        double area = maxX * maxY;
+
+
+        // Average spacing.
+        double baseSpacing = Sqrt(maxX * maxY / amount) * 0.55;
 
         /*
-         * Average spacing for the requested number of points.
+         * The smallest possible spacing determines the grid resolution.
+         *
+         * This guarantees that a grid cell cannot contain two newly
+         * generated points.
          */
-        double baseSpacing = Sqrt(area / amount) * 0.55;
-
-        /*
-         * Grid cell is small enough that neighboring cells contain all possible conflicting points.
-         */
-        double cellSize = baseSpacing / Sqrt(2.0);
-
+        double minimumSpacing = baseSpacing * _minSpacingFactor;
+        double cellSize = minimumSpacing / Sqrt(2.0);
         int gridWidth = (int)Ceiling(maxX / cellSize);
         int gridHeight = (int)Ceiling(maxY / cellSize);
-
-        int[] grid = new int[gridWidth * gridHeight];
+        int gridLength = gridWidth * gridHeight;
+        int[] grid = new int[gridLength];
 
         Array.Fill(grid, -1);
-
-        /*
-         * Insert existing points.
-         */
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < count; i++)
         {
             Point point = points[i];
-            int gx = Clamp((int)(point.X / cellSize), 0, gridWidth - 1);
-            int gy = Clamp((int)(point.Y / cellSize), 0, gridHeight - 1);
+            int gx = (int)(point.X / cellSize);
+            int gy = (int)(point.Y / cellSize);
+            if ((uint)gx >= (uint)gridWidth || (uint)gy >= (uint)gridHeight)
+                continue;
+
             grid[gy * gridWidth + gx] = i;
         }
 
+        Random random = Random.Shared;
         int required = amount - count;
-        int maxAttempts = Max(required * 500, 50_000);
+
+        /*
+         * Maximum consecutive failures.
+         */
+        int maxAttempts = Max(required * 100, 10_000);
         int attempts = 0;
+
+        /*
+         * Precomputed constants.
+         */
+        double spacingRange =
+            _maxSpacingFactor - _minSpacingFactor;
+
         while (count < amount)
         {
             if (++attempts > maxAttempts)
@@ -120,32 +147,41 @@ public class DistributorImage : IPointDistributor
             int pixelX = (int)(rx * _width);
             int pixelY = (int)(ry * _height);
 
-            float imageDensity = _density[pixelY * _width + pixelX];
+            /*
+             * Blend image density toward uniform density.
+             */
+            float density = _density[pixelY * _width + pixelX];
+            density = (float)(density * densityInfluence + randomness);
 
             /*
-             * Blend toward uniform spacing.
+             * The expensive Pow() has been replaced by a lookup into
+             * the precomputed nonlinear density curve.
              */
-            double density = imageDensity * densityInfluence + (1.0 - densityInfluence);
+            int densityIndex = (int)(density * 4095.0);
+
+            if (densityIndex > 4095)
+                densityIndex = 4095;
+
+            double densityCurve = _densityCurve[densityIndex];
 
             /*
-             * IMPORTANT:
+             * Convert density to spacing.
              *
-             * Keep spacing variation relatively small.
-             *
-             * density 1 -> 0.70x
-             * density 0 -> 1.30x
-             *
-             * This controls the overall density intense-ness of the graph.
+             * High density -> minimum spacing.
+             * Low density  -> maximum spacing.
              */
-            double spacingFactor = _densityIntensity - density * 1.0;
+            double spacingFactor = _maxSpacingFactor - spacingRange * densityCurve;
             double minimumDistance = baseSpacing * spacingFactor;
 
             double x = rx * maxX;
             double y = ry * maxY;
 
-            int gx = Clamp((int)(x / cellSize), 0, gridWidth - 1);
-            int gy = Clamp((int)(y / cellSize), 0, gridHeight - 1);
+            int gx = (int)(x / cellSize);
+            int gy = (int)(y / cellSize);
 
+            /*
+             * The candidate is always inside the requested bounds.
+             */
             int searchRadius = (int)Ceiling(minimumDistance / cellSize);
 
             int minGX = Max(0, gx - searchRadius);
@@ -154,8 +190,7 @@ public class DistributorImage : IPointDistributor
             int minGY = Max(0, gy - searchRadius);
             int maxGY = Min(gridHeight - 1, gy + searchRadius);
 
-            double minimumDistanceSquared =
-                minimumDistance * minimumDistance;
+            double distanceSquared = minimumDistance * minimumDistance;
 
             bool valid = true;
 
@@ -175,7 +210,7 @@ public class DistributorImage : IPointDistributor
                     double dx = x - other.X;
                     double dy = y - other.Y;
 
-                    if (!(dx * dx + dy * dy < minimumDistanceSquared))
+                    if (!(dx * dx + dy * dy < distanceSquared))
                         continue;
 
                     valid = false;
@@ -196,31 +231,43 @@ public class DistributorImage : IPointDistributor
 
     private void BuildDensity()
     {
-        _density = new float[_width * _height];
+        int length = _width * _height;
         const float Inv255 = 1.0f / 255.0f;
         switch (_mode)
         {
             case ImageDensityMode.Red:
-                for (int i = 0, p = 0; i < _density.Length; i++, p += 4)
+                for (int i = 0, p = 0; i < length; i++, p += 4)
                     _density[i] = _pixels[p + 2] * Inv255;
                 break;
             case ImageDensityMode.Green:
-                for (int i = 0, p = 0; i < _density.Length; i++, p += 4)
+                for (int i = 0, p = 0; i < length; i++, p += 4)
                     _density[i] = _pixels[p + 1] * Inv255;
                 break;
             case ImageDensityMode.Blue:
-                for (int i = 0, p = 0; i < _density.Length; i++, p += 4)
+                for (int i = 0, p = 0; i < length; i++, p += 4)
                     _density[i] = _pixels[p] * Inv255;
                 break;
             case ImageDensityMode.Alpha:
-                for (int i = 0, p = 0; i < _density.Length; i++, p += 4)
+                for (int i = 0, p = 0; i < length; i++, p += 4)
                     _density[i] = _pixels[p + 3] * Inv255;
                 break;
             case ImageDensityMode.Luminance:
             default:
-                for (int i = 0, p = 0; i < _density.Length; i++, p += 4)
+                for (int i = 0, p = 0; i < length; i++, p += 4)
                     _density[i] = (0.2126f * _pixels[p + 2] + 0.7152f * _pixels[p + 1] + 0.0722f * _pixels[p]) * Inv255;
                 break;
+        }
+
+        /*
+         * Precompute the nonlinear density curve.
+         *
+         * Math.Pow() is therefore performed only 4096 times instead
+         * of potentially millions of times during Generate().
+         */
+        for (int i = 0; i < _densityCurve.Length; i++)
+        {
+            double density = i / 4095.0;
+            _densityCurve[i] = (float)Pow(density, _densityIntensity);
         }
     }
 }
@@ -230,6 +277,7 @@ public enum ImageDensityMode : byte
 {
     /// Brightness, aka the "traditional" height map.
     Luminance,
+
     Red,
     Green,
     Blue,

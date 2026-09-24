@@ -110,15 +110,7 @@ public class Voronoi
     //     d. Optionally generate a denser Voronoi diagram inside each region.
     //  .
     //  3. Density-map-driven generation
-    //     a. Accept a grayscale density map.
-    //     b. Sample the map when generating Voronoi sites.
-    //     c. Higher density produces more sites / smaller cells.
-    //     d. Lower density produces fewer sites / larger cells.
     //     e. Support combining density maps with explicit boundaries.
-    //  .
-    //  4. SolKom
-    //     a. Use density maps to control the spatial distribution of
-    //        generated Voronoi regions.
 
     //  TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
 
