@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -25,6 +27,10 @@ public class Triangle
         if (point1 == point2 || point1 == point3 || point2 == point3)
             throw new ArgumentException("Triangle consist of 3 distinct points.");
 
+        // Normalize winding.
+        if (Cross(point1, point2, point3) < 0)
+            (point2, point3) = (point3, point2);
+        
         bool IsCounterClockwise =
             (point2.X - point1.X) * (point3.Y - point1.Y) -
             (point3.X - point1.X) * (point2.Y - point1.Y) > 0;
@@ -48,6 +54,9 @@ public class Triangle
 
         UpdateCircumcircle();
     }
+    
+    private static double Cross(Point a, Point b, Point c)
+        => (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
 
     public bool IsPointInsideCircumcircle(Point point)
     {
@@ -56,36 +65,49 @@ public class Triangle
         return dx * dx + dy * dy < _radiusSquared;
     }
 
-    public void SetNeighbor(int edge, Triangle triangle)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void SetNeighbor(int edge, Triangle neighbor)
     {
         switch (edge)
         {
             case 0:
-                Neighbor0 = triangle;
+                Neighbor0 = neighbor;
                 break;
+
             case 1:
-                Neighbor1 = triangle;
+                Neighbor1 = neighbor;
                 break;
+
             case 2:
-                Neighbor2 = triangle;
+                Neighbor2 = neighbor;
                 break;
-            default: throw new ArgumentOutOfRangeException(nameof(edge));
+
+            default:
+                Debug.Fail("Invalid triangle edge.");
+                break;
         }
     }
 
-    public int IndexOfEdge(Point a, Point b)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal int IndexOfEdge(Point a, Point b)
     {
         Point v0 = Vertices[0];
         Point v1 = Vertices[1];
         Point v2 = Vertices[2];
 
-        if ((v0 == a && v1 == b) || (v0 == b && v1 == a)) return 0;
-        if ((v1 == a && v2 == b) || (v1 == b && v2 == a)) return 1;
-        if ((v2 == a && v0 == b) || (v2 == b && v0 == a)) return 2;
+        if ((v0 == a && v1 == b) || (v0 == b && v1 == a))
+            return 0;
+
+        if ((v1 == a && v2 == b) || (v1 == b && v2 == a))
+            return 1;
+
+        if ((v2 == a && v0 == b) || (v2 == b && v0 == a))
+            return 2;
 
         return -1;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void UpdateCircumcircle()
     {
         Point p0 = Vertices[0];

@@ -57,11 +57,12 @@ public class Voronoi
     private SpatialGrid? _spatialGrid;
 
     // Coloring and Visualization
+    private readonly Dictionary<uint, int> _cellIndices = [];
     private Color[] _cellOverrideColors; // Override colors for cells. Indexed by ID.
     private Color[] _cellRawColors; // Raw "provincial" colors of cells. Indexed by ID.
     private readonly HashSet<int> _usedColors = []; // avoid exact RGB collisions
     private readonly Random _random = new(32); // fixed seed → reproducible
-
+    
     // Data Caching
     private VertexPositionColor[] _cellBatchVertices = [];
     private int _cellBatchPrimitiveCount;
@@ -195,8 +196,9 @@ public class Voronoi
     /// Also calls <see cref="UpdateTexture"/> to populate the pixel data.
     /// </remarks>
     /// <param name="pointCount"></param>
-    /// <param name="width"></param>
-    /// <param name="height"></param>
+    /// <param name="width">Width of diagram in pixels.</param>
+    /// <param name="height">Height of diagram in pixels.</param>
+    /// <param name="settlePoints">Toggle for easing points to a settled arrangement.</param>
     /// <param name="distribution"></param>
     /// <param name="randomness">
     ///     Evenness of distribution on a scale of 0.00 -> 1.00; only works with the
@@ -214,6 +216,7 @@ public class Voronoi
         int pointCount = DefaultPointCount,
         int? width = null,
         int? height = null,
+        bool settlePoints = false,
         DelaunayTriangulator.PointDistribution distribution = DelaunayTriangulator.PointDistribution.RandomSystem,
         double randomness = 0.8,
         Action<int, List<Point>>? customSamplingAlgorithm = null,
@@ -246,12 +249,13 @@ public class Voronoi
         Array.Resize(ref _cellOverrideColors, _points.Length + 1);
         Array.Resize(ref _cellRawColors, _points.Length + 1);
 
+        // Clear and repopulate cell index dictionary.
+        _cellIndices.Clear();
+        for (int i = 0; i < _points.Length; i++)
+            _cellIndices[_points[i].ID] = i;
+        
         // Make the triangles.
         var triangulation = delaunay.BowyerWatson(_points);
-
-#if DEBUG
-        ValidateNeighbors((List<Triangle>)triangulation);
-#endif
 
         // Clear old data.
         _voronoiCells.Clear();
@@ -261,45 +265,27 @@ public class Voronoi
         _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, pointCount * 3);
         _voronoiCells.EnsureCapacity(_points.Length);
 
-        // ReSharper disable once PossibleMultipleEnumeration
-        foreach (Triangle triangle in triangulation)
+        BuildVoronoiCells(triangulation);
+
+        // Lloyd relaxation requires rebuilding the triangulation and Voronoi cells, which can be a little expensive
+        //  for large graphs.
+        if (false)
         {
-            // Build cells.
-            foreach (Point site in triangle.Vertices)
-            {
-                if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
-                {
-                    cell = new VoronoiCell(site, []);
-                    _voronoiCells.Add(site, cell);
-                }
+            Debug.WriteLine("Lloyd: starting");
 
-                cell.Vertices.Add(triangle.Circumcenter);
-            }
+            DelaunayTriangulator.LloydSettlePoints(_points, _voronoiCells.Values);
 
-            #region Mark Boundaries
+            Debug.WriteLine("Lloyd: finished");
 
-            // Mark boundary cells.
-            if (triangle.Neighbor0 == null)
-            {
-                _voronoiCells[triangle.Vertices[0]].IsBoundary = true;
-                _voronoiCells[triangle.Vertices[1]].IsBoundary = true;
-            }
+            _voronoiCells.Clear();
 
-            if (triangle.Neighbor1 == null)
-            {
-                _voronoiCells[triangle.Vertices[1]].IsBoundary = true;
-                _voronoiCells[triangle.Vertices[2]].IsBoundary = true;
-            }
-
-            // ReSharper disable once InvertIf
-            if (triangle.Neighbor2 == null)
-            {
-                _voronoiCells[triangle.Vertices[2]].IsBoundary = true;
-                _voronoiCells[triangle.Vertices[0]].IsBoundary = true;
-            }
-
-            #endregion
+            triangulation = delaunay.BowyerWatson(_points);
+            BuildVoronoiCells(triangulation);
         }
+
+#if DEBUG
+        ValidateNeighbors(triangulation);
+#endif
 
         #region PROCESS CELLS, TRIANGLES, COLORS
 
@@ -338,8 +324,7 @@ public class Voronoi
                     localTriangleCount += cell.Vertices.Count - 2;
 
                 // Colors are deterministic, so this can be kept within the parallel loop.
-                _cellRawColors[cell.Site._instanceId] = GetCellColor(cell);
-
+                _cellRawColors[_cellIndices[cell.ID]] = GetCellColor(cell);
                 return localTriangleCount;
             },
 
@@ -388,6 +373,43 @@ public class Voronoi
         // A spatial grid, aka a bucket grid is needed to subdivide the voronoi map into workable chunks.
         // This is for performance.
         BuildSpatialGrid();
+        return;
+
+        void BuildVoronoiCells(IEnumerable<Triangle> triangulations)
+        {
+            foreach (Triangle triangle in triangulations)
+            {
+                foreach (Point site in triangle.Vertices)
+                {
+                    if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
+                    {
+                        cell = new VoronoiCell(site, []);
+                        _voronoiCells.Add(site, cell);
+                    }
+
+                    cell.Vertices.Add(triangle.Circumcenter);
+                }
+
+                if (triangle.Neighbor0 == null)
+                {
+                    _voronoiCells[triangle.Vertices[0]].IsBoundary = true;
+                    _voronoiCells[triangle.Vertices[1]].IsBoundary = true;
+                }
+
+                if (triangle.Neighbor1 == null)
+                {
+                    _voronoiCells[triangle.Vertices[1]].IsBoundary = true;
+                    _voronoiCells[triangle.Vertices[2]].IsBoundary = true;
+                }
+
+                // ReSharper disable once InvertIf
+                if (triangle.Neighbor2 == null)
+                {
+                    _voronoiCells[triangle.Vertices[2]].IsBoundary = true;
+                    _voronoiCells[triangle.Vertices[0]].IsBoundary = true;
+                }
+            }
+        }
     }
 
     private void BuildSpatialGrid()
@@ -557,7 +579,7 @@ public class Voronoi
 
         foreach (VoronoiCell candidate in _voronoiCells.Values)
         {
-            if (candidate.Site._instanceId != cellID)
+            if (candidate.ID != cellID)
                 continue;
 
             cell = candidate;
@@ -729,7 +751,7 @@ public class Voronoi
 
     #region Cell Coloring
 
-    private readonly List<int> _markedCells = new(DefaultPointCount);
+    private readonly List<uint> _markedCells = new(DefaultPointCount);
 
     /// <summary>
     /// Using a position on a Voronoi diagram, attempts to get a cell and add it to a marked-cells list. 
@@ -740,8 +762,9 @@ public class Voronoi
     {
         if (!TryGetCellAt(point, out VoronoiCell? cell))
             return;
-        if (!_markedCells.Contains(cell.Site._instanceId))
-            _markedCells.Add(cell.Site._instanceId);
+
+        if (!_markedCells.Contains(cell.ID))
+            _markedCells.Add(cell.ID);
     }
 
     /// <summary>
@@ -749,10 +772,10 @@ public class Voronoi
     /// </summary>
     /// <param name="cell"></param>
     // ReSharper disable once UnusedMember.Global
-    public void MarkCell(int cell)
+    public void MarkCell(uint cell)
     {
         // Avoid crashing w. bad loops!
-        if (cell < 0 || cell >= _cellVoronoiEdges.Count)
+        if (cell >= _cellVoronoiEdges.Count)
             return;
 
         if (!_markedCells.Contains(cell))
@@ -760,7 +783,7 @@ public class Voronoi
     }
 
     /// <summary>
-    /// Calls <see cref="ChangeCellColors"/> using the cell ids marked by <see cref="MarkCell"/>.
+    /// Calls <see cref="ChangeCellColors"/> using the cell ids marked by <see cref="MarkCell(uint)"/>.
     /// </summary>
     /// <param name="color">Color to replace cells.</param>
     /// <param name="blankColor"></param>
@@ -787,7 +810,7 @@ public class Voronoi
         color ??= _flatColor;
         ClearMarkedCells();
         for (int i = 0; i < _points.Length; i++)
-            MarkCell(i);
+            MarkCell((uint)i);
         ColorMarkedCells(color.Value);
     }
 
@@ -798,7 +821,7 @@ public class Voronoi
     /// <param name="color"></param>
     /// <param name="blankColor"></param>
     /// <param name="ignoreFlatColor"></param>
-    private void ChangeCellColors(List<int> idsAffected, Color color, Color blankColor, bool ignoreFlatColor)
+    private void ChangeCellColors(List<uint> idsAffected, Color color, Color blankColor, bool ignoreFlatColor)
     {
         if (!_isGenerated)
             return;
@@ -853,7 +876,7 @@ public class Voronoi
             case ColorMode.Semi_Deterministic_Unique:
                 // Grab a deterministic semi-unique color and go an integer check.
                 // Naturally if it isn't unique, then it is reaching the birthday-paradox point
-                color = ColorUtilities.GetSemiUniqueColor((uint)cell.Site._instanceId);
+                color = ColorUtilities.GetSemiUniqueColor(cell.ID);
                 int reversed = (color.R << 16) | (color.G << 8) | color.B;
                 lock (_usedColors)
                 {
@@ -1562,14 +1585,24 @@ public class Voronoi
         if (_cellBatchPrimitiveCount == 0)
             return;
 
-        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+        RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;
+
+        try
         {
-            pass.Apply();
-            _graphicsDevice.DrawUserPrimitives(
-                PrimitiveType.TriangleList,
-                _cellBatchVertices,
-                0,
-                _cellBatchPrimitiveCount);
+            _graphicsDevice.RasterizerState = RasterizerState.CullNone;
+            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                _graphicsDevice.DrawUserPrimitives(
+                    PrimitiveType.TriangleList,
+                    _cellBatchVertices,
+                    0,
+                    _cellBatchPrimitiveCount);
+            }
+        }
+        finally
+        {
+            _graphicsDevice.RasterizerState = previousRasterizer;
         }
     }
 
@@ -1614,7 +1647,7 @@ public class Voronoi
     }
 
     private void BuildCellBatch(
-        List<int> overrideIds,
+        List<uint> overrideIds,
         (Color cell, Color blank)? @override = null,
         bool ignoreFlatColor = false)
     {
@@ -1640,7 +1673,7 @@ public class Voronoi
             if (vertices.Count < 3)
                 return;
 
-            int id = cell.Site._instanceId;
+            var cellIndex = _cellIndices[cell.ID];
 
             /*
              * Multiple options for selecting colour are handled here.
@@ -1651,11 +1684,14 @@ public class Voronoi
              */
             Color color;
             if (@override != null)
-                if (overrideSet!.Contains(id)) color = @override.Value.cell;
+                if (overrideSet!.Contains(cell.ID)) color = @override.Value.cell;
                 else if (!ignoreFlatColor) color = @override.Value.blank;
-                else color = _cellRawColors[id];
-            else color = _cellRawColors[id];
+                else color = _cellRawColors[cellIndex];
+            else color = _cellRawColors[cellIndex];
 
+            Debug.Assert(_cellBatchPrimitiveCount > 0);
+            Debug.Assert(_cellRawColors.Any(c => c.A != 0));
+            
             int vertexIndex = offsets[i];
 
             Vector3 origin = new((float)vertices[0].X, (float)vertices[0].Y, 0f);
@@ -1709,7 +1745,6 @@ public class Voronoi
             }
 
             int reciprocal = n.IndexOfEdge(a, b);
-
             if (reciprocal < 0)
                 throw new InvalidOperationException("Neighbor does not share the expected edge.");
 

@@ -7,6 +7,7 @@ namespace SKSSL.Utilities.Voronoi;
 /// </summary>
 public record VoronoiCell
 {
+    public uint ID => Site.ID;
     public Point Site;
     public List<Point> Vertices;
     public bool IsBoundary;

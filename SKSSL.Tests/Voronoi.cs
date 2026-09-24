@@ -34,7 +34,7 @@ public class Voronoi
         // ReSharper disable AccessToModifiedClosure
         void Draw(GameTime gameTime) => _voronoi.Draw(spriteBatch);
     }
-    
+
     private /*async*/ void Update(GameTime gameTime)
     {
         if (generated)
@@ -59,17 +59,18 @@ public class Voronoi
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
         /*await Task.Run(() =>*/
-        _voronoi.GenerateDiagram(pointCount: 100000,
+        _voronoi.GenerateDiagram(pointCount: 500000,
             //width: 1200,
             //height: 800,
             randomness: 1,
+            settlePoints: false,
             distribution: DelaunayTriangulator.PointDistribution.RandomJitter,
             boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
             flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells) /*)*/;
 
-        for (int i = 0; i <= 800; i++) _voronoi.MarkCell(i);
-
-        _voronoi.ColorMarkedCells(Color.BlanchedAlmond, Color.DarkGreen);
+        //for (int i = 0; i <= 800; i++) _voronoi.MarkCell(i);
+        //
+        //_voronoi.ColorMarkedCells(Color.BlanchedAlmond, Color.DarkGreen);
         generated = true;
     }
 }
