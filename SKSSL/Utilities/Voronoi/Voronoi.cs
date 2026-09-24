@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -574,7 +575,7 @@ public class Voronoi
     /// <returns>True if found cell, false if not. Out will be null if false.</returns>
     /// <remarks>May cause lag at immense diagram sizes, mostly around 50k and beyond.</remarks>
     // ReSharper disable once UnusedMethodReturnValue.Global
-    public bool TryGetCellAt(System.Drawing.Point position, out VoronoiCell? cell)
+    public bool TryGetCellAt(System.Drawing.Point position, [NotNullWhen(true)] out VoronoiCell? cell)
     {
         cell = null;
 
@@ -730,6 +731,24 @@ public class Voronoi
 
     private readonly List<int> _markedCells = new(DefaultPointCount);
 
+    /// <summary>
+    /// Using a position on a Voronoi diagram, attempts to get a cell and add it to a marked-cells list. 
+    /// </summary>
+    /// <param name="point"></param>
+    // ReSharper disable once UnusedMember.Global
+    public void MarkCell(System.Drawing.Point point)
+    {
+        if (!TryGetCellAt(point, out VoronoiCell? cell))
+            return;
+        if (!_markedCells.Contains(cell.Site._instanceId))
+            _markedCells.Add(cell.Site._instanceId);
+    }
+
+    /// <summary>
+    /// Add a cell instance ID into a list of marked-cells. 
+    /// </summary>
+    /// <param name="cell"></param>
+    // ReSharper disable once UnusedMember.Global
     public void MarkCell(int cell)
     {
         // Avoid crashing w. bad loops!
