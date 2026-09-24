@@ -75,9 +75,6 @@ public class Voronoi
     private int _triangleBatchPrimitiveCount;
     private VertexPositionColor[] _highlightBatchVertices = []; //  HIGHLIGHTS
     private int _highlightBatchPrimitiveCount;
-    private VertexPositionColor[] _gapBatchVertices = []; // GAPS
-    private BlendState _gapClearBlendState = null!;
-    private int _gapBatchPrimitiveCount;
 
     // Rendering Basics
     private Texture2D _pixelMap = null!;
@@ -124,6 +121,11 @@ public class Voronoi
 
     private DistributorImage? _imageDistributor = null;
 
+    private VertexPositionTexture[] _gapBatchVertices = [];
+    private int _gapBatchPrimitiveCount;
+    private BlendState _gapCutoutBlendState = null!;
+    private Texture2D? _gapMaskTexture;
+
     #region Construction & Mono Code
 
     public Voronoi(
@@ -159,13 +161,13 @@ public class Voronoi
             View = Matrix.Identity,
         };
 
-        _gapClearBlendState = new BlendState
+        _gapCutoutBlendState = new BlendState
         {
             ColorSourceBlend = Blend.Zero,
-            ColorDestinationBlend = Blend.Zero,
+            ColorDestinationBlend = Blend.InverseSourceAlpha,
 
             AlphaSourceBlend = Blend.Zero,
-            AlphaDestinationBlend = Blend.Zero,
+            AlphaDestinationBlend = Blend.InverseSourceAlpha,
 
             ColorBlendFunction = BlendFunction.Add,
             AlphaBlendFunction = BlendFunction.Add,
@@ -246,6 +248,8 @@ public class Voronoi
         float thickness = 1f,
         float pointSize = 2f)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(points, 1);
+
         _isGenerated = false;
         _textureValid = false;
         _boundaryMode = boundaryMode;
@@ -253,7 +257,6 @@ public class Voronoi
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
 
-        ArgumentOutOfRangeException.ThrowIfLessThan(points, 1);
 
         distributor ??= new DistributorRandomJitter();
         if (distributor is DistributorImage distributorImage)
@@ -269,6 +272,16 @@ public class Voronoi
         var pointsList = delaunay.CreatePointsList(maxX, maxY);
         distributor.Generate(ref pointsList, points, maxX, maxY, randomness);
         _points = pointsList.ToArray();
+
+        if (_imageDistributor is { AllowBlackGaps: true } imageDistributor)
+        {
+            RebuildGapMaskTexture(imageDistributor.GapMask);
+        }
+        else
+        {
+            _gapMaskTexture?.Dispose();
+            _gapMaskTexture = null;
+        }
 
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
         Array.Clear(_cellOverrideColors, 0, _cellRawColors.Length);
@@ -392,6 +405,9 @@ public class Voronoi
         if ((flags & VoronoiRenderingFlags.Cells) != 0)
             BuildCellBatch([]);
 
+        if (_imageDistributor is { AllowBlackGaps: true })
+            BuildGapBatch();
+
         _isGenerated = true;
 
         // Update the existing internal pixel map with visual changes.
@@ -437,6 +453,115 @@ public class Voronoi
                 }
             }
         }
+    }
+
+
+    private void BuildGapBatch()
+    {
+        _gapBatchVertices =
+        [
+            // Triangle 1
+            new VertexPositionTexture(
+                new Vector3(0f, 0f, 0f),
+                new Vector2(0f, 0f)),
+
+            new VertexPositionTexture(
+                new Vector3(_width, 0f, 0f),
+                new Vector2(1f, 0f)),
+
+            new VertexPositionTexture(
+                new Vector3(_width, _height, 0f),
+                new Vector2(1f, 1f)),
+
+            // Triangle 2
+            new VertexPositionTexture(
+                new Vector3(0f, 0f, 0f),
+                new Vector2(0f, 0f)),
+
+            new VertexPositionTexture(
+                new Vector3(_width, _height, 0f),
+                new Vector2(1f, 1f)),
+
+            new VertexPositionTexture(
+                new Vector3(0f, _height, 0f),
+                new Vector2(0f, 1f))
+        ];
+
+        _gapBatchPrimitiveCount = 2;
+    }
+
+    private void DrawGapBatch()
+    {
+        if (_gapMaskTexture == null ||
+            _gapBatchPrimitiveCount == 0)
+            return;
+
+        BlendState previousBlend = _graphicsDevice.BlendState;
+        RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;
+
+        bool previousVertexColorEnabled = _effect.VertexColorEnabled;
+        bool previousTextureEnabled = _effect.TextureEnabled;
+        Texture2D? previousTexture = _effect.Texture;
+
+        try
+        {
+            _graphicsDevice.BlendState = _gapCutoutBlendState;
+            _graphicsDevice.RasterizerState = RasterizerState.CullNone;
+
+            _effect.VertexColorEnabled = false;
+            _effect.TextureEnabled = true;
+            _effect.Texture = _gapMaskTexture;
+
+            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                _graphicsDevice.DrawUserPrimitives(
+                    PrimitiveType.TriangleList,
+                    _gapBatchVertices,
+                    0,
+                    _gapBatchPrimitiveCount);
+            }
+        }
+        finally
+        {
+            _effect.VertexColorEnabled = previousVertexColorEnabled;
+            _effect.TextureEnabled = previousTextureEnabled;
+            _effect.Texture = previousTexture;
+
+            _graphicsDevice.BlendState = previousBlend;
+            _graphicsDevice.RasterizerState = previousRasterizer;
+        }
+    }
+
+    private void RebuildGapMaskTexture(VoronoiGapMask gapMask)
+    {
+        if (_gapMaskTexture != null &&
+            (_gapMaskTexture.Width != gapMask.Width || _gapMaskTexture.Height != gapMask.Height))
+        {
+            _gapMaskTexture.Dispose();
+            _gapMaskTexture = null;
+        }
+
+        _gapMaskTexture ??= new Texture2D(
+            _graphicsDevice,
+            gapMask.Width,
+            gapMask.Height,
+            false,
+            SurfaceFormat.Color);
+
+        var data = new Color[gapMask.Width * gapMask.Height];
+
+        for (int y = 0; y < gapMask.Height; y++)
+        {
+            int row = y * gapMask.Width;
+
+            for (int x = 0; x < gapMask.Width; x++)
+            {
+                data[row + x] = gapMask.IsGap(x, y) ? Color.White : Color.Transparent;
+            }
+        }
+
+        _gapMaskTexture.SetData(data);
     }
 
     private void BuildSpatialGrid()
@@ -557,6 +682,9 @@ public class Voronoi
 
             if (flags.HasFlag(VoronoiRenderingFlags.Points))
                 DrawPointBatch();
+
+            if (_imageDistributor is { AllowBlackGaps: true })
+                DrawGapBatch();
         }
         finally
         {

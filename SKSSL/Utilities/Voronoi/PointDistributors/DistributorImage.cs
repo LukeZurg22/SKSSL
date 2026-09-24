@@ -425,7 +425,7 @@ public sealed class VoronoiGapMask
         Polygons = BuildPolygons(smoothingIterations);
     }
 
-    private bool IsGap(int x, int y) => (uint)x < (uint)Width && (uint)y < (uint)Height && _mask[y * Width + x];
+    internal bool IsGap(int x, int y) => (uint)x < (uint)Width && (uint)y < (uint)Height && _mask[y * Width + x];
 
     #region Polygon Extraction
 

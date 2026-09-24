@@ -90,15 +90,15 @@ public class Voronoi
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
         /*await Task.Run(() =>*/
-        _voronoi.GenerateDiagram(points: 1000,
+        _voronoi.GenerateDiagram(points: 50000,
             //width: 1200,
             //height: 800,
             randomness: 0,
             settlePoints: false,
             distributor: distributor,
             boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
-            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
-                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points);
+            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
+                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/);
 
         //for (int i = 0; i <= 800; i++) _voronoi.MarkCell(i);
         //
