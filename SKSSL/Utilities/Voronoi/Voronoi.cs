@@ -243,7 +243,7 @@ public class Voronoi
 
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
-        distributor ??= new RandomJitter();
+        distributor ??= new DistributorRandomJitter();
         SetDiagramProjection();
 
         using DelaunayTriangulator delaunay = new();

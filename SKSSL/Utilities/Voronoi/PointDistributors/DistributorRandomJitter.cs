@@ -5,17 +5,15 @@ using static System.Math;
 namespace SKSSL.Utilities.Voronoi.PointDistributors;
 
 
-public class RandomJitter : IPointDistributor
+public class DistributorRandomJitter : IPointDistributor
 {
     public void Generate(ref List<Point> points, int amount, double maxX, double maxY, double randomness)
     {
-        var random = new Random((int)randomness);
+        Random random = Random.Shared;
         
         double aspect = maxX / maxY;
-
         int columns = Max(1, (int)Sqrt(amount * aspect));
         int rows = Max(1, (int)Ceiling((double)amount / columns));
-
         double cellWidth = maxX / columns;
         double cellHeight = maxY / rows;
 
