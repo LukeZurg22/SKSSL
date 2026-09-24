@@ -21,19 +21,19 @@ public readonly struct Point : IEquatable<Point>
     /// </summary>
     public readonly uint ID = _pointCounter++;
     
-    public double X { init; get; }
-    public double Y { init; get; }
+    public float X { init; get; }
+    public float Y { init; get; }
     public HashSet<Triangle> AdjacentTriangles { get; } = [];
 
     // ReSharper disable once UnusedMember.Global
-    public Point(double x, double y, uint id)
+    public Point(float x, float y, uint id)
     {
         X = x;
         Y = y;
         ID = id;
     }
 
-    public Point(double x, double y)
+    public Point(float x, float y)
     {
         X = x;
         Y = y;

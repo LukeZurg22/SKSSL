@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Clipper2Lib;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -11,6 +12,7 @@ public record VoronoiCell
     public Point Site;
     public List<Point> Vertices;
     public bool IsBoundary;
+    public Paths64? RenderPaths { get; set; }
 
     public VoronoiCell(Point site, List<Point> vertices)
     {

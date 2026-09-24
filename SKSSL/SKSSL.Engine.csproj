@@ -41,9 +41,11 @@
         <PackageReference Include="Fluent.Net" Version="1.0.63" PrivateAssets="none"/>
         <PackageReference Include="ImGui.NET" Version="1.91.6.1" PrivateAssets="none"/>
         <PackageReference Include="ImGUI.NET.ToolBox" Version="0.1.1" PrivateAssets="none"/>
-        <PackageReference Include="System.Text.Json" Version="10.0.12" />
+        <PackageReference Include="System.Text.Json" Version="10.0.12" PrivateAssets="none" />
+        <PackageReference Include="Unofficial.LibTessDotNet" Version="2.0.2" />
         <PackageReference Include="YamlDotNet" Version="18.0.0" PrivateAssets="none"/>
-
+        <PackageReference Include="Clipper2" Version="2.0.0" PrivateAssets="none"/>
+        
         <!--Private Ones-->
         <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" PrivateAssets="all"/>
         <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" PrivateAssets="all"/>

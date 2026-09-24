@@ -7,7 +7,7 @@ namespace SKSSL.Utilities.Voronoi.PointDistributors;
 
 public class DistributorRandomJitter : IPointDistributor
 {
-    public void Generate(ref List<Point> points, int amount, double maxX, double maxY, double randomness)
+    public void Generate(ref List<Point> points, int amount, float maxX, float maxY, double randomness)
     {
         Random random = Random.Shared;
         
@@ -20,10 +20,8 @@ public class DistributorRandomJitter : IPointDistributor
         for (int y = 0; y < rows && points.Count < amount; y++)
         for (int x = 0; x < columns && points.Count < amount; x++)
         {
-            double pX = (x + 0.5 + (random.NextDouble() - 0.5) * randomness) * cellWidth;
-            double pY =
-                (y + 0.5 + (random.NextDouble() - 0.5) * randomness)
-                * cellHeight;
+            float pX = (float)((x + 0.5 + (random.NextDouble() - 0.5) * randomness) * cellWidth);
+            float pY = (float)((y + 0.5 + (random.NextDouble() - 0.5) * randomness) * cellHeight);
 
             pX = Clamp(pX, 0, maxX);
             pY = Clamp(pY, 0, maxY);

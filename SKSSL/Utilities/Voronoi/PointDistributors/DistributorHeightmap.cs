@@ -15,7 +15,7 @@ public sealed class HeightmapPointDistributor : IPointDistributor
         _exponent = exponent;
     }
 
-    public void Generate(ref List<Point> points, int amount, double maxX, double maxY, double randomness)
+    public void Generate(ref List<Point> points, int amount, float maxX, float maxY, double randomness)
     {
         int width = _heightmap.GetLength(0);
         int height = _heightmap.GetLength(1);
@@ -23,8 +23,8 @@ public sealed class HeightmapPointDistributor : IPointDistributor
         Random random = Random.Shared;
         while (points.Count < amount)
         {
-            double x = random.NextDouble() * maxX;
-            double y = random.NextDouble() * maxY;
+            float x = (float)(random.NextDouble() * maxX);
+            float y = (float)(random.NextDouble() * maxY);
 
             int px = Math.Clamp((int)(x / maxX * width), 0, width - 1);
             int py = Math.Clamp((int)(y / maxY * height), 0, height - 1);

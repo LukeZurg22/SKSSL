@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using static System.Math;
@@ -57,7 +58,7 @@ public unsafe class DistributorImage : IPointDistributor
                 nameof(pixels));
 
         _pixels = pixels;
-        GapMask = new VoronoiGapMask(_pixels, width, height);
+        GapMask = new VoronoiGapMask(_pixels, width, height, 0);
 
         ValidateSpacing();
         BuildDensity();
@@ -79,7 +80,7 @@ public unsafe class DistributorImage : IPointDistributor
 
     #endregion
 
-    public void Generate(ref List<Point> points, int amount, double maxX, double maxY, double randomness)
+    public void Generate(ref List<Point> points, int amount, float maxX, float maxY, double randomness)
     {
         ArgumentNullException.ThrowIfNull(points);
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
@@ -184,8 +185,8 @@ public unsafe class DistributorImage : IPointDistributor
                 if (++attempts > maxAttempts)
                     break;
 
-                double rx = random.NextDouble();
-                double ry = random.NextDouble();
+                float rx = (float)random.NextDouble();
+                float ry = (float)random.NextDouble();
                 int pixelX = (int)(rx * _width);
                 int pixelY = (int)(ry * _height);
                 int pixelIndex = pixelY * _width + pixelX;
@@ -212,8 +213,8 @@ public unsafe class DistributorImage : IPointDistributor
                  * Low density -> large spacing.
                  */
                 double spacingFactor = _edgeCellSizeFactor - spacingRange * curvePtr[densityIndex];
-                double x = rx * maxX;
-                double y = ry * maxY;
+                var x = rx * maxX;
+                var y = ry * maxY;
 
                 double dxCenter = x - centerX;
                 double dyCenter = y - centerY;
@@ -487,13 +488,10 @@ public sealed class VoronoiGapMask
         list.Add(end);
     }
 
-    private List<GapPolygon> TraceContours(
-        Dictionary<GridPoint, List<GridPoint>> edges,
-        int smoothingIterations)
+    private static List<GapPolygon> TraceContours(Dictionary<GridPoint, List<GridPoint>> edges, int smoothingIterations)
     {
         var unused = new HashSet<GridEdge>();
-
-        foreach (KeyValuePair<GridPoint, List<GridPoint>> pair in edges)
+        foreach (var pair in edges)
         {
             foreach (GridPoint end in pair.Value)
                 unused.Add(new GridEdge(pair.Key, end));
@@ -520,6 +518,7 @@ public sealed class VoronoiGapMask
 
             GridEdge current = first;
             GridPoint startPoint = first.Start;
+            bool closed = false;
 
             while (true)
             {
@@ -531,14 +530,12 @@ public sealed class VoronoiGapMask
                 GridPoint at = current.End;
 
                 if (at == startPoint)
+                {
+                    closed = true;
                     break;
+                }
 
-                if (!TryGetNextEdge(
-                        at,
-                        current.Start,
-                        edges,
-                        unused,
-                        out GridEdge next))
+                if (!TryGetNextEdge(at, current.Start, edges, unused, out GridEdge next))
                 {
                     break;
                 }
@@ -546,7 +543,7 @@ public sealed class VoronoiGapMask
                 current = next;
             }
 
-            if (contour.Count < 3)
+            if (!closed || contour.Count < 3)
                 continue;
 
             // Remove redundant straight-line vertices first.
@@ -556,21 +553,57 @@ public sealed class VoronoiGapMask
                 continue;
 
             var polygon = new List<Vector2>(contour.Count);
-
-            foreach (GridPoint point in contour)
-            {
-                polygon.Add(new Vector2(point.X, point.Y));
-            }
+            polygon.AddRange(contour.Select(point => new Vector2(point.X, point.Y)));
 
             // Smooth the pixel-derived contour.
-            for (int i = 0; i < smoothingIterations; i++)
-                polygon = Chaikin(polygon);
+            polygon = SmoothPolygon(polygon, smoothingIterations);
 
             if (polygon.Count >= 3)
                 polygons.Add(new GapPolygon(polygon));
         }
 
         return polygons;
+    }
+    
+    private static List<Vector2> SmoothPolygon(
+        List<Vector2> polygon,
+        int smoothingIterations)
+    {
+        if (polygon.Count < 3 || smoothingIterations <= 0)
+            return polygon;
+
+        double area = Math.Abs(SignedArea(polygon));
+
+        // Preserve very small features.
+        if (area < 16.0)
+            return polygon;
+
+        int iterations =
+            area < 64.0
+                ? Math.Min(smoothingIterations, 1)
+                : smoothingIterations;
+
+        for (int i = 0; i < iterations; i++)
+            polygon = Chaikin(polygon);
+
+        return polygon;
+    }
+
+    private static double SignedArea(IReadOnlyList<Vector2> polygon)
+    {
+        double area = 0.0;
+
+        for (int i = 0; i < polygon.Count; i++)
+        {
+            Vector2 a = polygon[i];
+            Vector2 b = polygon[(i + 1) % polygon.Count];
+
+            area +=
+                (double)a.X * b.Y -
+                (double)b.X * a.Y;
+        }
+
+        return area * 0.5;
     }
 
     private static bool TryGetNextEdge(

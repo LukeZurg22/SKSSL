@@ -41,8 +41,8 @@ public class DelaunayTriangulator : IDisposable
     private int _visitStamp;
     private int _badStamp;
 
-    private double MaxX { get; set; }
-    private double MaxY { get; set; }
+    private float MaxX { get; set; }
+    private float MaxY { get; set; }
     
     #region Algorithm(s)
 
@@ -139,13 +139,8 @@ public class DelaunayTriangulator : IDisposable
              * Find all triangles whose circumcircles contain the point.
              */
             FindBadTriangles(point, start);
-
             if (_badTriangles.Count == 0)
-            {
-                throw new InvalidOperationException(
-                    $"No bad triangles found for point {pointIndex} " +
-                    $"({point.X}, {point.Y}).");
-            }
+                continue;
 
             /*
              * Determine the cavity boundary before destroying its topology.
@@ -258,8 +253,8 @@ public class DelaunayTriangulator : IDisposable
             if (cell.Vertices.Count == 0)
                 continue;
 
-            double x = 0;
-            double y = 0;
+            float x = 0;
+            float y = 0;
 
             foreach (Point vertex in cell.Vertices)
             {
@@ -267,12 +262,12 @@ public class DelaunayTriangulator : IDisposable
                 y += vertex.Y;
             }
 
-            double count = cell.Vertices.Count;
+            float count = cell.Vertices.Count;
 
             x /= count;
             y /= count;
 
-            cell.Site = point with { X = Clamp(x, 0.0, MaxX),  Y = Clamp(y, 0.0, MaxY)};
+            cell.Site = point with { X = (float)Clamp(x, 0.0, MaxX),  Y = (float)Clamp(y, 0.0, MaxY)};
         }
     }
 
@@ -580,7 +575,7 @@ public class DelaunayTriangulator : IDisposable
 
     #region Geometry
 
-    internal List<Point> CreatePointsList(double maxX, double maxY)
+    internal List<Point> CreatePointsList(float maxX, float maxY)
     {
         MaxX = maxX;
         MaxY = maxY;
@@ -606,7 +601,7 @@ public class DelaunayTriangulator : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static double Cross(Point a, Point b, Point c) => (b.X - a.X) *
+    private static float Cross(Point a, Point b, Point c) => (b.X - a.X) *
                                                               (c.Y - a.Y)
                                                               -
                                                               (b.Y - a.Y) *

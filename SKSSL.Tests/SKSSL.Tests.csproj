@@ -50,6 +50,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Clipper2" Version="2.0.0" />
         <PackageReference Include="Fluent.Net" Version="1.0.63"/>
         <PackageReference Include="JetBrains.Annotations" Version="2025.2.4"/>
         <PackageReference Include="LibVLCSharp" Version="3.10.1" />

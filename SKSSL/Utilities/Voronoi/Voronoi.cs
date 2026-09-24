@@ -5,8 +5,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
+using Clipper2Lib;
+using LibTessDotNet.Double;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi.PointDistributors;
@@ -121,11 +122,6 @@ public class Voronoi
 
     private DistributorImage? _imageDistributor = null;
 
-    private VertexPositionTexture[] _gapBatchVertices = [];
-    private int _gapBatchPrimitiveCount;
-    private BlendState _gapCutoutBlendState = null!;
-    private Texture2D? _gapMaskTexture;
-
     #region Construction & Mono Code
 
     public Voronoi(
@@ -159,20 +155,6 @@ public class Voronoi
             TextureEnabled = false,
             World = Matrix.Identity,
             View = Matrix.Identity,
-        };
-
-        _gapCutoutBlendState = new BlendState
-        {
-            ColorSourceBlend = Blend.Zero,
-            ColorDestinationBlend = Blend.InverseSourceAlpha,
-
-            AlphaSourceBlend = Blend.Zero,
-            AlphaDestinationBlend = Blend.InverseSourceAlpha,
-
-            ColorBlendFunction = BlendFunction.Add,
-            AlphaBlendFunction = BlendFunction.Add,
-
-            ColorWriteChannels = ColorWriteChannels.All
         };
 
         SetDiagramProjection();
@@ -273,16 +255,6 @@ public class Voronoi
         distributor.Generate(ref pointsList, points, maxX, maxY, randomness);
         _points = pointsList.ToArray();
 
-        if (_imageDistributor is { AllowBlackGaps: true } imageDistributor)
-        {
-            RebuildGapMaskTexture(imageDistributor.GapMask);
-        }
-        else
-        {
-            _gapMaskTexture?.Dispose();
-            _gapMaskTexture = null;
-        }
-
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
         Array.Clear(_cellOverrideColors, 0, _cellRawColors.Length);
         Array.Clear(_cellRawColors, 0, _cellRawColors.Length);
@@ -327,62 +299,22 @@ public class Voronoi
         ValidateNeighbors(triangulation);
 #endif
 
-        #region PROCESS CELLS, TRIANGLES, COLORS
+        ProcessCells(boundaryMode, triangulation);
 
-        _usedColors.Clear();
-        int triangleCount = 0;
-        Parallel.ForEach(_voronoiCells.Values,
-
-            // Thread-local Accumulator.
-            () => 0,
-            (cell, _, localTriangleCount) =>
-            {
-                cell.Vertices = cell.Vertices.Distinct().ToList();
-                cell.Vertices.Sort((a, b) =>
-                {
-                    double aa = Math.Atan2(a.Y - cell.Site.Y, a.X - cell.Site.X);
-                    double ab = Math.Atan2(b.Y - cell.Site.Y, b.X - cell.Site.X);
-                    return aa.CompareTo(ab);
-                });
-
-                bool touchesOutside = cell.Vertices.Any(v => v.X < 0 || v.X > _width || v.Y < 0 || v.Y > _height);
-                if (touchesOutside)
-                {
-                    switch (boundaryMode)
-                    {
-                        case VoronoiBoundaryMode.Culled:
-                            cell.Vertices.Clear();
-                            break;
-                        case VoronoiBoundaryMode.HardEdge:
-                        default:
-                            cell.Vertices = ClipPolygonToBounds(cell.Vertices, _width, _height);
-                            break;
-                    }
-                }
-
-                if (cell.Vertices.Count >= 3)
-                    localTriangleCount += cell.Vertices.Count - 2;
-
-                // Colors are deterministic, so this can be kept within the parallel loop.
-                _cellRawColors[_cellIndices[cell.ID]] = GetCellColor(cell);
-                return localTriangleCount;
-            },
-
-            // Merge thread-local results
-            localTriangleCount => { Interlocked.Add(ref triangleCount, localTriangleCount); }
-        );
-
-        // Part of the cell batch pre-calc.
-        _cellBatchVertices = new VertexPositionColor[triangleCount * 3];
-        _cellBatchPrimitiveCount = _cellBatchVertices.Length / 3;
-
-        #endregion
-
-        // Every IsBoundary value is now final. It's important that this be here and not in the initial loop
-        // or else it will generate edges outside of the graph.
-        // ReSharper disable once PossibleMultipleEnumeration
-        foreach (Triangle triangle in triangulation)
-            AddVoronoiEdges(triangle, boundaryMode);
+        // Separate from Vertices list.
+        if (_imageDistributor is { AllowBlackGaps: true } dim)
+        {
+            GapGeometry gapGeometry =
+                BuildGapGeometry(
+                    dim.GapMask.Polygons,
+                    dim.GapMask.Width,
+                    dim.GapMask.Height,
+                    _width,
+                    _height);
+            
+            ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);
+            //ClipVoronoiEdgesAgainstGaps(gapGeometry.Paths);
+        }
 
         // Pre-building for the highlighter. This is here for caching to improve performance during
         // active runtime update calls.
@@ -404,9 +336,6 @@ public class Voronoi
         // Cells. (Star of the show.)
         if ((flags & VoronoiRenderingFlags.Cells) != 0)
             BuildCellBatch([]);
-
-        if (_imageDistributor is { AllowBlackGaps: true })
-            BuildGapBatch();
 
         _isGenerated = true;
 
@@ -455,114 +384,178 @@ public class Voronoi
         }
     }
 
-
-    private void BuildGapBatch()
+    private static GapGeometry BuildGapGeometry(
+        IReadOnlyList<GapPolygon> polygons,
+        int sourceWidth, int sourceHeight,
+        int targetWidth, int targetHeight)
     {
-        _gapBatchVertices =
-        [
-            // Triangle 1
-            new VertexPositionTexture(
-                new Vector3(0f, 0f, 0f),
-                new Vector2(0f, 0f)),
+        if (polygons.Count == 0)
+            return new GapGeometry([]);
 
-            new VertexPositionTexture(
-                new Vector3(_width, 0f, 0f),
-                new Vector2(1f, 0f)),
+        double scaleX = (double)targetWidth / sourceWidth;
+        double scaleY = (double)targetHeight / sourceHeight;
 
-            new VertexPositionTexture(
-                new Vector3(_width, _height, 0f),
-                new Vector2(1f, 1f)),
+        var paths = new Paths64(polygons.Count);
 
-            // Triangle 2
-            new VertexPositionTexture(
-                new Vector3(0f, 0f, 0f),
-                new Vector2(0f, 0f)),
+        foreach (GapPolygon polygon in polygons)
+        {
+            if (polygon.Vertices.Count < 3)
+                continue;
 
-            new VertexPositionTexture(
-                new Vector3(_width, _height, 0f),
-                new Vector2(1f, 1f)),
+            var path = new Path64(polygon.Vertices.Count);
 
-            new VertexPositionTexture(
-                new Vector3(0f, _height, 0f),
-                new Vector2(0f, 1f))
-        ];
+            foreach (Vector2 vertex in polygon.Vertices)
+            {
+                long x = (long)Math.Round(vertex.X * scaleX);
+                long y = (long)Math.Round(vertex.Y * scaleY);
 
-        _gapBatchPrimitiveCount = 2;
+                path.Add(new Point64(x, y));
+            }
+
+            paths.Add(path);
+        }
+
+        if (paths.Count == 0)
+            return new GapGeometry([]);
+
+        Paths64 unioned = Clipper.Union(paths, FillRule.EvenOdd);
+
+        return new GapGeometry(unioned);
     }
 
-    private void DrawGapBatch()
+    private void ClipVoronoiEdgesAgainstGaps(Paths64 gapGeometry)
     {
-        if (_gapMaskTexture == null ||
-            _gapBatchPrimitiveCount == 0)
+        if (gapGeometry.Count == 0 || _voronoiEdges.Count == 0)
             return;
 
-        BlendState previousBlend = _graphicsDevice.BlendState;
-        RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;
+        var clippedEdges = new List<Edge>();
 
-        bool previousVertexColorEnabled = _effect.VertexColorEnabled;
-        bool previousTextureEnabled = _effect.TextureEnabled;
-        Texture2D? previousTexture = _effect.Texture;
-
-        try
+        foreach (Edge edge in _voronoiEdges)
         {
-            _graphicsDevice.BlendState = _gapCutoutBlendState;
-            _graphicsDevice.RasterizerState = RasterizerState.CullNone;
+            Point a = edge.Point1;
+            Point b = edge.Point2;
 
-            _effect.VertexColorEnabled = false;
-            _effect.TextureEnabled = true;
-            _effect.Texture = _gapMaskTexture;
+            double dx = b.X - a.X;
+            double dy = b.Y - a.Y;
 
-            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+            double length = Math.Sqrt(dx * dx + dy * dy);
+
+            if (length <= double.Epsilon)
+                continue;
+
+            // Small width used to turn the line into a polygon.
+            const double halfWidth = 0.5;
+
+            double nx = -dy / length * halfWidth;
+            double ny = dx / length * halfWidth;
+
+            var subject = new Path64
             {
-                pass.Apply();
-                _graphicsDevice.DrawUserPrimitives(
-                    PrimitiveType.TriangleList,
-                    _gapBatchVertices,
-                    0,
-                    _gapBatchPrimitiveCount);
+                new Point64((long)Math.Round(a.X + nx), (long)Math.Round(a.Y + ny)),
+                new Point64((long)Math.Round(b.X + nx), (long)Math.Round(b.Y + ny)),
+                new Point64((long)Math.Round(b.X - nx), (long)Math.Round(b.Y - ny)),
+                new Point64((long)Math.Round(a.X - nx), (long)Math.Round(a.Y - ny))
+            };
+
+            Paths64 result = Clipper.Difference([subject], gapGeometry, FillRule.EvenOdd);
+            foreach (Path64 path in result)
+            {
+                if (path.Count < 2)
+                    continue;
+
+                // Recover the approximate center line.
+                //
+                // This part depends on exactly how your Edge type is
+                // represented, so don't blindly use this implementation
+                // without adapting it to Edge.
             }
         }
-        finally
-        {
-            _effect.VertexColorEnabled = previousVertexColorEnabled;
-            _effect.TextureEnabled = previousTextureEnabled;
-            _effect.Texture = previousTexture;
 
-            _graphicsDevice.BlendState = previousBlend;
-            _graphicsDevice.RasterizerState = previousRasterizer;
-        }
+        _voronoiEdges.Clear();
+        _voronoiEdges.AddRange(clippedEdges);
     }
-
-    private void RebuildGapMaskTexture(VoronoiGapMask gapMask)
+    
+    private static void ClipCellsAgainstGaps(GapGeometry gaps, IEnumerable<VoronoiCell> cells)
     {
-        if (_gapMaskTexture != null &&
-            (_gapMaskTexture.Width != gapMask.Width || _gapMaskTexture.Height != gapMask.Height))
+        foreach (VoronoiCell cell in cells)
         {
-            _gapMaskTexture.Dispose();
-            _gapMaskTexture = null;
-        }
+            cell.RenderPaths = null;
 
-        _gapMaskTexture ??= new Texture2D(
-            _graphicsDevice,
-            gapMask.Width,
-            gapMask.Height,
-            false,
-            SurfaceFormat.Color);
-
-        var data = new Color[gapMask.Width * gapMask.Height];
-
-        for (int y = 0; y < gapMask.Height; y++)
-        {
-            int row = y * gapMask.Width;
-
-            for (int x = 0; x < gapMask.Width; x++)
+            if (cell.Vertices.Count < 3)
             {
-                data[row + x] = gapMask.IsGap(x, y) ? Color.White : Color.Transparent;
+                cell.RenderPaths = [];
+                continue;
             }
-        }
 
-        _gapMaskTexture.SetData(data);
+            if (gaps.Paths.Count == 0)
+                continue;
+
+            Path64 subject = ToPath(cell.Vertices);
+
+            Paths64 result =
+                Clipper.Difference(
+                    [subject],
+                    gaps.Paths,
+                    FillRule.NonZero);
+
+            cell.RenderPaths = result;
+        }
     }
+
+    private static Path64 ToPath(List<Point> polygon)
+    {
+        var path = new Path64(polygon.Count);
+        path.AddRange(polygon.Select(point => new Point64(point.X, point.Y)));
+        return path;
+    }
+
+    /// Prepares the original cells before any special culling or other operations.
+    private void ProcessCells(VoronoiBoundaryMode boundaryMode, List<Triangle> triangulation)
+    {
+        _usedColors.Clear();
+        Parallel.ForEach(_voronoiCells.Values, cell =>
+        {
+            cell.Vertices = cell.Vertices
+                .Distinct()
+                .ToList();
+
+            cell.Vertices.Sort((a, b) =>
+            {
+                double aa = Math.Atan2(
+                    a.Y - cell.Site.Y,
+                    a.X - cell.Site.X);
+
+                double ab = Math.Atan2(
+                    b.Y - cell.Site.Y,
+                    b.X - cell.Site.X);
+
+                return aa.CompareTo(ab);
+            });
+
+            bool touchesOutside = cell.Vertices.Any(v => v.X < 0 || v.X > _width || v.Y < 0 || v.Y > _height);
+            if (touchesOutside)
+            {
+                switch (boundaryMode)
+                {
+                    case VoronoiBoundaryMode.Culled:
+                        cell.Vertices.Clear();
+                        break;
+
+                    case VoronoiBoundaryMode.HardEdgeOpen:
+                    default:
+                        cell.Vertices = ClipPolygonToBounds(cell.Vertices, _width, _height);
+                        break;
+                }
+            }
+
+            _cellRawColors[_cellIndices[cell.ID]] =
+                GetCellColor(cell);
+        });
+
+        foreach (Triangle triangle in triangulation)
+            AddVoronoiEdges(triangle, boundaryMode);
+    }
+
 
     private void BuildSpatialGrid()
     {
@@ -683,8 +676,8 @@ public class Voronoi
             if (flags.HasFlag(VoronoiRenderingFlags.Points))
                 DrawPointBatch();
 
-            if (_imageDistributor is { AllowBlackGaps: true })
-                DrawGapBatch();
+            //if (_imageDistributor is { AllowBlackGaps: true })
+            //    DrawGapBatch();
         }
         finally
         {
@@ -842,8 +835,8 @@ public class Voronoi
         Color color,
         float thickness)
     {
-        Vector2 p1 = new((float)point1.X, (float)point1.Y);
-        Vector2 p2 = new((float)point2.X, (float)point2.Y);
+        Vector2 p1 = new(point1.X, point1.Y);
+        Vector2 p2 = new(point2.X, point2.Y);
 
         Vector2 direction = p2 - p1;
 
@@ -1219,10 +1212,10 @@ public class Voronoi
 
     private bool ClipLineToBounds(Point p1, Point p2, out Point clipped1, out Point clipped2)
     {
-        float x1 = (float)p1.X;
-        float y1 = (float)p1.Y;
-        float x2 = (float)p2.X;
-        float y2 = (float)p2.Y;
+        float x1 = p1.X;
+        float y1 = p1.Y;
+        float x2 = p2.X;
+        float y2 = p2.Y;
 
         float dx = x2 - x1;
         float dy = y2 - y1;
@@ -1372,10 +1365,10 @@ public class Voronoi
         out Point start,
         out Point end)
     {
-        Vector2 origin = new((float)triangle.Circumcenter.X, (float)triangle.Circumcenter.Y);
+        Vector2 origin = new(triangle.Circumcenter.X, triangle.Circumcenter.Y);
 
-        Vector2 va = new((float)a.X, (float)a.Y);
-        Vector2 vb = new((float)b.X, (float)b.Y);
+        Vector2 va = new(a.X, a.Y);
+        Vector2 vb = new(b.X, b.Y);
 
         Vector2 edge = vb - va;
 
@@ -1419,8 +1412,8 @@ public class Voronoi
         }
 
         Vector2 third = new(
-            (float)thirdPoint.X,
-            (float)thirdPoint.Y);
+            thirdPoint.X,
+            thirdPoint.Y);
 
         // Make normal point away from the triangle.
         if (Vector2.Dot(normal, third - midpoint) > 0f)
@@ -1658,15 +1651,15 @@ public class Voronoi
 
             _triangleBatchVertices[vertexIndex++] =
                 new VertexPositionColor(
-                    new Vector3((float)triangle.Vertices[0].X, (float)triangle.Vertices[0].Y, 0f), color);
+                    new Vector3(triangle.Vertices[0].X, triangle.Vertices[0].Y, 0f), color);
 
             _triangleBatchVertices[vertexIndex++] =
                 new VertexPositionColor(
-                    new Vector3((float)triangle.Vertices[1].X, (float)triangle.Vertices[1].Y, 0f), color);
+                    new Vector3(triangle.Vertices[1].X, triangle.Vertices[1].Y, 0f), color);
 
             _triangleBatchVertices[vertexIndex++] =
                 new VertexPositionColor(
-                    new Vector3((float)triangle.Vertices[2].X, (float)triangle.Vertices[2].Y, 0f), color);
+                    new Vector3(triangle.Vertices[2].X, triangle.Vertices[2].Y, 0f), color);
         }
 
         _triangleBatchPrimitiveCount = triangles.Count;
@@ -1682,8 +1675,9 @@ public class Voronoi
             if (ShouldCullBoundarySite(point))
                 continue;
 
-            float x = (float)point.X;
-            float y = (float)point.Y;
+
+            float x = point.X;
+            float y = point.Y;
 
             Vector3 a = new(x - half, y - half, 0f);
             Vector3 b = new(x + half, y - half, 0f);
@@ -1770,8 +1764,8 @@ public class Voronoi
             Point p1 = edge.Point1;
             Point p2 = edge.Point2;
 
-            Vector2 start = new((float)p1.X, (float)p1.Y);
-            Vector2 end = new((float)p2.X, (float)p2.Y);
+            Vector2 start = new(p1.X, p1.Y);
+            Vector2 end = new(p2.X, p2.Y);
 
             Vector2 direction = end - start;
             float lengthSquared = direction.LengthSquared();
@@ -1806,59 +1800,178 @@ public class Voronoi
         (Color cell, Color blank)? @override = null,
         bool ignoreFlatColor = false)
     {
-        var overrideSet = @override != null ? overrideIds.ToHashSet() : null;
+        var overrideSet =
+            @override != null
+                ? overrideIds.ToHashSet()
+                : null;
+
         var cells = _voronoiCells.Values.ToArray();
 
-        // Building an offset array.
-        int[] offsets = new int[cells.Length];
-        int offset = 0;
-        for (int i = 0; i < cells.Length; i++)
-        {
-            offsets[i] = offset;
-            int vertexCount = cells[i].Vertices.Count;
-            if (vertexCount >= 3)
-                offset += (vertexCount - 2) * 3;
-        }
+        var cellVertices =
+            new VertexPositionColor[cells.Length][];
 
         Parallel.For(0, cells.Length, i =>
         {
             VoronoiCell cell = cells[i];
-            var vertices = cell.Vertices;
 
-            if (vertices.Count < 3)
-                return;
-
-            var cellIndex = _cellIndices[cell.ID];
-
-            /*
-             * Multiple options for selecting colour are handled here.
-             * If an override is not provided, then it will use the raw colours.
-             * Assuming an override is provided, it will colour cells appropriately unless marked cells
-             * aren't being referenced, in which case they will either use the provided "blank" color, or
-             * the raw unique cell color.
-             */
-            Color color;
-            if (@override != null)
-                if (overrideSet!.Contains(cell.ID)) color = @override.Value.cell;
-                else if (!ignoreFlatColor) color = @override.Value.blank;
-                else color = _cellRawColors[cellIndex];
-            else color = _cellRawColors[cellIndex];
-
-            Debug.Assert(_cellBatchPrimitiveCount > 0);
-            Debug.Assert(_cellRawColors.Any(c => c.A != 0));
-
-            int vertexIndex = offsets[i];
-
-            Vector3 origin = new((float)vertices[0].X, (float)vertices[0].Y, 0f);
-            for (int j = 1; j < vertices.Count - 1; j++)
+            if (cell.Vertices.Count < 3 &&
+                (cell.RenderPaths == null ||
+                 cell.RenderPaths.Count == 0))
             {
-                _cellBatchVertices[vertexIndex++] = new VertexPositionColor(origin, color);
-                _cellBatchVertices[vertexIndex++] =
-                    new VertexPositionColor(new Vector3((float)vertices[j].X, (float)vertices[j].Y, 0f), color);
-                _cellBatchVertices[vertexIndex++] =
-                    new VertexPositionColor(new Vector3((float)vertices[j + 1].X, (float)vertices[j + 1].Y, 0f), color);
+                cellVertices[i] = [];
+                return;
             }
+
+            int cellIndex = _cellIndices[cell.ID];
+
+            Color color;
+
+            if (@override != null)
+            {
+                if (overrideSet!.Contains(cell.ID))
+                    color = @override.Value.cell;
+                else if (!ignoreFlatColor)
+                    color = @override.Value.blank;
+                else
+                    color = _cellRawColors[cellIndex];
+            }
+            else
+            {
+                color = _cellRawColors[cellIndex];
+            }
+
+            if (cell.RenderPaths == null)
+            {
+                cellVertices[i] =
+                    TessellateOriginalCell(
+                        cell.Vertices,
+                        color);
+
+                return;
+            }
+
+            if (cell.RenderPaths.Count == 0)
+            {
+                cellVertices[i] = [];
+                return;
+            }
+
+            cellVertices[i] = TessellateClippedCell(cell.RenderPaths, color);
         });
+
+        int totalVertices =
+            cellVertices.Sum(v => v.Length);
+
+        _cellBatchVertices =
+            new VertexPositionColor[totalVertices];
+
+        int offset = 0;
+
+        foreach (var vertices in cellVertices)
+        {
+            vertices.CopyTo(_cellBatchVertices, offset);
+
+            offset += vertices.Length;
+        }
+
+        _cellBatchPrimitiveCount = _cellBatchVertices.Length / 3;
+    }
+
+
+    private static VertexPositionColor[] TessellateClippedCell(Paths64 paths, Color color)
+    {
+        if (paths.Count == 0)
+            return [];
+
+        var tess = new Tess();
+        foreach (Path64 path in paths)
+        {
+            if (path.Count < 3)
+                continue;
+
+            var contour = new ContourVertex[path.Count];
+            for (int i = 0; i < path.Count; i++)
+            {
+                Point64 point = path[i];
+                contour[i].Position = new Vec3(point.X, point.Y, 0.0);
+                contour[i].Data = color;
+            }
+
+            tess.AddContour(contour);
+        }
+
+        // Tessellate BEFORE checking VertexCount/ElementCount.
+        tess.Tessellate();
+
+        if (tess.ElementCount == 0)
+            return [];
+
+        var result =
+            new VertexPositionColor[tess.ElementCount * 3];
+
+        for (int i = 0; i < tess.ElementCount; i++)
+        {
+            int elementIndex = i * 3;
+
+            for (int j = 0; j < 3; j++)
+            {
+                int vertexIndex =
+                    tess.Elements[elementIndex + j];
+
+                Vec3 position =
+                    tess.Vertices[vertexIndex].Position;
+
+                result[elementIndex + j] =
+                    new VertexPositionColor(
+                        new Vector3(
+                            (float)position.X,
+                            (float)position.Y,
+                            0f),
+                        color);
+            }
+        }
+
+        return result;
+    }    
+    private static VertexPositionColor[] TessellateOriginalCell(List<Point> vertices, Color color)
+    {
+        if (vertices.Count < 3)
+            return [];
+
+        var result =
+            new VertexPositionColor[
+                (vertices.Count - 2) * 3];
+
+        Vector3 origin =
+            new(vertices[0].X, vertices[0].Y, 0f);
+
+        int index = 0;
+
+        for (int i = 1; i < vertices.Count - 1; i++)
+        {
+            result[index++] =
+                new VertexPositionColor(
+                    origin,
+                    color);
+
+            result[index++] =
+                new VertexPositionColor(
+                    new Vector3(
+                        vertices[i].X,
+                        vertices[i].Y,
+                        0f),
+                    color);
+
+            result[index++] =
+                new VertexPositionColor(
+                    new Vector3(
+                        vertices[i + 1].X,
+                        vertices[i + 1].Y,
+                        0f),
+                    color);
+        }
+
+        return result;
     }
 
     /// <remarks>Needed for debug in order to confirm nothings gone wrong.</remarks>
@@ -1925,7 +2038,7 @@ public class Voronoi
 
         // ReSharper disable once UnusedMember.Global
         // Indirectly referenced by omission.
-        HardEdge
+        HardEdgeOpen
     }
 
     public enum ColorMode : byte
