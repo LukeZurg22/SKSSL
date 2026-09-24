@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
@@ -97,8 +100,6 @@ public class Voronoi
 
     // TODO: Add support for point settling / re-centering. Generating is an odd one, as vertices will be needed.
 
-    // TODO: Add TryGetCell(int ID, out VoronoiCell? cell) which attempts to get a cell using ID.
-
     // TODO: For more performance, converting Triangles to structs might help. Neighbors will be a little more tedious
     //  to calculate, but it might make some difference in memory?
 
@@ -110,14 +111,6 @@ public class Voronoi
     //      To make this performant, recreate a Color highlight map every time a cell is marked, then:
     //      - Simply decrease and increase opacity in the draw call via a Math.Lerp() or something.
     //      Replace existing "highlight" terminology with "selected", and then use "highlight" for the literal highlighting.
-
-    // TODO: I am terrified. I don't want to, but i must... find a way to serialize all this crap.
-    //  - Serialize cell data:
-    //      - cell IDs
-    //      - positions
-    //      - colors
-    //  - modes
-    //  - serialization methods (binary?)
 
     #region Construction & Mono Code
 
@@ -387,7 +380,7 @@ public class Voronoi
             BuildCellBatch([]);
 
         _isGenerated = true;
-        
+
         // Update the existing internal pixel map with visual changes.
         UpdateTexture(boundaryMode, flags, thickness, pointSize);
 
@@ -547,7 +540,31 @@ public class Voronoi
 
     #endregion
 
-    #region Cell Highlighting
+    #region TryGet Methods
+
+    /// <summary>
+    /// Get a <see cref="VoronoiCell"/> definition using a Cell ID.
+    /// </summary>
+    /// <param name="cellID"></param>
+    /// <param name="cell"></param>
+    /// <returns></returns>
+    // ReSharper disable once UnusedMember.Global
+    public bool TryGetCell(uint cellID, [NotNullWhen(true)] out VoronoiCell? cell)
+    {
+        // If VoronoiCell IDs correspond directly to the arrays, an array would be preferable to a dictionary.
+        cell = null;
+
+        foreach (VoronoiCell candidate in _voronoiCells.Values)
+        {
+            if (candidate.Site._instanceId != cellID)
+                continue;
+
+            cell = candidate;
+            return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Attempt to get a cell at a provided screen position.
@@ -597,6 +614,10 @@ public class Voronoi
 
         return cell != null;
     }
+
+    #endregion
+
+    #region Cell Highlighting
 
     public void SetHighlightedCells(IEnumerable<VoronoiCell> cells, Color color, float thickness = 1f)
     {
@@ -850,16 +871,136 @@ public class Voronoi
 
     #endregion
 
-    #region /*WIP*/ I/O
+    #region I/O
 
-    public void Save()
+    private readonly JsonSerializerOptions _serializerOptions = new()
     {
-        throw new NotImplementedException();
+        WriteIndented = false
+    };
+
+    // ReSharper disable once UnusedMember.Global
+    public void Save(string filePath) // TODO: Add test case for Voronoi Save()
+    {
+        var data = new VoronoiSaveData
+        {
+            Width = _width,
+            Height = _height,
+            BoundaryMode = _boundaryMode,
+
+            Points = _points
+                .Select(p => new PointData { X = p.X, Y = p.Y })
+                .ToList(),
+
+            Cells = _voronoiCells.Values
+                .Select(c => new CellData
+                {
+                    X = c.Site.X,
+                    Y = c.Site.Y,
+                    IsBoundary = c.IsBoundary,
+                    Vertices = c.Vertices
+                        .Select(v => new PointData { X = v.X, Y = v.Y })
+                        .ToList()
+                })
+                .ToList(),
+
+            Edges = _voronoiEdges
+                .Select(e => new EdgeData
+                {
+                    Point1 = new PointData { X = e.Point1.X, Y = e.Point1.Y },
+                    Point2 = new PointData { X = e.Point2.X, Y = e.Point2.Y }
+                })
+                .ToList(),
+
+            CellEdges = _cellVoronoiEdges
+                .Select(e => new CellEdgeData
+                {
+                    SiteA = new PointData { X = e.SiteA.X, Y = e.SiteA.Y },
+                    SiteB = e.SiteB.HasValue
+                        ? new PointData { X = e.SiteB.Value.X, Y = e.SiteB.Value.Y }
+                        : null,
+                    Point1 = new PointData { X = e.Point1.X, Y = e.Point1.Y },
+                    Point2 = new PointData { X = e.Point2.X, Y = e.Point2.Y }
+                })
+                .ToList(),
+
+            RawColors = _cellRawColors
+                .Select(c => new ColorData { R = c.R, G = c.G, B = c.B, A = c.A })
+                .ToArray(),
+
+            OverrideColors = _cellOverrideColors
+                .Select(c => new ColorData { R = c.R, G = c.G, B = c.B, A = c.A })
+                .ToArray()
+        };
+
+        File.WriteAllText(filePath, JsonSerializer.Serialize(data, _serializerOptions));
     }
 
-    public void Load()
+    // ReSharper disable once UnusedMember.Global
+    public void Load(string filePath) // TODO: Add test case for Voronoi Load()
     {
-        throw new NotImplementedException();
+        var data = JsonSerializer.Deserialize<VoronoiSaveData>(File.ReadAllText(filePath));
+        if (data == null)
+            throw new InvalidDataException("Invalid Voronoi save file.");
+
+        _width = data.Width;
+        _height = data.Height;
+        _boundaryMode = data.BoundaryMode;
+        _points = data.Points.Select(p => new Point(p.X, p.Y)).ToArray();
+
+        var pointLookup = _points.ToDictionary(p => (p.X, p.Y));
+
+        _voronoiCells.Clear();
+        _voronoiEdges.Clear();
+        _cellVoronoiEdges.Clear();
+        _edgesByCell.Clear();
+
+        foreach (CellData savedCell in data.Cells)
+        {
+            Point site = pointLookup[(savedCell.X, savedCell.Y)];
+            var vertices = savedCell.Vertices.Select(v => new Point(v.X, v.Y)).ToList();
+            _voronoiCells[site] = new VoronoiCell(site, vertices) { IsBoundary = savedCell.IsBoundary };
+        }
+
+        foreach (EdgeData edge in data.Edges)
+        {
+            var a = new Point(edge.Point1.X, edge.Point1.Y);
+            var b = new Point(edge.Point2.X, edge.Point2.Y);
+            _voronoiEdges.Add(new Edge(a, b));
+        }
+
+        foreach (CellEdgeData edge in data.CellEdges)
+        {
+            Point siteA = pointLookup[(edge.SiteA.X, edge.SiteA.Y)];
+            Point? siteB = edge.SiteB != null ? pointLookup[(edge.SiteB.X, edge.SiteB.Y)] : null;
+
+            _cellVoronoiEdges.Add(
+                new CellVoronoiEdge(
+                    siteA,
+                    siteB,
+                    new Point(edge.Point1.X, edge.Point1.Y),
+                    new Point(edge.Point2.X, edge.Point2.Y)));
+        }
+
+        _cellRawColors = data.RawColors
+            .Select(c => new Color(c.R, c.G, c.B, c.A))
+            .ToArray();
+
+        _cellOverrideColors = data.OverrideColors
+            .Select(c => new Color(c.R, c.G, c.B, c.A))
+            .ToArray();
+
+        BuildEdgesByCell();
+        BuildSpatialGrid();
+
+        _isGenerated = true;
+        _textureValid = false;
+
+        UpdateTexture(
+            _boundaryMode,
+            VoronoiRenderingFlags.Cells,
+            _previousThickness,
+            _previousPointSize,
+            true);
     }
 
     #endregion
