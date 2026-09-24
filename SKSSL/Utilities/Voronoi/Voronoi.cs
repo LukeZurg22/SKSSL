@@ -62,7 +62,7 @@ public class Voronoi
     private Color[] _cellRawColors; // Raw "provincial" colors of cells. Indexed by ID.
     private readonly HashSet<int> _usedColors = []; // avoid exact RGB collisions
     private readonly Random _random = new(32); // fixed seed → reproducible
-    
+
     // Data Caching
     private VertexPositionColor[] _cellBatchVertices = [];
     private int _cellBatchPrimitiveCount;
@@ -107,8 +107,6 @@ public class Voronoi
 
     // TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
 
-    // TODO: Add a MarkCell(System.Drawing.Point point) function to mark a cell found at a point.
-    //      This calls TryGetCell(Point, out VoronoiCell) and add the cell to Marked IDs.
     // TODO: Add a flashing "Selected" highlight which uses Marked Cells. This will be rough.
     //      To make this performant, recreate a Color highlight map every time a cell is marked, then:
     //      - Simply decrease and increase opacity in the draw call via a Math.Lerp() or something.
@@ -253,7 +251,7 @@ public class Voronoi
         _cellIndices.Clear();
         for (int i = 0; i < _points.Length; i++)
             _cellIndices[_points[i].ID] = i;
-        
+
         // Make the triangles.
         var triangulation = delaunay.BowyerWatson(_points);
 
@@ -269,16 +267,17 @@ public class Voronoi
 
         // Lloyd relaxation requires rebuilding the triangulation and Voronoi cells, which can be a little expensive
         //  for large graphs.
-        if (false)
+        if (settlePoints)
         {
+#if DEBUG
             Debug.WriteLine("Lloyd: starting");
+#endif
 
-            DelaunayTriangulator.LloydSettlePoints(_points, _voronoiCells.Values);
-
+            delaunay.LloydSettlePoints(_voronoiCells.Values);
+#if DEBUG
             Debug.WriteLine("Lloyd: finished");
-
+#endif
             _voronoiCells.Clear();
-
             triangulation = delaunay.BowyerWatson(_points);
             BuildVoronoiCells(triangulation);
         }
@@ -1691,7 +1690,7 @@ public class Voronoi
 
             Debug.Assert(_cellBatchPrimitiveCount > 0);
             Debug.Assert(_cellRawColors.Any(c => c.A != 0));
-            
+
             int vertexIndex = offsets[i];
 
             Vector3 origin = new((float)vertices[0].X, (float)vertices[0].Y, 0f);

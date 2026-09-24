@@ -347,90 +347,36 @@ public class DelaunayTriangulator : IDisposable
     /// <summary>
     /// Performs one partial Lloyd relaxation pass.
     /// </summary>
-    public static void LloydSettlePoints(Point[] points, IEnumerable<VoronoiCell> cells)
+    public void LloydSettlePoints(ICollection<VoronoiCell> cells)
     {
-        ArgumentNullException.ThrowIfNull(points);
-        ArgumentNullException.ThrowIfNull(cells);
-
         foreach (VoronoiCell cell in cells)
         {
-            if (cell.IsBoundary)
+            Point point = cell.Site;
+
+            // The first four points are the artificial bounding rectangle.
+            if (point.ID < 4)
                 continue;
 
-            if (cell.Vertices.Count < 3)
+            if (cell.Vertices.Count == 0)
                 continue;
 
-            Point centroid = CalculateCentroid(cell.Vertices);
+            double x = 0;
+            double y = 0;
 
-            uint index = cell.ID;
-            if (index >= (uint)points.Length)
-                continue;
-
-            if (double.IsNaN(centroid.X) ||
-                double.IsNaN(centroid.Y) ||
-                double.IsInfinity(centroid.X) ||
-                double.IsInfinity(centroid.Y))
+            foreach (Point vertex in cell.Vertices)
             {
-                continue;
+                x += vertex.X;
+                y += vertex.Y;
             }
 
-            points[index] = Lerp(points[index], centroid, 0.5);
+            double count = cell.Vertices.Count;
+
+            x /= count;
+            y /= count;
+
+            cell.Site = point with { X = Clamp(x, 0.0, MaxX),  Y = Clamp(y, 0.0, MaxY)};
         }
     }
-
-    private static Point CalculateCentroid(List<Point> vertices)
-    {
-        if (vertices.Count == 0)
-            throw new ArgumentException("A Voronoi cell must contain at least one vertex.", nameof(vertices));
-
-        double area = 0;
-        double centroidX = 0;
-        double centroidY = 0;
-
-        int count = vertices.Count;
-
-        for (int i = 0; i < count; i++)
-        {
-            Point a = vertices[i];
-            Point b = vertices[
-                i + 1 == count
-                    ? 0
-                    : i + 1];
-
-            double cross = a.X * b.Y - b.X * a.Y;
-            area += cross;
-
-            centroidX += (a.X + b.X) * cross;
-            centroidY += (a.Y + b.Y) * cross;
-        }
-
-        area *= 0.5;
-
-        /*
-         * double.Epsilon is far too small to be useful as a geometric
-         * tolerance. Use a practical tolerance instead.
-         */
-        if (Abs(area) > 1e-12)
-            return new Point(centroidX / (6.0 * area), centroidY / (6.0 * area));
-
-        /*
-         * Degenerate polygon fallback.
-         */
-        double x = 0;
-        double y = 0;
-
-        foreach (Point point in vertices)
-        {
-            x += point.X;
-            y += point.Y;
-        }
-
-        return new Point(x / count, y / count);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Point Lerp(Point a, Point b, double amount)
-        => new(a.X + (b.X - a.X) * amount, a.Y + (b.Y - a.Y) * amount);
 
     #endregion
 
