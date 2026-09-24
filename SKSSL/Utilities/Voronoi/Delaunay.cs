@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using SKSSL.Utilities.Voronoi.PointDistributors;
 using static System.Math;
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
@@ -47,25 +48,6 @@ public class DelaunayTriangulator : IDisposable
     #region Point Creation
 
     /// <summary>
-    /// Generate points using a custom algorithm instead of using the
-    /// predefined distributions.
-    /// </summary>
-    public IEnumerable<Point> GeneratePoints(
-        int amount,
-        double maxX,
-        double maxY,
-        Action<int, List<Point>> customSamplingAlgorithm)
-    {
-        ArgumentNullException.ThrowIfNull(customSamplingAlgorithm);
-
-        var points = CreatePointsList(maxX, maxY);
-
-        customSamplingAlgorithm(amount, points);
-
-        return points;
-    }
-
-    /// <summary>
     /// Create a list of seeded points with varying degrees of spread
     /// and randomization.
     /// </summary>
@@ -73,7 +55,7 @@ public class DelaunayTriangulator : IDisposable
         int amount,
         double maxX,
         double maxY,
-        PointDistribution distribution,
+        IPointDistributor distributor,
         double randomness)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(amount, 1);
@@ -81,68 +63,13 @@ public class DelaunayTriangulator : IDisposable
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxY);
 
         var points = CreatePointsList(maxX, maxY);
-        var random = new Random();
 
-        switch (distribution)
-        {
-            case PointDistribution.RandomJitter:
-            {
-                double aspect = maxX / maxY;
-
-                int columns = Max(
-                    1,
-                    (int)Sqrt(amount * aspect));
-
-                int rows = Max(
-                    1,
-                    (int)Ceiling((double)amount / columns));
-
-                double cellWidth = maxX / columns;
-                double cellHeight = maxY / rows;
-
-                for (int y = 0; y < rows && points.Count < amount; y++)
-                for (int x = 0; x < columns && points.Count < amount; x++)
-                {
-                    double pX =
-                        (x + 0.5 +
-                         (random.NextDouble() - 0.5) * randomness)
-                        * cellWidth;
-
-                    double pY =
-                        (y + 0.5 +
-                         (random.NextDouble() - 0.5) * randomness)
-                        * cellHeight;
-
-                    pX = Clamp(pX, 0, maxX);
-                    pY = Clamp(pY, 0, maxY);
-
-                    points.Add(new Point(pX, pY));
-                }
-
-                break;
-            }
-
-            case PointDistribution.Custom:
-                throw new InvalidOperationException(
-                    $"Custom function not fed to {nameof(GeneratePoints)}.");
-
-            case PointDistribution.RandomSystem:
-            default:
-            {
-                for (int i = points.Count; i < amount; i++)
-                {
-                    points.Add(
-                        new Point(
-                            random.NextDouble() * maxX,
-                            random.NextDouble() * maxY));
-                }
-
-                break;
-            }
-        }
-
+        distributor.Generate(ref points, amount, maxX, maxY, randomness);
+        
         return points;
     }
+
+
 
     #endregion
 

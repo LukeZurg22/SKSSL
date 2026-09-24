@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SKSSL.Tests.Classes;
 using SKSSL.Utilities.Voronoi;
+using SKSSL.Utilities.Voronoi.PointDistributors;
 using Point = System.Drawing.Point;
 
 namespace SKSSL.Tests;
@@ -59,12 +60,12 @@ public class Voronoi
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
         /*await Task.Run(() =>*/
-        _voronoi.GenerateDiagram(pointCount: 1000,
+        _voronoi.GenerateDiagram(points: 1000,
             //width: 1200,
             //height: 800,
             randomness: 1,
             settlePoints: false,
-            distribution: DelaunayTriangulator.PointDistribution.RandomJitter,
+            distributor: new RandomJitter(),
             boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
             flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points) /*)*/;

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SKSSL.Utilities.Voronoi.PointDistributors;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -94,18 +95,32 @@ public class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
-    // TODO: Allow the ability to generate / render a set of cells that follow explicitly-provided borders.
-    //  a. Feed image
-    //   1. determine functional edges. color-coding may be needed.
-    //  b. Generate random series of larger polygons. If using voronoi, the edges will be useful.
-    //  c. Generate a voronoi graph using an image declaring density. A density-map would be lovely for SolKom.
+    // TODO: Support constrained and density-driven Voronoi generation.
+    //  .
+    //  1. Explicit boundaries
+    //     a. Accept an image or polygon boundary.
+    //     b. Extract functional edges / regions from the image.
+    //        Color coding may be useful for identifying boundaries.
+    //     c. Treat extracted boundaries as clipping/constraining geometry.
+    //  .
+    //  2. Hierarchical polygon generation
+    //     a. Generate a sparse Voronoi diagram.
+    //     b. Use its edges as candidate large-scale polygon boundaries.
+    //     c. Merge/partition cells into larger regions.
+    //     d. Optionally generate a denser Voronoi diagram inside each region.
+    //  .
+    //  3. Density-map-driven generation
+    //     a. Accept a grayscale density map.
+    //     b. Sample the map when generating Voronoi sites.
+    //     c. Higher density produces more sites / smaller cells.
+    //     d. Lower density produces fewer sites / larger cells.
+    //     e. Support combining density maps with explicit boundaries.
+    //  .
+    //  4. SolKom
+    //     a. Use density maps to control the spatial distribution of
+    //        generated Voronoi regions.
 
-    // TODO: Add support for point settling / re-centering. Generating is an odd one, as vertices will be needed.
-
-    // TODO: For more performance, converting Triangles to structs might help. Neighbors will be a little more tedious
-    //  to calculate, but it might make some difference in memory?
-
-    // TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
+    //  TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
 
     // TODO: Add a flashing "Selected" highlight which uses Marked Cells. This will be rough.
     //      To make this performant, recreate a Color highlight map every time a cell is marked, then:
@@ -193,7 +208,7 @@ public class Voronoi
     /// <remarks>
     /// Also calls <see cref="UpdateTexture"/> to populate the pixel data.
     /// </remarks>
-    /// <param name="pointCount"></param>
+    /// <param name="points"></param>
     /// <param name="width">Width of diagram in pixels.</param>
     /// <param name="height">Height of diagram in pixels.</param>
     /// <param name="settlePoints">Toggle for easing points to a settled arrangement.</param>
@@ -202,7 +217,7 @@ public class Voronoi
     ///     Evenness of distribution on a scale of 0.00 -> 1.00; only works with the
     ///     <see cref="DelaunayTriangulator.PointDistribution.RandomJitter"/> distribution.
     /// </param>
-    /// <param name="customSamplingAlgorithm">
+    /// <param name="distributor">
     ///     Provided custom method with integer and an empty list of <see cref="Point"/>s as parameters.
     ///     Must algorithmically decide the positioning of the point X and Y positions.
     /// </param>
@@ -211,13 +226,12 @@ public class Voronoi
     /// <param name="thickness">Thickness of Edges, if they are rendered.</param>
     /// <param name="pointSize">Size of Points, if they are rendered.</param>
     public void GenerateDiagram(
-        int pointCount = DefaultPointCount,
+        int points = DefaultPointCount,
         int? width = null,
         int? height = null,
         bool settlePoints = false,
-        DelaunayTriangulator.PointDistribution distribution = DelaunayTriangulator.PointDistribution.RandomSystem,
         double randomness = 0.8,
-        Action<int, List<Point>>? customSamplingAlgorithm = null,
+        IPointDistributor? distributor = null,
         VoronoiBoundaryMode boundaryMode = VoronoiBoundaryMode.Culled,
         VoronoiRenderingFlags flags = VoronoiRenderingFlags.Cells,
         float thickness = 1f,
@@ -229,17 +243,12 @@ public class Voronoi
 
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
+        distributor ??= new RandomJitter();
         SetDiagramProjection();
 
         using DelaunayTriangulator delaunay = new();
 
-        // Depending on the distribution type, and the custom sampling algorithm provided, there are multiple ways
-        //  to generate a set of points.
-        _points = distribution == DelaunayTriangulator.PointDistribution.Custom && customSamplingAlgorithm == null
-            ? throw new NullReferenceException("Specified custom distribution without providing an algorithm!")
-            : distribution == DelaunayTriangulator.PointDistribution.Custom
-                ? [..delaunay.GeneratePoints(pointCount, width.Value, height.Value, customSamplingAlgorithm!)]
-                : [..delaunay.GeneratePoints(pointCount, width.Value, height.Value, distribution, randomness)];
+        _points = [..delaunay.GeneratePoints(points, width.Value, height.Value, distributor, randomness)];
 
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
         Array.Clear(_cellOverrideColors, 0, _cellRawColors.Length);
@@ -260,7 +269,7 @@ public class Voronoi
         _voronoiEdges.Clear();
         _usedColors.Clear();
         _cellVoronoiEdges.Clear();
-        _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, pointCount * 3);
+        _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, points * 3);
         _voronoiCells.EnsureCapacity(_points.Length);
 
         BuildVoronoiCells(triangulation);
