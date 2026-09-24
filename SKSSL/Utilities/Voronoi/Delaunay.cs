@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using SKSSL.Utilities.Voronoi.PointDistributors;
 using static System.Math;
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
@@ -44,35 +43,7 @@ public class DelaunayTriangulator : IDisposable
 
     private double MaxX { get; set; }
     private double MaxY { get; set; }
-
-    #region Point Creation
-
-    /// <summary>
-    /// Create a list of seeded points with varying degrees of spread
-    /// and randomization.
-    /// </summary>
-    public IEnumerable<Point> GeneratePoints(
-        int amount,
-        double maxX,
-        double maxY,
-        IPointDistributor distributor,
-        double randomness)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(amount, 1);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxX);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxY);
-
-        var points = CreatePointsList(maxX, maxY);
-
-        distributor.Generate(ref points, amount, maxX, maxY, randomness);
-        
-        return points;
-    }
-
-
-
-    #endregion
-
+    
     #region Algorithm(s)
 
     /// <summary>
@@ -609,7 +580,7 @@ public class DelaunayTriangulator : IDisposable
 
     #region Geometry
 
-    private List<Point> CreatePointsList(double maxX, double maxY)
+    internal List<Point> CreatePointsList(double maxX, double maxY)
     {
         MaxX = maxX;
         MaxY = maxY;
@@ -793,23 +764,6 @@ public class DelaunayTriangulator : IDisposable
     #endregion
 
     #region Types
-
-    public enum PointDistribution
-    {
-        Custom = 0,
-
-        /// <summary>
-        /// Produces sharper, more raw triangular cells.
-        /// IDs are completely random.
-        /// </summary>
-        RandomSystem = 1,
-
-        /// <summary>
-        /// Produces cleaner cells using a jittered grid.
-        /// IDs are linear from top-left to bottom-right.
-        /// </summary>
-        RandomJitter = 2
-    }
 
     private readonly struct BoundaryEdge
     {

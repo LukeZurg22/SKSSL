@@ -65,16 +65,19 @@ public class Voronoi
     private readonly Random _random = new(32); // fixed seed → reproducible
 
     // Data Caching
-    private VertexPositionColor[] _cellBatchVertices = [];
+    private VertexPositionColor[] _cellBatchVertices = []; //  CELLS
     private int _cellBatchPrimitiveCount;
-    private VertexPositionColor[] _edgeBatchVertices = [];
+    private VertexPositionColor[] _edgeBatchVertices = []; //  EDGES
     private int _edgeBatchPrimitiveCount;
-    private VertexPositionColor[] _pointBatchVertices = [];
+    private VertexPositionColor[] _pointBatchVertices = []; //  POINTS
     private int _pointBatchPrimitiveCount;
-    private VertexPositionColor[] _triangleBatchVertices = [];
+    private VertexPositionColor[] _triangleBatchVertices = []; //  TRIANGLES
     private int _triangleBatchPrimitiveCount;
-    private VertexPositionColor[] _highlightBatchVertices = [];
+    private VertexPositionColor[] _highlightBatchVertices = []; //  HIGHLIGHTS
     private int _highlightBatchPrimitiveCount;
+    private VertexPositionColor[] _gapBatchVertices = []; // GAPS
+    private BlendState _gapClearBlendState = null!;
+    private int _gapBatchPrimitiveCount;
 
     // Rendering Basics
     private Texture2D _pixelMap = null!;
@@ -119,6 +122,8 @@ public class Voronoi
     //      - Simply decrease and increase opacity in the draw call via a Math.Lerp() or something.
     //      Replace existing "highlight" terminology with "selected", and then use "highlight" for the literal highlighting.
 
+    private DistributorImage? _imageDistributor = null;
+
     #region Construction & Mono Code
 
     public Voronoi(
@@ -153,6 +158,21 @@ public class Voronoi
             World = Matrix.Identity,
             View = Matrix.Identity,
         };
+
+        _gapClearBlendState = new BlendState
+        {
+            ColorSourceBlend = Blend.Zero,
+            ColorDestinationBlend = Blend.Zero,
+
+            AlphaSourceBlend = Blend.Zero,
+            AlphaDestinationBlend = Blend.Zero,
+
+            ColorBlendFunction = BlendFunction.Add,
+            AlphaBlendFunction = BlendFunction.Add,
+
+            ColorWriteChannels = ColorWriteChannels.All
+        };
+
         SetDiagramProjection();
     }
 
@@ -204,14 +224,11 @@ public class Voronoi
     /// <param name="width">Width of diagram in pixels.</param>
     /// <param name="height">Height of diagram in pixels.</param>
     /// <param name="settlePoints">Toggle for easing points to a settled arrangement.</param>
-    /// <param name="distribution"></param>
     /// <param name="randomness">
     ///     Evenness of distribution on a scale of 0.00 -> 1.00; only works with the
-    ///     <see cref="DelaunayTriangulator.PointDistribution.RandomJitter"/> distribution.
     /// </param>
     /// <param name="distributor">
-    ///     Provided custom method with integer and an empty list of <see cref="Point"/>s as parameters.
-    ///     Must algorithmically decide the positioning of the point X and Y positions.
+    ///     Provided custom point distributor that decides the positioning of the point X and Y positions.
     /// </param>
     /// <param name="boundaryMode"></param>
     /// <param name="flags">Convenient Enum toggle of various parts of a Voronoi diagram.</param>
@@ -235,12 +252,23 @@ public class Voronoi
 
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(points, 1);
+
         distributor ??= new DistributorRandomJitter();
+        if (distributor is DistributorImage distributorImage)
+            _imageDistributor = distributorImage;
+
         SetDiagramProjection();
 
         using DelaunayTriangulator delaunay = new();
 
-        _points = [..delaunay.GeneratePoints(points, width.Value, height.Value, distributor, randomness)];
+        // Create a list of seeded points and then handle distribution using a provided distributor.
+        int maxX = width.Value;
+        int maxY = height.Value;
+        var pointsList = delaunay.CreatePointsList(maxX, maxY);
+        distributor.Generate(ref pointsList, points, maxX, maxY, randomness);
+        _points = pointsList.ToArray();
 
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
         Array.Clear(_cellOverrideColors, 0, _cellRawColors.Length);
@@ -264,7 +292,7 @@ public class Voronoi
         _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, points * 3);
         _voronoiCells.EnsureCapacity(_points.Length);
 
-        BuildVoronoiCells(triangulation);
+        PopulateVoronoiCells();
 
         // Lloyd relaxation requires rebuilding the triangulation and Voronoi cells, which can be a little expensive
         //  for large graphs.
@@ -273,14 +301,13 @@ public class Voronoi
 #if DEBUG
             Debug.WriteLine("Lloyd: starting");
 #endif
-
             delaunay.LloydSettlePoints(_voronoiCells.Values);
 #if DEBUG
             Debug.WriteLine("Lloyd: finished");
 #endif
             _voronoiCells.Clear();
             triangulation = delaunay.BowyerWatson(_points);
-            BuildVoronoiCells(triangulation);
+            PopulateVoronoiCells();
         }
 
 #if DEBUG
@@ -375,9 +402,9 @@ public class Voronoi
         BuildSpatialGrid();
         return;
 
-        void BuildVoronoiCells(IEnumerable<Triangle> triangulations)
+        void PopulateVoronoiCells()
         {
-            foreach (Triangle triangle in triangulations)
+            foreach (Triangle triangle in triangulation)
             {
                 foreach (Point site in triangle.Vertices)
                 {
@@ -491,11 +518,11 @@ public class Voronoi
         bool forceUpdate = false)
     {
         if (!_isGenerated)
-            throw new InvalidOperationException("Attempted to get Voronoi texture before generating a diagram.");
+            throw new InvalidOperationException(
+                "Attempted to get Voronoi texture before generating a diagram.");
 
-        // If current flags are present whilst previous flags exist and aren't none, it means that a map
-        //  was generated.
-        if (!forceUpdate && _textureValid &&
+        if (!forceUpdate &&
+            _textureValid &&
             flags == _previousFlags &&
             boundaryMode == _previousBoundaryMode &&
             Math.Abs(thickness - _previousThickness) < 0.01f &&
@@ -508,14 +535,12 @@ public class Voronoi
             _height,
             false,
             SurfaceFormat.Color,
-            DepthFormat.None
-        );
+            DepthFormat.None);
 
         var previousTargets = _graphicsDevice.GetRenderTargets();
 
         _graphicsDevice.SetRenderTarget(output);
 
-        // Prevent graphics device from going haywire and pointing at off-screen targets.
         try
         {
             SetDiagramProjection();
@@ -540,11 +565,13 @@ public class Voronoi
 
         Texture2D oldTexture = _pixelMap;
         _pixelMap = output;
+
         _previousBoundaryMode = boundaryMode;
         _previousThickness = thickness;
         _previousPointSize = pointSize;
         _previousFlags = flags;
         _textureValid = true;
+
         if (oldTexture is RenderTarget2D oldTarget)
             oldTarget.Dispose();
     }

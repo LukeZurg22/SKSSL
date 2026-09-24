@@ -61,4 +61,9 @@
         <PackageReference Include="Tomlyn" Version="2.4.1"/>
         <PackageReference Include="YamlDotNet" Version="18.0.0"/>
     </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="GG_Map.png" />
+      <EmbeddedResource Include="GG_Map.png" />
+    </ItemGroup>
 </Project>

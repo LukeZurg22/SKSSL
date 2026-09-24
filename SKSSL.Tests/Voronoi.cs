@@ -1,10 +1,12 @@
 #nullable enable
 using System;
+using System.Diagnostics;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using SKSSL.Assets;
 using SKSSL.Tests.Classes;
 using SKSSL.Utilities.Voronoi;
 using SKSSL.Utilities.Voronoi.PointDistributors;
@@ -65,27 +67,38 @@ public class Voronoi
             return;
         }
 
-        _densityTexture = CreateCircularDensityMap(
-            _game.GraphicsDevice,
-            _game.GraphicsDevice.Viewport.Width,
-            _game.GraphicsDevice.Viewport.Height
-        );
+        var image = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
+            .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Map.png");
+        _densityTexture = image;
 
-        DistributorImage distributor = new(_densityTexture);
+        // Temp code to dynamically create a circular density map.
+        //CreateCircularDensityMap(
+        //    _game.GraphicsDevice,
+        //    _game.GraphicsDevice.Viewport.Width,
+        //    _game.GraphicsDevice.Viewport.Height
+        //);
+
+        DistributorImage distributor = new(_densityTexture, new DistributorImageSettings
+        {
+            DensityIntensity = 1.1,
+            CenterCellSizeFactor = 0.8,
+            EdgeCellSizeFactor = 1.7,
+            AllowBlackGaps = true
+        });
 
         // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
         /*await Task.Run(() =>*/
-        _voronoi.GenerateDiagram(points: 10000,
+        _voronoi.GenerateDiagram(points: 1000,
             //width: 1200,
             //height: 800,
             randomness: 0,
             settlePoints: false,
             distributor: distributor,
             boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
-            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
-                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/);
+            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
+                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points);
 
         //for (int i = 0; i <= 800; i++) _voronoi.MarkCell(i);
         //
