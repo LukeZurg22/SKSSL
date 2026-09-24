@@ -15,8 +15,8 @@ public unsafe class DistributorImage : IPointDistributor
 
     // Data
     private readonly byte[] _pixels;
-    private readonly int _width;
-    private readonly int _height;
+    private readonly int _sourceWidth;
+    private readonly int _sourceHeight;
 
     // Distribution Adjustments
     private readonly float[] _density;
@@ -33,32 +33,32 @@ public unsafe class DistributorImage : IPointDistributor
 
     #region Constructors
 
-    private DistributorImage(int width, int height, DistributorImageSettings settings)
+    private DistributorImage(int sourceWidth, int sourceHeight, DistributorImageSettings settings)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
-        _width = width;
-        _height = height;
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sourceWidth);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sourceHeight);
+        _sourceWidth = sourceWidth;
+        _sourceHeight = sourceHeight;
         _mode = settings.Mode;
         _densityIntensity = settings.DensityIntensity;
         _centerCellSizeFactor = settings.CenterCellSizeFactor;
         _edgeCellSizeFactor = settings.EdgeCellSizeFactor;
-        _density = new float[width * height];
+        _density = new float[sourceWidth * sourceHeight];
         _densityCurve = new float[DensityCurveSize];
         AllowBlackGaps = settings.AllowBlackGaps;
     }
 
     // ReSharper disable once UnusedMember.Global
-    public DistributorImage(byte[] pixels, int width, int height, DistributorImageSettings settings)
-        : this(width, height, settings)
+    public DistributorImage(byte[] pixels, int sourceWidth, int sourceHeight, DistributorImageSettings settings)
+        : this(sourceWidth, sourceHeight, settings)
     {
         ArgumentNullException.ThrowIfNull(pixels);
-        if (pixels.Length < (long)width * height * 4)
+        if (pixels.Length < (long)sourceWidth * sourceHeight * 4)
             throw new ArgumentException("Pixel buffer must contain at least width * height * 4 bytes.",
                 nameof(pixels));
 
         _pixels = pixels;
-        GapMask = new VoronoiGapMask(_pixels, width, height, 0);
+        GapMask = new VoronoiGapMask(_pixels, sourceWidth, sourceHeight, 0);
 
         ValidateSpacing();
         BuildDensity();
@@ -69,7 +69,7 @@ public unsafe class DistributorImage : IPointDistributor
         : this(texture.Width, texture.Height, settings)
     {
         ArgumentNullException.ThrowIfNull(texture);
-        int length = checked(_width * _height);
+        int length = checked(_sourceWidth * _sourceHeight);
         _pixels = new byte[checked(length * 4)];
         texture.GetData(_pixels);
         GapMask = new VoronoiGapMask(_pixels, texture.Width, texture.Height); // After so pixel data is filled.
@@ -187,9 +187,12 @@ public unsafe class DistributorImage : IPointDistributor
 
                 float rx = (float)random.NextDouble();
                 float ry = (float)random.NextDouble();
-                int pixelX = (int)(rx * _width);
-                int pixelY = (int)(ry * _height);
-                int pixelIndex = pixelY * _width + pixelX;
+
+                int pixelX = Min((int)(rx * _sourceWidth), _sourceWidth - 1);
+                int pixelY = Min((int)(ry * _sourceHeight), _sourceHeight - 1);
+
+                // Sampling the source image.
+                int pixelIndex = pixelY * _sourceWidth + pixelX;
                 byte b = _pixels[pixelIndex * 4];
                 byte g = _pixels[pixelIndex * 4 + 1];
                 byte r = _pixels[pixelIndex * 4 + 2];
@@ -295,7 +298,7 @@ public unsafe class DistributorImage : IPointDistributor
 
     private void BuildDensity()
     {
-        int length = _width * _height;
+        int length = _sourceWidth * _sourceHeight;
         const float Inv255 = 1.0f / 255.0f;
 
         for (int i = 0, p = 0; i < length; i++, p += 4)
@@ -572,7 +575,7 @@ public sealed class VoronoiGapMask
         if (polygon.Count < 3 || smoothingIterations <= 0)
             return polygon;
 
-        double area = Math.Abs(SignedArea(polygon));
+        double area = Abs(SignedArea(polygon));
 
         // Preserve very small features.
         if (area < 16.0)
@@ -580,7 +583,7 @@ public sealed class VoronoiGapMask
 
         int iterations =
             area < 64.0
-                ? Math.Min(smoothingIterations, 1)
+                ? Min(smoothingIterations, 1)
                 : smoothingIterations;
 
         for (int i = 0; i < iterations; i++)
@@ -647,10 +650,10 @@ public sealed class VoronoiGapMask
                 incoming.X * outgoing.X +
                 incoming.Y * outgoing.Y;
 
-            double angle = Math.Atan2(cross, dot);
+            double angle = Atan2(cross, dot);
 
             if (angle < 0)
-                angle += Math.PI * 2.0;
+                angle += PI * 2.0;
 
             if (!found || angle < bestAngle)
             {

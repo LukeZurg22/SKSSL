@@ -245,7 +245,7 @@ public class ExampleImGUIGame : Game
             //offset X
             if (corner == 1 || corner == 3)
             {
-                distanceX = (float)graphics.PreferredBackBufferWidth - 250.0f;
+                distanceX = graphics.PreferredBackBufferWidth - 250.0f;
             }
             else
             {
@@ -255,7 +255,7 @@ public class ExampleImGUIGame : Game
             //offset Y
             if (corner == 2 || corner == 3)
             {
-                distanceY = (float)graphics.PreferredBackBufferHeight - 100.0f;
+                distanceY = graphics.PreferredBackBufferHeight - 100.0f;
             }
             else
             {
@@ -1619,8 +1619,8 @@ public class ExampleImGUIGame : Game
                 "Hover the texture for a zoomed view!");
 
             IntPtr my_tex_id = io.Fonts.TexID;
-            float my_tex_w = (float)io.Fonts.TexWidth;
-            float my_tex_h = (float)io.Fonts.TexHeight;
+            float my_tex_w = io.Fonts.TexWidth;
+            float my_tex_h = io.Fonts.TexHeight;
 
             ImGui.Text(my_tex_w + "x" + my_tex_h);
             Vec2 pos = ImGui.GetCursorScreenPos();
@@ -1658,7 +1658,7 @@ public class ExampleImGUIGame : Game
 
                 ImGui.Text($"Min: ({region_x},{region_y})");
                 ImGui.Text($"Max: ({region_x + region_sz},{region_y + region_sz})");
-                Vec2 uv0 = new Vec2((region_x) / my_tex_w, (region_y) / my_tex_h);
+                Vec2 uv0 = new Vec2(region_x / my_tex_w, region_y / my_tex_h);
                 Vec2 uv1 = new Vec2((region_x + region_sz) / my_tex_w, (region_y + region_sz) / my_tex_h);
                 ImGui.Image(my_tex_id, new Vec2(region_sz * zoom, region_sz * zoom), uv0, uv1, tint_col,
                     border_col);
@@ -1722,7 +1722,7 @@ public class ExampleImGUIGame : Game
             {
                 for (int n = 0; n < items.Length; n++)
                 {
-                    bool is_selected = (item_current_idx == n);
+                    bool is_selected = item_current_idx == n;
                     if (ImGui.Selectable(items[n], is_selected))
                     {
                         item_current_idx = n;
@@ -1848,7 +1848,7 @@ public class ExampleImGUIGame : Game
                 {
                     for (int x = 0; x < 3; x++)
                     {
-                        Vec2 alignment = new Vec2((float)x / 2.0f, (float)y / 2.0f);
+                        Vec2 alignment = new Vec2(x / 2.0f, y / 2.0f);
                         string name = $"({alignment.X},{alignment.Y})";
                         if (x > 0)
                         {
@@ -1913,22 +1913,22 @@ public class ExampleImGUIGame : Game
 
             if (ImGui.TreeNode("Filtered Text Input"))
             {
-                ImGui.InputText("default", ref buf1, (uint)64);
-                ImGui.InputText("decimal", ref buf2, (uint)64, ImGuiInputTextFlags.CharsDecimal);
-                ImGui.InputText("hexadecimal", ref buf3, (uint)64, ImGuiInputTextFlags.CharsHexadecimal);
-                ImGui.InputText("uppercase", ref buf4, (uint)64, ImGuiInputTextFlags.CharsUppercase);
-                ImGui.InputText("no blank", ref buf5, (uint)64, ImGuiInputTextFlags.CharsNoBlank);
+                ImGui.InputText("default", ref buf1, 64);
+                ImGui.InputText("decimal", ref buf2, 64, ImGuiInputTextFlags.CharsDecimal);
+                ImGui.InputText("hexadecimal", ref buf3, 64, ImGuiInputTextFlags.CharsHexadecimal);
+                ImGui.InputText("uppercase", ref buf4, 64, ImGuiInputTextFlags.CharsUppercase);
+                ImGui.InputText("no blank", ref buf5, 64, ImGuiInputTextFlags.CharsNoBlank);
                 ImGui.TreePop();
             }
 
             if (ImGui.TreeNode("Password Input"))
             {
-                ImGui.InputText("password", ref password, (uint)64, ImGuiInputTextFlags.Password);
+                ImGui.InputText("password", ref password, 64, ImGuiInputTextFlags.Password);
                 ImGui.SameLine();
                 HelpMarker("Display all characters as '*'.\nDisable clipboard cut and copy.\nDisable logging.\n");
-                ImGui.InputTextWithHint("password (w/ hint)", "<password>", ref password, (uint)64,
+                ImGui.InputTextWithHint("password (w/ hint)", "<password>", ref password, 64,
                     ImGuiInputTextFlags.Password);
-                ImGui.InputText("password (clear)", ref password, (uint)64);
+                ImGui.InputText("password (clear)", ref password, 64);
                 ImGui.TreePop();
             }
 
@@ -2079,7 +2079,7 @@ public class ExampleImGUIGame : Game
                 average += values[n];
             }
 
-            average /= (float)values.Length;
+            average /= values.Length;
             string overlay = $"avg {average}";
             ImGui.PlotLines("Lines", ref values[0], values.Length, values_offset, overlay, -1.0f, 1.0f,
                 new Vec2(0, 80.0f));
@@ -2133,7 +2133,7 @@ public class ExampleImGUIGame : Game
                                              (drag_and_drop ? 0 : ImGuiColorEditFlags.NoDragDrop) |
                                              (alpha_half_preview
                                                  ? ImGuiColorEditFlags.AlphaPreviewHalf
-                                                 : (alpha_preview ? ImGuiColorEditFlags.AlphaPreview : 0)) |
+                                                 : alpha_preview ? ImGuiColorEditFlags.AlphaPreview : 0) |
                                              (options_menu ? 0 : ImGuiColorEditFlags.NoOptions);
 
             ImGui.Text("Color widget:");
@@ -2517,7 +2517,7 @@ public class ExampleImGUIGame : Game
             for (int i = 0; i < 100; i++)
             {
                 ImGui.Button(i.ToString("D3"));
-                if ((i % 2) == 0)
+                if (i % 2 == 0)
                 {
                     ImGui.SameLine();
                 }
@@ -2531,7 +2531,7 @@ public class ExampleImGUIGame : Game
             ImGui.SetNextItemWidth(100);
             ImGui.DragInt("Offset X", ref offset_x, 1.0f, -1000, 1000);
 
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (float)offset_x);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset_x);
             Vec4 colv4 = new Vec4(255.0f, 0.0f, 0.0f, 100.0f);
             ImGui.PushStyleColor(ImGuiCol.ChildBg, ImGui.ColorConvertFloat4ToU32(colv4));
             ImGui.BeginChild("Red", new Vec2(200, 100), ImGuiChildFlags.Borders, ImGuiWindowFlags.None);

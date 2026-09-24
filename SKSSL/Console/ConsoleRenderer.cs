@@ -83,8 +83,8 @@ internal class ConsoleRenderer
         if (currentState == State.Opening)
         {
             position.Y = MathHelper.SmoothStep(position.Y, openedPosition.Y,
-                ((float)((DateTime.Now - stateChangeTime).TotalSeconds /
-                         GameConsoleOptions.Options.AnimationSpeed)));
+                (float)((DateTime.Now - stateChangeTime).TotalSeconds /
+                        GameConsoleOptions.Options.AnimationSpeed));
             if (Math.Abs(position.Y - openedPosition.Y) < TOLERANCE)
             {
                 currentState = State.Opened;
@@ -95,8 +95,8 @@ internal class ConsoleRenderer
             return;
         
         position.Y = MathHelper.SmoothStep(position.Y, closedPosition.Y,
-            ((float)((DateTime.Now - stateChangeTime).TotalSeconds /
-                     GameConsoleOptions.Options.AnimationSpeed)));
+            (float)((DateTime.Now - stateChangeTime).TotalSeconds /
+                    GameConsoleOptions.Options.AnimationSpeed));
         if (Math.Abs(position.Y - closedPosition.Y) < TOLERANCE)
         {
             currentState = State.Closed;

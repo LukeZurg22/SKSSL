@@ -96,6 +96,9 @@ public class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
+    private Texture2D? _highlightMask;
+    private Color _highlightColor = Color.Yellow;
+    
     // TODO: Support constrained and density-driven Voronoi generation.
     //  .
     //  1. Explicit boundaries
@@ -311,7 +314,7 @@ public class Voronoi
                     dim.GapMask.Height,
                     _width,
                     _height);
-            
+
             ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);
             //ClipVoronoiEdgesAgainstGaps(gapGeometry.Paths);
         }
@@ -474,7 +477,7 @@ public class Voronoi
         _voronoiEdges.Clear();
         _voronoiEdges.AddRange(clippedEdges);
     }
-    
+
     private static void ClipCellsAgainstGaps(GapGeometry gaps, IEnumerable<VoronoiCell> cells)
     {
         foreach (VoronoiCell cell in cells)
@@ -745,19 +748,36 @@ public class Voronoi
     /// <returns>True if found cell, false if not. Out will be null if false.</returns>
     /// <remarks>May cause lag at immense diagram sizes, mostly around 50k and beyond.</remarks>
     // ReSharper disable once UnusedMethodReturnValue.Global
-    public bool TryGetCellAt(System.Drawing.Point position, [NotNullWhen(true)] out VoronoiCell? cell)
+    public bool TryGetCellAt(
+        System.Drawing.Point position,
+        [NotNullWhen(true)] out VoronoiCell? cell)
     {
         cell = null;
 
-        // Creating a duplicate reference so as to avoid a crash.
         SpatialGrid? grid = _spatialGrid;
-        if (grid == null || grid.Buckets.Length == 0)
+
+        if (grid == null ||
+            grid.Buckets.Length == 0)
+        {
             return false;
+        }
 
-        int gridX = Math.Clamp((int)(position.X / grid.CellWidth), 0, grid.Size - 1);
-        int gridY = Math.Clamp((int)(position.Y / grid.CellHeight), 0, grid.Size - 1);
-        long bestDistance = long.MaxValue;
+        int gridX =
+            Math.Clamp(
+                (int)(position.X / grid.CellWidth),
+                0,
+                grid.Size - 1);
 
+        int gridY =
+            Math.Clamp(
+                (int)(position.Y / grid.CellHeight),
+                0,
+                grid.Size - 1);
+
+        /*
+         * Only cells in neighboring spatial buckets need
+         * to be tested.
+         */
         for (int y = gridY - 1; y <= gridY + 1; y++)
         {
             if (y < 0 || y >= grid.Size)
@@ -768,64 +788,311 @@ public class Voronoi
                 if (x < 0 || x >= grid.Size)
                     continue;
 
-                foreach (VoronoiCell candidate in grid.Buckets[y * grid.Size + x])
-                {
-                    long dx = (long)(candidate.Site.X - position.X);
-                    long dy = (long)(candidate.Site.Y - position.Y);
-                    long distance = dx * dx + dy * dy;
+                List<VoronoiCell> bucket =
+                    grid.Buckets[y * grid.Size + x];
 
-                    if (distance >= bestDistance)
+                foreach (VoronoiCell candidate in bucket)
+                {
+                    if (ShouldCullBoundarySite(candidate.Site))
                         continue;
 
-                    bestDistance = distance;
+                    if (!IsPointInsideCell(
+                            candidate,
+                            position.X,
+                            position.Y))
+                    {
+                        continue;
+                    }
+
                     cell = candidate;
+                    return true;
                 }
             }
         }
 
-        return cell != null;
+        return false;
+    }
+
+    private static bool IsPointInsideCell(
+        VoronoiCell cell,
+        int x,
+        int y)
+    {
+        /*
+         * If the cell has been gap-clipped, test the clipped
+         * geometry instead of the original Voronoi polygon.
+         */
+        if (cell.RenderPaths is { Count: > 0 } paths)
+        {
+            bool inside = false;
+
+            foreach (Path64 path in paths)
+            {
+                if (path.Count < 3)
+                    continue;
+
+                if (PointInPolygon(path, x, y))
+                    inside = !inside;
+            }
+
+            return inside;
+        }
+
+        if (cell.Vertices.Count < 3)
+            return false;
+
+        return PointInPolygon(cell.Vertices, x, y);
+    }
+
+    private static bool PointInPolygon(
+        IReadOnlyList<Point> polygon,
+        double x,
+        double y)
+    {
+        bool inside = false;
+
+        int count = polygon.Count;
+
+        for (int i = 0, j = count - 1;
+             i < count;
+             j = i++)
+        {
+            Point a = polygon[i];
+            Point b = polygon[j];
+
+            /*
+             * Boundary test first so clicking directly on an edge
+             * still counts as being inside the cell.
+             */
+            if (PointOnSegment(
+                    a.X,
+                    a.Y,
+                    b.X,
+                    b.Y,
+                    x,
+                    y))
+            {
+                return true;
+            }
+
+            bool crosses =
+                a.Y > y != b.Y > y &&
+                x <
+                (b.X - a.X) *
+                (y - a.Y) /
+                (b.Y - a.Y) +
+                a.X;
+
+            if (crosses)
+                inside = !inside;
+        }
+
+        return inside;
+    }
+
+    private static bool PointInPolygon(
+        Path64 polygon,
+        double x,
+        double y)
+    {
+        bool inside = false;
+
+        int count = polygon.Count;
+
+        for (int i = 0, j = count - 1;
+             i < count;
+             j = i++)
+        {
+            Point64 a = polygon[i];
+            Point64 b = polygon[j];
+
+            if (PointOnSegment(
+                    a.X,
+                    a.Y,
+                    b.X,
+                    b.Y,
+                    x,
+                    y))
+            {
+                return true;
+            }
+
+            bool crosses = a.Y > y != b.Y > y && x < (b.X - a.X) * (y - a.Y) / (b.Y - a.Y) + a.X;
+            if (crosses)
+                inside = !inside;
+        }
+
+        return inside;
+    }
+
+    private static bool PointOnSegment(
+        double ax,
+        double ay,
+        double bx,
+        double by,
+        double px,
+        double py)
+    {
+        double cross =
+            (px - ax) * (by - ay) -
+            (py - ay) * (bx - ax);
+
+        if (Math.Abs(cross) > 0.000001)
+            return false;
+
+        return
+            px >= Math.Min(ax, bx) &&
+            px <= Math.Max(ax, bx) &&
+            py >= Math.Min(ay, by) &&
+            py <= Math.Max(ay, by);
     }
 
     #endregion
 
     #region Cell Highlighting
 
-    public void SetHighlightedCells(IEnumerable<VoronoiCell> cells, Color color, float thickness = 1f)
-    {
-        var highlightedSites = cells
-            .Where(cell => !ShouldCullBoundarySite(cell.Site))
-            .Select(cell => cell.Site)
-            .ToHashSet();
+    private readonly HashSet<uint> _highlightedCellIds = [];
 
-        var vertices = new List<VertexPositionColor>();
-        foreach (Point site in highlightedSites)
+    public void SetHighlightedCells(
+        IEnumerable<VoronoiCell> cells,
+        Color color,
+        float thickness = 1f)
+    {
+        ArgumentNullException.ThrowIfNull(cells);
+
+        _highlightedCellIds.Clear();
+
+        foreach (VoronoiCell cell in cells)
         {
-            if (!_edgesByCell.TryGetValue(site, out var edges))
+            if (ShouldCullBoundarySite(cell.Site))
                 continue;
 
-            foreach (CellVoronoiEdge edge in edges)
+            _highlightedCellIds.Add(cell.ID);
+        }
+
+        RebuildHighlightBatch(color, thickness);
+    }
+
+    public void SetHighlightedCell(uint cellId, Color color, float thickness = 1f)
+    {
+        _highlightedCellIds.Clear();
+        if (!_cellIndices.ContainsKey(cellId))
+        {
+            ClearHighlightBatch();
+            return;
+        }
+
+        if (_voronoiCells.Values.Any(cell => cell.ID == cellId && ShouldCullBoundarySite(cell.Site)))
+        {
+            ClearHighlightBatch();
+            return;
+        }
+
+        _highlightedCellIds.Add(cellId);
+
+        RebuildHighlightBatch(color, thickness);
+    }
+
+    public void SetHighlightedColor(Color color, float thickness = 1f)
+    {
+        uint packedColor = color.PackedValue;
+        _highlightedCellIds.Clear();
+        foreach (var pair in _cellIndices)
+        {
+            if (_cellRawColors[pair.Value].PackedValue == packedColor)
+                _highlightedCellIds.Add(pair.Key);
+        }
+
+        RebuildHighlightBatch(color, thickness);
+    }
+
+    public void SetHighlightedColors(
+        IEnumerable<Color> colors,
+        Color highlightColor,
+        float thickness = 1f)
+    {
+        ArgumentNullException.ThrowIfNull(colors);
+
+        var packedColors = colors
+            .Select(color => color.PackedValue)
+            .ToHashSet();
+
+        _highlightedCellIds.Clear();
+
+        foreach (KeyValuePair<uint, int> pair in _cellIndices)
+        {
+            if (packedColors.Contains(
+                    _cellRawColors[pair.Value].PackedValue))
             {
-                bool aHighlighted = highlightedSites.Contains(edge.SiteA);
-                bool bHighlighted =
-                    edge.SiteB.HasValue &&
-                    highlightedSites.Contains(edge.SiteB.Value);
-
-                // Internal edge of highlighted region.
-                if (aHighlighted == bHighlighted)
-                    continue;
-
-                AddHighlightEdge(
-                    vertices,
-                    edge.Point1,
-                    edge.Point2,
-                    color,
-                    thickness);
+                _highlightedCellIds.Add(pair.Key);
             }
+        }
+
+        RebuildHighlightBatch(highlightColor, thickness);
+    }
+
+    public void ClearHighlightedCells()
+    {
+        _highlightedCellIds.Clear();
+        ClearHighlightBatch();
+    }
+
+    private void RebuildHighlightBatch(
+        Color color,
+        float thickness)
+    {
+        if (_highlightedCellIds.Count == 0 ||
+            _cellVoronoiEdges.Count == 0)
+        {
+            ClearHighlightBatch();
+            return;
+        }
+
+        /*
+         * Every Voronoi edge is considered exactly once.
+         *
+         * An edge is highlighted when exactly one of its two cells
+         * is selected.
+         *
+         * Therefore:
+         *
+         *     selected <-> selected   = internal edge, skip
+         *     selected <-> unselected = boundary, draw
+         *     selected <-> outside    = boundary, draw
+         */
+        var vertices =
+            new List<VertexPositionColor>(
+                _highlightedCellIds.Count * 18);
+
+        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
+        {
+            bool aHighlighted =
+                _highlightedCellIds.Contains(edge.SiteA.ID);
+
+            bool bHighlighted =
+                edge.SiteB.HasValue &&
+                _highlightedCellIds.Contains(edge.SiteB.Value.ID);
+
+            if (aHighlighted == bHighlighted)
+                continue;
+
+            AddHighlightEdge(
+                vertices,
+                edge.Point1,
+                edge.Point2,
+                color,
+                thickness);
         }
 
         _highlightBatchVertices = vertices.ToArray();
         _highlightBatchPrimitiveCount =
             _highlightBatchVertices.Length / 3;
+    }
+
+    private void ClearHighlightBatch()
+    {
+        _highlightBatchVertices = [];
+        _highlightBatchPrimitiveCount = 0;
     }
 
     private static void AddHighlightEdge(
@@ -840,26 +1107,23 @@ public class Voronoi
 
         Vector2 direction = p2 - p1;
 
-        if (direction.LengthSquared() <= float.Epsilon)
+        if (direction.LengthSquared() <= 0.000001f)
             return;
 
         direction.Normalize();
 
-        // Perpendicular vector used to give the line thickness.
-        Vector2 normal = new(-direction.Y, direction.X);
-        normal *= thickness * 0.5f;
+        Vector2 normal = new Vector2(-direction.Y, direction.X) * (thickness * 0.5f);
+        Vector3 v1 = new(p1 - normal, 0f);
+        Vector3 v2 = new(p1 + normal, 0f);
+        Vector3 v3 = new(p2 + normal, 0f);
+        Vector3 v4 = new(p2 - normal, 0f);
 
-        Vector2 v1 = p1 - normal;
-        Vector2 v2 = p1 + normal;
-        Vector2 v3 = p2 + normal;
-        Vector2 v4 = p2 - normal;
-
-        vertices.Add(new VertexPositionColor(new Vector3(v1, 0f), color));
-        vertices.Add(new VertexPositionColor(new Vector3(v2, 0f), color));
-        vertices.Add(new VertexPositionColor(new Vector3(v3, 0f), color));
-        vertices.Add(new VertexPositionColor(new Vector3(v1, 0f), color));
-        vertices.Add(new VertexPositionColor(new Vector3(v3, 0f), color));
-        vertices.Add(new VertexPositionColor(new Vector3(v4, 0f), color));
+        vertices.Add(new VertexPositionColor(v1, color));
+        vertices.Add(new VertexPositionColor(v2, color));
+        vertices.Add(new VertexPositionColor(v3, color));
+        vertices.Add(new VertexPositionColor(v1, color));
+        vertices.Add(new VertexPositionColor(v3, color));
+        vertices.Add(new VertexPositionColor(v4, color));
     }
 
     private void DrawHighlightedCells()
@@ -869,15 +1133,19 @@ public class Voronoi
 
         SetScreenProjection();
 
-        BlendState previousBlend = _graphicsDevice.BlendState;
+        BlendState previousBlend =
+            _graphicsDevice.BlendState;
+
         RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;
 
         try
         {
             _graphicsDevice.BlendState = BlendState.AlphaBlend;
+
             _graphicsDevice.RasterizerState = RasterizerState.CullNone;
 
-            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+            foreach (EffectPass pass
+                     in _effect.CurrentTechnique.Passes)
             {
                 pass.Apply();
 
@@ -911,8 +1179,7 @@ public class Voronoi
         if (!TryGetCellAt(point, out VoronoiCell? cell))
             return;
 
-        if (!_markedCells.Contains(cell.ID))
-            _markedCells.Add(cell.ID);
+        MarkCell(cell.ID);
     }
 
     /// <summary>
@@ -922,8 +1189,7 @@ public class Voronoi
     // ReSharper disable once UnusedMember.Global
     public void MarkCell(uint cell)
     {
-        // Avoid crashing w. bad loops!
-        if (cell >= _cellVoronoiEdges.Count)
+        if (!_cellIndices.ContainsKey(cell))
             return;
 
         if (!_markedCells.Contains(cell))
@@ -1578,15 +1844,15 @@ public class Voronoi
         Point b,
         float x)
     {
-        var dx = (b.X - a.X);
+        var dx = b.X - a.X;
 
         if (Math.Abs(dx) < 0.000001f)
             return new Point(
                 (int)Math.Round(x),
                 a.Y);
 
-        var t = ((x - a.X) / dx);
-        var y = (a.Y + (b.Y - a.Y) * t);
+        var t = (x - a.X) / dx;
+        var y = a.Y + (b.Y - a.Y) * t;
 
         return new Point((int)Math.Round(x), (int)Math.Round(y));
     }
@@ -1932,7 +2198,8 @@ public class Voronoi
         }
 
         return result;
-    }    
+    }
+
     private static VertexPositionColor[] TessellateOriginalCell(List<Point> vertices, Color color)
     {
         if (vertices.Count < 3)

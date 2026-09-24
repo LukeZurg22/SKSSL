@@ -97,7 +97,8 @@ public class Voronoi
             distributor: distributor,
             boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
             flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
-                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points);
+                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points | 
+                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges);
 
         //for (int i = 0; i <= 800; i++) _voronoi.MarkCell(i);
         //
