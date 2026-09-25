@@ -3,9 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Clipper2Lib;
-using LibTessDotNet.Double;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 
 // ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 
@@ -13,7 +10,7 @@ namespace SKSSL.Utilities.Voronoi;
 
 public partial class Voronoi
 {
-    internal static void SortVerticesAround(List<Point> vertices, Point center)
+    private static void SortVerticesAround(List<Point> vertices, Point center)
     {
         vertices.Sort((a, b) =>
         {
@@ -33,7 +30,7 @@ public partial class Voronoi
         });
     }
 
-    internal static bool IsPointInsideCell(VoronoiCell cell, int x, int y)
+    private static bool IsPointInsideCell(VoronoiCell cell, int x, int y)
     {
         /*
          * If the cell has been gap-clipped, test the clipped
@@ -171,7 +168,7 @@ public partial class Voronoi
         return tMin <= tMax;
     }
 
-    internal static List<Point> ClipPolygonToBounds(List<Point> polygon, int width, int height)
+    private static List<Point> ClipPolygonToBounds(List<Point> polygon, int width, int height)
     {
         if (polygon.Count < 3)
             return [];
@@ -201,7 +198,7 @@ public partial class Voronoi
         return result;
     }
 
-    internal static List<Point> ClipPolygon(
+    private static List<Point> ClipPolygon(
         List<Point> polygon,
         Func<Point, bool> inside,
         Func<Point, Point, Point> intersection)
@@ -237,17 +234,11 @@ public partial class Voronoi
         return result.Distinct().ToList();
     }
 
-    private static Point IntersectVertical(
-        Point a,
-        Point b,
-        float x)
+    private static Point IntersectVertical(Point a, Point b, float x)
     {
         var dx = b.X - a.X;
-
         if (Math.Abs(dx) < 0.000001f)
-            return new Point(
-                (int)Math.Round(x),
-                a.Y);
+            return new Point((int)Math.Round(x), a.Y);
 
         var t = (x - a.X) / dx;
         var y = a.Y + (b.Y - a.Y) * t;
@@ -255,7 +246,7 @@ public partial class Voronoi
         return new Point((int)Math.Round(x), (int)Math.Round(y));
     }
 
-    internal static Point IntersectHorizontal(Point a, Point b, float y)
+    private static Point IntersectHorizontal(Point a, Point b, float y)
     {
         var dy = b.Y - a.Y;
         if (Math.Abs(dy) < 0.000001f)
@@ -267,101 +258,6 @@ public partial class Voronoi
         return new Point((int)Math.Round(x), (int)Math.Round(y));
     }
 
-
-    internal static VertexPositionColor[] TessellateClippedCell(Paths64 paths, Color color)
-    {
-        if (paths.Count == 0)
-            return [];
-
-        var tess = new Tess();
-        foreach (Path64 path in paths)
-        {
-            if (path.Count < 3)
-                continue;
-
-            var contour = new ContourVertex[path.Count];
-            for (int i = 0; i < path.Count; i++)
-            {
-                Point64 point = path[i];
-                contour[i].Position = new Vec3(point.X, point.Y, 0.0);
-                contour[i].Data = color;
-            }
-
-            tess.AddContour(contour);
-        }
-
-        // Tessellate BEFORE checking VertexCount/ElementCount.
-        tess.Tessellate();
-
-        if (tess.ElementCount == 0)
-            return [];
-
-        var result =
-            new VertexPositionColor[tess.ElementCount * 3];
-
-        for (int i = 0; i < tess.ElementCount; i++)
-        {
-            int elementIndex = i * 3;
-
-            for (int j = 0; j < 3; j++)
-            {
-                int vertexIndex = tess.Elements[elementIndex + j];
-
-                Vec3 position = tess.Vertices[vertexIndex].Position;
-
-                result[elementIndex + j] =
-                    new VertexPositionColor(
-                        new Vector3(
-                            (float)position.X,
-                            (float)position.Y,
-                            0f),
-                        color);
-            }
-        }
-
-        return result;
-    }
-
-    private static VertexPositionColor[] TessellateOriginalCell(List<Point> vertices, Color color)
-    {
-        if (vertices.Count < 3)
-            return [];
-
-        var result =
-            new VertexPositionColor[
-                (vertices.Count - 2) * 3];
-
-        Vector3 origin =
-            new(vertices[0].X, vertices[0].Y, 0f);
-
-        int index = 0;
-
-        for (int i = 1; i < vertices.Count - 1; i++)
-        {
-            result[index++] =
-                new VertexPositionColor(
-                    origin,
-                    color);
-
-            result[index++] =
-                new VertexPositionColor(
-                    new Vector3(
-                        vertices[i].X,
-                        vertices[i].Y,
-                        0f),
-                    color);
-
-            result[index++] =
-                new VertexPositionColor(
-                    new Vector3(
-                        vertices[i + 1].X,
-                        vertices[i + 1].Y,
-                        0f),
-                    color);
-        }
-
-        return result;
-    }
 
     /// <remarks>Needed for debug in order to confirm nothings gone wrong.</remarks>
     private static void ValidateNeighbors(List<Triangle> triangles)

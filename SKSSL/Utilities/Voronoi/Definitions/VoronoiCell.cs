@@ -13,6 +13,7 @@ public record VoronoiCell
     public List<Point> Vertices;
     public bool IsBoundary;
     public Paths64? RenderPaths { get; set; }
+    public bool IsCulled { get; set; }
 
     public VoronoiCell(Point site, List<Point> vertices)
     {

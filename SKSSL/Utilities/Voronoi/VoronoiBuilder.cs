@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using Clipper2Lib;
@@ -13,30 +14,33 @@ public partial class Voronoi
 {
     private static GapGeometry BuildGapGeometry(
         IReadOnlyList<GapPolygon> polygons,
-        int sourceWidth, int sourceHeight,
-        int targetWidth, int targetHeight)
+        int sourceWidth,
+        int sourceHeight,
+        int targetWidth,
+        int targetHeight)
     {
         if (polygons.Count == 0)
             return new GapGeometry([]);
 
-        double scaleX = (double)targetWidth / sourceWidth;
-        double scaleY = (double)targetHeight / sourceHeight;
+        var scaleX = (double)targetWidth / sourceWidth;
+        var scaleY = (double)targetHeight / sourceHeight;
 
         var paths = new Paths64(polygons.Count);
 
         foreach (GapPolygon polygon in polygons)
         {
-            if (polygon.Vertices.Count < 3)
+            var vertexCount = polygon.Vertices.Count;
+
+            if (vertexCount < 3)
                 continue;
 
-            var path = new Path64(polygon.Vertices.Count);
+            var path = new Path64(vertexCount);
 
             foreach (Vector2 vertex in polygon.Vertices)
             {
-                long x = (long)Math.Round(vertex.X * scaleX);
-                long y = (long)Math.Round(vertex.Y * scaleY);
-
-                path.Add(new Point64(x, y));
+                path.Add(new Point64(
+                    (long)Math.Round(vertex.X * scaleX),
+                    (long)Math.Round(vertex.Y * scaleY)));
             }
 
             paths.Add(path);
@@ -49,171 +53,233 @@ public partial class Voronoi
 
         return new GapGeometry(unioned);
     }
-    
+
     private void BuildPointBatch(float size)
     {
-        var vertices = new List<VertexPositionColor>(_points.Length * 6);
-        float half = size * 0.5f;
+        // Worst case: every point survives culling and produces 6 vertices.
+        var vertices = new VertexPositionColor[_points.Length * 6];
+
+        var half = size * 0.5f;
+        var vertexIndex = 0;
+
+        Color color = _pointColor;
 
         foreach (Point point in _points)
         {
             if (ShouldCullBoundarySite(point))
                 continue;
 
-
-            float x = point.X;
-            float y = point.Y;
+            var x = point.X;
+            var y = point.Y;
 
             Vector3 a = new(x - half, y - half, 0f);
             Vector3 b = new(x + half, y - half, 0f);
             Vector3 c = new(x + half, y + half, 0f);
             Vector3 d = new(x - half, y + half, 0f);
 
-            vertices.Add(new VertexPositionColor(a, _pointColor));
-            vertices.Add(new VertexPositionColor(b, _pointColor));
-            vertices.Add(new VertexPositionColor(c, _pointColor));
+            vertices[vertexIndex++] = new VertexPositionColor(a, color);
+            vertices[vertexIndex++] = new VertexPositionColor(b, color);
+            vertices[vertexIndex++] = new VertexPositionColor(c, color);
 
-            vertices.Add(new VertexPositionColor(a, _pointColor));
-            vertices.Add(new VertexPositionColor(c, _pointColor));
-            vertices.Add(new VertexPositionColor(d, _pointColor));
+            vertices[vertexIndex++] = new VertexPositionColor(a, color);
+            vertices[vertexIndex++] = new VertexPositionColor(c, color);
+            vertices[vertexIndex++] = new VertexPositionColor(d, color);
         }
 
-        _pointBatchVertices = vertices.ToArray();
-        _pointBatchPrimitiveCount = _pointBatchVertices.Length / 3;
+        if (vertexIndex != vertices.Length)
+            Array.Resize(ref vertices, vertexIndex);
+
+        _pointBatchVertices = vertices;
+        _pointBatchPrimitiveCount = vertexIndex / 3;
     }
 
-    // ReSharper disable once RedundantAssignment
     private void BuildTriangleBatch(IEnumerable<Triangle> triangulation)
     {
-        var triangles = triangulation as ICollection<Triangle> ?? triangulation.ToList();
-        _triangleBatchVertices = new VertexPositionColor[triangles.Count * 3];
-        int vertexIndex = 0;
-        Random random = Random.Shared;
-        foreach (Triangle triangle in triangles)
+        // Avoid LINQ ToList/Count where possible.
+        int count;
+
+        switch (triangulation)
         {
-            int rgb = random.Next(0x1000000); // 0 … 16 777 215
-            var color = new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 220);
+            case ICollection<Triangle> collection:
+                count = collection.Count;
+                break;
+            case IReadOnlyCollection<Triangle> readOnlyCollection:
+                count = readOnlyCollection.Count;
+                break;
+            default:
+            {
+                // We need materialization for a non-countable enumerable.
+                var list = new List<Triangle>();
 
-            _triangleBatchVertices[vertexIndex++] =
-                new VertexPositionColor(new Vector3(triangle.Vertices[0].X, triangle.Vertices[0].Y, 0f), color);
+                foreach (Triangle triangle in triangulation)
+                    list.Add(triangle);
 
-            _triangleBatchVertices[vertexIndex++] =
-                new VertexPositionColor(new Vector3(triangle.Vertices[1].X, triangle.Vertices[1].Y, 0f), color);
-
-            _triangleBatchVertices[vertexIndex++] =
-                new VertexPositionColor(new Vector3(triangle.Vertices[2].X, triangle.Vertices[2].Y, 0f), color);
+                triangulation = list;
+                count = list.Count;
+                break;
+            }
         }
 
-        _triangleBatchPrimitiveCount = triangles.Count;
-    }
+        var vertices = new VertexPositionColor[count * 3];
 
+        var vertexIndex = 0;
+        Random random = Random.Shared;
+
+        foreach (Triangle triangle in triangulation)
+        {
+            var rgb = random.Next(0x1000000);
+
+            Color color = new(
+                (rgb >> 16) & 0xFF,
+                (rgb >> 8) & 0xFF,
+                rgb & 0xFF,
+                220);
+
+            Point v0 = triangle.Vertices[0];
+            Point v1 = triangle.Vertices[1];
+            Point v2 = triangle.Vertices[2];
+
+            vertices[vertexIndex++] = new VertexPositionColor(
+                new Vector3(v0.X, v0.Y, 0f),
+                color);
+
+            vertices[vertexIndex++] = new VertexPositionColor(
+                new Vector3(v1.X, v1.Y, 0f),
+                color);
+
+            vertices[vertexIndex++] = new VertexPositionColor(
+                new Vector3(v2.X, v2.Y, 0f),
+                color);
+        }
+
+        _triangleBatchVertices = vertices;
+        _triangleBatchPrimitiveCount = count;
+    }
 
     private void BuildEdgeBatch(float thickness)
     {
-        var vertices = new List<VertexPositionColor>(_voronoiEdges.Count * 6);
-        float halfThickness = thickness * 0.5f;
+        var vertices = new VertexPositionColor[_voronoiEdges.Count * 6];
+
+        var halfThickness = thickness * 0.5f;
+
+        var vertexIndex = 0;
+
         foreach (Edge edge in _voronoiEdges)
         {
             Point p1 = edge.Point1;
             Point p2 = edge.Point2;
 
-            Vector2 start = new(p1.X, p1.Y);
-            Vector2 end = new(p2.X, p2.Y);
+            var startX = p1.X;
+            var startY = p1.Y;
+            var endX = p2.X;
+            var endY = p2.Y;
 
-            Vector2 direction = end - start;
-            float lengthSquared = direction.LengthSquared();
+            var dx = endX - startX;
+            var dy = endY - startY;
+
+            var lengthSquared = dx * dx + dy * dy;
 
             if (lengthSquared <= 0.000001f)
                 continue;
 
-            direction *= 1f / MathF.Sqrt(lengthSquared);
+            var inverseLength = 1f / MathF.Sqrt(lengthSquared);
 
-            Vector2 perpendicular = new Vector2(-direction.Y, direction.X) * halfThickness;
-            Vector3 a = new(start + perpendicular, 0f);
-            Vector3 b = new(start - perpendicular, 0f);
-            Vector3 c = new(end - perpendicular, 0f);
-            Vector3 d = new(end + perpendicular, 0f);
+            // Normalized perpendicular.
+            var px = -dy * inverseLength * halfThickness;
+            var py = dx * inverseLength * halfThickness;
 
-            // Two triangles.
-            vertices.Add(new VertexPositionColor(a, _edgeColor));
-            vertices.Add(new VertexPositionColor(b, _edgeColor));
-            vertices.Add(new VertexPositionColor(c, _edgeColor));
+            Vector3 a = new(startX + px, startY + py, 0f);
+            Vector3 b = new(startX - px, startY - py, 0f);
+            Vector3 c = new(endX - px, endY - py, 0f);
+            Vector3 d = new(endX + px, endY + py, 0f);
 
-            vertices.Add(new VertexPositionColor(a, _edgeColor));
-            vertices.Add(new VertexPositionColor(c, _edgeColor));
-            vertices.Add(new VertexPositionColor(d, _edgeColor));
+            vertices[vertexIndex++] = new VertexPositionColor(a, _edgeColor);
+            vertices[vertexIndex++] = new VertexPositionColor(b, _edgeColor);
+            vertices[vertexIndex++] = new VertexPositionColor(c, _edgeColor);
+
+            vertices[vertexIndex++] = new VertexPositionColor(a, _edgeColor);
+            vertices[vertexIndex++] = new VertexPositionColor(c, _edgeColor);
+            vertices[vertexIndex++] = new VertexPositionColor(d, _edgeColor);
         }
 
-        _edgeBatchVertices = vertices.ToArray();
-        _edgeBatchPrimitiveCount = _edgeBatchVertices.Length / 3;
+        if (vertexIndex != vertices.Length)
+            Array.Resize(ref vertices, vertexIndex);
+
+        _edgeBatchVertices = vertices;
+        _edgeBatchPrimitiveCount = vertexIndex / 3;
     }
 
-    private void BuildCellBatch(List<uint> overrideIds, bool ignoreFlatColor = false, (Color cell, Color blank)? @override = null)
+    private Vector3[] _cellGeometry = [];
+    private int[] _cellGeometryOffsets = [];
+    private int[] _cellGeometryCounts = [];
+
+    [SuppressMessage("ReSharper", "SuggestVarOrType_Elsewhere")]
+    private void BuildCellBatch(
+        HashSet<uint> overrideIds,
+        bool ignoreFlatColor = false,
+        (Color cell, Color blank)? @override = null)
     {
-        var overrideSet = @override != null ? overrideIds.ToHashSet() : null;
-        var cells = _voronoiCells.Values.ToArray();
-        var cellVertices = new VertexPositionColor[cells.Length][];
+        int cellCount = _voronoiCellArray.Length;
 
-        Parallel.For(0, cells.Length, i =>
+        if (cellCount == 0)
         {
-            VoronoiCell cell = cells[i];
+            _cellBatchVertices = [];
+            _cellBatchPrimitiveCount = 0;
+            return;
+        }
 
-            if (cell.Vertices.Count < 3 &&
-                (cell.RenderPaths == null ||
-                 cell.RenderPaths.Count == 0))
-            {
-                cellVertices[i] = [];
-                return;
-            }
+        int totalVertices = _cellGeometry.Length;
 
-            int cellIndex = _cellIndices[cell.ID];
+        if (_cellBatchVertices.Length < totalVertices)
+            _cellBatchVertices = new VertexPositionColor[totalVertices];
+
+        bool hasOverride = @override.HasValue;
+
+        Color overrideCell = default;
+        Color overrideBlank = default;
+        if (hasOverride && @override != null)
+            (overrideCell, overrideBlank) = @override.Value;
+
+        VertexPositionColor[] output = _cellBatchVertices;
+        Vector3[] geometry = _cellGeometry;
+        int[] offsets = _cellGeometryOffsets;
+        int[] counts = _cellGeometryCounts;
+        Color[] colors = _cellRawColors;
+        VoronoiCell[] cells = _voronoiCellArray;
+
+        for (int cellIndex = 0; cellIndex < cellCount; cellIndex++)
+        {
+            int count = counts[cellIndex];
+            if (count == 0)
+                continue;
 
             Color color;
 
-            if (@override != null)
+            if (!hasOverride)
             {
-                if (overrideSet!.Contains(cell.ID))
-                    color = @override.Value.cell;
-                else if (!ignoreFlatColor)
-                    color = @override.Value.blank;
-                else
-                    color = _cellRawColors[cellIndex];
+                color = colors[cellIndex];
             }
             else
             {
-                color = _cellRawColors[cellIndex];
+                uint id = cells[cellIndex].ID;
+
+                if (overrideIds.Contains(id))
+                    color = overrideCell;
+                else if (!ignoreFlatColor)
+                    color = overrideBlank;
+                else
+                    color = colors[cellIndex];
             }
 
-            if (cell.RenderPaths == null)
+            int sourceIndex = offsets[cellIndex];
+            int end = sourceIndex + count;
+
+            for (int destinationIndex = sourceIndex; destinationIndex < end; destinationIndex++)
             {
-                cellVertices[i] =
-                    TessellateOriginalCell(
-                        cell.Vertices,
-                        color);
-
-                return;
+                output[destinationIndex] = new VertexPositionColor(geometry[destinationIndex], color);
             }
-
-            if (cell.RenderPaths.Count == 0)
-            {
-                cellVertices[i] = [];
-                return;
-            }
-
-            cellVertices[i] = TessellateClippedCell(cell.RenderPaths, color);
-        });
-
-        int totalVertices = cellVertices.Sum(v => v.Length);
-
-        _cellBatchVertices = new VertexPositionColor[totalVertices];
-
-        int offset = 0;
-        foreach (var vertices in cellVertices)
-        {
-            vertices.CopyTo(_cellBatchVertices, offset);
-            offset += vertices.Length;
         }
 
-        _cellBatchPrimitiveCount = _cellBatchVertices.Length / 3;
+        _cellBatchPrimitiveCount = totalVertices / 3;
     }
 }

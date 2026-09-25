@@ -22,7 +22,7 @@ namespace SKSSL.Utilities.Voronoi;
 /// 3. https://louis-dr.github.io/voronoimap.html<br/>
 /// 4. https://mapbox.github.io/delaunator/
 /// </references>
-public class DelaunayTriangulator : IDisposable
+public partial class DelaunayTriangulator : IDisposable
 {
     private readonly List<Triangle> _allTriangles = [];
     private readonly List<Triangle> _badTriangles = [];
@@ -43,7 +43,7 @@ public class DelaunayTriangulator : IDisposable
 
     private float MaxX { get; set; }
     private float MaxY { get; set; }
-    
+
     #region Algorithm(s)
 
     /// <summary>
@@ -59,10 +59,28 @@ public class DelaunayTriangulator : IDisposable
 
         if (points.Length < 5)
         {
-            throw new ArgumentException(
-                "At least four border points and one interior point are required.",
-                nameof(points));
+            const string e = "At least four border points and one interior point are required.";
+            throw new ArgumentException(e, nameof(points));
         }
+
+        #region DEBUG
+
+        // Verify that there are no duplicated IDs.
+        var pointIds = new HashSet<uint>();
+        for (int i = 0; i < points.Length; i++)
+        {
+            Point point = points[i];
+            if (!pointIds.Add(point.ID))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate Point.ID detected before triangulation.\n" +
+                    $"Index: {i}\n" +
+                    $"ID: {point.ID}\n" +
+                    $"Position: ({point.X}, {point.Y})");
+            }
+        }
+
+        #endregion
 
         _allTriangles.Clear();
         _badTriangles.Clear();
@@ -87,43 +105,20 @@ public class DelaunayTriangulator : IDisposable
         _allTriangles.Add(border0);
         _allTriangles.Add(border1);
 
-        ConnectTriangles(
-            border0,
-            border1,
-            point0,
-            point2);
-
-        point0.AdjacentTriangles.Add(border0);
-        point0.AdjacentTriangles.Add(border1);
-
-        point1.AdjacentTriangles.Add(border0);
-
-        point2.AdjacentTriangles.Add(border0);
-        point2.AdjacentTriangles.Add(border1);
-
-        point3.AdjacentTriangles.Add(border1);
+        ConnectTriangles(border0, border1, point0, point2);
 
         Triangle start = border0;
 
-        /*
-         * The first four points are the bounding rectangle.
-         *
-         * All user/generated points therefore begin at index 4.
-         */
-        for (int pointIndex = 4;
-             pointIndex < points.Length;
-             pointIndex++)
+        // The first four points are the bounding rectangle.
+        // All user/generated points therefore begin at index 4.
+        for (int pointIndex = 4; pointIndex < points.Length; pointIndex++)
         {
             Point point = points[pointIndex];
-
-            if (point.X < 0 ||
-                point.X > MaxX ||
-                point.Y < 0 ||
-                point.Y > MaxY)
+            if (point.X < 0 || point.X > MaxX || point.Y < 0 || point.Y > MaxY)
             {
-                throw new InvalidOperationException(
-                    $"Point {pointIndex} ({point.X}, {point.Y}) is outside " +
-                    $"the triangulation bounds 0..{MaxX}, 0..{MaxY}.");
+                string message = $"Point {pointIndex} ({point.X}, {point.Y}) is outside the " +
+                                 $"triangulation bounds 0..{MaxX}, 0..{MaxY}.";
+                throw new InvalidOperationException(message);
             }
 
             /*
@@ -135,16 +130,12 @@ public class DelaunayTriangulator : IDisposable
              */
             start = FindContainingTriangle(point, start);
 
-            /*
-             * Find all triangles whose circumcircles contain the point.
-             */
+            // Find all triangles whose circumcircles contain the point.
             FindBadTriangles(point, start);
             if (_badTriangles.Count == 0)
                 continue;
 
-            /*
-             * Determine the cavity boundary before destroying its topology.
-             */
+            // Determine the cavity boundary before destroying its topology.
             FindHoleBoundaries();
 
             /*
@@ -154,17 +145,17 @@ public class DelaunayTriangulator : IDisposable
              * are modified.
              */
             foreach (Triangle bad in _badTriangles)
-            {
-                RemoveTriangleTopology(bad);
                 bad.Alive = false;
-            }
+
+            foreach (Triangle bad in _badTriangles)
+                RemoveTriangleTopology(bad);
 
             /*
              * The edge map is local to this cavity.
              */
             _edgeMap.Clear();
 
-            Triangle? firstNewTriangle = null;
+            Triangle? startTriangle = null;
 
             /*
              * Fan new triangles around the inserted point.
@@ -177,13 +168,8 @@ public class DelaunayTriangulator : IDisposable
                 };
 
                 _allTriangles.Add(triangle);
-
                 AddTriangleTopology(triangle);
 
-                /*
-                 * Reconnect this new triangle to the existing triangulation
-                 * across the cavity boundary.
-                 */
                 if (boundary.Outside != null)
                 {
                     int newEdge = triangle.IndexOfEdge(
@@ -191,42 +177,31 @@ public class DelaunayTriangulator : IDisposable
                         boundary.Point2);
 
                     if (newEdge < 0)
-                    {
                         throw new InvalidOperationException(
-                            "Generated triangle does not contain its " +
-                            "cavity boundary edge.");
-                    }
+                            "Generated triangle does not contain its cavity boundary edge.");
 
                     triangle.SetNeighbor(newEdge, boundary.Outside);
                     boundary.Outside.SetNeighbor(boundary.OutsideEdge, triangle);
 
-                    /*
-                     * The boundary edge is no longer open.
-                     */
-                    _edgeMap.Remove(GetEdgeKey(boundary.Point1, boundary.Point2));
+                    _edgeMap.Remove(GetEdgeKey(
+                        boundary.Point1,
+                        boundary.Point2));
                 }
 
-                firstNewTriangle ??= triangle;
+                startTriangle ??= triangle;
             }
+
+#if DEBUG
+            //ValidateTopology(_allTriangles);
+#endif
 
             /*
              * The new triangle is an excellent starting point for the
              * next point-location search.
              */
-            start = firstNewTriangle ?? throw new InvalidOperationException(
+            start = startTriangle ?? throw new InvalidOperationException(
                 $"No replacement triangles were generated for point " +
                 $"{pointIndex} ({point.X}, {point.Y}).");
-
-#if DEBUG
-            /*
-             * Optional expensive validation.
-             *
-             * Keep this disabled in Release builds. The whole point of
-             * the optimized implementation is to avoid rebuilding the
-             * entire topology every iteration.
-             */
-            ValidateLocalTopology(_boundaryEdges);
-#endif
         }
 
         /*
@@ -236,6 +211,7 @@ public class DelaunayTriangulator : IDisposable
         _allTriangles.RemoveAll(static triangle => !triangle.Alive);
         return _allTriangles;
     }
+
 
     /// <summary>
     /// Performs one partial Lloyd relaxation pass.
@@ -267,7 +243,7 @@ public class DelaunayTriangulator : IDisposable
             x /= count;
             y /= count;
 
-            cell.Site = point with { X = (float)Clamp(x, 0.0, MaxX),  Y = (float)Clamp(y, 0.0, MaxY)};
+            cell.Site = point with { X = (float)Clamp(x, 0.0, MaxX), Y = (float)Clamp(y, 0.0, MaxY) };
         }
     }
 
@@ -372,23 +348,22 @@ public class DelaunayTriangulator : IDisposable
     {
         Triangle current = initial;
         int stamp = ++_visitStamp;
+
         while (true)
         {
             if (!current.Alive)
             {
                 throw new InvalidOperationException(
-                    $"FindContainingTriangle reached dead triangle " +
-                    $"{current.Id}.");
+                    $"FindContainingTriangle reached dead triangle {current.Id}.");
             }
 
-            /*
-             * No HashSet allocation is necessary.
-             */
             if (current.VisitStamp == stamp)
             {
                 throw new InvalidOperationException(
-                    $"FindContainingTriangle cycled for Point " +
-                    $"({p.X}, {p.Y}). Triangle = " +
+                    $"FindContainingTriangle cycled.\n" +
+                    $"Point: ({p.X}, {p.Y})\n" +
+                    $"Triangle: {current.Id}\n" +
+                    $"Vertices: " +
                     $"{current.Vertices[0].ID}-" +
                     $"{current.Vertices[1].ID}-" +
                     $"{current.Vertices[2].ID}");
@@ -400,22 +375,103 @@ public class DelaunayTriangulator : IDisposable
             Point b = current.Vertices[1];
             Point c = current.Vertices[2];
 
-            if (Cross(a, b, p) < 0)
-            {
-                current = current.Neighbor0 ?? throw OutsideTriangle(p, current, 0);
-                continue;
-            }
+            double c0 = Cross(a, b, p);
+            double c1 = Cross(b, c, p);
+            double c2 = Cross(c, a, p);
 
-            if (Cross(b, c, p) < 0)
-            {
-                current = current.Neighbor1 ?? throw OutsideTriangle(p, current, 1);
-                continue;
-            }
-
-            if (!(Cross(c, a, p) < 0))
+            // Point is inside (or on) the triangle.
+            if (c0 >= 0 && c1 >= 0 && c2 >= 0)
                 return current;
 
-            current = current.Neighbor2 ?? throw OutsideTriangle(p, current, 2);
+            /*
+             * Triangle centroid.
+             *
+             * For a CCW triangle:
+             * Cross(edge, centroid) = triangle area / 3
+             * for every edge.
+             */
+            double gx = ((double)a.X + b.X + c.X) / 3.0;
+            double gy = ((double)a.Y + b.Y + c.Y) / 3.0;
+
+            double centroidCross =
+                Cross(
+                    a,
+                    b,
+                    new Point((float)gx, (float)gy));
+
+            double bestT = double.PositiveInfinity;
+            int exitEdge = -1;
+
+            if (c0 < 0)
+            {
+                double t = centroidCross / (centroidCross - c0);
+
+                if (t < bestT)
+                {
+                    bestT = t;
+                    exitEdge = 0;
+                }
+            }
+
+            if (c1 < 0)
+            {
+                double edgeCentroidCross =
+                    Cross(
+                        b,
+                        c,
+                        new Point((float)gx, (float)gy));
+
+                double t =
+                    edgeCentroidCross /
+                    (edgeCentroidCross - c1);
+
+                if (t < bestT)
+                {
+                    bestT = t;
+                    exitEdge = 1;
+                }
+            }
+
+            if (c2 < 0)
+            {
+                double edgeCentroidCross =
+                    Cross(
+                        c,
+                        a,
+                        new Point((float)gx, (float)gy));
+
+                double t =
+                    edgeCentroidCross /
+                    (edgeCentroidCross - c2);
+
+                if (t < bestT)
+                {
+                    bestT = t;
+                    exitEdge = 2;
+                }
+            }
+
+            switch (exitEdge)
+            {
+                case 0:
+                    current = current.Neighbor0
+                              ?? throw OutsideTriangle(p, current, 0);
+                    break;
+
+                case 1:
+                    current = current.Neighbor1
+                              ?? throw OutsideTriangle(p, current, 1);
+                    break;
+
+                case 2:
+                    current = current.Neighbor2
+                              ?? throw OutsideTriangle(p, current, 2);
+                    break;
+
+                default:
+                    throw new InvalidOperationException(
+                        $"Unable to determine exit edge for triangle {current.Id}.");
+            }
         }
     }
 
@@ -427,63 +483,6 @@ public class DelaunayTriangulator : IDisposable
     #region Topology
 
     /// <summary>
-    /// Removes a triangle from the local live topology.
-    /// </summary>
-    private static void RemoveTriangleTopology(
-        Triangle triangle)
-    {
-        Triangle? n0 = triangle.Neighbor0;
-        Triangle? n1 = triangle.Neighbor1;
-        Triangle? n2 = triangle.Neighbor2;
-
-        if (n0 != null)
-            RemoveNeighbor(n0, triangle);
-
-        if (n1 != null && n1 != n0)
-            RemoveNeighbor(n1, triangle);
-
-        if (n2 != null && n2 != n0 && n2 != n1)
-            RemoveNeighbor(n2, triangle);
-
-        triangle.Neighbor0 = null;
-        triangle.Neighbor1 = null;
-        triangle.Neighbor2 = null;
-
-        triangle.Vertices[0]
-            .AdjacentTriangles
-            .Remove(triangle);
-
-        triangle.Vertices[1]
-            .AdjacentTriangles
-            .Remove(triangle);
-
-        triangle.Vertices[2]
-            .AdjacentTriangles
-            .Remove(triangle);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void RemoveNeighbor(Triangle triangle, Triangle neighbor)
-    {
-        if (triangle.Neighbor0 == neighbor)
-        {
-            triangle.Neighbor0 = null;
-            return;
-        }
-
-        if (triangle.Neighbor1 == neighbor)
-        {
-            triangle.Neighbor1 = null;
-            return;
-        }
-
-        if (triangle.Neighbor2 == neighbor)
-        {
-            triangle.Neighbor2 = null;
-        }
-    }
-
-    /// <summary>
     /// Adds a newly created triangle to the local topology.
     /// </summary>
     private void AddTriangleTopology(Triangle triangle)
@@ -492,25 +491,12 @@ public class DelaunayTriangulator : IDisposable
         triangle.Neighbor1 = null;
         triangle.Neighbor2 = null;
 
-        triangle.Vertices[0]
-            .AdjacentTriangles
-            .Add(triangle);
-
-        triangle.Vertices[1]
-            .AdjacentTriangles
-            .Add(triangle);
-
-        triangle.Vertices[2]
-            .AdjacentTriangles
-            .Add(triangle);
-
         for (int edge = 0; edge < 3; edge++)
         {
             Point a = GetEdgeA(triangle, edge);
             Point b = GetEdgeB(triangle, edge);
 
             ulong key = GetEdgeKey(a, b);
-
             if (!_edgeMap.TryGetValue(key, out EdgeReference other))
             {
                 _edgeMap.Add(key, new EdgeReference(triangle, edge));
@@ -519,56 +505,22 @@ public class DelaunayTriangulator : IDisposable
 
             Triangle otherTriangle = other.Triangle;
 
-            /*
-             * A dead triangle should never normally be present in this
-             * map, but replacing it makes this routine robust against
-             * accidental stale state.
-             */
+            // A dead triangle should never normally be present in this
+            // map, but replacing it makes this routine robust against
+            // accidental stale state.
             if (!otherTriangle.Alive)
             {
                 _edgeMap[key] = new EdgeReference(triangle, edge);
                 continue;
             }
 
-            /*
-             * Two live triangles share this edge.
-             */
+            // Two live triangles share this edge.
             triangle.SetNeighbor(edge, otherTriangle);
             otherTriangle.SetNeighbor(other.Edge, triangle);
 
-            /*
-             * It is no longer an open edge.
-             */
+            // It is no longer an open edge.
             _edgeMap.Remove(key);
         }
-    }
-
-    // ReSharper disable once UnusedMember.Local
-    private static void ResetTriangle(Triangle triangle)
-    {
-        triangle.Alive = true;
-
-        triangle.VisitStamp = 0;
-        triangle.BadStamp = 0;
-
-        triangle.Neighbor0 = null;
-        triangle.Neighbor1 = null;
-        triangle.Neighbor2 = null;
-    }
-
-    private static void ConnectTriangles(Triangle a, Triangle b, Point p1, Point p2)
-    {
-        int edgeA = a.IndexOfEdge(p1, p2);
-        int edgeB = b.IndexOfEdge(p1, p2);
-
-#if DEBUG
-        if (edgeA < 0 || edgeB < 0)
-            throw new InvalidOperationException(
-                "Triangles do not share the specified edge.");
-#endif
-
-        a.SetNeighbor(edgeA, b);
-        b.SetNeighbor(edgeB, a);
     }
 
     #endregion
@@ -579,33 +531,11 @@ public class DelaunayTriangulator : IDisposable
     {
         MaxX = maxX;
         MaxY = maxY;
-
-        Point point0 = new(0, 0);
-        Point point1 = new(0, maxY);
-        Point point2 = new(maxX, maxY);
-        Point point3 = new(maxX, 0);
-
-        var points = new List<Point>(4)
-        {
-            point0,
-            point1,
-            point2,
-            point3
-        };
-
-        Triangle tri1 = new(point0, point1, point2);
-        Triangle tri2 = new(point0, point2, point3);
-
-        ConnectTriangles(tri1, tri2, point0, point2);
-        return points;
+        return [new Point(0, 0), new Point(0, maxY), new Point(maxX, maxY), new Point(maxX, 0)];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float Cross(Point a, Point b, Point c) => (b.X - a.X) *
-                                                              (c.Y - a.Y)
-                                                              -
-                                                              (b.Y - a.Y) *
-                                                              (c.X - a.X);
+    private static double Cross(Point a, Point b, Point c) => (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
 
     #endregion
 
@@ -666,48 +596,6 @@ public class DelaunayTriangulator : IDisposable
 #if DEBUG
 
     /// <summary>
-    /// Performs a full topology rebuild and compares it against the
-    /// incrementally maintained topology.
-    ///
-    /// This is intentionally DEBUG-only because it defeats the primary
-    /// performance optimization of this implementation.
-    /// </summary>
-    private static void ValidateLocalTopology(List<BoundaryEdge> boundaries)
-    {
-        /*
-         * The optimized algorithm intentionally doesn't perform a global
-         * rebuild here.
-         *
-         * This method is deliberately lightweight. The full
-         * RebuildNeighbors() method below can be called manually when
-         * debugging more serious topology problems.
-         */
-        foreach (BoundaryEdge boundary in boundaries)
-        {
-            if (boundary.Outside == null)
-                continue;
-
-            if (!boundary.Outside.Alive)
-                throw new InvalidOperationException(
-                    "A cavity boundary references a dead triangle.");
-
-            int edge =
-                boundary.Outside.IndexOfEdge(
-                    boundary.Point1,
-                    boundary.Point2);
-
-            if (edge < 0)
-                throw new InvalidOperationException(
-                    "Cavity boundary outside triangle does not contain the expected boundary edge.");
-
-            Triangle? neighbor = GetNeighbor(boundary.Outside, edge);
-
-            if (neighbor is not { Alive: true })
-                throw new InvalidOperationException("Cavity boundary was not reconnected correctly.");
-        }
-    }
-
-    /// <summary>
     /// Full topology rebuild intended for debugging/validation only.
     /// Never call this during normal triangulation.
     /// </summary>
@@ -755,50 +643,6 @@ public class DelaunayTriangulator : IDisposable
     }
 
 #endif
-
-    #endregion
-
-    #region Types
-
-    private readonly struct BoundaryEdge
-    {
-        public readonly Point Point1;
-        public readonly Point Point2;
-
-        /*
-         * Existing triangle on the other side of the cavity.
-         *
-         * Null means the edge is on the outer boundary.
-         */
-        public readonly Triangle? Outside;
-
-        /*
-         * Edge index belonging to Outside.
-         */
-        public readonly int OutsideEdge;
-
-        public BoundaryEdge(Point point1, Point point2, Triangle? outside, int outsideEdge)
-        {
-            Point1 = point1;
-            Point2 = point2;
-            Outside = outside;
-            OutsideEdge = outsideEdge;
-        }
-    }
-
-    private readonly struct EdgeReference
-    {
-        public readonly Triangle Triangle;
-        public readonly int Edge;
-
-        public EdgeReference(
-            Triangle triangle,
-            int edge)
-        {
-            Triangle = triangle;
-            Edge = edge;
-        }
-    }
 
     #endregion
 

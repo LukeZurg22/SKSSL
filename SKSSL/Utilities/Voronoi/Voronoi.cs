@@ -4,8 +4,11 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Clipper2Lib;
+using LibTessDotNet.Double;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi.PointDistributors;
@@ -53,7 +56,7 @@ public partial class Voronoi
     private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
     private readonly Dictionary<Point, VoronoiCell> _voronoiCells = []; // TODO: use an array.
     private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
-    private readonly Dictionary<Point, List<CellVoronoiEdge>> _edgesByCell = [];
+    private List<CellVoronoiEdge>?[] _edgesByCell = [];
 
     //      A graph may become too large, it'll need to be divided into "chunks" / spacial grids.
     private SpatialGrid? _spatialGrid;
@@ -125,6 +128,7 @@ public partial class Voronoi
     //      Replace existing "highlight" terminology with "selected", and then use "highlight" for the literal highlighting.
 
     private DistributorImage? _imageDistributor = null;
+    private VoronoiCell[] _voronoiCellArray = [];
 
     #region Construction & Mono Code
 
@@ -274,6 +278,7 @@ public partial class Voronoi
         var triangulation = delaunay.BowyerWatson(_points);
 
         // Clear old data.
+        _cellsById.Clear();
         _voronoiCells.Clear();
         _voronoiEdges.Clear();
         _usedColors.Clear();
@@ -309,10 +314,12 @@ public partial class Voronoi
         if (_imageDistributor is { AllowBlackGaps: true } dim)
         {
             GapGeometry gapGeometry = BuildGapGeometry(
-                dim.GapMask.Polygons, dim.GapMask.Width, dim.GapMask.Height, _width, _height);
-
+                dim.GapPolygons, dim.GapMask.Width, dim.GapMask.Height, _width, _height);
             ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);
         }
+
+        BuildCellArray();
+        BuildCellGeometry();
 
         // Pre-building for the highlighter. This is here for caching to improve performance during
         // active runtime update calls.
@@ -403,7 +410,6 @@ public partial class Voronoi
                     case VoronoiBoundaryMode.Culled:
                         cell.Vertices.Clear();
                         break;
-
                     case VoronoiBoundaryMode.HardEdgeOpen:
                     default:
                         cell.Vertices = ClipPolygonToBounds(cell.Vertices, _width, _height);
@@ -411,8 +417,8 @@ public partial class Voronoi
                 }
             }
 
-            _cellRawColors[_cellIndices[cell.ID]] =
-                GetCellColor(cell);
+            _cellRawColors[_cellIndices[cell.ID]] = GetCellColor(cell);
+            cell.IsCulled = boundaryMode == VoronoiBoundaryMode.Culled && (cell.IsBoundary || cell.Vertices.Count == 0);
         });
 
         foreach (Triangle triangle in triangulation)
@@ -422,16 +428,12 @@ public partial class Voronoi
 
     private void BuildSpatialGrid()
     {
-        // ReSharper disable once PossibleLossOfFraction
-        int gridSize = Math.Max(10, (int)Math.Sqrt(_voronoiCells.Count / 4));
-
+        int gridSize = Math.Max(10, (int)Math.Sqrt(_voronoiCellArray.Length / 4));
         float cellWidth = (float)_width / gridSize;
         float cellHeight = (float)_height / gridSize;
-
-        var cells = _voronoiCells.Values.ToArray();
+        var cells = _voronoiCellArray;
         var bucketIndices = new int[cells.Length];
 
-        // Determine the bucket for every cell in parallel.
         for (int i = 0; i < cells.Length; i++)
         {
             VoronoiCell cell = cells[i];
@@ -442,40 +444,49 @@ public partial class Voronoi
 
         int bucketCount = gridSize * gridSize;
         var buckets = new List<VoronoiCell>[bucketCount];
+
         for (int i = 0; i < bucketCount; i++)
             buckets[i] = [];
 
-        // Populate buckets after all parallel work has completed.
         for (int i = 0; i < cells.Length; i++)
             buckets[bucketIndices[i]].Add(cells[i]);
 
-        // Publish the completed grid as one atomic-ish snapshot.
         _spatialGrid = new SpatialGrid(buckets, gridSize, cellWidth, cellHeight);
     }
 
     private void BuildEdgesByCell()
     {
-        _edgesByCell.Clear();
+        long maxSiteId = -1;
+        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
+        {
+            maxSiteId = Math.Max(maxSiteId, edge.SiteA.ID);
+            if (edge.SiteB.HasValue)
+                maxSiteId = Math.Max(maxSiteId, edge.SiteB.Value.ID);
+        }
+
+        if (_edgesByCell.Length != maxSiteId + 1)
+            _edgesByCell = new List<CellVoronoiEdge>?[maxSiteId + 1];
+        else Array.Clear(_edgesByCell);
 
         foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
         {
-            if (!_edgesByCell.TryGetValue(edge.SiteA, out var edgesA))
+            var edgesA = _edgesByCell[edge.SiteA.ID];
+            if (edgesA == null)
             {
                 edgesA = [];
-                _edgesByCell.Add(edge.SiteA, edgesA);
+                _edgesByCell[edge.SiteA.ID] = edgesA;
             }
 
             edgesA.Add(edge);
-
             if (!edge.SiteB.HasValue)
                 continue;
 
             Point siteB = edge.SiteB.Value;
-
-            if (!_edgesByCell.TryGetValue(siteB, out var edgesB))
+            var edgesB = _edgesByCell[siteB.ID];
+            if (edgesB == null)
             {
                 edgesB = [];
-                _edgesByCell.Add(siteB, edgesB);
+                _edgesByCell[siteB.ID] = edgesB;
             }
 
             edgesB.Add(edge);
@@ -583,16 +594,7 @@ public partial class Voronoi
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
     public bool TryGetCell(uint cellID, [NotNullWhen(true)] out VoronoiCell? cell)
-    {
-        if (cellID >= _cellsById.Count)
-        {
-            cell = null;
-            return false;
-        }
-
-        cell = _cellsById[cellID];
-        return true;
-    }
+        => _cellsById.TryGetValue(cellID, out cell);
 
     /// <summary>
     /// Attempt to get a cell at a provided screen position.
@@ -696,12 +698,9 @@ public partial class Voronoi
     {
         uint packedColor = color.PackedValue;
         _highlightedCellIds.Clear();
-        foreach (var pair in _cellIndices)
-        {
-            if (_cellRawColors[pair.Value].PackedValue == packedColor)
-                _highlightedCellIds.Add(pair.Key);
-        }
-
+        for (int i = 0; i < _voronoiCellArray.Length; i++)
+            if (_cellRawColors[i].PackedValue == packedColor)
+                _highlightedCellIds.Add(_voronoiCellArray[i].ID);
         RebuildCellSelectBorderBatch(color, thickness);
     }
 
@@ -715,14 +714,9 @@ public partial class Voronoi
 
         _highlightedCellIds.Clear();
 
-        foreach (KeyValuePair<uint, int> pair in _cellIndices)
-        {
-            if (packedColors.Contains(
-                    _cellRawColors[pair.Value].PackedValue))
-            {
-                _highlightedCellIds.Add(pair.Key);
-            }
-        }
+        for (int i = 0; i < _voronoiCellArray.Length; i++)
+            if (packedColors.Contains(_cellRawColors[i].PackedValue))
+                _highlightedCellIds.Add(_voronoiCellArray[i].ID);
 
         RebuildCellSelectBorderBatch(highlightColor, thickness);
     }
@@ -732,6 +726,8 @@ public partial class Voronoi
         _highlightedCellIds.Clear();
         ClearHighlightBatch();
     }
+
+    private VertexPositionColor[] _highlightScratch = [];
 
     private void RebuildCellSelectBorderBatch(
         Color color,
@@ -756,9 +752,7 @@ public partial class Voronoi
          *     selected <-> unselected = boundary, draw
          *     selected <-> outside    = boundary, draw
          */
-        var vertices =
-            new List<VertexPositionColor>(
-                _highlightedCellIds.Count * 18);
+        var vertices = new List<VertexPositionColor>(_highlightedCellIds.Count * 18);
 
         foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
         {
@@ -783,6 +777,166 @@ public partial class Voronoi
         _highlightBatchVertices = vertices.ToArray();
         _highlightBatchPrimitiveCount =
             _highlightBatchVertices.Length / 3;
+    }
+
+    private void BuildCellGeometry()
+    {
+        int cellCount = _voronoiCellArray.Length;
+
+        if (cellCount == 0)
+        {
+            _cellGeometry = [];
+            _cellGeometryOffsets = [];
+            _cellGeometryCounts = [];
+            return;
+        }
+
+        var geometries = new Vector3[cellCount][];
+        var counts = new int[cellCount];
+
+        Parallel.For(
+            0,
+            cellCount,
+            i =>
+            {
+                VoronoiCell cell = _voronoiCellArray[i];
+
+                Vector3[] geometry;
+
+                if (cell.Vertices.Count < 3 &&
+                    (cell.RenderPaths == null || cell.RenderPaths.Count == 0))
+                {
+                    geometry = [];
+                }
+                else if (cell.RenderPaths == null)
+                {
+                    geometry = TessellateOriginalCellPositions(cell.Vertices);
+                }
+                else if (cell.RenderPaths.Count == 0)
+                {
+                    geometry = [];
+                }
+                else
+                {
+                    geometry = TessellateClippedCellPositions(cell.RenderPaths);
+                }
+
+                geometries[i] = geometry;
+                counts[i] = geometry.Length;
+            });
+
+        var offsets = new int[cellCount];
+
+        int total = 0;
+
+        for (int i = 0; i < cellCount; i++)
+        {
+            offsets[i] = total;
+            total += counts[i];
+        }
+
+        var geometryBuffer = new Vector3[total];
+
+        for (int i = 0; i < cellCount; i++)
+        {
+            Vector3[] source = geometries[i];
+
+            if (source.Length == 0)
+                continue;
+
+            source.AsSpan().CopyTo(
+                geometryBuffer.AsSpan(offsets[i]));
+        }
+
+        _cellGeometry = geometryBuffer;
+        _cellGeometryOffsets = offsets;
+        _cellGeometryCounts = counts;
+    }
+
+    private void BuildCellArray()
+    {
+        int count = _cellIndices.Count;
+
+        if (_voronoiCellArray.Length != count)
+            _voronoiCellArray = new VoronoiCell[count];
+
+        foreach (VoronoiCell cell in _voronoiCells.Values)
+            _voronoiCellArray[_cellIndices[cell.ID]] = cell;
+    }
+
+    private static Vector3[] TessellateOriginalCellPositions(List<Point> vertices)
+    {
+        int count = vertices.Count;
+        if (count < 3)
+            return [];
+
+        var result = new Vector3[(count - 2) * 3];
+        ReadOnlySpan<Point> points = CollectionsMarshal.AsSpan(vertices);
+        Point origin = points[0];
+        Vector3 originPosition = new(origin.X, origin.Y, 0f);
+        int index = 0;
+        for (int i = 1; i < count - 1; i++)
+        {
+            Point b = points[i];
+            Point c = points[i + 1];
+            result[index++] = originPosition;
+            result[index++] = new Vector3(b.X, b.Y, 0f);
+            result[index++] = new Vector3(c.X, c.Y, 0f);
+        }
+
+        return result;
+    }
+
+    private static Vector3[] TessellateClippedCellPositions(Paths64 paths)
+    {
+        if (paths.Count == 0)
+            return [];
+
+        var tess = new Tess();
+
+        foreach (Path64 path in paths)
+        {
+            if (path.Count < 3)
+                continue;
+
+            var contour = new ContourVertex[path.Count];
+
+            for (int i = 0; i < path.Count; i++)
+            {
+                Point64 point = path[i];
+
+                contour[i].Position =
+                    new Vec3(point.X, point.Y, 0.0);
+            }
+
+            tess.AddContour(contour);
+        }
+
+        tess.Tessellate();
+
+        if (tess.ElementCount == 0)
+            return [];
+
+        var result = new Vector3[tess.ElementCount * 3];
+
+        for (int i = 0; i < tess.ElementCount; i++)
+        {
+            int elementIndex = i * 3;
+
+            result[elementIndex] =
+                ToVector3(tess.Vertices[tess.Elements[elementIndex]].Position);
+
+            result[elementIndex + 1] =
+                ToVector3(tess.Vertices[tess.Elements[elementIndex + 1]].Position);
+
+            result[elementIndex + 2] =
+                ToVector3(tess.Vertices[tess.Elements[elementIndex + 2]].Position);
+        }
+
+        return result;
+
+        static Vector3 ToVector3(Vec3 p) =>
+            new((float)p.X, (float)p.Y, 0f);
     }
 
     private void ClearHighlightBatch()
@@ -863,7 +1017,7 @@ public partial class Voronoi
 
     #region Cell Coloring
 
-    private readonly List<uint> _markedCells = new(DefaultPointCount);
+    private readonly HashSet<uint> _markedCells = [];
 
     /// <summary>
     /// Using a position on a Voronoi diagram, attempts to get a cell and add it to a marked-cells list. 
@@ -885,10 +1039,7 @@ public partial class Voronoi
     // ReSharper disable once UnusedMember.Global
     public void MarkCell(uint cell)
     {
-        if (!_cellIndices.ContainsKey(cell))
-            return;
-
-        if (!_markedCells.Contains(cell))
+        if (_cellsById.ContainsKey(cell))
             _markedCells.Add(cell);
     }
 
@@ -915,13 +1066,31 @@ public partial class Voronoi
     /// <summary>
     /// Sets all cells to a single color, which defaults to a provided/default flat color.
     /// </summary>
-    public void FlattenAllCells(Color? color = null)
+    // ReSharper disable once UnusedMember.Global
+    public void ChangeAllCellColors(Color? color = null)
     {
+        if (!_isGenerated)
+            return;
+
         color ??= _flatColor;
-        ClearMarkedCells();
-        for (int i = 0; i < _points.Length; i++)
-            MarkCell((uint)i);
-        ColorMarkedCells(color.Value);
+        BuildUniformCellBatch();
+        UpdateTexture(_previousBoundaryMode, _previousFlags, _previousThickness, _previousPointSize, true);
+        return;
+
+        void BuildUniformCellBatch()
+        {
+            int count = _cellGeometry.Length;
+
+            if (_cellBatchVertices.Length < count)
+                _cellBatchVertices = new VertexPositionColor[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                _cellBatchVertices[i] = new VertexPositionColor(_cellGeometry[i], color.Value);
+            }
+
+            _cellBatchPrimitiveCount = count / 3;
+        }
     }
 
     /// <summary>
@@ -931,7 +1100,7 @@ public partial class Voronoi
     /// <param name="color"></param>
     /// <param name="blankColor"></param>
     /// <param name="ignoreFlatColor"></param>
-    private void ChangeCellColors(List<uint> idsAffected, Color color, Color blankColor, bool ignoreFlatColor)
+    private void ChangeCellColors(HashSet<uint> idsAffected, Color color, Color blankColor, bool ignoreFlatColor)
     {
         if (!_isGenerated)
             return;
@@ -1104,8 +1273,19 @@ public partial class Voronoi
         _voronoiCells.Clear();
         _voronoiEdges.Clear();
         _cellVoronoiEdges.Clear();
-        _edgesByCell.Clear();
+        Array.Clear(_edgesByCell);
+        _cellIndices.Clear();
+        _cellsById.Clear();
 
+        foreach (VoronoiCell cell in _voronoiCells.Values)
+        {
+            _cellIndices[cell.ID] = _cellIndices.Count;
+            _cellsById[cell.ID] = cell;
+        }
+
+        BuildCellArray();
+        BuildCellGeometry();
+        
         foreach (CellData savedCell in data.Cells)
         {
             Point site = pointLookup[(savedCell.X, savedCell.Y)];
@@ -1171,6 +1351,8 @@ public partial class Voronoi
         _boundaryMode == VoronoiBoundaryMode.Culled &&
         _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
         (cell.IsBoundary || cell.Vertices.Count == 0);
+
+    private static bool ShouldCullCell(VoronoiCell cell) => cell.IsCulled;
 
     private bool ClipLineToBounds(Point p1, Point p2, out Point clipped1, out Point clipped2)
     {

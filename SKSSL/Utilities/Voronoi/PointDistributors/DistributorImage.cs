@@ -371,7 +371,7 @@ public class DistributorImageSettings
     public double DensityIntensity = defaultIntensity;
     public double CenterCellSizeFactor = defaultMinSpacingFactor;
     public double EdgeCellSizeFactor = defaultMaxSpacingFactor;
-    public bool AllowBlackGaps = true;
+    public bool AllowBlackGaps = false;
 }
 
 public sealed class GapPolygon
@@ -397,11 +397,7 @@ public sealed class VoronoiGapMask
     /// </summary>
     public IReadOnlyList<GapPolygon> Polygons { get; }
 
-    public VoronoiGapMask(
-        byte[] pixels,
-        int width,
-        int height,
-        int smoothingIterations = 2)
+    public VoronoiGapMask(byte[] pixels, int width, int height, int smoothingIterations = 2)
     {
         ArgumentNullException.ThrowIfNull(pixels);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
@@ -429,7 +425,7 @@ public sealed class VoronoiGapMask
         Polygons = BuildPolygons(smoothingIterations);
     }
 
-    internal bool IsGap(int x, int y) => (uint)x < (uint)Width && (uint)y < (uint)Height && _mask[y * Width + x];
+    private bool IsGap(int x, int y) => (uint)x < (uint)Width && (uint)y < (uint)Height && _mask[y * Width + x];
 
     #region Polygon Extraction
 

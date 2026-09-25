@@ -195,6 +195,21 @@
         <Compile Update="Utilities\Voronoi\VoronoiUtilities.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Voronoi\DelaunayTriangulator.BoundaryEdge.cs">
+          <DependentUpon>Delaunay.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi.ColorMode.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi.VoronoiBoundaryMode.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi.VoronoiRenderingFlags.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\DelaunayTriangulator.EdgeReference.cs">
+          <DependentUpon>Delaunay.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>
