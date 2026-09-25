@@ -6,11 +6,11 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Clipper2Lib;
-using LibTessDotNet.Double;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi.PointDistributors;
+
+// ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -36,7 +36,7 @@ namespace SKSSL.Utilities.Voronoi;
 /// 3. https://louis-dr.github.io/voronoimap.html<br/>
 /// 4. https://mapbox.github.io/delaunator/
 /// </references>
-public class Voronoi
+public partial class Voronoi
 {
     // I/O and Seeding
     private readonly GraphicsDevice _graphicsDevice;
@@ -98,7 +98,8 @@ public class Voronoi
 
     private Texture2D? _highlightMask;
     private Color _highlightColor = Color.Yellow;
-    
+    private readonly Dictionary<uint, VoronoiCell> _cellsById = [];
+
     // TODO: Support constrained and density-driven Voronoi generation.
     //  .
     //  1. Explicit boundaries
@@ -307,16 +308,10 @@ public class Voronoi
         // Separate from Vertices list.
         if (_imageDistributor is { AllowBlackGaps: true } dim)
         {
-            GapGeometry gapGeometry =
-                BuildGapGeometry(
-                    dim.GapMask.Polygons,
-                    dim.GapMask.Width,
-                    dim.GapMask.Height,
-                    _width,
-                    _height);
+            GapGeometry gapGeometry = BuildGapGeometry(
+                dim.GapMask.Polygons, dim.GapMask.Width, dim.GapMask.Height, _width, _height);
 
             ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);
-            //ClipVoronoiEdgesAgainstGaps(gapGeometry.Paths);
         }
 
         // Pre-building for the highlighter. This is here for caching to improve performance during
@@ -360,6 +355,7 @@ public class Voronoi
                     {
                         cell = new VoronoiCell(site, []);
                         _voronoiCells.Add(site, cell);
+                        _cellsById.Add(site.ID, cell);
                     }
 
                     cell.Vertices.Add(triangle.Circumcenter);
@@ -387,131 +383,6 @@ public class Voronoi
         }
     }
 
-    private static GapGeometry BuildGapGeometry(
-        IReadOnlyList<GapPolygon> polygons,
-        int sourceWidth, int sourceHeight,
-        int targetWidth, int targetHeight)
-    {
-        if (polygons.Count == 0)
-            return new GapGeometry([]);
-
-        double scaleX = (double)targetWidth / sourceWidth;
-        double scaleY = (double)targetHeight / sourceHeight;
-
-        var paths = new Paths64(polygons.Count);
-
-        foreach (GapPolygon polygon in polygons)
-        {
-            if (polygon.Vertices.Count < 3)
-                continue;
-
-            var path = new Path64(polygon.Vertices.Count);
-
-            foreach (Vector2 vertex in polygon.Vertices)
-            {
-                long x = (long)Math.Round(vertex.X * scaleX);
-                long y = (long)Math.Round(vertex.Y * scaleY);
-
-                path.Add(new Point64(x, y));
-            }
-
-            paths.Add(path);
-        }
-
-        if (paths.Count == 0)
-            return new GapGeometry([]);
-
-        Paths64 unioned = Clipper.Union(paths, FillRule.EvenOdd);
-
-        return new GapGeometry(unioned);
-    }
-
-    private void ClipVoronoiEdgesAgainstGaps(Paths64 gapGeometry)
-    {
-        if (gapGeometry.Count == 0 || _voronoiEdges.Count == 0)
-            return;
-
-        var clippedEdges = new List<Edge>();
-
-        foreach (Edge edge in _voronoiEdges)
-        {
-            Point a = edge.Point1;
-            Point b = edge.Point2;
-
-            double dx = b.X - a.X;
-            double dy = b.Y - a.Y;
-
-            double length = Math.Sqrt(dx * dx + dy * dy);
-
-            if (length <= double.Epsilon)
-                continue;
-
-            // Small width used to turn the line into a polygon.
-            const double halfWidth = 0.5;
-
-            double nx = -dy / length * halfWidth;
-            double ny = dx / length * halfWidth;
-
-            var subject = new Path64
-            {
-                new Point64((long)Math.Round(a.X + nx), (long)Math.Round(a.Y + ny)),
-                new Point64((long)Math.Round(b.X + nx), (long)Math.Round(b.Y + ny)),
-                new Point64((long)Math.Round(b.X - nx), (long)Math.Round(b.Y - ny)),
-                new Point64((long)Math.Round(a.X - nx), (long)Math.Round(a.Y - ny))
-            };
-
-            Paths64 result = Clipper.Difference([subject], gapGeometry, FillRule.EvenOdd);
-            foreach (Path64 path in result)
-            {
-                if (path.Count < 2)
-                    continue;
-
-                // Recover the approximate center line.
-                //
-                // This part depends on exactly how your Edge type is
-                // represented, so don't blindly use this implementation
-                // without adapting it to Edge.
-            }
-        }
-
-        _voronoiEdges.Clear();
-        _voronoiEdges.AddRange(clippedEdges);
-    }
-
-    private static void ClipCellsAgainstGaps(GapGeometry gaps, IEnumerable<VoronoiCell> cells)
-    {
-        foreach (VoronoiCell cell in cells)
-        {
-            cell.RenderPaths = null;
-
-            if (cell.Vertices.Count < 3)
-            {
-                cell.RenderPaths = [];
-                continue;
-            }
-
-            if (gaps.Paths.Count == 0)
-                continue;
-
-            Path64 subject = ToPath(cell.Vertices);
-
-            Paths64 result =
-                Clipper.Difference(
-                    [subject],
-                    gaps.Paths,
-                    FillRule.NonZero);
-
-            cell.RenderPaths = result;
-        }
-    }
-
-    private static Path64 ToPath(List<Point> polygon)
-    {
-        var path = new Path64(polygon.Count);
-        path.AddRange(polygon.Select(point => new Point64(point.X, point.Y)));
-        return path;
-    }
-
     /// Prepares the original cells before any special culling or other operations.
     private void ProcessCells(VoronoiBoundaryMode boundaryMode, List<Triangle> triangulation)
     {
@@ -522,18 +393,7 @@ public class Voronoi
                 .Distinct()
                 .ToList();
 
-            cell.Vertices.Sort((a, b) =>
-            {
-                double aa = Math.Atan2(
-                    a.Y - cell.Site.Y,
-                    a.X - cell.Site.X);
-
-                double ab = Math.Atan2(
-                    b.Y - cell.Site.Y,
-                    b.X - cell.Site.X);
-
-                return aa.CompareTo(ab);
-            });
+            SortVerticesAround(cell.Vertices, cell.Site);
 
             bool touchesOutside = cell.Vertices.Any(v => v.X < 0 || v.X > _width || v.Y < 0 || v.Y > _height);
             if (touchesOutside)
@@ -572,13 +432,13 @@ public class Voronoi
         var bucketIndices = new int[cells.Length];
 
         // Determine the bucket for every cell in parallel.
-        Parallel.For(0, cells.Length, i =>
+        for (int i = 0; i < cells.Length; i++)
         {
             VoronoiCell cell = cells[i];
             int x = Math.Clamp((int)(cell.Site.X / cellWidth), 0, gridSize - 1);
             int y = Math.Clamp((int)(cell.Site.Y / cellHeight), 0, gridSize - 1);
             bucketIndices[i] = y * gridSize + x;
-        });
+        }
 
         int bucketCount = gridSize * gridSize;
         var buckets = new List<VoronoiCell>[bucketCount];
@@ -621,7 +481,6 @@ public class Voronoi
             edgesB.Add(edge);
         }
     }
-
 
     /// <summary>
     /// Gets the voronoi object's rasterized texture, or creates one.
@@ -725,19 +584,14 @@ public class Voronoi
     // ReSharper disable once UnusedMember.Global
     public bool TryGetCell(uint cellID, [NotNullWhen(true)] out VoronoiCell? cell)
     {
-        // If VoronoiCell IDs correspond directly to the arrays, an array would be preferable to a dictionary.
-        cell = null;
-
-        foreach (VoronoiCell candidate in _voronoiCells.Values)
+        if (cellID >= _cellsById.Count)
         {
-            if (candidate.ID != cellID)
-                continue;
-
-            cell = candidate;
-            return true;
+            cell = null;
+            return false;
         }
 
-        return false;
+        cell = _cellsById[cellID];
+        return true;
     }
 
     /// <summary>
@@ -748,31 +602,20 @@ public class Voronoi
     /// <returns>True if found cell, false if not. Out will be null if false.</returns>
     /// <remarks>May cause lag at immense diagram sizes, mostly around 50k and beyond.</remarks>
     // ReSharper disable once UnusedMethodReturnValue.Global
-    public bool TryGetCellAt(
-        System.Drawing.Point position,
-        [NotNullWhen(true)] out VoronoiCell? cell)
+    public bool TryGetCellAt(System.Drawing.Point position, [NotNullWhen(true)] out VoronoiCell? cell)
     {
         cell = null;
 
         SpatialGrid? grid = _spatialGrid;
 
-        if (grid == null ||
-            grid.Buckets.Length == 0)
+        if (grid == null || grid.Buckets.Length == 0)
         {
             return false;
         }
 
-        int gridX =
-            Math.Clamp(
-                (int)(position.X / grid.CellWidth),
-                0,
-                grid.Size - 1);
-
+        int gridX = Math.Clamp((int)(position.X / grid.CellWidth), 0, grid.Size - 1);
         int gridY =
-            Math.Clamp(
-                (int)(position.Y / grid.CellHeight),
-                0,
-                grid.Size - 1);
+            Math.Clamp((int)(position.Y / grid.CellHeight), 0, grid.Size - 1);
 
         /*
          * Only cells in neighboring spatial buckets need
@@ -788,21 +631,14 @@ public class Voronoi
                 if (x < 0 || x >= grid.Size)
                     continue;
 
-                List<VoronoiCell> bucket =
-                    grid.Buckets[y * grid.Size + x];
-
+                var bucket = grid.Buckets[y * grid.Size + x];
                 foreach (VoronoiCell candidate in bucket)
                 {
                     if (ShouldCullBoundarySite(candidate.Site))
                         continue;
 
-                    if (!IsPointInsideCell(
-                            candidate,
-                            position.X,
-                            position.Y))
-                    {
+                    if (!IsPointInsideCell(candidate, position.X, position.Y))
                         continue;
-                    }
 
                     cell = candidate;
                     return true;
@@ -813,150 +649,13 @@ public class Voronoi
         return false;
     }
 
-    private static bool IsPointInsideCell(
-        VoronoiCell cell,
-        int x,
-        int y)
-    {
-        /*
-         * If the cell has been gap-clipped, test the clipped
-         * geometry instead of the original Voronoi polygon.
-         */
-        if (cell.RenderPaths is { Count: > 0 } paths)
-        {
-            bool inside = false;
-
-            foreach (Path64 path in paths)
-            {
-                if (path.Count < 3)
-                    continue;
-
-                if (PointInPolygon(path, x, y))
-                    inside = !inside;
-            }
-
-            return inside;
-        }
-
-        if (cell.Vertices.Count < 3)
-            return false;
-
-        return PointInPolygon(cell.Vertices, x, y);
-    }
-
-    private static bool PointInPolygon(
-        IReadOnlyList<Point> polygon,
-        double x,
-        double y)
-    {
-        bool inside = false;
-
-        int count = polygon.Count;
-
-        for (int i = 0, j = count - 1;
-             i < count;
-             j = i++)
-        {
-            Point a = polygon[i];
-            Point b = polygon[j];
-
-            /*
-             * Boundary test first so clicking directly on an edge
-             * still counts as being inside the cell.
-             */
-            if (PointOnSegment(
-                    a.X,
-                    a.Y,
-                    b.X,
-                    b.Y,
-                    x,
-                    y))
-            {
-                return true;
-            }
-
-            bool crosses =
-                a.Y > y != b.Y > y &&
-                x <
-                (b.X - a.X) *
-                (y - a.Y) /
-                (b.Y - a.Y) +
-                a.X;
-
-            if (crosses)
-                inside = !inside;
-        }
-
-        return inside;
-    }
-
-    private static bool PointInPolygon(
-        Path64 polygon,
-        double x,
-        double y)
-    {
-        bool inside = false;
-
-        int count = polygon.Count;
-
-        for (int i = 0, j = count - 1;
-             i < count;
-             j = i++)
-        {
-            Point64 a = polygon[i];
-            Point64 b = polygon[j];
-
-            if (PointOnSegment(
-                    a.X,
-                    a.Y,
-                    b.X,
-                    b.Y,
-                    x,
-                    y))
-            {
-                return true;
-            }
-
-            bool crosses = a.Y > y != b.Y > y && x < (b.X - a.X) * (y - a.Y) / (b.Y - a.Y) + a.X;
-            if (crosses)
-                inside = !inside;
-        }
-
-        return inside;
-    }
-
-    private static bool PointOnSegment(
-        double ax,
-        double ay,
-        double bx,
-        double by,
-        double px,
-        double py)
-    {
-        double cross =
-            (px - ax) * (by - ay) -
-            (py - ay) * (bx - ax);
-
-        if (Math.Abs(cross) > 0.000001)
-            return false;
-
-        return
-            px >= Math.Min(ax, bx) &&
-            px <= Math.Max(ax, bx) &&
-            py >= Math.Min(ay, by) &&
-            py <= Math.Max(ay, by);
-    }
-
     #endregion
 
     #region Cell Highlighting
 
     private readonly HashSet<uint> _highlightedCellIds = [];
 
-    public void SetHighlightedCells(
-        IEnumerable<VoronoiCell> cells,
-        Color color,
-        float thickness = 1f)
+    public void SetHighlightedCells(IEnumerable<VoronoiCell> cells, Color color, float thickness = 1f)
     {
         ArgumentNullException.ThrowIfNull(cells);
 
@@ -970,7 +669,7 @@ public class Voronoi
             _highlightedCellIds.Add(cell.ID);
         }
 
-        RebuildHighlightBatch(color, thickness);
+        RebuildCellSelectBorderBatch(color, thickness);
     }
 
     public void SetHighlightedCell(uint cellId, Color color, float thickness = 1f)
@@ -982,7 +681,7 @@ public class Voronoi
             return;
         }
 
-        if (_voronoiCells.Values.Any(cell => cell.ID == cellId && ShouldCullBoundarySite(cell.Site)))
+        if (_cellsById.TryGetValue(cellId, out VoronoiCell? cell) && ShouldCullBoundarySite(cell.Site))
         {
             ClearHighlightBatch();
             return;
@@ -990,7 +689,7 @@ public class Voronoi
 
         _highlightedCellIds.Add(cellId);
 
-        RebuildHighlightBatch(color, thickness);
+        RebuildCellSelectBorderBatch(color, thickness);
     }
 
     public void SetHighlightedColor(Color color, float thickness = 1f)
@@ -1003,13 +702,10 @@ public class Voronoi
                 _highlightedCellIds.Add(pair.Key);
         }
 
-        RebuildHighlightBatch(color, thickness);
+        RebuildCellSelectBorderBatch(color, thickness);
     }
 
-    public void SetHighlightedColors(
-        IEnumerable<Color> colors,
-        Color highlightColor,
-        float thickness = 1f)
+    public void SetHighlightedColors(IEnumerable<Color> colors, Color highlightColor, float thickness = 1f)
     {
         ArgumentNullException.ThrowIfNull(colors);
 
@@ -1028,7 +724,7 @@ public class Voronoi
             }
         }
 
-        RebuildHighlightBatch(highlightColor, thickness);
+        RebuildCellSelectBorderBatch(highlightColor, thickness);
     }
 
     public void ClearHighlightedCells()
@@ -1037,7 +733,7 @@ public class Voronoi
         ClearHighlightBatch();
     }
 
-    private void RebuildHighlightBatch(
+    private void RebuildCellSelectBorderBatch(
         Color color,
         float thickness)
     {
@@ -1242,7 +938,7 @@ public class Voronoi
 
         // Rebuild french cell batch with colors provided. Internal logic will handle the way they are colored,
         //  and outside of this function they are handled as if no ids were affected.
-        BuildCellBatch(idsAffected, (color, blankColor), ignoreFlatColor);
+        BuildCellBatch(idsAffected, ignoreFlatColor, (color, blankColor));
         UpdateTexture(
             _previousBoundaryMode,
             _previousFlags,
@@ -1748,614 +1444,5 @@ public class Voronoi
         return start != end;
     }
 
-    private static bool ClipRayAxis(
-        float origin,
-        float direction,
-        float min,
-        float max,
-        ref float tMin,
-        ref float tMax)
-    {
-        // Ray is parallel to this axis.
-        if (Math.Abs(direction) < 0.000001f)
-            return origin >= min && origin <= max;
-
-        float t1 = (min - origin) / direction;
-        float t2 = (max - origin) / direction;
-        if (t1 > t2)
-            (t1, t2) = (t2, t1);
-
-        tMin = Math.Max(tMin, t1);
-        tMax = Math.Min(tMax, t2);
-
-        return tMin <= tMax;
-    }
-
-    private static List<Point> ClipPolygonToBounds(List<Point> polygon, int width, int height)
-    {
-        if (polygon.Count < 3)
-            return [];
-
-        var result = polygon;
-
-        result = ClipPolygon(
-            result,
-            p => p.X >= 0,
-            (a, b) => IntersectVertical(a, b, 0));
-
-        result = ClipPolygon(
-            result,
-            p => p.X <= width,
-            (a, b) => IntersectVertical(a, b, width));
-
-        result = ClipPolygon(
-            result,
-            p => p.Y >= 0,
-            (a, b) => IntersectHorizontal(a, b, 0));
-
-        result = ClipPolygon(
-            result,
-            p => p.Y <= height,
-            (a, b) => IntersectHorizontal(a, b, height));
-
-        return result;
-    }
-
-    private static List<Point> ClipPolygon(
-        List<Point> polygon,
-        Func<Point, bool> inside,
-        Func<Point, Point, Point> intersection)
-    {
-        if (polygon.Count == 0)
-            return [];
-
-        var result = new List<Point>();
-
-        Point previous = polygon[^1];
-        bool previousInside = inside(previous);
-
-        foreach (Point current in polygon)
-        {
-            bool currentInside = inside(current);
-
-            if (currentInside)
-            {
-                if (!previousInside)
-                    result.Add(intersection(previous, current));
-
-                result.Add(current);
-            }
-            else if (previousInside)
-            {
-                result.Add(intersection(previous, current));
-            }
-
-            previous = current;
-            previousInside = currentInside;
-        }
-
-        return result
-            .Distinct()
-            .ToList();
-    }
-
-    private static Point IntersectVertical(
-        Point a,
-        Point b,
-        float x)
-    {
-        var dx = b.X - a.X;
-
-        if (Math.Abs(dx) < 0.000001f)
-            return new Point(
-                (int)Math.Round(x),
-                a.Y);
-
-        var t = (x - a.X) / dx;
-        var y = a.Y + (b.Y - a.Y) * t;
-
-        return new Point((int)Math.Round(x), (int)Math.Round(y));
-    }
-
-    private static Point IntersectHorizontal(Point a, Point b, float y)
-    {
-        var dy = b.Y - a.Y;
-        if (Math.Abs(dy) < 0.000001f)
-            return new Point(a.X, (int)Math.Round(y));
-
-        var t = (y - a.Y) / dy;
-        var x = a.X + (b.X - a.X) * t;
-
-        return new Point((int)Math.Round(x), (int)Math.Round(y));
-    }
-
-    private void DrawTriangleBatch()
-    {
-        if (_triangleBatchPrimitiveCount == 0)
-            return;
-
-        BlendState previousBlendState = _graphicsDevice.BlendState;
-        RasterizerState previousRasterizerState = _graphicsDevice.RasterizerState;
-
-        try
-        {
-            _graphicsDevice.BlendState = BlendState.AlphaBlend;
-            _graphicsDevice.RasterizerState = RasterizerState.CullNone;
-
-            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
-            {
-                pass.Apply();
-
-                _graphicsDevice.DrawUserPrimitives(
-                    PrimitiveType.TriangleList,
-                    _triangleBatchVertices,
-                    0,
-                    _triangleBatchPrimitiveCount);
-            }
-        }
-        finally
-        {
-            _graphicsDevice.BlendState = previousBlendState;
-            _graphicsDevice.RasterizerState = previousRasterizerState;
-        }
-    }
-
-    private void BuildTriangleBatch(IEnumerable<Triangle> triangulation)
-    {
-        var triangles = triangulation as ICollection<Triangle> ?? triangulation.ToList();
-
-        _triangleBatchVertices = new VertexPositionColor[triangles.Count * 3];
-
-        int vertexIndex = 0;
-
-        foreach (Triangle triangle in triangles)
-        {
-            int rgb;
-            do rgb = _random.Next(0x1000000); // 0 … 16 777 215
-            while (!_usedColors.Add(rgb));
-            var color = new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 220);
-
-            _triangleBatchVertices[vertexIndex++] =
-                new VertexPositionColor(
-                    new Vector3(triangle.Vertices[0].X, triangle.Vertices[0].Y, 0f), color);
-
-            _triangleBatchVertices[vertexIndex++] =
-                new VertexPositionColor(
-                    new Vector3(triangle.Vertices[1].X, triangle.Vertices[1].Y, 0f), color);
-
-            _triangleBatchVertices[vertexIndex++] =
-                new VertexPositionColor(
-                    new Vector3(triangle.Vertices[2].X, triangle.Vertices[2].Y, 0f), color);
-        }
-
-        _triangleBatchPrimitiveCount = triangles.Count;
-    }
-
-    private void BuildPointBatch(float size)
-    {
-        var vertices = new List<VertexPositionColor>(_points.Length * 6);
-        float half = size * 0.5f;
-
-        foreach (Point point in _points)
-        {
-            if (ShouldCullBoundarySite(point))
-                continue;
-
-
-            float x = point.X;
-            float y = point.Y;
-
-            Vector3 a = new(x - half, y - half, 0f);
-            Vector3 b = new(x + half, y - half, 0f);
-            Vector3 c = new(x + half, y + half, 0f);
-            Vector3 d = new(x - half, y + half, 0f);
-
-            vertices.Add(new VertexPositionColor(a, _pointColor));
-            vertices.Add(new VertexPositionColor(b, _pointColor));
-            vertices.Add(new VertexPositionColor(c, _pointColor));
-
-            vertices.Add(new VertexPositionColor(a, _pointColor));
-            vertices.Add(new VertexPositionColor(c, _pointColor));
-            vertices.Add(new VertexPositionColor(d, _pointColor));
-        }
-
-        _pointBatchVertices = vertices.ToArray();
-        _pointBatchPrimitiveCount = _pointBatchVertices.Length / 3;
-    }
-
-    private void DrawPointBatch()
-    {
-        if (_pointBatchPrimitiveCount == 0)
-            return;
-
-        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
-        {
-            pass.Apply();
-            _graphicsDevice.DrawUserPrimitives(
-                PrimitiveType.TriangleList,
-                _pointBatchVertices,
-                0,
-                _pointBatchPrimitiveCount);
-        }
-    }
-
-    private void DrawEdgeBatch()
-    {
-        if (_edgeBatchPrimitiveCount == 0)
-            return;
-
-        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
-        {
-            pass.Apply();
-            _graphicsDevice.DrawUserPrimitives(
-                PrimitiveType.TriangleList,
-                _edgeBatchVertices,
-                0,
-                _edgeBatchPrimitiveCount);
-        }
-    }
-
-    private void DrawCellBatch()
-    {
-        if (_cellBatchPrimitiveCount == 0)
-            return;
-
-        RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;
-
-        try
-        {
-            _graphicsDevice.RasterizerState = RasterizerState.CullNone;
-            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
-            {
-                pass.Apply();
-                _graphicsDevice.DrawUserPrimitives(
-                    PrimitiveType.TriangleList,
-                    _cellBatchVertices,
-                    0,
-                    _cellBatchPrimitiveCount);
-            }
-        }
-        finally
-        {
-            _graphicsDevice.RasterizerState = previousRasterizer;
-        }
-    }
-
-    private void BuildEdgeBatch(float thickness)
-    {
-        var vertices = new List<VertexPositionColor>(_voronoiEdges.Count * 6);
-        float halfThickness = thickness * 0.5f;
-        foreach (Edge edge in _voronoiEdges)
-        {
-            Point p1 = edge.Point1;
-            Point p2 = edge.Point2;
-
-            Vector2 start = new(p1.X, p1.Y);
-            Vector2 end = new(p2.X, p2.Y);
-
-            Vector2 direction = end - start;
-            float lengthSquared = direction.LengthSquared();
-
-            if (lengthSquared <= 0.000001f)
-                continue;
-
-            direction *= 1f / MathF.Sqrt(lengthSquared);
-
-            Vector2 perpendicular = new Vector2(-direction.Y, direction.X) * halfThickness;
-            Vector3 a = new(start + perpendicular, 0f);
-            Vector3 b = new(start - perpendicular, 0f);
-            Vector3 c = new(end - perpendicular, 0f);
-            Vector3 d = new(end + perpendicular, 0f);
-
-            // Two triangles.
-            vertices.Add(new VertexPositionColor(a, _edgeColor));
-            vertices.Add(new VertexPositionColor(b, _edgeColor));
-            vertices.Add(new VertexPositionColor(c, _edgeColor));
-
-            vertices.Add(new VertexPositionColor(a, _edgeColor));
-            vertices.Add(new VertexPositionColor(c, _edgeColor));
-            vertices.Add(new VertexPositionColor(d, _edgeColor));
-        }
-
-        _edgeBatchVertices = vertices.ToArray();
-        _edgeBatchPrimitiveCount = _edgeBatchVertices.Length / 3;
-    }
-
-    private void BuildCellBatch(
-        List<uint> overrideIds,
-        (Color cell, Color blank)? @override = null,
-        bool ignoreFlatColor = false)
-    {
-        var overrideSet =
-            @override != null
-                ? overrideIds.ToHashSet()
-                : null;
-
-        var cells = _voronoiCells.Values.ToArray();
-
-        var cellVertices =
-            new VertexPositionColor[cells.Length][];
-
-        Parallel.For(0, cells.Length, i =>
-        {
-            VoronoiCell cell = cells[i];
-
-            if (cell.Vertices.Count < 3 &&
-                (cell.RenderPaths == null ||
-                 cell.RenderPaths.Count == 0))
-            {
-                cellVertices[i] = [];
-                return;
-            }
-
-            int cellIndex = _cellIndices[cell.ID];
-
-            Color color;
-
-            if (@override != null)
-            {
-                if (overrideSet!.Contains(cell.ID))
-                    color = @override.Value.cell;
-                else if (!ignoreFlatColor)
-                    color = @override.Value.blank;
-                else
-                    color = _cellRawColors[cellIndex];
-            }
-            else
-            {
-                color = _cellRawColors[cellIndex];
-            }
-
-            if (cell.RenderPaths == null)
-            {
-                cellVertices[i] =
-                    TessellateOriginalCell(
-                        cell.Vertices,
-                        color);
-
-                return;
-            }
-
-            if (cell.RenderPaths.Count == 0)
-            {
-                cellVertices[i] = [];
-                return;
-            }
-
-            cellVertices[i] = TessellateClippedCell(cell.RenderPaths, color);
-        });
-
-        int totalVertices =
-            cellVertices.Sum(v => v.Length);
-
-        _cellBatchVertices =
-            new VertexPositionColor[totalVertices];
-
-        int offset = 0;
-
-        foreach (var vertices in cellVertices)
-        {
-            vertices.CopyTo(_cellBatchVertices, offset);
-
-            offset += vertices.Length;
-        }
-
-        _cellBatchPrimitiveCount = _cellBatchVertices.Length / 3;
-    }
-
-
-    private static VertexPositionColor[] TessellateClippedCell(Paths64 paths, Color color)
-    {
-        if (paths.Count == 0)
-            return [];
-
-        var tess = new Tess();
-        foreach (Path64 path in paths)
-        {
-            if (path.Count < 3)
-                continue;
-
-            var contour = new ContourVertex[path.Count];
-            for (int i = 0; i < path.Count; i++)
-            {
-                Point64 point = path[i];
-                contour[i].Position = new Vec3(point.X, point.Y, 0.0);
-                contour[i].Data = color;
-            }
-
-            tess.AddContour(contour);
-        }
-
-        // Tessellate BEFORE checking VertexCount/ElementCount.
-        tess.Tessellate();
-
-        if (tess.ElementCount == 0)
-            return [];
-
-        var result =
-            new VertexPositionColor[tess.ElementCount * 3];
-
-        for (int i = 0; i < tess.ElementCount; i++)
-        {
-            int elementIndex = i * 3;
-
-            for (int j = 0; j < 3; j++)
-            {
-                int vertexIndex =
-                    tess.Elements[elementIndex + j];
-
-                Vec3 position =
-                    tess.Vertices[vertexIndex].Position;
-
-                result[elementIndex + j] =
-                    new VertexPositionColor(
-                        new Vector3(
-                            (float)position.X,
-                            (float)position.Y,
-                            0f),
-                        color);
-            }
-        }
-
-        return result;
-    }
-
-    private static VertexPositionColor[] TessellateOriginalCell(List<Point> vertices, Color color)
-    {
-        if (vertices.Count < 3)
-            return [];
-
-        var result =
-            new VertexPositionColor[
-                (vertices.Count - 2) * 3];
-
-        Vector3 origin =
-            new(vertices[0].X, vertices[0].Y, 0f);
-
-        int index = 0;
-
-        for (int i = 1; i < vertices.Count - 1; i++)
-        {
-            result[index++] =
-                new VertexPositionColor(
-                    origin,
-                    color);
-
-            result[index++] =
-                new VertexPositionColor(
-                    new Vector3(
-                        vertices[i].X,
-                        vertices[i].Y,
-                        0f),
-                    color);
-
-            result[index++] =
-                new VertexPositionColor(
-                    new Vector3(
-                        vertices[i + 1].X,
-                        vertices[i + 1].Y,
-                        0f),
-                    color);
-        }
-
-        return result;
-    }
-
-    /// <remarks>Needed for debug in order to confirm nothings gone wrong.</remarks>
-    private static void ValidateNeighbors(List<Triangle> triangles)
-    {
-        foreach (Triangle t in triangles)
-        {
-            Validate(t, 0, t.Neighbor0);
-            Validate(t, 1, t.Neighbor1);
-            Validate(t, 2, t.Neighbor2);
-        }
-
-        return;
-
-        void Validate(Triangle t, int edge, Triangle? n)
-        {
-            if (n == null)
-                return;
-
-            Point a;
-            Point b;
-
-            switch (edge)
-            {
-                case 0:
-                    a = t.Vertices[0];
-                    b = t.Vertices[1];
-                    break;
-
-                case 1:
-                    a = t.Vertices[1];
-                    b = t.Vertices[2];
-                    break;
-
-                default:
-                    a = t.Vertices[2];
-                    b = t.Vertices[0];
-                    break;
-            }
-
-            int reciprocal = n.IndexOfEdge(a, b);
-            if (reciprocal < 0)
-                throw new InvalidOperationException("Neighbor does not share the expected edge.");
-
-            Triangle? reverse = reciprocal switch
-            {
-                0 => n.Neighbor0,
-                1 => n.Neighbor1,
-                _ => n.Neighbor2
-            };
-
-            if (!ReferenceEquals(reverse, t))
-                throw new InvalidOperationException("Neighbor relationship is not reciprocal.");
-        }
-    }
-
     #endregion
-
-    #region Enums
-
-    public enum VoronoiBoundaryMode : byte
-    {
-        Culled,
-
-        // ReSharper disable once UnusedMember.Global
-        // Indirectly referenced by omission.
-        HardEdgeOpen
-    }
-
-    public enum ColorMode : byte
-    {
-        Unified,
-        Unique,
-
-        /// Half deterministic color creation, which defaults to unique during conflicts.
-        Semi_Deterministic_Unique,
-        Deterministic_Random,
-        Deterministic_Lines,
-        Random,
-    }
-
-    [Flags]
-    // ReSharper disable UnusedMember.Global
-    public enum VoronoiRenderingFlags : byte
-    {
-        //@formatter:off
-        /// Used as a "render nothing" and a null toggle.
-        None      = 0,
-        /// Draw dots.
-        Points     = 1 << 0,
-        /// Draw "proper" voronoi cells.
-        Cells      = 1 << 1,
-        /// Draw edges between cells.
-        Edges     = 1 << 2,
-        /// Draw the triangles that make up each cell.
-        Triangles = 1 << 3,
-        
-        CellsAndEdges = Cells | Edges,
-        All = Points | Cells | Edges | Triangles
-        //@formatter:on
-    }
-
-    #endregion
-}
-
-internal readonly struct CellVoronoiEdge
-{
-    public readonly Point SiteA;
-    public readonly Point? SiteB;
-    public readonly Point Point1;
-    public readonly Point Point2;
-
-    public CellVoronoiEdge(Point siteA, Point? siteB, Point point1, Point point2)
-    {
-        SiteA = siteA;
-        SiteB = siteB;
-        Point1 = point1;
-        Point2 = point2;
-    }
 }

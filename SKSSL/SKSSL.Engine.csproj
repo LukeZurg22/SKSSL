@@ -186,6 +186,15 @@
         <Compile Update="Utilities\Flags\ShapeLayer.cs">
           <DependentUpon>IFlag.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Voronoi\VoronoiDrawer.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\VoronoiBuilder.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\VoronoiUtilities.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>
