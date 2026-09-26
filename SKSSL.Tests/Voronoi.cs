@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SKSSL.Assets;
 using SKSSL.Tests.Classes;
+using SKSSL.Utilities;
 using SKSSL.Utilities.Voronoi;
 using SKSSL.Utilities.Voronoi.PointDistributors;
 using Point = System.Drawing.Point;
@@ -70,7 +71,7 @@ public class Voronoi
         _densityTexture = image;
 
         // Temp code to dynamically create a circular density map.
-        //CreateCircularDensityMap(
+        //UtilityImageGenerator.CreateCircularDensityMap(
         //    _game.GraphicsDevice,
         //    _game.GraphicsDevice.Viewport.Width,
         //    _game.GraphicsDevice.Viewport.Height
@@ -81,13 +82,12 @@ public class Voronoi
             DensityIntensity = 1.1,
             CenterCellSizeFactor = 0.8,
             EdgeCellSizeFactor = 2.7,
-            AllowBlackGaps = false
+            AllowBlackGaps = true
         });
 
         // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
-        /*await Task.Run(() =>*/
         _voronoi.GenerateDiagram(
             new Utilities.Voronoi.Voronoi.DiagramSettings
             {
@@ -103,9 +103,9 @@ public class Voronoi
             //height: 800
         );
 
-        for (uint i = 0; i <= 800; i++) _voronoi.MarkCell(i);
+        for (uint i = 0; i <= 300; i++) _voronoi.MarkCell(i);
 
-        _voronoi.ColorMarkedCells(Color.BlanchedAlmond, null, true);
+        _voronoi.ColorMarkedCells(Color.DarkGreen, null, true);
         generated = true;
     }
 }

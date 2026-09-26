@@ -1,14 +1,13 @@
-#nullable enable
 using System;
-using JetBrains.Annotations;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace SKSSL.Tests;
+namespace SKSSL.Utilities;
 
-public class MapGenerator
+// ReSharper disable once UnusedType.Global
+public class UtilityImageGenerator
 {
-    [UsedImplicitly]
+    // ReSharper disable once UnusedMember.Global
     public static Texture2D CreateCircularDensityMap(
         GraphicsDevice graphicsDevice,
         int width, int height,
@@ -26,9 +25,7 @@ public class MapGenerator
 
         // Use the smaller dimension so the density remains circular.
         float maxRadius = MathF.Min(width, height) * 0.5f * radius;
-
         float inverseRadius = 1.0f / maxRadius;
-
         for (int y = 0; y < height; y++)
         {
             float dy = y - centerY;

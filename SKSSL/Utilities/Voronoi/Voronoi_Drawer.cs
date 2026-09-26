@@ -94,8 +94,6 @@ public partial class Voronoi
         }
     }
     
-    
-
     private void DrawHighlightedCells()
     {
         if (_highlightBatchPrimitiveCount == 0)
