@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Clipper2Lib;
+using LibTessDotNet.Double;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 
 // ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 
@@ -31,14 +34,11 @@ public partial class Voronoi
         });
     }
 
-    private static bool IsPointInsideCell(VoronoiCell cell, int x, int y)
+    internal static bool IsPointInsideCell(VoronoiCell cell, int pointX, int pointY)
     {
-        /*
-         * If the cell has been gap-clipped, test the clipped
-         * geometry instead of the original Voronoi polygon.
-         */
+        // If the cell has been gap-clipped, test the clipped geometry instead of the original Voronoi polygon.
         if (cell.RenderPaths is not { Count: > 0 } paths)
-            return cell.Vertices.Count >= 3 && PointInPolygon(cell.Vertices, x, y);
+            return cell.Vertices.Count >= 3 && PointInPolygon(cell.Vertices, pointX, pointY);
 
         bool inside = false;
         foreach (Path64 path in paths)
@@ -46,7 +46,7 @@ public partial class Voronoi
             if (path.Count < 3)
                 continue;
 
-            if (PointInPolygon(path, x, y))
+            if (PointInPolygon(path, pointX, pointY))
                 inside = !inside;
         }
 
@@ -56,20 +56,11 @@ public partial class Voronoi
     private static bool PointInPolygon(List<Point> polygon, double x, double y)
     {
         bool inside = false;
-
         int count = polygon.Count;
-
-        for (int i = 0, j = count - 1;
-             i < count;
-             j = i++)
+        for (int i = 0, j = count - 1; i < count; j = i++)
         {
             Point a = polygon[i];
             Point b = polygon[j];
-
-            /*
-             * Boundary test first so clicking directly on an edge
-             * still counts as being inside the cell.
-             */
             if (PointOnSegment(a.X, a.Y, b.X, b.Y, x, y))
                 return true;
 
@@ -236,7 +227,7 @@ public partial class Voronoi
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsArtificialBoundaryTriangle(Triangle triangle) 
+    private static bool IsArtificialBoundaryTriangle(Triangle triangle)
         => triangle.Vertices[0].ID < 4 || triangle.Vertices[1].ID < 4 || triangle.Vertices[2].ID < 4;
 
     private static Point IntersectVertical(Point a, Point b, float x)
@@ -317,8 +308,8 @@ public partial class Voronoi
                 throw new InvalidOperationException("Neighbor relationship is not reciprocal.");
         }
     }
-    
-    
+
+
     /// <summary>
     /// Marks whether a cell at a given site should be culled.
     /// </summary>
@@ -345,7 +336,7 @@ public partial class Voronoi
 
         return cell.RenderPaths is not { Count: 0 };
     }
-    
+
     private bool ClipLineToBounds(Point p1, Point p2, out Point clipped1, out Point clipped2)
     {
         float x1 = p1.X;
@@ -428,8 +419,8 @@ public partial class Voronoi
             return true;
         }
     }
-    
-        private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode boundaryMode)
+
+    private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode boundaryMode)
     {
         // Edge 0: vertices 0 -> 1
         AddVoronoiEdge(triangle, triangle.Neighbor0, triangle.Vertices[0], triangle.Vertices[1], boundaryMode);
@@ -575,5 +566,106 @@ public partial class Voronoi
         //@formatter:on
 
         return start != end;
+    }
+
+    private static Vector3[] TessellateOriginalCellPositions(List<Point> vertices)
+    {
+        int count = vertices.Count;
+        if (count < 3)
+            return [];
+
+        var result = new Vector3[(count - 2) * 3];
+        ReadOnlySpan<Point> points = CollectionsMarshal.AsSpan(vertices);
+        Point origin = points[0];
+        Vector3 originPosition = new(origin.X, origin.Y, 0f);
+        int index = 0;
+        for (int i = 1; i < count - 1; i++)
+        {
+            Point b = points[i];
+            Point c = points[i + 1];
+            result[index++] = originPosition;
+            result[index++] = new Vector3(b.X, b.Y, 0f);
+            result[index++] = new Vector3(c.X, c.Y, 0f);
+        }
+
+        return result;
+    }
+
+    private static Vector3[] TessellateClippedCellPositions(Paths64 paths)
+    {
+        if (paths.Count == 0)
+            return [];
+
+        var tess = new Tess();
+        foreach (Path64 path in paths)
+        {
+            if (path.Count < 3)
+                continue;
+
+            var contour = new ContourVertex[path.Count];
+            for (int i = 0; i < path.Count; i++)
+            {
+                Point64 point = path[i];
+                contour[i].Position = new Vec3(point.X, point.Y, 0.0);
+            }
+
+            tess.AddContour(contour);
+        }
+
+        tess.Tessellate();
+
+        if (tess.ElementCount == 0)
+            return [];
+
+        var result = new Vector3[tess.ElementCount * 3];
+
+        for (int i = 0; i < tess.ElementCount; i++)
+        {
+            int elementIndex = i * 3;
+            result[elementIndex] = ToVector3(tess.Vertices[tess.Elements[elementIndex]].Position);
+            result[elementIndex + 1] = ToVector3(tess.Vertices[tess.Elements[elementIndex + 1]].Position);
+            result[elementIndex + 2] = ToVector3(tess.Vertices[tess.Elements[elementIndex + 2]].Position);
+        }
+
+        return result;
+
+        static Vector3 ToVector3(Vec3 p) =>
+            new((float)p.X, (float)p.Y, 0f);
+    }
+
+    private void ClearHighlightBatch()
+    {
+        _highlightBatchVertices = [];
+        _highlightBatchPrimitiveCount = 0;
+    }
+
+    private static void AddHighlightEdge(
+        List<VertexPositionColor> vertices,
+        Point point1,
+        Point point2,
+        Color color,
+        float thickness)
+    {
+        Vector2 p1 = new(point1.X, point1.Y);
+        Vector2 p2 = new(point2.X, point2.Y);
+
+        Vector2 direction = p2 - p1;
+        if (direction.LengthSquared() <= 0.000001f)
+            return;
+
+        direction.Normalize();
+
+        Vector2 normal = new Vector2(-direction.Y, direction.X) * (thickness * 0.5f);
+        Vector3 v1 = new(p1 - normal, 0f);
+        Vector3 v2 = new(p1 + normal, 0f);
+        Vector3 v3 = new(p2 + normal, 0f);
+        Vector3 v4 = new(p2 - normal, 0f);
+
+        vertices.Add(new VertexPositionColor(v1, color));
+        vertices.Add(new VertexPositionColor(v2, color));
+        vertices.Add(new VertexPositionColor(v3, color));
+        vertices.Add(new VertexPositionColor(v1, color));
+        vertices.Add(new VertexPositionColor(v3, color));
+        vertices.Add(new VertexPositionColor(v4, color));
     }
 }

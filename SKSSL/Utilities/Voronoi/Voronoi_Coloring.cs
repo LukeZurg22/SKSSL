@@ -9,6 +9,10 @@ namespace SKSSL.Utilities.Voronoi;
 public partial class Voronoi
 {
     private readonly HashSet<uint> _markedCells = [];
+    private Texture2D? _highlightMask;
+    private Color _highlightColor = Color.Yellow;
+
+    #region Cell Marking
 
     /// <summary>
     /// Using a position on a Voronoi diagram, attempts to get a cell and add it to a marked-cells list. 
@@ -33,26 +37,29 @@ public partial class Voronoi
         if (_cellsById.ContainsKey(cell))
             _markedCells.Add(cell);
     }
+    
+    public void ClearMarkedCells() => _markedCells.Clear();
+
+    #endregion
 
     /// <summary>
     /// Calls <see cref="ChangeCellColors"/> using the cell ids marked by <see cref="MarkCell(uint)"/>.
     /// </summary>
     /// <param name="color">Color to replace cells.</param>
     /// <param name="blankColor"></param>
-    /// <param name="ignoreFlatColor"></param>
+    /// <param name="flattenOthers"></param>
     /// <param name="clear">Clear internally marked cells. False by default.</param>
     public void ColorMarkedCells(
         Color color,
         Color? blankColor = null,
-        bool ignoreFlatColor = false,
+        bool flattenOthers = false,
         bool clear = false)
     {
         blankColor ??= _flatColor;
-        ChangeCellColors(_markedCells, color, blankColor.Value, ignoreFlatColor);
+        ChangeCellColors(_markedCells, color, blankColor.Value, flattenOthers);
         if (clear) ClearMarkedCells();
     }
 
-    public void ClearMarkedCells() => _markedCells.Clear();
 
     /// <summary>
     /// Sets all cells to a single color, which defaults to a provided/default flat color.
@@ -90,15 +97,15 @@ public partial class Voronoi
     /// <param name="idsAffected"></param>
     /// <param name="color"></param>
     /// <param name="blankColor"></param>
-    /// <param name="ignoreFlatColor"></param>
-    private void ChangeCellColors(HashSet<uint> idsAffected, Color color, Color blankColor, bool ignoreFlatColor)
+    /// <param name="flattenOthers"></param>
+    private void ChangeCellColors(HashSet<uint> idsAffected, Color color, Color blankColor, bool flattenOthers)
     {
         if (!_isGenerated)
             return;
 
         // Rebuild french cell batch with colors provided. Internal logic will handle the way they are colored,
         //  and outside of this function they are handled as if no ids were affected.
-        BuildCellColorBatch(idsAffected, ignoreFlatColor, (color, blankColor));
+        BuildCellColorBatch(idsAffected, flattenOthers, (color, blankColor));
         UpdateTexture(
             _previousBoundaryMode,
             _previousFlags,

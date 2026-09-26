@@ -93,4 +93,39 @@ public partial class Voronoi
             _graphicsDevice.RasterizerState = previousRasterizer;
         }
     }
+    
+    
+
+    private void DrawHighlightedCells()
+    {
+        if (_highlightBatchPrimitiveCount == 0)
+            return;
+
+        SetScreenProjection();
+
+        BlendState previousBlend = _graphicsDevice.BlendState;
+        RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;
+
+        try
+        {
+            _graphicsDevice.BlendState = BlendState.AlphaBlend;
+            _graphicsDevice.RasterizerState = RasterizerState.CullNone;
+
+            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+
+                _graphicsDevice.DrawUserPrimitives(
+                    PrimitiveType.TriangleList,
+                    _highlightBatchVertices,
+                    0,
+                    _highlightBatchPrimitiveCount);
+            }
+        }
+        finally
+        {
+            _graphicsDevice.BlendState = previousBlend;
+            _graphicsDevice.RasterizerState = previousRasterizer;
+        }
+    }
 }

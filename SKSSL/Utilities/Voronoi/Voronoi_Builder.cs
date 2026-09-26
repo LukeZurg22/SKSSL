@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Clipper2Lib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -419,7 +420,7 @@ public partial class Voronoi
     [SuppressMessage("ReSharper", "SuggestVarOrType_Elsewhere")]
     private unsafe void BuildCellColorBatch(
         HashSet<uint> overrideIds,
-        bool ignoreFlatColor = false,
+        bool flattenOthers = false,
         (Color cell, Color blank)? @override = null)
     {
         int cellCount = _voronoiCellArray.Length;
@@ -457,7 +458,7 @@ public partial class Voronoi
                 {
                     uint id = cells[cellIndex].ID;
                     if (overrideIds.Contains(id)) color = overrideCell;
-                    else if (ignoreFlatColor) color = colors[cellIndex];
+                    else if (!flattenOthers) color = colors[cellIndex];
                     else color = overrideBlank;
                 }
 
@@ -471,5 +472,67 @@ public partial class Voronoi
         }
 
         _cellBatchPrimitiveCount = _cellBatchVertices.Length / 3;
+    }
+    
+    private void BuildCellArray()
+    {
+        int count = _cellIndices.Count;
+        if (_voronoiCellArray.Length != count)
+            _voronoiCellArray = new VoronoiCell[count];
+
+        foreach (VoronoiCell cell in _voronoiCells.Values)
+            _voronoiCellArray[_cellIndices[cell.ID]] = cell;
+    }
+    
+    private void BuildCellGeometry()
+    {
+        int cellCount = _voronoiCellArray.Length;
+
+        if (cellCount == 0)
+        {
+            _cellGeometry = [];
+            _cellGeometryOffsets = [];
+            _cellGeometryCounts = [];
+            return;
+        }
+
+        var geometries = new Vector3[cellCount][];
+        var counts = new int[cellCount];
+
+        Parallel.For(0, cellCount, i =>
+        {
+            VoronoiCell cell = _voronoiCellArray[i];
+            Vector3[] geometry;
+
+            if (cell.Vertices.Count < 3 && (cell.RenderPaths == null || cell.RenderPaths.Count == 0)) geometry = [];
+            else if (cell.RenderPaths == null) geometry = TessellateOriginalCellPositions(cell.Vertices);
+            else if (cell.RenderPaths.Count == 0) geometry = [];
+            else geometry = TessellateClippedCellPositions(cell.RenderPaths);
+
+            geometries[i] = geometry;
+            counts[i] = geometry.Length;
+        });
+
+        int total = 0;
+        var offsets = new int[cellCount];
+        for (int i = 0; i < cellCount; i++)
+        {
+            offsets[i] = total;
+            total += counts[i];
+        }
+
+        var geometryBuffer = new Vector3[total];
+        for (int i = 0; i < cellCount; i++)
+        {
+            var source = geometries[i];
+            if (source.Length == 0)
+                continue;
+
+            source.AsSpan().CopyTo(geometryBuffer.AsSpan(offsets[i]));
+        }
+
+        _cellGeometry = geometryBuffer;
+        _cellGeometryOffsets = offsets;
+        _cellGeometryCounts = counts;
     }
 }
