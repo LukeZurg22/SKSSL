@@ -54,7 +54,7 @@ public class Voronoi
 
             _voronoi.TryGetCellAt(mousePosition, out _hoveredCell);
             if (_hoveredCell != null)
-                _voronoi.SetHighlightedCells([_hoveredCell], Color.Black);
+                _voronoi.HighlightCells([_hoveredCell], Color.Black);
 
             if (TOGGLE_EXECUTABLE_CLOSURE)
 #pragma warning disable CS0162
@@ -81,7 +81,7 @@ public class Voronoi
             DensityIntensity = 1.1,
             CenterCellSizeFactor = 0.8,
             EdgeCellSizeFactor = 2.7,
-            AllowBlackGaps = true
+            AllowBlackGaps = false
         });
 
         // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
@@ -98,14 +98,14 @@ public class Voronoi
                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
             },
-            points: 25000
+            points: 2500
             //width: 1200,
             //height: 800
         );
 
         for (uint i = 0; i <= 800; i++) _voronoi.MarkCell(i);
 
-        _voronoi.ColorMarkedCells(Color.BlanchedAlmond, null);
+        _voronoi.ColorMarkedCells(Color.BlanchedAlmond, null, true);
         generated = true;
     }
 }

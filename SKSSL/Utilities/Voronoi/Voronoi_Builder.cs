@@ -137,9 +137,7 @@ public partial class Voronoi
             var output = _triangleBatchVertices;
 
             int vertexIndex = 0;
-            uint randomState = unchecked(
-                (uint)Environment.TickCount ^
-                (uint)RuntimeHelpers.GetHashCode(this));
+            uint randomState = unchecked((uint)Environment.TickCount ^ (uint)RuntimeHelpers.GetHashCode(this));
 
             fixed (VertexPositionColor* vertices = output)
             {
