@@ -96,7 +96,7 @@ public partial class Voronoi
     
     private void DrawHighlightedCells()
     {
-        if (_highlightBatchPrimitiveCount == 0)
+        if (_demarcateBatchPrimitiveCount == 0)
             return;
 
         SetScreenProjection();
@@ -115,9 +115,9 @@ public partial class Voronoi
 
                 _graphicsDevice.DrawUserPrimitives(
                     PrimitiveType.TriangleList,
-                    _highlightBatchVertices,
+                    _demarcateBatchVertices,
                     0,
-                    _highlightBatchPrimitiveCount);
+                    _demarcateBatchPrimitiveCount);
             }
         }
         finally

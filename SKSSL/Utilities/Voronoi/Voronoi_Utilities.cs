@@ -112,9 +112,18 @@ public partial class Voronoi
         {
             cell.RenderPaths = null;
 
+            // Never allow a cell already rejected by boundary culling
+            // to become renderable again. Gap clipping must never make it renderable again.
+            if (cell.IsCulled || IsArtificialBoundarySite(cell.Site))
+            {
+                cell.RenderPaths = [];
+                continue;
+            }
+
             if (cell.Vertices.Count < 3)
             {
                 cell.RenderPaths = [];
+                cell.IsCulled = true;
                 continue;
             }
 
@@ -123,7 +132,12 @@ public partial class Voronoi
 
             Path64 subject = ToPath(cell.Vertices);
             Paths64 result = Clipper.Difference([subject], gaps.Paths, FillRule.NonZero);
+
             cell.RenderPaths = result;
+
+            // The gap completely consumed this cell.
+            if (result.Count == 0)
+                cell.IsCulled = true;
         }
     }
 
@@ -131,7 +145,6 @@ public partial class Voronoi
     private static Path64 ToPath(List<Point> polygon)
     {
         var path = new Path64(polygon.Count);
-        // ReSharper disable once ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
         foreach (Point point in polygon)
             path.Add(new Point64(point.X, point.Y));
         return path;
@@ -325,14 +338,6 @@ public partial class Voronoi
         return false;
     }
 
-    private static bool HasRenderableGeometry(VoronoiCell cell)
-    {
-        if (cell.Vertices.Count == 0)
-            return false;
-
-        return cell.RenderPaths is not { Count: 0 };
-    }
-
     private bool ClipLineToBounds(Point p1, Point p2, out Point clipped1, out Point clipped2)
     {
         float x1 = p1.X;
@@ -416,19 +421,22 @@ public partial class Voronoi
         }
     }
 
-    private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode boundaryMode, bool allowBlackGaps)
+    /// Map geometry is non-negative, so this is equivalent to Math.Round(value)
+    /// for the normal coordinate range while avoiding the comparatively expensive
+    /// Math.Round call.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static long FastRoundToLong(double value) => (long)(value + 0.5);
+
+    private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode boundaryMode)
     {
         // Edge 0: vertices 0 -> 1
-        AddVoronoiEdge(triangle, triangle.Neighbor0, triangle.Vertices[0], triangle.Vertices[1], boundaryMode,
-            allowBlackGaps);
+        AddVoronoiEdge(triangle, triangle.Neighbor0, triangle.Vertices[0], triangle.Vertices[1], boundaryMode);
 
         // Edge 1: vertices 1 -> 2
-        AddVoronoiEdge(triangle, triangle.Neighbor1, triangle.Vertices[1], triangle.Vertices[2], boundaryMode,
-            allowBlackGaps);
+        AddVoronoiEdge(triangle, triangle.Neighbor1, triangle.Vertices[1], triangle.Vertices[2], boundaryMode);
 
         // Edge 2: vertices 2 -> 0
-        AddVoronoiEdge(triangle, triangle.Neighbor2, triangle.Vertices[2], triangle.Vertices[0], boundaryMode,
-            allowBlackGaps);
+        AddVoronoiEdge(triangle, triangle.Neighbor2, triangle.Vertices[2], triangle.Vertices[0], boundaryMode);
     }
 
     private void AddVoronoiEdge(
@@ -436,8 +444,7 @@ public partial class Voronoi
         Triangle? neighbor,
         Point a,
         Point b,
-        VoronoiBoundaryMode boundaryMode,
-        bool allowBlackGaps)
+        VoronoiBoundaryMode boundaryMode)
     {
         if (neighbor != null)
         {
@@ -464,7 +471,7 @@ public partial class Voronoi
         if (boundaryMode == VoronoiBoundaryMode.Culled)
             return;
 
-        if (allowBlackGaps && IsGapCulledBoundaryEdge(a, b))
+        if (IsGapCulledBoundaryEdge(a, b))
             return;
 
         if (!TryGetBoundaryVoronoiEdge(triangle, a, b, out Point start, out Point end))
@@ -476,20 +483,15 @@ public partial class Voronoi
 
     private bool IsGapCulledBoundaryEdge(Point a, Point b)
     {
-        bool aHasGeometry =
-            _voronoiCells.TryGetValue(a, out VoronoiCell? cellA) &&
-            HasRenderableCellGeometry(cellA);
-
-        bool bHasGeometry =
-            _voronoiCells.TryGetValue(b, out VoronoiCell? cellB) &&
-            HasRenderableCellGeometry(cellB);
-
-        return !aHasGeometry && !bHasGeometry;
+        bool aRenderable = _voronoiCells.TryGetValue(a, out VoronoiCell? cellA) && HasRenderableCellGeometry(cellA);
+        bool bRenderable = _voronoiCells.TryGetValue(b, out VoronoiCell? cellB) && HasRenderableCellGeometry(cellB);
+        return !aRenderable && !bRenderable;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool HasRenderableCellGeometry(VoronoiCell cell)
-        => cell.RenderPaths is not null ? cell.RenderPaths.Count != 0 : cell.Vertices.Count >= 3;
+        => !cell.IsCulled && !IsArtificialBoundarySite(cell.Site) &&
+           (cell.RenderPaths is not null ? cell.RenderPaths.Count != 0 : cell.Vertices.Count >= 3);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsArtificialBoundarySite(Point site) => site.ID < 4;
@@ -653,14 +655,7 @@ public partial class Voronoi
 
         return result;
 
-        static Vector3 ToVector3(Vec3 p) =>
-            new((float)p.X, (float)p.Y, 0f);
-    }
-
-    private void ClearHighlightBatch()
-    {
-        _highlightBatchVertices = [];
-        _highlightBatchPrimitiveCount = 0;
+        static Vector3 ToVector3(Vec3 p) => new((float)p.X, (float)p.Y, 0f);
     }
 
     private static void AddHighlightEdge(

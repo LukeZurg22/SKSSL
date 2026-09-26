@@ -114,12 +114,10 @@ public partial class Voronoi
             Point siteA = pointLookup[(edge.SiteA.X, edge.SiteA.Y)];
             Point? siteB = edge.SiteB != null ? pointLookup[(edge.SiteB.X, edge.SiteB.Y)] : null;
 
-            _cellVoronoiEdges.Add(
-                new CellVoronoiEdge(
-                    siteA,
-                    siteB,
-                    new Point(edge.Point1.X, edge.Point1.Y),
-                    new Point(edge.Point2.X, edge.Point2.Y)));
+            var point1 = new Point(edge.Point1.X, edge.Point1.Y);
+            var point2 = new Point(edge.Point2.X, edge.Point2.Y);
+            var cellVoronoiEdge = new CellVoronoiEdge(siteA, siteB, point1, point2);
+            _cellVoronoiEdges.Add(cellVoronoiEdge);
         }
 
         _cellRawColors = data.RawColors

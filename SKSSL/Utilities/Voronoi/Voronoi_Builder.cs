@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Clipper2Lib;
 using Microsoft.Xna.Framework;
@@ -12,22 +11,16 @@ namespace SKSSL.Utilities.Voronoi;
 
 public partial class Voronoi
 {
-    /// Map geometry is non-negative, so this is equivalent to Math.Round(value)
-    /// for the normal coordinate range while avoiding the comparatively expensive
-    /// Math.Round call.
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static long FastRoundToLong(double value) => (long)(value + 0.5);
-
+    private Vector3[] _cellGeometry = [];
+    private int[] _cellGeometryOffsets = [];
+    private int[] _cellGeometryCounts = [];
 
     private static GapGeometry BuildGapGeometry(
         IReadOnlyList<GapPolygon> polygons,
-        int sourceWidth,
-        int sourceHeight,
-        int targetWidth,
-        int targetHeight)
+        int sourceWidth, int sourceHeight,
+        int targetWidth, int targetHeight)
     {
         int polygonCount = polygons.Count;
-
         if (polygonCount == 0)
             return new GapGeometry([]);
 
@@ -35,7 +28,6 @@ public partial class Voronoi
         double scaleY = (double)targetHeight / sourceHeight;
 
         var paths = new Paths64(polygonCount);
-
         for (int polygonIndex = 0; polygonIndex < polygonCount; polygonIndex++)
         {
             GapPolygon polygon = polygons[polygonIndex];
@@ -60,7 +52,6 @@ public partial class Voronoi
             return new GapGeometry([]);
 
         Paths64 unioned = Clipper.Union(paths, FillRule.EvenOdd);
-
         return new GapGeometry(unioned);
     }
 
@@ -121,127 +112,34 @@ public partial class Voronoi
         _pointBatchPrimitiveCount = vertexIndex / 3;
     }
 
-    private unsafe void BuildTriangleBatch(IEnumerable<Triangle> triangulation)
+    private void BuildTriangleBatch(IEnumerable<Triangle> triangles, VoronoiBoundaryMode boundaryMode)
     {
-        // Fast path for countable collections.
-        if (triangulation is ICollection<Triangle> collection)
+        var vertices = new List<VertexPositionColor>();
+
+        foreach (Triangle triangle in triangles)
         {
-            // Count only triangles that should actually be rendered.
-            int count = 0;
-            foreach (Triangle triangle in collection)
-            {
-                if (!IsArtificialBoundaryTriangle(triangle))
-                    count++;
-            }
-
-            int requiredVertices = count * 3;
-
-            if (_triangleBatchVertices.Length < requiredVertices)
-                _triangleBatchVertices = GC.AllocateUninitializedArray<VertexPositionColor>(requiredVertices);
-
-            var output = _triangleBatchVertices;
-            int vertexIndex = 0;
-            uint randomState = unchecked((uint)Environment.TickCount ^ (uint)RuntimeHelpers.GetHashCode(this));
-
-            fixed (VertexPositionColor* vertices = output)
-            {
-                foreach (Triangle triangle in collection)
-                {
-                    if (IsArtificialBoundaryTriangle(triangle))
-                        continue;
-
-                    uint random = NextRandom(ref randomState);
-                    int rgb = (int)(random & 0x00FFFFFF);
-
-                    Color color = new((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, (byte)220);
-
-                    Point v0 = triangle.Vertices[0];
-                    Point v1 = triangle.Vertices[1];
-                    Point v2 = triangle.Vertices[2];
-
-                    VertexPositionColor* dst = vertices + vertexIndex;
-
-                    dst[0].Position = new Vector3(v0.X, v0.Y, 0f);
-                    dst[0].Color = color;
-
-                    dst[1].Position = new Vector3(v1.X, v1.Y, 0f);
-                    dst[1].Color = color;
-
-                    dst[2].Position = new Vector3(v2.X, v2.Y, 0f);
-                    dst[2].Color = color;
-
-                    vertexIndex += 3;
-                }
-            }
-
-            _triangleBatchPrimitiveCount = count;
-            return;
-        }
-
-        // Non-countable enumerable: grow the actual vertex buffer directly.
-        var verticesB = _triangleBatchVertices;
-
-        int vertexIndexNonCounted = 0;
-        int triangleCount = 0;
-
-        uint state = unchecked((uint)Environment.TickCount ^ (uint)RuntimeHelpers.GetHashCode(this));
-
-        foreach (Triangle triangle in triangulation)
-        {
-            if (IsArtificialBoundaryTriangle(triangle))
+            // The first four sites are artificial/super-triangle boundary sites.
+            // They are required for Delaunay construction but are not part of
+            // the actual diagram.
+            if (boundaryMode == VoronoiBoundaryMode.Culled && IsArtificialBoundaryTriangle(triangle))
                 continue;
 
-            if (vertexIndexNonCounted + 3 > verticesB.Length)
-            {
-                int oldLength = verticesB.Length;
-                int newLength = oldLength == 0 ? 12 : oldLength << 1;
+            Point a = triangle.Vertices[0];
+            Point b = triangle.Vertices[1];
+            Point c = triangle.Vertices[2];
 
-                if (newLength < vertexIndexNonCounted + 3)
-                    newLength = vertexIndexNonCounted + 3;
-
-                Array.Resize(ref verticesB, newLength);
-            }
-
-            uint random = NextRandom(ref state);
-            int rgb = (int)(random & 0x00FFFFFF);
-
-            Color color = new((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, (byte)220);
-
-            Point v0 = triangle.Vertices[0];
-            Point v1 = triangle.Vertices[1];
-            Point v2 = triangle.Vertices[2];
-
-            verticesB[vertexIndexNonCounted + 0].Position = new Vector3(v0.X, v0.Y, 0f);
-            verticesB[vertexIndexNonCounted + 0].Color = color;
-
-            verticesB[vertexIndexNonCounted + 1].Position = new Vector3(v1.X, v1.Y, 0f);
-            verticesB[vertexIndexNonCounted + 1].Color = color;
-
-            verticesB[vertexIndexNonCounted + 2].Position = new Vector3(v2.X, v2.Y, 0f);
-            verticesB[vertexIndexNonCounted + 2].Color = color;
-
-            vertexIndexNonCounted += 3;
-            triangleCount++;
+            vertices.Add(new VertexPositionColor(new Vector3(a.X, a.Y, 0f), Color.White));
+            vertices.Add(new VertexPositionColor(new Vector3(b.X, b.Y, 0f), Color.White));
+            vertices.Add(new VertexPositionColor(new Vector3(c.X, c.Y, 0f), Color.White));
         }
 
-        _triangleBatchVertices = verticesB;
-        _triangleBatchPrimitiveCount = triangleCount;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static uint NextRandom(ref uint state)
-    {
-        // xor-shift-32
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        return state;
+        _triangleBatchVertices = vertices.ToArray();
+        _triangleBatchPrimitiveCount = vertices.Count / 3;
     }
 
     private unsafe void BuildEdgeBatch(float thickness)
     {
         int edgeCount = _voronoiEdges.Count;
-
         if (edgeCount == 0)
         {
             _edgeBatchPrimitiveCount = 0;
@@ -249,16 +147,11 @@ public partial class Voronoi
         }
 
         int requiredVertices = edgeCount * 6;
-
         if (_edgeBatchVertices.Length < requiredVertices)
-        {
             _edgeBatchVertices = GC.AllocateUninitializedArray<VertexPositionColor>(requiredVertices);
-        }
 
         var vertices = _edgeBatchVertices;
-
         float halfThickness = thickness * 0.5f;
-
         int vertexIndex = 0;
 
         fixed (VertexPositionColor* output = vertices)
@@ -327,11 +220,7 @@ public partial class Voronoi
         _edgeBatchPrimitiveCount = vertexIndex / 3;
     }
 
-    private Vector3[] _cellGeometry = [];
-    private int[] _cellGeometryOffsets = [];
-    private int[] _cellGeometryCounts = [];
-
-    private unsafe void BuildCellGeometryBatch()
+    private unsafe void BuildCellVertexBatch()
     {
         int totalVertices = _cellGeometry.Length;
         if (totalVertices == 0)
@@ -358,22 +247,18 @@ public partial class Voronoi
     private void BuildVoronoiEdges(
         List<Triangle> triangulation,
         VoronoiBoundaryMode boundaryMode,
-        GapGeometry? gaps)
+        GapGeometry? gaps,
+        bool renderEdgesThroughGaps)
     {
         _voronoiEdges.Clear();
         _cellVoronoiEdges.Clear();
 
-        bool allowBlackGaps = gaps is not null;
-
         foreach (Triangle triangle in triangulation)
         {
-            if (IsArtificialBoundaryTriangle(triangle))
-                continue;
-
-            AddVoronoiEdges(triangle, boundaryMode, allowBlackGaps);
+            AddVoronoiEdges(triangle, boundaryMode);
         }
 
-        if (gaps is not null && gaps.Paths.Count != 0)
+        if (renderEdgesThroughGaps && gaps is not null && gaps.Paths.Count != 0)
             ClipVoronoiEdgesAgainstGaps(gaps);
     }
 
@@ -480,7 +365,7 @@ public partial class Voronoi
             }
         }
 
-        _cellBatchPrimitiveCount = _cellBatchVertices.Length / 3;
+        _cellBatchPrimitiveCount = _cellGeometry.Length / 3;
     }
 
     private void BuildCellArray()
@@ -496,7 +381,6 @@ public partial class Voronoi
     private void BuildCellGeometry()
     {
         int cellCount = _voronoiCellArray.Length;
-
         if (cellCount == 0)
         {
             _cellGeometry = [];
@@ -515,17 +399,30 @@ public partial class Voronoi
 
             // The first four Delaunay sites are the artificial bounding rectangle.
             // They are topology scaffolding, not renderable Voronoi cells.
-            if (IsArtificialBoundarySite(cell.Site))
+            if (cell.IsCulled || !HasRenderableCellGeometry(cell) || IsArtificialBoundarySite(cell.Site))
             {
                 geometries[i] = [];
                 counts[i] = 0;
                 return;
             }
 
-            if (cell.Vertices.Count < 3 && (cell.RenderPaths == null || cell.RenderPaths.Count == 0)) geometry = [];
-            else if (cell.RenderPaths == null) geometry = TessellateOriginalCellPositions(cell.Vertices);
-            else if (cell.RenderPaths.Count == 0) geometry = [];
-            else geometry = TessellateClippedCellPositions(cell.RenderPaths);
+            if (cell.Vertices.Count < 3 &&
+                (cell.RenderPaths == null || cell.RenderPaths.Count == 0))
+            {
+                geometry = [];
+            }
+            else if (cell.RenderPaths == null)
+            {
+                geometry = TessellateOriginalCellPositions(cell.Vertices);
+            }
+            else if (cell.RenderPaths.Count == 0)
+            {
+                geometry = [];
+            }
+            else
+            {
+                geometry = TessellateClippedCellPositions(cell.RenderPaths);
+            }
 
             geometries[i] = geometry;
             counts[i] = geometry.Length;
@@ -533,6 +430,7 @@ public partial class Voronoi
 
         int total = 0;
         var offsets = new int[cellCount];
+
         for (int i = 0; i < cellCount; i++)
         {
             offsets[i] = total;
@@ -540,9 +438,11 @@ public partial class Voronoi
         }
 
         var geometryBuffer = new Vector3[total];
+
         for (int i = 0; i < cellCount; i++)
         {
             var source = geometries[i];
+
             if (source.Length == 0)
                 continue;
 

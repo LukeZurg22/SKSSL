@@ -63,8 +63,7 @@ public partial class DelaunayTriangulator : IDisposable
             throw new ArgumentException(e, nameof(points));
         }
 
-        #region DEBUG
-
+#if DEBUG
         // Verify that there are no duplicated IDs.
         var pointIds = new HashSet<uint>();
         for (int i = 0; i < points.Length; i++)
@@ -79,8 +78,7 @@ public partial class DelaunayTriangulator : IDisposable
                     $"Position: ({point.X}, {point.Y})");
             }
         }
-
-        #endregion
+#endif
 
         _allTriangles.Clear();
         _badTriangles.Clear();
@@ -172,9 +170,7 @@ public partial class DelaunayTriangulator : IDisposable
 
                 if (boundary.Outside != null)
                 {
-                    int newEdge = triangle.IndexOfEdge(
-                        boundary.Point1,
-                        boundary.Point2);
+                    int newEdge = triangle.IndexOfEdge(boundary.Point1, boundary.Point2);
 
                     if (newEdge < 0)
                         throw new InvalidOperationException(
@@ -183,9 +179,7 @@ public partial class DelaunayTriangulator : IDisposable
                     triangle.SetNeighbor(newEdge, boundary.Outside);
                     boundary.Outside.SetNeighbor(boundary.OutsideEdge, triangle);
 
-                    _edgeMap.Remove(GetEdgeKey(
-                        boundary.Point1,
-                        boundary.Point2));
+                    _edgeMap.Remove(GetEdgeKey(boundary.Point1, boundary.Point2));
                 }
 
                 startTriangle ??= triangle;
@@ -261,7 +255,6 @@ public partial class DelaunayTriangulator : IDisposable
         int badStamp = ++_badStamp;
 
         _openTriangles.Push(start);
-
         while (_openTriangles.Count > 0)
         {
             Triangle triangle = _openTriangles.Pop();
@@ -276,22 +269,16 @@ public partial class DelaunayTriangulator : IDisposable
             _badTriangles.Add(triangle);
 
             Triangle? neighbor = triangle.Neighbor0;
-            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp)
-            {
+            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp) 
                 _openTriangles.Push(neighbor);
-            }
 
             neighbor = triangle.Neighbor1;
-            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp)
-            {
+            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp) 
                 _openTriangles.Push(neighbor);
-            }
 
             neighbor = triangle.Neighbor2;
-            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp)
-            {
+            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp) 
                 _openTriangles.Push(neighbor);
-            }
         }
     }
 
@@ -352,10 +339,7 @@ public partial class DelaunayTriangulator : IDisposable
         while (true)
         {
             if (!current.Alive)
-            {
-                throw new InvalidOperationException(
-                    $"FindContainingTriangle reached dead triangle {current.Id}.");
-            }
+                throw new InvalidOperationException($"FindContainingTriangle reached dead triangle {current.Id}.");
 
             if (current.VisitStamp == stamp)
             {
@@ -393,12 +377,7 @@ public partial class DelaunayTriangulator : IDisposable
             double gx = ((double)a.X + b.X + c.X) / 3.0;
             double gy = ((double)a.Y + b.Y + c.Y) / 3.0;
 
-            double centroidCross =
-                Cross(
-                    a,
-                    b,
-                    new Point((float)gx, (float)gy));
-
+            double centroidCross = Cross(a, b, new Point((float)gx, (float)gy));
             double bestT = double.PositiveInfinity;
             int exitEdge = -1;
 
@@ -415,15 +394,8 @@ public partial class DelaunayTriangulator : IDisposable
 
             if (c1 < 0)
             {
-                double edgeCentroidCross =
-                    Cross(
-                        b,
-                        c,
-                        new Point((float)gx, (float)gy));
-
-                double t =
-                    edgeCentroidCross /
-                    (edgeCentroidCross - c1);
+                double edgeCentroidCross = Cross(b, c, new Point((float)gx, (float)gy));
+                double t = edgeCentroidCross / (edgeCentroidCross - c1);
 
                 if (t < bestT)
                 {
@@ -434,19 +406,13 @@ public partial class DelaunayTriangulator : IDisposable
 
             if (c2 < 0)
             {
-                double edgeCentroidCross =
-                    Cross(
-                        c,
-                        a,
-                        new Point((float)gx, (float)gy));
-
-                double t =
-                    edgeCentroidCross /
-                    (edgeCentroidCross - c2);
+                double edgeCentroidCross = Cross(c, a, new Point((float)gx, (float)gy));
+                double t = edgeCentroidCross / (edgeCentroidCross - c2);
 
                 if (t < bestT)
                 {
-                    //bestT = t;
+                    // ReSharper disable once RedundantAssignment
+                    bestT = t; // UNUSED
                     exitEdge = 2;
                 }
             }
@@ -464,6 +430,10 @@ public partial class DelaunayTriangulator : IDisposable
     private static InvalidOperationException OutsideTriangle(Point p, Triangle triangle, int edge)
         => new($"Point ({p.X}, {p.Y}) lies outside edge {edge} of triangle {triangle.Id}.");
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static double Cross(double ax, double ay, double bx, double by, double px, double py)
+        => (px - ax) * (by - ay) - (py - ay) * (bx - ax);
+    
     #endregion
 
     #region Topology
@@ -522,7 +492,7 @@ public partial class DelaunayTriangulator : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static double Cross(Point a, Point b, Point c) => (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
-
+    
     #endregion
 
     #region Edge Operations

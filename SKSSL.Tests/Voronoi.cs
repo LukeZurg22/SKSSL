@@ -6,7 +6,6 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SKSSL.Assets;
 using SKSSL.Tests.Classes;
-using SKSSL.Utilities;
 using SKSSL.Utilities.Voronoi;
 using SKSSL.Utilities.Voronoi.PointDistributors;
 using Point = System.Drawing.Point;
@@ -55,7 +54,7 @@ public class Voronoi
 
             _voronoi.TryGetCellAt(mousePosition, out _hoveredCell);
             if (_hoveredCell != null)
-                _voronoi.HighlightCells([_hoveredCell], Color.Black);
+                _voronoi.DemarcateCells([_hoveredCell], Color.Black);
 
             if (TOGGLE_EXECUTABLE_CLOSURE)
 #pragma warning disable CS0162
@@ -89,23 +88,22 @@ public class Voronoi
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
         _voronoi.GenerateDiagram(
-            new Utilities.Voronoi.Voronoi.DiagramSettings
+            points: 5000,
+            //width: 1200,
+            //height: 800,
+            settings: new Utilities.Voronoi.Voronoi.DiagramSettings
             {
                 Randomness = 0, SettlePoints = false, Distributor = distributor,
                 BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
                 Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ |
-                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
-                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
-            },
-            points: 2500
-            //width: 1200,
-            //height: 800
+                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
+                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
+            }
         );
 
-        for (uint i = 0; i <= 300; i++) _voronoi.MarkCell(i);
-
-        _voronoi.ColorMarkedCells(Color.DarkGreen, null, true);
+        //for (uint i = 0; i <= 100; i++) _voronoi.MarkCell(i);
+        //_voronoi.ColorMarkedCells(Color.DarkGreen, null, true);
         generated = true;
     }
 }

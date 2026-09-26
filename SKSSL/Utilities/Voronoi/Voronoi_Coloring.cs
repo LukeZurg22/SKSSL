@@ -8,9 +8,10 @@ namespace SKSSL.Utilities.Voronoi;
 
 public partial class Voronoi
 {
-    private readonly HashSet<uint> _markedCells = [];
-    private Texture2D? _highlightMask;
-    private Color _highlightColor = Color.Yellow;
+    private readonly HashSet<uint> _markedCells = []; // Collected cells to interact with.
+    private Color _demarcateColor = Color.Black; // Borders
+    private Color _highlightColor = Color.Yellow; // Full Cell Highlight
+    private Texture2D? _highlightMask; // Mask for highlighting cells.
 
     #region Cell Marking
 
@@ -37,29 +38,26 @@ public partial class Voronoi
         if (_cellsById.ContainsKey(cell))
             _markedCells.Add(cell);
     }
-    
+
     public void ClearMarkedCells() => _markedCells.Clear();
 
     #endregion
+
+    #region Coloring
 
     /// <summary>
     /// Calls <see cref="ChangeCellColors"/> using the cell ids marked by <see cref="MarkCell(uint)"/>.
     /// </summary>
     /// <param name="color">Color to replace cells.</param>
     /// <param name="blankColor"></param>
-    /// <param name="flattenOthers"></param>
+    /// <param name="flattenOthers">Set all other non-marked cells to an alternate color.</param>
     /// <param name="clear">Clear internally marked cells. False by default.</param>
-    public void ColorMarkedCells(
-        Color color,
-        Color? blankColor = null,
-        bool flattenOthers = false,
-        bool clear = false)
+    public void ColorMarkedCells(Color color, Color? blankColor = null, bool flattenOthers = false, bool clear = false)
     {
         blankColor ??= _flatColor;
         ChangeCellColors(_markedCells, color, blankColor.Value, flattenOthers);
         if (clear) ClearMarkedCells();
     }
-
 
     /// <summary>
     /// Sets all cells to a single color, which defaults to a provided/default flat color.
@@ -78,14 +76,11 @@ public partial class Voronoi
         void BuildUniformCellBatch()
         {
             int count = _cellGeometry.Length;
-
             if (_cellBatchVertices.Length < count)
                 _cellBatchVertices = new VertexPositionColor[count];
 
             for (int i = 0; i < count; i++)
-            {
                 _cellBatchVertices[i] = new VertexPositionColor(_cellGeometry[i], color.Value);
-            }
 
             _cellBatchPrimitiveCount = count / 3;
         }
@@ -106,12 +101,7 @@ public partial class Voronoi
         // Rebuild french cell batch with colors provided. Internal logic will handle the way they are colored,
         //  and outside of this function they are handled as if no ids were affected.
         BuildCellColorBatch(idsAffected, flattenOthers, (color, blankColor));
-        UpdateTexture(
-            _previousBoundaryMode,
-            _previousFlags,
-            _previousThickness,
-            _previousPointSize,
-            true);
+        UpdateTexture(_previousBoundaryMode, _previousFlags, _previousThickness, _previousPointSize, true);
     }
 
     public Color GetCellColor(VoronoiCell cell)
@@ -188,58 +178,47 @@ public partial class Voronoi
         return color;
     }
 
-    private readonly HashSet<uint> _highlightedCellIds = [];
+    #endregion
 
-    public void HighlightCells(IEnumerable<VoronoiCell> cells, Color color, float thickness = 1f)
+    #region Demarcating Cells
+
+    private readonly HashSet<uint> _demarcatedCellIds = [];
+
+    public void DemarcateCells(IEnumerable<VoronoiCell> cells, Color edgeColor, float thickness = 1f)
     {
         ArgumentNullException.ThrowIfNull(cells);
 
-        _highlightedCellIds.Clear();
-
+        _demarcatedCellIds.Clear();
         foreach (VoronoiCell cell in cells)
-        {
-            if (ShouldCullBoundarySite(cell.Site))
-                continue;
+            DemarcateCell(cell.ID, edgeColor, thickness);
 
-            _highlightedCellIds.Add(cell.ID);
-        }
-
-        RebuildCellSelectBorderBatch(color, thickness);
+        RebuildCellSelectBorderBatch(edgeColor, thickness);
     }
 
-    public void HighlightCell(uint cellId, Color color, float thickness = 1f)
+    // ReSharper disable once MemberCanBePrivate.Global
+    public void DemarcateCell(uint cellId, Color edgeColor, float thickness = 1f, bool rebuildBatch = false)
     {
-        _highlightedCellIds.Clear();
-        if (!_cellIndices.ContainsKey(cellId))
-        {
-            ClearHighlightBatch();
+        if (!_cellsById.TryGetValue(cellId, out VoronoiCell? _))
             return;
-        }
 
-        if (_cellsById.TryGetValue(cellId, out VoronoiCell? cell) && ShouldCullBoundarySite(cell.Site))
-        {
-            ClearHighlightBatch();
-            return;
-        }
-
-        _highlightedCellIds.Add(cellId);
-
-        RebuildCellSelectBorderBatch(color, thickness);
+        _demarcatedCellIds.Add(cellId);
+        if (rebuildBatch) RebuildCellSelectBorderBatch(edgeColor, thickness);
     }
 
 
     // ReSharper disable once UnusedMember.Global
-    public void ClearHighlightedCells()
+    public void ClearDemarcatedCells()
     {
-        _highlightedCellIds.Clear();
-        ClearHighlightBatch();
+        _demarcatedCellIds.Clear();
+        _demarcateBatchVertices = [];
+        _demarcateBatchPrimitiveCount = 0;
     }
 
     private void RebuildCellSelectBorderBatch(Color color, float thickness)
     {
-        if (_highlightedCellIds.Count == 0 || _cellVoronoiEdges.Count == 0)
+        if (_demarcatedCellIds.Count == 0 || _cellVoronoiEdges.Count == 0)
         {
-            ClearHighlightBatch();
+            ClearDemarcatedCells();
             return;
         }
 
@@ -252,55 +231,46 @@ public partial class Voronoi
          *     selected <-> unselected = boundary, draw
          *     selected <-> outside    = boundary, draw
          */
-        var vertices = new List<VertexPositionColor>(_highlightedCellIds.Count * 18);
+        var vertices = new List<VertexPositionColor>(_demarcatedCellIds.Count * 18);
 
         foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
         {
-            bool aHighlighted =
-                _highlightedCellIds.Contains(edge.SiteA.ID);
-
-            bool bHighlighted =
-                edge.SiteB.HasValue &&
-                _highlightedCellIds.Contains(edge.SiteB.Value.ID);
-
+            bool aHighlighted = _demarcatedCellIds.Contains(edge.SiteA.ID);
+            bool bHighlighted = edge.SiteB.HasValue && _demarcatedCellIds.Contains(edge.SiteB.Value.ID);
             if (aHighlighted == bHighlighted)
                 continue;
 
-            AddHighlightEdge(
-                vertices,
-                edge.Point1,
-                edge.Point2,
-                color,
-                thickness);
+            AddHighlightEdge(vertices, edge.Point1, edge.Point2, color, thickness);
         }
 
-        _highlightBatchVertices = vertices.ToArray();
-        _highlightBatchPrimitiveCount =
-            _highlightBatchVertices.Length / 3;
+        _demarcateBatchVertices = vertices.ToArray();
+        _demarcateBatchPrimitiveCount = _demarcateBatchVertices.Length / 3;
     }
 
-    #region Highlighting by Color
+    #endregion
+
+    #region Demarcating by Color
 
     [UsedImplicitly, Obsolete("It may be best to highlight cells by ID, rather than color.")]
-    public void SetHighlightedColor(Color color, float thickness = 1f, bool rebuild = true)
+    public void SetColorToDemarcate(Color color, float thickness = 1f, bool rebuild = true)
     {
-        _highlightedCellIds.Clear();
+        _demarcatedCellIds.Clear();
         for (int i = 0; i < _voronoiCellArray.Length; i++)
             if (_cellRawColors[i].PackedValue == color.PackedValue)
-                _highlightedCellIds.Add(_voronoiCellArray[i].ID);
+                _demarcatedCellIds.Add(_voronoiCellArray[i].ID);
 
         if (rebuild) RebuildCellSelectBorderBatch(color, thickness);
     }
 
 
     [UsedImplicitly, Obsolete("It may be best to highlight cells by ID, rather than color.")]
-    public void SetHighlightedColors(IEnumerable<Color> colors, Color highlightColor, float thickness = 1f)
+    public void SetColorsToDemarcate(IEnumerable<Color> colors, Color highlightColor, float thickness = 1f)
     {
         ArgumentNullException.ThrowIfNull(colors);
 
         foreach (Color color in colors)
         {
-            SetHighlightedColor(color, thickness, false);
+            SetColorToDemarcate(color, thickness, false);
         }
 
         RebuildCellSelectBorderBatch(highlightColor, thickness);

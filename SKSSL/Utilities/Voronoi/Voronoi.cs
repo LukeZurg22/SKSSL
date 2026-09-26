@@ -3,10 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Clipper2Lib;
-using LibTessDotNet.Double;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi.PointDistributors;
@@ -56,7 +53,6 @@ public partial class Voronoi
     private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
     private List<CellVoronoiEdge>?[] _edgesByCell = [];
     private DistributorImage? _imageDistributor = null; // For heightmap distribution.
-    private VoronoiCell[] _voronoiCellArray = [];
 
     //      A graph may become too large, it'll need to be divided into "chunks" / spacial grids.
     private SpatialGrid? _spatialGrid;
@@ -77,8 +73,8 @@ public partial class Voronoi
     private int _pointBatchPrimitiveCount;
     private VertexPositionColor[] _triangleBatchVertices = []; //  TRIANGLES
     private int _triangleBatchPrimitiveCount;
-    private VertexPositionColor[] _highlightBatchVertices = []; //  HIGHLIGHTS
-    private int _highlightBatchPrimitiveCount;
+    private VertexPositionColor[] _demarcateBatchVertices = []; //  DEMARCATIONS
+    private int _demarcateBatchPrimitiveCount;
 
     // Rendering Basics
     private Texture2D _pixelMap = null!;
@@ -100,6 +96,7 @@ public partial class Voronoi
     private bool _isGenerated = false;
 
     private readonly Dictionary<uint, VoronoiCell> _cellsById = [];
+    private VoronoiCell[] _voronoiCellArray = [];
 
     // TODO: Support constrained and density-driven Voronoi generation.
     //  .
@@ -170,14 +167,9 @@ public partial class Voronoi
         view ??= Matrix.Identity;
         _effect.World = world.Value;
         _effect.View = view.Value;
-        _effect.Projection =
-            Matrix.CreateOrthographicOffCenter(
-                0f,
-                _width,
-                _height,
-                0f,
-                0f,
-                1f);
+        _effect.Projection = Matrix.CreateOrthographicOffCenter(
+            0f, _width, _height, 0f, 0f, 1f
+        );
     }
 
     private void SetScreenProjection()
@@ -186,14 +178,9 @@ public partial class Voronoi
 
         _effect.World = Matrix.Identity;
         _effect.View = Matrix.Identity;
-        _effect.Projection =
-            Matrix.CreateOrthographicOffCenter(
-                0f,
-                viewport.Width,
-                viewport.Height,
-                0f,
-                0f,
-                1f);
+        _effect.Projection = Matrix.CreateOrthographicOffCenter(
+            0f, viewport.Width, viewport.Height, 0f, 0f, 1f
+        );
     }
 
     #endregion
@@ -213,12 +200,14 @@ public partial class Voronoi
     /// <param name="width">Width of diagram in pixels.</param>
     /// <param name="height">Height of diagram in pixels.</param>
     public void GenerateDiagram(
-        DiagramSettings settings,
         int points = DefaultPointCount,
         int? width = null,
-        int? height = null)
+        int? height = null,
+        DiagramSettings? settings = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(points, 1);
+
+        settings ??= new DiagramSettings();
 
         _isGenerated = false;
         _textureValid = false;
@@ -300,12 +289,14 @@ public partial class Voronoi
         if (_imageDistributor is { AllowBlackGaps: true } dim)
         {
             gapGeometry = BuildGapGeometry(dim.GapPolygons, dim.GapMask.Width, dim.GapMask.Height, _width, _height);
-            ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);
+            ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values); // WARN: This clipping is off.
         }
 
         BuildCellArray();
         BuildCellGeometry();
-        BuildVoronoiEdges(triangulation, settings.BoundaryMode, gapGeometry);
+
+        // TODO: RenderDebugEdgesThroughGaps +--> Settings
+        BuildVoronoiEdges(triangulation, settings.BoundaryMode, gapGeometry, false);
         BuildSelectCellEdges(); // This is to improve performance for selection.
 
         // Points.
@@ -319,12 +310,12 @@ public partial class Voronoi
         // Triangles. (Best not to use these, though. They're ugly.
         // ReSharper disable once PossibleMultipleEnumeration ; False positive.
         if ((settings.Flags & VoronoiRenderingFlags.Triangles) != 0)
-            BuildTriangleBatch(triangulation);
+            BuildTriangleBatch(triangulation, settings.BoundaryMode);
 
         // Cells. (Star of the show.)
         if ((settings.Flags & VoronoiRenderingFlags.Cells) != 0)
         {
-            BuildCellGeometryBatch();
+            BuildCellVertexBatch();
             BuildCellColorBatch([]);
         }
 
@@ -406,10 +397,12 @@ public partial class Voronoi
             }
 
             _cellRawColors[_cellIndices[cell.ID]] = GetCellColor(cell);
-            cell.IsCulled = boundaryMode == VoronoiBoundaryMode.Culled && (cell.IsBoundary || cell.Vertices.Count == 0);
+
+            cell.IsCulled = IsArtificialBoundarySite(cell.Site) ||
+                            (boundaryMode == VoronoiBoundaryMode.Culled &&
+                             (cell.IsBoundary || cell.Vertices.Count == 0));
         });
     }
-
 
     private void BuildSpatialGrid()
     {
@@ -593,7 +586,7 @@ public partial class Voronoi
     public bool TryGetCellAt(System.Drawing.Point position, [NotNullWhen(true)] out VoronoiCell? cell)
     {
         cell = null;
-        return _spatialGrid != null && _spatialGrid.TryGetCell(position, out cell);
+        return _spatialGrid != null && _spatialGrid.TryGetCellAt(position, out cell);
     }
 
     #endregion
