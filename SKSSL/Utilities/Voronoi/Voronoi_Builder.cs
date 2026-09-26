@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using Clipper2Lib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -355,6 +353,71 @@ public partial class Voronoi
         _cellBatchPrimitiveCount = totalVertices / 3;
     }
 
+    private void BuildVoronoiEdges(List<Triangle> triangulation, VoronoiBoundaryMode boundaryMode, GapGeometry? gaps)
+    {
+        _voronoiEdges.Clear();
+        _cellVoronoiEdges.Clear();
+
+        foreach (Triangle triangle in triangulation)
+        {
+            if (IsArtificialBoundaryTriangle(triangle))
+                continue;
+            AddVoronoiEdges(triangle, boundaryMode);
+        }
+
+        if (gaps is not null && gaps.Paths.Count != 0)
+            ClipVoronoiEdgesAgainstGaps(gaps);
+    }
+
+    private void ClipVoronoiEdgesAgainstGaps(GapGeometry gaps)
+    {
+        if (_voronoiEdges.Count == 0)
+            return;
+
+        int edgeCount = _voronoiEdges.Count;
+
+        var subjects = new Paths64(edgeCount);
+
+        for (int i = 0; i < edgeCount; i++)
+        {
+            Edge edge = _voronoiEdges[i];
+
+            subjects.Add(
+            [
+                new Point64(edge.Point1.X, edge.Point1.Y),
+                new Point64(edge.Point2.X, edge.Point2.Y)
+            ]);
+        }
+
+        var clipped = new Paths64();
+        var openClipped = new Paths64();
+
+        var clipper = new Clipper64();
+
+        clipper.AddOpenSubject(subjects);
+        clipper.AddClip(gaps.Paths);
+        clipper.Execute(ClipType.Difference, FillRule.EvenOdd, clipped, openClipped);
+
+        _voronoiEdges.Clear();
+
+        foreach (Path64 path in openClipped)
+        {
+            if (path.Count < 2)
+                continue;
+
+            for (int i = 1; i < path.Count; i++)
+            {
+                Point64 a = path[i - 1];
+                Point64 b = path[i];
+
+                if (a == b)
+                    continue;
+
+                _voronoiEdges.Add(new Edge(new Point((int)a.X, (int)a.Y), new Point((int)b.X, (int)b.Y)));
+            }
+        }
+    }
+
     [SuppressMessage("ReSharper", "SuggestVarOrType_Elsewhere")]
     private unsafe void BuildCellColorBatch(
         HashSet<uint> overrideIds,
@@ -404,12 +467,11 @@ public partial class Voronoi
                 //int end = start + count;
 
                 VertexPositionColor* dst = outputPtr + start;
-                for (int i = 0; i < count; i++) 
+                for (int i = 0; i < count; i++)
                     dst[i].Color = color;
             }
         }
 
         _cellBatchPrimitiveCount = _cellBatchVertices.Length / 3;
     }
-    
 }

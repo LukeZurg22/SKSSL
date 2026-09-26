@@ -98,14 +98,14 @@ public class Voronoi
                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
             },
-            points: 50000
+            points: 25000
             //width: 1200,
             //height: 800
         );
 
         for (uint i = 0; i <= 800; i++) _voronoi.MarkCell(i);
 
-        _voronoi.ColorMarkedCells(Color.BlanchedAlmond, Color.DarkGreen);
+        _voronoi.ColorMarkedCells(Color.BlanchedAlmond, null);
         generated = true;
     }
 }

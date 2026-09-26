@@ -186,29 +186,38 @@
         <Compile Update="Utilities\Flags\ShapeLayer.cs">
           <DependentUpon>IFlag.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\VoronoiDrawer.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi_Drawer.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\VoronoiBuilder.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi_Builder.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\VoronoiUtilities.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi_Utilities.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Update="Utilities\Voronoi\DelaunayTriangulator.BoundaryEdge.cs">
           <DependentUpon>Delaunay.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi.ColorMode.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi_ColorMode.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi.VoronoiBoundaryMode.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi_BoundaryMode.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi.VoronoiRenderingFlags.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi_RenderingFlags.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Update="Utilities\Voronoi\DelaunayTriangulator.EdgeReference.cs">
           <DependentUpon>Delaunay.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi_IO.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\VoronoiDiagramSettings.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\VoronoiSaveData.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
     </ItemGroup>
 

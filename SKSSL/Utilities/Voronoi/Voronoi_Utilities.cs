@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Clipper2Lib;
+using Microsoft.Xna.Framework;
 
 // ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 
@@ -144,8 +145,8 @@ public partial class Voronoi
             path.Add(new Point64(point.X, point.Y));
         return path;
     }
-    
-    internal static bool ClipRayAxis(
+
+    private static bool ClipRayAxis(
         float origin,
         float direction,
         float min,
@@ -234,6 +235,10 @@ public partial class Voronoi
         return result.Distinct().ToList();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsArtificialBoundaryTriangle(Triangle triangle) 
+        => triangle.Vertices[0].ID < 4 || triangle.Vertices[1].ID < 4 || triangle.Vertices[2].ID < 4;
+
     private static Point IntersectVertical(Point a, Point b, float x)
     {
         var dx = b.X - a.X;
@@ -311,5 +316,264 @@ public partial class Voronoi
             if (!ReferenceEquals(reverse, t))
                 throw new InvalidOperationException("Neighbor relationship is not reciprocal.");
         }
+    }
+    
+    
+    /// <summary>
+    /// Marks whether a cell at a given site should be culled.
+    /// </summary>
+    /// <param name="site">Point at which a cell is expected to be.</param>
+    /// <returns>
+    /// True if the culling mode is <see cref="VoronoiBoundaryMode.Culled"/>, the point belongs to a valid cell,
+    /// and that cell is a boundary cell or simply has no vertices. Otherwise... it returns false.
+    /// </returns>
+    private bool ShouldCullBoundarySite(Point site)
+    {
+        if (_boundaryMode != VoronoiBoundaryMode.Culled)
+            return false;
+
+        if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
+            return true;
+
+        return cell.IsBoundary || !HasRenderableGeometry(cell);
+    }
+
+    private static bool HasRenderableGeometry(VoronoiCell cell)
+    {
+        if (cell.Vertices.Count == 0)
+            return false;
+
+        return cell.RenderPaths is not { Count: 0 };
+    }
+    
+    private bool ClipLineToBounds(Point p1, Point p2, out Point clipped1, out Point clipped2)
+    {
+        float x1 = p1.X;
+        float y1 = p1.Y;
+        float x2 = p2.X;
+        float y2 = p2.Y;
+
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+
+        float t0 = 0f;
+        float t1 = 1f;
+
+        // Left: x >= 0
+        if (!Clip(-dx, x1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        // Right: x <= width
+        if (!Clip(dx, _width - x1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        // Top: y >= 0
+        if (!Clip(-dy, y1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        // Bottom: y <= height
+        if (!Clip(dy, _height - y1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        clipped1 = new Point(
+            (int)Math.Round(x1 + dx * t0),
+            (int)Math.Round(y1 + dy * t0));
+
+        clipped2 = new Point(
+            (int)Math.Round(x1 + dx * t1),
+            (int)Math.Round(y1 + dy * t1));
+
+        return true;
+
+        bool Clip(float p, float q)
+        {
+            if (Math.Abs(p) < 0.000001f)
+                return q >= 0f;
+
+            float r = q / p;
+
+            if (p < 0f)
+            {
+                if (r > t1)
+                    return false;
+
+                if (r > t0)
+                    t0 = r;
+            }
+            else
+            {
+                if (r < t0)
+                    return false;
+
+                if (r < t1)
+                    t1 = r;
+            }
+
+            return true;
+        }
+    }
+    
+        private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode boundaryMode)
+    {
+        // Edge 0: vertices 0 -> 1
+        AddVoronoiEdge(triangle, triangle.Neighbor0, triangle.Vertices[0], triangle.Vertices[1], boundaryMode);
+
+        // Edge 1: vertices 1 -> 2
+        AddVoronoiEdge(triangle, triangle.Neighbor1, triangle.Vertices[1], triangle.Vertices[2], boundaryMode);
+
+        // Edge 2: vertices 2 -> 0
+        AddVoronoiEdge(triangle, triangle.Neighbor2, triangle.Vertices[2], triangle.Vertices[0], boundaryMode);
+    }
+
+    private void AddVoronoiEdge(
+        Triangle triangle,
+        Triangle? neighbor,
+        Point a,
+        Point b,
+        VoronoiBoundaryMode boundaryMode)
+    {
+        if (neighbor != null)
+        {
+            if (triangle.Id >= neighbor.Id)
+                return;
+
+            // In Culled mode, don't render an edge belonging to a boundary cell that is being culled.
+            if (boundaryMode == VoronoiBoundaryMode.Culled &&
+                (ShouldCullBoundarySite(a) || ShouldCullBoundarySite(b)))
+                return;
+
+            Point p1 = triangle.Circumcenter;
+            Point p2 = neighbor.Circumcenter;
+
+            if (!ClipLineToBounds(p1, p2, out Point clipped1, out Point clipped2))
+                return;
+
+            _voronoiEdges.Add(new Edge(clipped1, clipped2));
+            _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, clipped1, clipped2));
+
+            return;
+        }
+
+        // No neighboring triangle means this is a convex-hull edge,
+        // so its Voronoi edge extends to infinity.
+        if (boundaryMode == VoronoiBoundaryMode.Culled)
+            return;
+
+        if (TryGetBoundaryVoronoiEdge(triangle, a, b, out Point start, out Point end))
+            _voronoiEdges.Add(new Edge(start, end));
+    }
+
+    private bool TryGetBoundaryVoronoiEdge(
+        Triangle triangle,
+        Point a,
+        Point b,
+        out Point start,
+        out Point end)
+    {
+        Vector2 origin = new(triangle.Circumcenter.X, triangle.Circumcenter.Y);
+
+        Vector2 va = new(a.X, a.Y);
+        Vector2 vb = new(b.X, b.Y);
+        Vector2 edge = vb - va;
+
+        if (edge.LengthSquared() < 0.000001f)
+        {
+            start = default;
+            end = default;
+            return false;
+        }
+
+        /*
+         * There are two possible normals to the Delaunay edge.
+         *
+         * Pick the one pointing AWAY from the third vertex of the
+         * triangle. That is the direction of the unbounded Voronoi ray.
+         */
+
+        Vector2 normal = new(-edge.Y, edge.X);
+        normal.Normalize();
+        Vector2 midpoint = (va + vb) * 0.5f;
+        Point thirdPoint;
+        if (triangle.Vertices[0] != a && triangle.Vertices[0] != b)
+        {
+            thirdPoint = triangle.Vertices[0];
+        }
+        else if (triangle.Vertices[1] != a && triangle.Vertices[1] != b)
+        {
+            thirdPoint = triangle.Vertices[1];
+        }
+        else
+        {
+            thirdPoint = triangle.Vertices[2];
+        }
+
+        Vector2 third = new(thirdPoint.X, thirdPoint.Y);
+
+        // Make normal point away from the triangle.
+        if (Vector2.Dot(normal, third - midpoint) > 0f)
+            normal = -normal;
+
+        /*
+         * Intersect the ray:
+         *
+         *     origin + normal * t
+         *
+         * with the diagram rectangle.
+         *
+         * This gives us the portion of the infinite Voronoi ray
+         * that is actually visible inside the diagram.
+         */
+
+        float tMin = 0f;
+        float tMax = float.MaxValue;
+
+        if (!ClipRayAxis(origin.X, normal.X, 0f, _width, ref tMin, ref tMax))
+        {
+            start = default;
+            end = default;
+            return false;
+        }
+
+        if (!ClipRayAxis(origin.Y, normal.Y, 0f, _height, ref tMin, ref tMax))
+        {
+            start = default;
+            end = default;
+            return false;
+        }
+
+        if (tMax < tMin || tMax < 0f)
+        {
+            start = default;
+            end = default;
+            return false;
+        }
+
+        tMin = Math.Max(tMin, 0f);
+
+        Vector2 p1 = origin + normal * tMin;
+        Vector2 p2 = origin + normal * tMax;
+
+        //@formatter:off
+        start = new Point((int)Math.Round(Math.Clamp(p1.X, 0f, _width)), (int)Math.Round(Math.Clamp(p1.Y, 0f, _height)));
+        end = new Point((int)Math.Round(Math.Clamp(p2.X, 0f, _width)), (int)Math.Round(Math.Clamp(p2.Y, 0f, _height)));
+        //@formatter:on
+
+        return start != end;
     }
 }

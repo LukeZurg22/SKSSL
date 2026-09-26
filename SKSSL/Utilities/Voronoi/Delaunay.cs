@@ -446,32 +446,18 @@ public partial class DelaunayTriangulator : IDisposable
 
                 if (t < bestT)
                 {
-                    bestT = t;
+                    //bestT = t;
                     exitEdge = 2;
                 }
             }
 
-            switch (exitEdge)
+            current = exitEdge switch
             {
-                case 0:
-                    current = current.Neighbor0
-                              ?? throw OutsideTriangle(p, current, 0);
-                    break;
-
-                case 1:
-                    current = current.Neighbor1
-                              ?? throw OutsideTriangle(p, current, 1);
-                    break;
-
-                case 2:
-                    current = current.Neighbor2
-                              ?? throw OutsideTriangle(p, current, 2);
-                    break;
-
-                default:
-                    throw new InvalidOperationException(
-                        $"Unable to determine exit edge for triangle {current.Id}.");
-            }
+                0 => current.Neighbor0 ?? throw OutsideTriangle(p, current, 0),
+                1 => current.Neighbor1 ?? throw OutsideTriangle(p, current, 1),
+                2 => current.Neighbor2 ?? throw OutsideTriangle(p, current, 2),
+                _ => throw new InvalidOperationException($"Unable to determine exit edge for triangle {current.Id}.")
+            };
         }
     }
 
