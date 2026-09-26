@@ -88,20 +88,25 @@ public class Voronoi
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
         /*await Task.Run(() =>*/
-        _voronoi.GenerateDiagram(points: 50000,
+        _voronoi.GenerateDiagram(
+            new Utilities.Voronoi.Voronoi.DiagramSettings
+            {
+                Randomness = 0,
+                SettlePoints = false,
+                Distributor = distributor,
+                BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
+                Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
+                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ /*|
+                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges*/ /*|
+                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
+            },
+            points: 50000
             //width: 1200,
-            //height: 800,
-            randomness: 0,
-            settlePoints: false,
-            distributor: distributor,
-            boundaryMode: Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
-            flags: Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
-                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ /*| 
-                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges*/ /*|
-                   Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/);
+            //height: 800
+        );
 
         for (uint i = 0; i <= 800; i++) _voronoi.MarkCell(i);
-        
+
         _voronoi.ColorMarkedCells(Color.BlanchedAlmond, Color.DarkGreen);
         generated = true;
     }

@@ -212,43 +212,26 @@ public partial class Voronoi
     /// <remarks>
     /// Also calls <see cref="UpdateTexture"/> to populate the pixel data.
     /// </remarks>
+    /// <param name="settings"></param>
     /// <param name="points"></param>
     /// <param name="width">Width of diagram in pixels.</param>
     /// <param name="height">Height of diagram in pixels.</param>
-    /// <param name="settlePoints">Toggle for easing points to a settled arrangement.</param>
-    /// <param name="randomness">
-    ///     Evenness of distribution on a scale of 0.00 -> 1.00; only works with the
-    /// </param>
-    /// <param name="distributor">
-    ///     Provided custom point distributor that decides the positioning of the point X and Y positions.
-    /// </param>
-    /// <param name="boundaryMode"></param>
-    /// <param name="flags">Convenient Enum toggle of various parts of a Voronoi diagram.</param>
-    /// <param name="thickness">Thickness of Edges, if they are rendered.</param>
-    /// <param name="pointSize">Size of Points, if they are rendered.</param>
     public void GenerateDiagram(
+        DiagramSettings settings,
         int points = DefaultPointCount,
         int? width = null,
-        int? height = null,
-        bool settlePoints = false,
-        double randomness = 0.8,
-        IPointDistributor? distributor = null,
-        VoronoiBoundaryMode boundaryMode = VoronoiBoundaryMode.Culled,
-        VoronoiRenderingFlags flags = VoronoiRenderingFlags.Cells,
-        float thickness = 1f,
-        float pointSize = 2f)
+        int? height = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(points, 1);
 
         _isGenerated = false;
         _textureValid = false;
-        _boundaryMode = boundaryMode;
+        _boundaryMode = settings.BoundaryMode;
 
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
 
-        distributor ??= new DistributorRandomJitter();
-        if (distributor is DistributorImage distributorImage)
+        if (settings.Distributor is DistributorImage distributorImage)
             _imageDistributor = distributorImage;
 
         SetDiagramProjection();
@@ -259,7 +242,7 @@ public partial class Voronoi
         int maxX = width.Value;
         int maxY = height.Value;
         var pointsList = delaunay.CreatePointsList(maxX, maxY);
-        distributor.Generate(ref pointsList, points, maxX, maxY, randomness);
+        settings.Distributor.Generate(ref pointsList, points, maxX, maxY, settings.Randomness);
         _points = pointsList.ToArray();
 
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
@@ -289,7 +272,7 @@ public partial class Voronoi
 
         // Lloyd relaxation requires rebuilding the triangulation and Voronoi cells, which can be a little expensive
         //  for large graphs.
-        if (settlePoints)
+        if (settings.SettlePoints)
         {
 #if DEBUG
             Debug.WriteLine("Lloyd: starting");
@@ -307,7 +290,7 @@ public partial class Voronoi
         ValidateNeighbors(triangulation);
 #endif
 
-        ProcessCells(boundaryMode, triangulation);
+        ProcessCells(settings.BoundaryMode, triangulation);
 
         // Separate from Vertices list.
         if (_imageDistributor is { AllowBlackGaps: true } dim)
@@ -325,20 +308,20 @@ public partial class Voronoi
         BuildEdgesByCell();
 
         // Points.
-        if ((flags & VoronoiRenderingFlags.Points) != 0)
-            BuildPointBatch(pointSize);
+        if ((settings.Flags & VoronoiRenderingFlags.Points) != 0)
+            BuildPointBatch(settings.PointSize);
 
         // Edges.
-        if ((flags & VoronoiRenderingFlags.Edges) != 0)
-            BuildEdgeBatch(thickness);
+        if ((settings.Flags & VoronoiRenderingFlags.Edges) != 0)
+            BuildEdgeBatch(settings.Thickness);
 
         // Triangles. (Best not to use these, though. They're ugly.
         // ReSharper disable once PossibleMultipleEnumeration ; False positive.
-        if ((flags & VoronoiRenderingFlags.Triangles) != 0)
+        if ((settings.Flags & VoronoiRenderingFlags.Triangles) != 0)
             BuildTriangleBatch(triangulation);
 
         // Cells. (Star of the show.)
-        if ((flags & VoronoiRenderingFlags.Cells) != 0)
+        if ((settings.Flags & VoronoiRenderingFlags.Cells) != 0)
         {
             BuildCellGeometryBatch();
             BuildCellColorBatch([]);
@@ -347,7 +330,7 @@ public partial class Voronoi
         _isGenerated = true;
 
         // Update the existing internal pixel map with visual changes.
-        UpdateTexture(boundaryMode, flags, thickness, pointSize);
+        UpdateTexture(settings.BoundaryMode, settings.Flags, settings.Thickness, settings.PointSize);
 
         // A spatial grid, aka a bucket grid is needed to subdivide the voronoi map into workable chunks.
         // This is for performance.
