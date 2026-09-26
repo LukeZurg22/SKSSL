@@ -57,6 +57,8 @@ public partial class Voronoi
     private readonly Dictionary<Point, VoronoiCell> _voronoiCells = []; // TODO: use an array.
     private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
     private List<CellVoronoiEdge>?[] _edgesByCell = [];
+    private DistributorImage? _imageDistributor = null; // For heightmap distribution.
+    private VoronoiCell[] _voronoiCellArray = [];
 
     //      A graph may become too large, it'll need to be divided into "chunks" / spacial grids.
     private SpatialGrid? _spatialGrid;
@@ -127,8 +129,6 @@ public partial class Voronoi
     //      - Simply decrease and increase opacity in the draw call via a Math.Lerp() or something.
     //      Replace existing "highlight" terminology with "selected", and then use "highlight" for the literal highlighting.
 
-    private DistributorImage? _imageDistributor = null;
-    private VoronoiCell[] _voronoiCellArray = [];
 
     #region Construction & Mono Code
 
@@ -246,7 +246,6 @@ public partial class Voronoi
 
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
-
 
         distributor ??= new DistributorRandomJitter();
         if (distributor is DistributorImage distributorImage)
@@ -428,6 +427,7 @@ public partial class Voronoi
 
     private void BuildSpatialGrid()
     {
+        // ReSharper disable once PossibleLossOfFraction
         int gridSize = Math.Max(10, (int)Math.Sqrt(_voronoiCellArray.Length / 4));
         float cellWidth = (float)_width / gridSize;
         float cellHeight = (float)_height / gridSize;
@@ -721,20 +721,16 @@ public partial class Voronoi
         RebuildCellSelectBorderBatch(highlightColor, thickness);
     }
 
+    // ReSharper disable once UnusedMember.Global
     public void ClearHighlightedCells()
     {
         _highlightedCellIds.Clear();
         ClearHighlightBatch();
     }
 
-    private VertexPositionColor[] _highlightScratch = [];
-
-    private void RebuildCellSelectBorderBatch(
-        Color color,
-        float thickness)
+    private void RebuildCellSelectBorderBatch(Color color, float thickness)
     {
-        if (_highlightedCellIds.Count == 0 ||
-            _cellVoronoiEdges.Count == 0)
+        if (_highlightedCellIds.Count == 0 || _cellVoronoiEdges.Count == 0)
         {
             ClearHighlightBatch();
             return;
@@ -742,12 +738,9 @@ public partial class Voronoi
 
         /*
          * Every Voronoi edge is considered exactly once.
-         *
-         * An edge is highlighted when exactly one of its two cells
-         * is selected.
+         * An edge is highlighted when exactly one of its two cells is selected.
          *
          * Therefore:
-         *
          *     selected <-> selected   = internal edge, skip
          *     selected <-> unselected = boundary, draw
          *     selected <-> outside    = boundary, draw
@@ -794,41 +787,22 @@ public partial class Voronoi
         var geometries = new Vector3[cellCount][];
         var counts = new int[cellCount];
 
-        Parallel.For(
-            0,
-            cellCount,
-            i =>
-            {
-                VoronoiCell cell = _voronoiCellArray[i];
+        Parallel.For(0, cellCount, i =>
+        {
+            VoronoiCell cell = _voronoiCellArray[i];
+            Vector3[] geometry;
 
-                Vector3[] geometry;
+            if (cell.Vertices.Count < 3 && (cell.RenderPaths == null || cell.RenderPaths.Count == 0)) geometry = [];
+            else if (cell.RenderPaths == null) geometry = TessellateOriginalCellPositions(cell.Vertices);
+            else if (cell.RenderPaths.Count == 0) geometry = [];
+            else geometry = TessellateClippedCellPositions(cell.RenderPaths);
 
-                if (cell.Vertices.Count < 3 &&
-                    (cell.RenderPaths == null || cell.RenderPaths.Count == 0))
-                {
-                    geometry = [];
-                }
-                else if (cell.RenderPaths == null)
-                {
-                    geometry = TessellateOriginalCellPositions(cell.Vertices);
-                }
-                else if (cell.RenderPaths.Count == 0)
-                {
-                    geometry = [];
-                }
-                else
-                {
-                    geometry = TessellateClippedCellPositions(cell.RenderPaths);
-                }
-
-                geometries[i] = geometry;
-                counts[i] = geometry.Length;
-            });
-
-        var offsets = new int[cellCount];
+            geometries[i] = geometry;
+            counts[i] = geometry.Length;
+        });
 
         int total = 0;
-
+        var offsets = new int[cellCount];
         for (int i = 0; i < cellCount; i++)
         {
             offsets[i] = total;
@@ -836,16 +810,13 @@ public partial class Voronoi
         }
 
         var geometryBuffer = new Vector3[total];
-
         for (int i = 0; i < cellCount; i++)
         {
-            Vector3[] source = geometries[i];
-
+            var source = geometries[i];
             if (source.Length == 0)
                 continue;
 
-            source.AsSpan().CopyTo(
-                geometryBuffer.AsSpan(offsets[i]));
+            source.AsSpan().CopyTo(geometryBuffer.AsSpan(offsets[i]));
         }
 
         _cellGeometry = geometryBuffer;
@@ -856,7 +827,6 @@ public partial class Voronoi
     private void BuildCellArray()
     {
         int count = _cellIndices.Count;
-
         if (_voronoiCellArray.Length != count)
             _voronoiCellArray = new VoronoiCell[count];
 
@@ -893,20 +863,16 @@ public partial class Voronoi
             return [];
 
         var tess = new Tess();
-
         foreach (Path64 path in paths)
         {
             if (path.Count < 3)
                 continue;
 
             var contour = new ContourVertex[path.Count];
-
             for (int i = 0; i < path.Count; i++)
             {
                 Point64 point = path[i];
-
-                contour[i].Position =
-                    new Vec3(point.X, point.Y, 0.0);
+                contour[i].Position = new Vec3(point.X, point.Y, 0.0);
             }
 
             tess.AddContour(contour);
@@ -922,15 +888,9 @@ public partial class Voronoi
         for (int i = 0; i < tess.ElementCount; i++)
         {
             int elementIndex = i * 3;
-
-            result[elementIndex] =
-                ToVector3(tess.Vertices[tess.Elements[elementIndex]].Position);
-
-            result[elementIndex + 1] =
-                ToVector3(tess.Vertices[tess.Elements[elementIndex + 1]].Position);
-
-            result[elementIndex + 2] =
-                ToVector3(tess.Vertices[tess.Elements[elementIndex + 2]].Position);
+            result[elementIndex] = ToVector3(tess.Vertices[tess.Elements[elementIndex]].Position);
+            result[elementIndex + 1] = ToVector3(tess.Vertices[tess.Elements[elementIndex + 1]].Position);
+            result[elementIndex + 2] = ToVector3(tess.Vertices[tess.Elements[elementIndex + 2]].Position);
         }
 
         return result;
@@ -956,7 +916,6 @@ public partial class Voronoi
         Vector2 p2 = new(point2.X, point2.Y);
 
         Vector2 direction = p2 - p1;
-
         if (direction.LengthSquared() <= 0.000001f)
             return;
 
@@ -983,19 +942,15 @@ public partial class Voronoi
 
         SetScreenProjection();
 
-        BlendState previousBlend =
-            _graphicsDevice.BlendState;
-
+        BlendState previousBlend = _graphicsDevice.BlendState;
         RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;
 
         try
         {
             _graphicsDevice.BlendState = BlendState.AlphaBlend;
-
             _graphicsDevice.RasterizerState = RasterizerState.CullNone;
 
-            foreach (EffectPass pass
-                     in _effect.CurrentTechnique.Passes)
+            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
             {
                 pass.Apply();
 
@@ -1194,10 +1149,7 @@ public partial class Voronoi
 
     #region I/O
 
-    private readonly JsonSerializerOptions _serializerOptions = new()
-    {
-        WriteIndented = false
-    };
+    private readonly JsonSerializerOptions _serializerOptions = new() { WriteIndented = false };
 
     // ReSharper disable once UnusedMember.Global
     public void Save(string filePath) // TODO: Add test case for Voronoi Save()
@@ -1285,7 +1237,7 @@ public partial class Voronoi
 
         BuildCellArray();
         BuildCellGeometry();
-        
+
         foreach (CellData savedCell in data.Cells)
         {
             Point site = pointLookup[(savedCell.X, savedCell.Y)];
@@ -1347,12 +1299,10 @@ public partial class Voronoi
     /// True if the culling mode is <see cref="VoronoiBoundaryMode.Culled"/>, the point belongs to a valid cell,
     /// and that cell is a boundary cell or simply has no vertices. Otherwise... it returns false.
     /// </returns>
-    private bool ShouldCullBoundarySite(Point site) =>
-        _boundaryMode == VoronoiBoundaryMode.Culled &&
-        _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
-        (cell.IsBoundary || cell.Vertices.Count == 0);
-
-    private static bool ShouldCullCell(VoronoiCell cell) => cell.IsCulled;
+    private bool ShouldCullBoundarySite(Point site)
+        => _boundaryMode == VoronoiBoundaryMode.Culled &&
+           _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
+           (cell.IsBoundary || cell.Vertices.Count == 0);
 
     private bool ClipLineToBounds(Point p1, Point p2, out Point clipped1, out Point clipped2)
     {
@@ -1440,28 +1390,13 @@ public partial class Voronoi
     private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode boundaryMode)
     {
         // Edge 0: vertices 0 -> 1
-        AddVoronoiEdge(
-            triangle,
-            triangle.Neighbor0,
-            triangle.Vertices[0],
-            triangle.Vertices[1],
-            boundaryMode);
+        AddVoronoiEdge(triangle, triangle.Neighbor0, triangle.Vertices[0], triangle.Vertices[1], boundaryMode);
 
         // Edge 1: vertices 1 -> 2
-        AddVoronoiEdge(
-            triangle,
-            triangle.Neighbor1,
-            triangle.Vertices[1],
-            triangle.Vertices[2],
-            boundaryMode);
+        AddVoronoiEdge(triangle, triangle.Neighbor1, triangle.Vertices[1], triangle.Vertices[2], boundaryMode);
 
         // Edge 2: vertices 2 -> 0
-        AddVoronoiEdge(
-            triangle,
-            triangle.Neighbor2,
-            triangle.Vertices[2],
-            triangle.Vertices[0],
-            boundaryMode);
+        AddVoronoiEdge(triangle, triangle.Neighbor2, triangle.Vertices[2], triangle.Vertices[0], boundaryMode);
     }
 
     private void AddVoronoiEdge(
@@ -1530,23 +1465,15 @@ public partial class Voronoi
          * triangle. That is the direction of the unbounded Voronoi ray.
          */
 
-        Vector2 normal = new(
-            -edge.Y,
-            edge.X);
-
+        Vector2 normal = new(-edge.Y, edge.X);
         normal.Normalize();
-
         Vector2 midpoint = (va + vb) * 0.5f;
-
         Point thirdPoint;
-
-        if (triangle.Vertices[0] != a &&
-            triangle.Vertices[0] != b)
+        if (triangle.Vertices[0] != a && triangle.Vertices[0] != b)
         {
             thirdPoint = triangle.Vertices[0];
         }
-        else if (triangle.Vertices[1] != a &&
-                 triangle.Vertices[1] != b)
+        else if (triangle.Vertices[1] != a && triangle.Vertices[1] != b)
         {
             thirdPoint = triangle.Vertices[1];
         }
@@ -1555,9 +1482,7 @@ public partial class Voronoi
             thirdPoint = triangle.Vertices[2];
         }
 
-        Vector2 third = new(
-            thirdPoint.X,
-            thirdPoint.Y);
+        Vector2 third = new(thirdPoint.X, thirdPoint.Y);
 
         // Make normal point away from the triangle.
         if (Vector2.Dot(normal, third - midpoint) > 0f)
@@ -1577,26 +1502,14 @@ public partial class Voronoi
         float tMin = 0f;
         float tMax = float.MaxValue;
 
-        if (!ClipRayAxis(
-                origin.X,
-                normal.X,
-                0f,
-                _width,
-                ref tMin,
-                ref tMax))
+        if (!ClipRayAxis(origin.X, normal.X, 0f, _width, ref tMin, ref tMax))
         {
             start = default;
             end = default;
             return false;
         }
 
-        if (!ClipRayAxis(
-                origin.Y,
-                normal.Y,
-                0f,
-                _height,
-                ref tMin,
-                ref tMax))
+        if (!ClipRayAxis(origin.Y, normal.Y, 0f, _height, ref tMin, ref tMax))
         {
             start = default;
             end = default;
