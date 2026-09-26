@@ -339,7 +339,10 @@ public partial class Voronoi
 
         // Cells. (Star of the show.)
         if ((flags & VoronoiRenderingFlags.Cells) != 0)
-            BuildCellBatch([]);
+        {
+            BuildCellGeometryBatch();
+            BuildCellColorBatch([]);
+        }
 
         _isGenerated = true;
 
@@ -1062,7 +1065,7 @@ public partial class Voronoi
 
         // Rebuild french cell batch with colors provided. Internal logic will handle the way they are colored,
         //  and outside of this function they are handled as if no ids were affected.
-        BuildCellBatch(idsAffected, ignoreFlatColor, (color, blankColor));
+        BuildCellColorBatch(idsAffected, ignoreFlatColor, (color, blankColor));
         UpdateTexture(
             _previousBoundaryMode,
             _previousFlags,

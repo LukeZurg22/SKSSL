@@ -136,7 +136,7 @@ public partial class Voronoi
                     GC.AllocateUninitializedArray<VertexPositionColor>(requiredVertices);
             }
 
-            VertexPositionColor[] output = _triangleBatchVertices;
+            var output = _triangleBatchVertices;
 
             int vertexIndex = 0;
             uint randomState = unchecked(
@@ -160,7 +160,7 @@ public partial class Voronoi
                     Point v1 = triangle.Vertices[1];
                     Point v2 = triangle.Vertices[2];
 
-                    VertexPositionColor* dst = vertices + vertexIndex;
+                    var dst = vertices + vertexIndex;
 
                     dst[0].Position = new Vector3(v0.X, v0.Y, 0f);
                     dst[0].Color = color;
@@ -331,23 +331,12 @@ public partial class Voronoi
     private int[] _cellGeometryOffsets = [];
     private int[] _cellGeometryCounts = [];
 
-    [SuppressMessage("ReSharper", "SuggestVarOrType_Elsewhere")]
-    private unsafe void BuildCellBatch(
-        HashSet<uint> overrideIds,
-        bool ignoreFlatColor = false,
-        (Color cell, Color blank)? @override = null)
+    private unsafe void BuildCellGeometryBatch()
     {
-        int cellCount = _voronoiCellArray.Length;
-        if (cellCount == 0)
-        {
-            _cellBatchPrimitiveCount = 0;
-            return;
-        }
-
         int totalVertices = _cellGeometry.Length;
-
         if (totalVertices == 0)
         {
+            _cellBatchVertices = [];
             _cellBatchPrimitiveCount = 0;
             return;
         }
@@ -355,41 +344,59 @@ public partial class Voronoi
         if (_cellBatchVertices.Length < totalVertices)
             _cellBatchVertices = GC.AllocateUninitializedArray<VertexPositionColor>(totalVertices);
 
+        var output = _cellBatchVertices;
+        var geometry = _cellGeometry;
+
+        fixed (VertexPositionColor* outputPtr = output)
+        fixed (Vector3* geometryPtr = geometry)
+            for (int i = 0; i < totalVertices; i++)
+                outputPtr[i].Position = geometryPtr[i]; // Destination = Source
+
+        _cellBatchPrimitiveCount = totalVertices / 3;
+    }
+
+    [SuppressMessage("ReSharper", "SuggestVarOrType_Elsewhere")]
+    private unsafe void BuildCellColorBatch(
+        HashSet<uint> overrideIds,
+        bool ignoreFlatColor = false,
+        (Color cell, Color blank)? @override = null)
+    {
+        int cellCount = _voronoiCellArray.Length;
+        if (cellCount == 0 || _cellBatchVertices.Length == 0)
+        {
+            _cellBatchPrimitiveCount = 0;
+            return;
+        }
+
         VertexPositionColor[] output = _cellBatchVertices;
-        Vector3[] geometry = _cellGeometry;
         int[] offsets = _cellGeometryOffsets;
         int[] counts = _cellGeometryCounts;
-        Color[] rawColors = _cellRawColors;
+        Color[] colors = _cellRawColors;
         VoronoiCell[] cells = _voronoiCellArray;
-
         bool hasOverride = @override.HasValue;
         Color overrideCell = default;
         Color overrideBlank = default;
 
-        if (hasOverride)
+        if (hasOverride && @override != null)
         {
-            (overrideCell, overrideBlank) = @override.GetValueOrDefault();
+            (overrideCell, overrideBlank) = @override.Value;
         }
 
         fixed (VertexPositionColor* outputPtr = output)
-        fixed (Vector3* geometryPtr = geometry)
         {
             for (int cellIndex = 0; cellIndex < cellCount; cellIndex++)
             {
                 int count = counts[cellIndex];
-
                 if (count == 0)
                     continue;
 
                 Color color;
-
-                if (!hasOverride) color = rawColors[cellIndex];
+                if (!hasOverride) color = colors[cellIndex];
                 else
                 {
                     uint id = cells[cellIndex].ID;
-
                     if (overrideIds.Contains(id)) color = overrideCell;
-                    else if (ignoreFlatColor) color = rawColors[cellIndex];
+                    else if (ignoreFlatColor) color = colors[cellIndex];
                     else color = overrideBlank;
                 }
 
@@ -397,16 +404,12 @@ public partial class Voronoi
                 //int end = start + count;
 
                 VertexPositionColor* dst = outputPtr + start;
-                Vector3* src = geometryPtr + start;
-
-                for (int i = 0; i < count; i++)
-                {
-                    dst[i].Position = src[i];
+                for (int i = 0; i < count; i++) 
                     dst[i].Color = color;
-                }
             }
         }
 
-        _cellBatchPrimitiveCount = totalVertices / 3;
+        _cellBatchPrimitiveCount = _cellBatchVertices.Length / 3;
     }
+    
 }
