@@ -81,7 +81,7 @@ public class Voronoi
         {
             DensityIntensity = 1.1,
             CenterCellSizeFactor = 0.8,
-            EdgeCellSizeFactor = 2.7,
+            EdgeCellSizeFactor = 3.7,
             AllowBlackGaps = true
         });
 
@@ -92,7 +92,7 @@ public class Voronoi
             new Utilities.Voronoi.Voronoi.DiagramSettings
             {
                 Randomness = 0, SettlePoints = false, Distributor = distributor,
-                BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.HardEdgeOpen,
+                BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
                 Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ |
                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
