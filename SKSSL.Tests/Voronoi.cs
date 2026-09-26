@@ -91,13 +91,11 @@ public class Voronoi
         _voronoi.GenerateDiagram(
             new Utilities.Voronoi.Voronoi.DiagramSettings
             {
-                Randomness = 0,
-                SettlePoints = false,
-                Distributor = distributor,
-                BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
+                Randomness = 0, SettlePoints = false, Distributor = distributor,
+                BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.HardEdgeOpen,
                 Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
-                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ /*|
-                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges*/ /*|
+                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ |
+                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
             },
             points: 50000

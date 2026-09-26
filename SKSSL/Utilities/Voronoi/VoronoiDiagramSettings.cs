@@ -1,5 +1,7 @@
 using SKSSL.Utilities.Voronoi.PointDistributors;
 
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
+
 namespace SKSSL.Utilities.Voronoi;
 
 public partial class Voronoi
@@ -8,22 +10,22 @@ public partial class Voronoi
     public class DiagramSettings
     {
         /// Toggle for easing points to a settled arrangement.
-        public bool SettlePoints { get; set; } = false;
+        public bool SettlePoints { get; init; } = false;
 
-        ///     Evenness of distribution on a scale of 0.00 -> 1.00; only works with the
-        ///     Provided custom point distributor that decides the positioning of the point X and Y positions.
-        public double Randomness { get; set; } = 0.8;
+        /// Evenness of distribution on a scale of 0.00 -> 1.00; only works with the
+        /// Provided custom point distributor that decides the positioning of the point X and Y positions.
+        public double Randomness { get; init; } = 0.8;
 
-        public IPointDistributor Distributor { get; set; } = new DistributorRandomJitter();
-        public VoronoiBoundaryMode BoundaryMode { get; set; } = VoronoiBoundaryMode.Culled;
+        public IPointDistributor Distributor { get; init; } = new DistributorRandomJitter();
+        public VoronoiBoundaryMode BoundaryMode { get; init; } = VoronoiBoundaryMode.Culled;
 
         /// Convenient Enum toggle of various parts of a Voronoi diagram.
-        public VoronoiRenderingFlags Flags { get; set; } = VoronoiRenderingFlags.Cells;
+        public VoronoiRenderingFlags Flags { get; init; } = VoronoiRenderingFlags.Cells;
 
         /// Thickness of Edges, if they are rendered.
-        public float Thickness { get; set; } = 1f;
+        public float Thickness { get; init; } = 1f;
 
         /// Size of Points, if they are rendered.
-        public float PointSize { get; set; } = 2f;
+        public float PointSize { get; init; } = 2f;
     }
 }
