@@ -92,7 +92,7 @@ public class Voronoi
             _voronoi.ChangeCellColor(i, color);
         }
 
-        _voronoi.ChangeCellColor(0, Color.Gold);
+        _voronoi.ChangeCellColor(1, Color.Gold);
         _voronoi.ForceUpdate();
         generated = true;
     }
@@ -121,9 +121,8 @@ public class Voronoi
         MouseState mouse = Mouse.GetState();
         Point mousePosition = new(mouse.X, mouse.Y);
 
-        _voronoi.TryGetCellAt(mousePosition, out _hoveredCell);
-        if (_hoveredCell != null)
-            _voronoi.DemarcateCells([_hoveredCell], Color.Black);
+        if (_voronoi.TryGetCellAt(mousePosition, out uint? id)) 
+            _voronoi.DemarcateCells([id.Value], Color.Black);
 
         if (TOGGLE_EXECUTABLE_CLOSURE)
 #pragma warning disable CS0162

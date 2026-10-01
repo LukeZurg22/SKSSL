@@ -214,12 +214,6 @@ public partial class Voronoi
         return result.Distinct().ToList();
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool IsArtificialBoundaryTriangle(Triangle triangle)
-        => IsArtificialBoundarySite(triangle.Vertices[0]) ||
-           IsArtificialBoundarySite(triangle.Vertices[1]) ||
-           IsArtificialBoundarySite(triangle.Vertices[2]);
-
     private static Point IntersectVertical(Point a, Point b, float x)
     {
         var dx = b.X - a.X;
@@ -504,6 +498,12 @@ public partial class Voronoi
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsArtificialBoundarySite(Point site) => site.ID >= _firstArtificialId;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsArtificialBoundaryTriangle(Triangle triangle)
+        => IsArtificialBoundarySite(triangle.Vertices[0]) ||
+           IsArtificialBoundarySite(triangle.Vertices[1]) ||
+           IsArtificialBoundarySite(triangle.Vertices[2]);
+    
     private bool TryGetBoundaryVoronoiEdge(
         Triangle triangle,
         Point a,
@@ -666,7 +666,7 @@ public partial class Voronoi
         static Vector3 ToVector3(Vec3 p) => new((float)p.X, (float)p.Y, 0f);
     }
 
-    private static void AddHighlightEdge(
+    private static void AddDemarcateEdge(
         List<VertexPositionColor> vertices,
         Point point1,
         Point point2,

@@ -121,6 +121,11 @@ public partial class Voronoi
     //      - Simply decrease and increase opacity in the draw call via a Math.Lerp() or something.
     //      Replace existing "highlight" terminology with "selected", and then use "highlight" for the literal highlighting.
 
+    // WIP: All I need to do now is
+    //  fix gaps,
+    //  add a state-border carver,
+    //  add some highlighting,
+    //  ... and clean up.
 
     #region Construction & Mono Code
 
@@ -566,10 +571,28 @@ public partial class Voronoi
     /// <returns>True if found cell, false if not. Out will be null if false.</returns>
     /// <remarks>May cause lag at immense diagram sizes, mostly around 50k and beyond.</remarks>
     // ReSharper disable once UnusedMethodReturnValue.Global
+    // ReSharper disable once MemberCanBePrivate.Global
     public bool TryGetCellAt(System.Drawing.Point position, [NotNullWhen(true)] out VoronoiCell? cell)
     {
         cell = null;
         return _spatialGrid != null && _spatialGrid.TryGetCellAt(position, out cell);
+    }
+
+    /// <summary>
+    /// Variant of <see cref="TryGetCellAt(System.Drawing.Point,out SKSSL.Utilities.Voronoi.VoronoiCell?)"/>
+    /// that instead outputs a found cell ID.
+    /// </summary>
+    /// <param name="position"></param>
+    /// <param name="cell"></param>
+    /// <returns></returns>
+    // ReSharper disable once UnusedMember.Global
+    public bool TryGetCellAt(System.Drawing.Point position, [NotNullWhen(true)] out uint? cell)
+    {
+        cell = null;
+        if (!TryGetCellAt(position, out VoronoiCell? voronoiCell))
+            return false;
+        cell = voronoiCell.ID;
+        return true;
     }
 
     #endregion
