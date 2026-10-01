@@ -129,7 +129,7 @@ public partial class Voronoi
             .ToArray();
 
         BuildSelectCellEdges();
-        BuildSpatialGrid();
+        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_voronoiCellArray, _width, _height);
 
         _isGenerated = true;
         _textureValid = false;

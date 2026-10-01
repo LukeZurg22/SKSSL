@@ -326,7 +326,7 @@ public partial class Voronoi
 
         // A spatial grid, aka a bucket grid is needed to subdivide the voronoi map into workable chunks.
         // This is for performance.
-        BuildSpatialGrid();
+        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_voronoiCellArray, _width, _height);
         return;
 
         void PopulateVoronoiCells()
@@ -404,34 +404,6 @@ public partial class Voronoi
         });
     }
 
-    private void BuildSpatialGrid()
-    {
-        // ReSharper disable once PossibleLossOfFraction
-        int gridSize = Math.Max(10, (int)Math.Sqrt(_voronoiCellArray.Length / 4));
-        float cellWidth = (float)_width / gridSize;
-        float cellHeight = (float)_height / gridSize;
-        var cells = _voronoiCellArray;
-        var bucketIndices = new int[cells.Length];
-
-        for (int i = 0; i < cells.Length; i++)
-        {
-            VoronoiCell cell = cells[i];
-            int x = Math.Clamp((int)(cell.Site.X / cellWidth), 0, gridSize - 1);
-            int y = Math.Clamp((int)(cell.Site.Y / cellHeight), 0, gridSize - 1);
-            bucketIndices[i] = y * gridSize + x;
-        }
-
-        int bucketCount = gridSize * gridSize;
-        var buckets = new List<VoronoiCell>[bucketCount];
-
-        for (int i = 0; i < bucketCount; i++)
-            buckets[i] = [];
-
-        for (int i = 0; i < cells.Length; i++)
-            buckets[bucketIndices[i]].Add(cells[i]);
-
-        _spatialGrid = new SpatialGrid(buckets, gridSize, cellWidth, cellHeight);
-    }
 
     private void BuildSelectCellEdges()
     {

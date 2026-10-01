@@ -53,5 +53,33 @@ internal sealed class SpatialGrid
 
         return false;
     }
+    
+    public static SpatialGrid FactoryMakeBuildSpatialGrid(VoronoiCell[] voronoiCellArray, int width, int height)
+    {
+        // ReSharper disable once PossibleLossOfFraction
+        int gridSize = Math.Max(10, (int)Math.Sqrt(voronoiCellArray.Length / 4));
+        float cellWidth = (float)width / gridSize;
+        float cellHeight = (float)height / gridSize;
+        var bucketIndices = new int[voronoiCellArray.Length];
+
+        for (int i = 0; i < voronoiCellArray.Length; i++)
+        {
+            VoronoiCell cell = voronoiCellArray[i];
+            int x = Math.Clamp((int)(cell.Site.X / cellWidth), 0, gridSize - 1);
+            int y = Math.Clamp((int)(cell.Site.Y / cellHeight), 0, gridSize - 1);
+            bucketIndices[i] = y * gridSize + x;
+        }
+
+        int bucketCount = gridSize * gridSize;
+        var buckets = new List<VoronoiCell>[bucketCount];
+
+        for (int i = 0; i < bucketCount; i++)
+            buckets[i] = [];
+
+        for (int i = 0; i < voronoiCellArray.Length; i++)
+            buckets[bucketIndices[i]].Add(voronoiCellArray[i]);
+
+        return new SpatialGrid(buckets, gridSize, cellWidth, cellHeight);
+    }
 
 }
