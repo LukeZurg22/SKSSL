@@ -16,6 +16,7 @@ public partial class Voronoi
     private Vector3[] _cellGeometry = [];
     private int[] _cellGeometryOffsets = [];
     private int[] _cellGeometryCounts = [];
+    private uint _firstArtificialId;
 
     private static GapGeometry BuildGapGeometry(
         IReadOnlyList<GapPolygon> polygons,
@@ -313,17 +314,31 @@ public partial class Voronoi
         }
     }
 
-    // TODO: Make them "Proper" from 0 depending on mode.
     private void AssignSpatialIds(List<Point> points)
     {
-        var realPoints = new List<Point>(points.Count - 4);
-        foreach (Point point in points.Skip(4).OrderBy(p => Hilbert(p.X, p.Y, _width, _height)))
-        {
-            realPoints.Add(point);
-        }
+        var realPoints = points
+            .Skip(4)
+            .OrderBy(p => Hilbert(p.X, p.Y, _width, _height))
+            .ToList();
 
-        points.RemoveRange(4, points.Count - 4);
-        for (uint i = 0; i < realPoints.Count; i++)
+        uint realCount = (uint)realPoints.Count;
+        _firstArtificialId = realCount;
+
+        Point artificial0 = points[0];
+        Point artificial1 = points[1];
+        Point artificial2 = points[2];
+        Point artificial3 = points[3];
+
+        points.Clear();
+
+        // Artificial points must remain at indexes 0..3.
+        points.Add(new Point(artificial0.X, artificial0.Y, realCount));
+        points.Add(new Point(artificial1.X, artificial1.Y, realCount + 1));
+        points.Add(new Point(artificial2.X, artificial2.Y, realCount + 2));
+        points.Add(new Point(artificial3.X, artificial3.Y, realCount + 3));
+
+        // Real points get spatially ordered IDs 0..N-1.
+        for (uint i = 0; i < realCount; i++)
         {
             Point p = realPoints[(int)i];
             points.Add(new Point(p.X, p.Y, i));

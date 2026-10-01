@@ -215,10 +215,11 @@ public partial class Voronoi
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsArtificialBoundaryTriangle(Triangle triangle)
+    private bool IsArtificialBoundaryTriangle(Triangle triangle)
         => IsArtificialBoundarySite(triangle.Vertices[0]) ||
            IsArtificialBoundarySite(triangle.Vertices[1]) ||
            IsArtificialBoundarySite(triangle.Vertices[2]);
+
     private static Point IntersectVertical(Point a, Point b, float x)
     {
         var dx = b.X - a.X;
@@ -496,12 +497,12 @@ public partial class Voronoi
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool HasRenderableCellGeometry(VoronoiCell cell)
+    private bool HasRenderableCellGeometry(VoronoiCell cell)
         => !cell.IsCulled && !IsArtificialBoundarySite(cell.Site) &&
            (cell.RenderPaths is not null ? cell.RenderPaths.Count != 0 : cell.Vertices.Count >= 3);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsArtificialBoundarySite(Point site) => site.ID < 4;
+    private bool IsArtificialBoundarySite(Point site) => site.ID >= _firstArtificialId;
 
     private bool TryGetBoundaryVoronoiEdge(
         Triangle triangle,
