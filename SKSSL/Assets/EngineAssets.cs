@@ -22,7 +22,8 @@ public sealed class EmbeddedContentManager : ContentManager
     public EmbeddedContentManager(
         SSLGame game,
         Assembly assembly,
-        string resourcePrefix = "SKSSL") : base(game.Content.ServiceProvider)
+        string resourcePrefix = "SKSSL") 
+        : base(game.Content.ServiceProvider)
     {
         _assembly = assembly;
         _resourcePrefix = resourcePrefix;
@@ -60,7 +61,10 @@ public sealed class EmbeddedContentManager : ContentManager
 public static class EngineAssets
 {
     private static readonly Assembly Assembly = typeof(EngineAssets).Assembly;
-
-    public static SpriteFont LoadFont(this SSLGame game, string name)
-        => new EmbeddedContentManager(game, Assembly, "SKSSL.Assets").Load<SpriteFont>(name);
+    private static EmbeddedContentManager? _contentManager;
+    public static SpriteFont LoadFont(this SSLGame game, string name, string prefix = "SKSSL.Assets")
+    {
+        _contentManager ??= new EmbeddedContentManager(game, Assembly, prefix);
+        return _contentManager.Load<SpriteFont>(name);
+    }
 }
