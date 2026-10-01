@@ -71,6 +71,12 @@
 
     <ItemGroup>
       <None Remove="GG_Map.png" />
-      <EmbeddedResource Include="GG_Map.png" />
+      <EmbeddedResource Include="GG_Map.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <None Remove="PLAIN_ROUND.png" />
+      <EmbeddedResource Include="PLAIN_ROUND.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
     </ItemGroup>
 </Project>

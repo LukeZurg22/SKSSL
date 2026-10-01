@@ -93,6 +93,7 @@ public partial class Voronoi
     /// <param name="color"></param>
     /// <param name="blankColor"></param>
     /// <param name="flattenOthers"></param>
+    /// <remarks>Make sure to call <see cref="UpdateTexture"/> afterwards.</remarks>
     private void ChangeCellColors(HashSet<uint> idsAffected, Color color, Color blankColor, bool flattenOthers)
     {
         if (!_isGenerated)
@@ -101,81 +102,23 @@ public partial class Voronoi
         // Rebuild french cell batch with colors provided. Internal logic will handle the way they are colored,
         //  and outside of this function they are handled as if no ids were affected.
         BuildCellColorBatch(idsAffected, flattenOthers, (color, blankColor));
-        UpdateTexture(_previousBoundaryMode, _previousFlags, _previousThickness, _previousPointSize, true);
     }
 
-    public Color GetCellColor(VoronoiCell cell)
+
+    /// <summary>
+    /// Change color for a specific cell ID.
+    /// </summary>
+    /// <param name="cell"></param>
+    /// <param name="color"></param>
+    /// <remarks>Make sure to call <see cref="UpdateTexture"/> afterwards.</remarks>
+    public void ChangeCellColor(uint cell, Color color)
     {
-        Color color;
-        uint hash;
-        byte r, g, b;
-        switch (CellDrawMode)
-        {
-            case ColorMode.Deterministic_Lines:
-                hash = (uint)cell.Site.X + (uint)cell.Site.Y;
-                hash ^= hash >> 16;
-                r = (byte)hash;
-                hash ^= hash >> 15;
-                g = (byte)hash;
-                hash ^= hash >> 16;
-                b = (byte)hash;
-                color = new Color((int)r, g, b, 255);
-                return color;
-            case ColorMode.Deterministic_Random: // Throw together a lazy hash based on cell Site vertex.
-                hash = (uint)cell.Site.X ^ (uint)cell.Site.Y;
-                hash ^= hash >> 16;
-                hash *= 0x7FEB352Du;
-                r = (byte)hash;
-                hash ^= hash >> 15;
-                hash *= 0x846CA68Bu;
-                g = (byte)hash;
-                hash ^= hash >> 16;
-                b = (byte)hash;
-                color = new Color((int)r, g, b, 255);
-                return color;
-            case ColorMode.Random: // Truly random 0 -> 255
-                color = new Color(
-                    _random.Next(0, 256),
-                    _random.Next(0, 256),
-                    _random.Next(0, 256),
-                    255);
-                return color;
-            case ColorMode.Semi_Deterministic_Unique:
-                // Grab a deterministic semi-unique color and go an integer check.
-                // Naturally if it isn't unique, then it is reaching the birthday-paradox point
-                color = ColorUtilities.GetSemiUniqueColor(cell.ID);
-                int reversed = (color.R << 16) | (color.G << 8) | color.B;
-                lock (_usedColors)
-                {
-                    // If the semi-unique color turns out to no longer be unique, then
-                    // defaulting to the thread-dangerous unique color generator is the
-                    // next best option. I am aware this causes an inner-dependency, and
-                    // may also cause a little overhead. The deterministic method is faster
-                    // than relying on the Random class to do its calls, and that for maps
-                    // approximately smaller than 2000x2000, this would be incredibly efficient.
-                    // As far as I see it, it's a small, but nevertheless preferred -optimization.
-                    if (!_usedColors.Add(reversed)) goto case ColorMode.Unique;
-                }
+        if (!_isGenerated)
+            return;
 
-                return color;
-            case ColorMode.Unique: // Pure random RGB – three integer ops, no floats
-                int rgb;
-                lock (_random)
-                lock (_usedColors)
-                {
-                    do rgb = _random.Next(0x1000000); // 0 … 16 777 215
-                    while (!_usedColors.Add(rgb));
-                }
-
-                color = new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 220);
-                break;
-            case ColorMode.Unified:
-            default:
-                color = _edgeColor;
-                break;
-        }
-
-        return color;
+        // Rebuild french cell batch with colors provided. Internal logic will handle the way they are colored,
+        //  and outside of this function they are handled as if no ids were affected.
+        SetCellColor(cell, color);
     }
 
     #endregion
@@ -274,6 +217,91 @@ public partial class Voronoi
         }
 
         RebuildCellSelectBorderBatch(highlightColor, thickness);
+    }
+
+    #endregion
+
+    #region Utility
+
+    public void ForceUpdate()
+    {
+        if (!_isGenerated)
+            return;
+        UpdateTexture(_previousBoundaryMode, _previousFlags, _previousThickness, _previousPointSize, true);
+    }
+
+    public Color GetCellColor(VoronoiCell cell)
+    {
+        Color color;
+        uint hash;
+        byte r, g, b;
+        switch (CellDrawMode)
+        {
+            case ColorMode.Deterministic_Lines:
+                hash = (uint)cell.Site.X + (uint)cell.Site.Y;
+                hash ^= hash >> 16;
+                r = (byte)hash;
+                hash ^= hash >> 15;
+                g = (byte)hash;
+                hash ^= hash >> 16;
+                b = (byte)hash;
+                color = new Color((int)r, g, b, 255);
+                return color;
+            case ColorMode.Deterministic_Random: // Throw together a lazy hash based on cell Site vertex.
+                hash = (uint)cell.Site.X ^ (uint)cell.Site.Y;
+                hash ^= hash >> 16;
+                hash *= 0x7FEB352Du;
+                r = (byte)hash;
+                hash ^= hash >> 15;
+                hash *= 0x846CA68Bu;
+                g = (byte)hash;
+                hash ^= hash >> 16;
+                b = (byte)hash;
+                color = new Color((int)r, g, b, 255);
+                return color;
+            case ColorMode.Random: // Truly random 0 -> 255
+                color = new Color(
+                    _random.Next(0, 256),
+                    _random.Next(0, 256),
+                    _random.Next(0, 256),
+                    255);
+                return color;
+            case ColorMode.Semi_Deterministic_Unique:
+                // Grab a deterministic semi-unique color and go an integer check.
+                // Naturally if it isn't unique, then it is reaching the birthday-paradox point
+                color = ColorUtilities.GetSemiUniqueColor(cell.ID);
+                int reversed = (color.R << 16) | (color.G << 8) | color.B;
+                lock (_usedColors)
+                {
+                    // If the semi-unique color turns out to no longer be unique, then
+                    // defaulting to the thread-dangerous unique color generator is the
+                    // next best option. I am aware this causes an inner-dependency, and
+                    // may also cause a little overhead. The deterministic method is faster
+                    // than relying on the Random class to do its calls, and that for maps
+                    // approximately smaller than 2000x2000, this would be incredibly efficient.
+                    // As far as I see it, it's a small, but nevertheless preferred -optimization.
+                    if (!_usedColors.Add(reversed)) goto case ColorMode.Unique;
+                }
+
+                return color;
+            case ColorMode.Unique: // Pure random RGB – three integer ops, no floats
+                int rgb;
+                lock (_random)
+                lock (_usedColors)
+                {
+                    do rgb = _random.Next(0x1000000); // 0 … 16 777 215
+                    while (!_usedColors.Add(rgb));
+                }
+
+                color = new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 220);
+                break;
+            case ColorMode.Unified:
+            default:
+                color = _edgeColor;
+                break;
+        }
+
+        return color;
     }
 
     #endregion

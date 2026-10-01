@@ -349,6 +349,30 @@ public partial class Voronoi
             return x;
         }
     }
+    
+    private unsafe void SetCellColor(uint cellId, Color color)
+    {
+        for (int cellIndex = 0; cellIndex < _voronoiCellArray.Length; cellIndex++)
+        {
+            if (_voronoiCellArray[cellIndex].ID != cellId)
+                continue;
+
+            int count = _cellGeometryCounts[cellIndex];
+            if (count == 0)
+                return;
+
+            int start = _cellGeometryOffsets[cellIndex];
+
+            fixed (VertexPositionColor* outputPtr = _cellBatchVertices)
+            {
+                var dst = outputPtr + start;
+                for (int i = 0; i < count; i++)
+                    dst[i].Color = color;
+            }
+
+            return;
+        }
+    }
 
     [SuppressMessage("ReSharper", "SuggestVarOrType_Elsewhere")]
     private unsafe void BuildCellColorBatch(

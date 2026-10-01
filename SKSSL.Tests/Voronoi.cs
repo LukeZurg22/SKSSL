@@ -83,7 +83,7 @@ public class Voronoi
         font = fontSystem.GetFont(32);
 
         Texture2D image = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
-            .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Map.png");
+            .LoadEmbeddedTexture(_game.GraphicsDevice, "PLAIN_ROUND.png");
         _densityTexture = image;
 
         // Temp code to dynamically create a circular density map.
@@ -109,20 +109,38 @@ public class Voronoi
             Randomness = 0,
             SettlePoints = false,
             Distributor = distributor,
-            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.HardEdgeClosed,
+            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
             Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
                         Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
         };
+        const int points = 11105;
         _voronoi.GenerateDiagram(
-            points: 1115,
+            points: points,
             //width: 1200,
             //height: 800,
             settings: diagramSettings
         );
 
-        //for (uint i = 0; i <= 100; i++) _voronoi.MarkCell(i);
+        const int segmentSize = 255;
+
+        for (uint i = 0; i < points; i++)
+        {
+            int segment = (int)(i / segmentSize);
+            int value = (int)(i % segmentSize) * 255 / (segmentSize - 1);
+
+            Color color = (segment % 3) switch
+            {
+                0 => new Color((byte)value, 0, 0),
+                1 => new Color(0, (byte)value, 0),
+                _ => new Color(0, 0, (byte)value)
+            };
+
+            _voronoi.ChangeCellColor(i, color);
+        }
+        _voronoi.ForceUpdate();
+
         //_voronoi.ColorMarkedCells(Color.DarkGreen, null, true);
         generated = true;
     }

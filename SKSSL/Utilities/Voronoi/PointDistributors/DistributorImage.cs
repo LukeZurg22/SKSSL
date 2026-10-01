@@ -219,7 +219,9 @@ public unsafe class DistributorImage : IPointDistributor
                 var x = rx * maxX;
                 var y = ry * maxY;
 
-                double dxCenter = x - centerX;
+                /*
+                 // Old code for smoothing cells.
+                 double dxCenter = x - centerX;
                 double dyCenter = y - centerY;
 
                 double radialDistance = Sqrt(dxCenter * dxCenter + dyCenter * dyCenter) / maxRadius;
@@ -229,7 +231,8 @@ public unsafe class DistributorImage : IPointDistributor
                 double smoothRadius = radialDistance * radialDistance * (3.0 - 2.0 * radialDistance);
                 double cellSizeFactor =
                     _centerCellSizeFactor + (_edgeCellSizeFactor - _centerCellSizeFactor) * smoothRadius;
-                double minimumDistance = baseSpacing * spacingFactor * cellSizeFactor;
+                double minimumDistance = baseSpacing * spacingFactor * cellSizeFactor;*/
+                double minimumDistance = baseSpacing * spacingFactor;
                 double minimumDistanceSquared = minimumDistance * minimumDistance;
 
                 int gx = (int)(x / cellSize);
