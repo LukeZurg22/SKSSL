@@ -1,4 +1,6 @@
 #nullable enable
+using System.IO;
+using FontStashSharp;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Xna.Framework;
@@ -39,11 +41,21 @@ public class Voronoi
         {
             _voronoi.Draw(spriteBatch);
 
-            //spriteBatch.Begin();
-            //spriteBatch.Draw(_densityTexture, Vector2.Zero, Color.White);
-            //spriteBatch.End();
+            if (_hoveredCell != null)
+            {
+                spriteBatch.Begin();
+                Vector2 position = Vector2.Zero;
+                spriteBatch.DrawString(font, _hoveredCell.ID.ToString(), position, Color.Wheat);
+                position = new Vector2(0, 25);
+                spriteBatch.DrawString(font, _hoveredCell.Vertices.Count.ToString(), position, Color.Wheat);
+                position = new Vector2(0, 50);
+                spriteBatch.DrawString(font, _hoveredCell.Site.ToString(), position, Color.Wheat);
+                spriteBatch.End();
+            }
         }
     }
+
+    private SpriteFontBase font = null!;
 
     private /*async*/ void Update(GameTime gameTime)
     {
@@ -65,6 +77,11 @@ public class Voronoi
             return;
         }
 
+        byte[] fontData = File.ReadAllBytes("ARIAL.ttf");
+        var fontSystem = new FontSystem();
+        fontSystem.AddFont(fontData);
+        font = fontSystem.GetFont(32);
+
         Texture2D image = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
             .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Map.png");
         _densityTexture = image;
@@ -80,26 +97,29 @@ public class Voronoi
         {
             DensityIntensity = 1.1,
             CenterCellSizeFactor = 0.8,
-            EdgeCellSizeFactor = 3.7,
-            AllowBlackGaps = true
+            EdgeCellSizeFactor = 1.7,
+            AllowBlackGaps = true,
         });
 
         // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
+        var diagramSettings = new Utilities.Voronoi.Voronoi.DiagramSettings
+        {
+            Randomness = 0,
+            SettlePoints = false,
+            Distributor = distributor,
+            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.HardEdgeClosed,
+            Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
+                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points |
+                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
+                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
+        };
         _voronoi.GenerateDiagram(
-            points: 5000,
+            points: 1115,
             //width: 1200,
             //height: 800,
-            settings: new Utilities.Voronoi.Voronoi.DiagramSettings
-            {
-                Randomness = 0, SettlePoints = false, Distributor = distributor,
-                BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
-                Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
-                       Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ |
-                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
-                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
-            }
+            settings: diagramSettings
         );
 
         //for (uint i = 0; i <= 100; i++) _voronoi.MarkCell(i);
