@@ -227,7 +227,8 @@ public partial class Voronoi
         int maxX = width.Value;
         int maxY = height.Value;
         var pointsList = delaunay.CreatePointsList(maxX, maxY);
-        settings.Distributor.Generate(ref pointsList, points, maxX, maxY, settings.Randomness);
+        settings.Distributor.Generate(ref pointsList, points + 4, maxX, maxY, settings.Randomness);
+        AssignSpatialIds(pointsList);
         _points = pointsList.ToArray();
 
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
