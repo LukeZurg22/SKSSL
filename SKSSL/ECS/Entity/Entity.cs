@@ -40,7 +40,6 @@ public class Entity : Prototype, InternalUidObject<EntityUid>, ICloneable<Entity
 
     public EntityContext Context => new(this);
 
-
     [YamlMember(Alias = "abstract", Order = 1), JsonProperty(nameof(Abstract))]
     public bool Abstract { get; set; } = false;
 
