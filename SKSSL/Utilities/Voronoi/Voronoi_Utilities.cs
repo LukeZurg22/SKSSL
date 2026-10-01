@@ -303,7 +303,7 @@ public partial class Voronoi
     /// </summary>
     /// <param name="site">Point at which a cell is expected to be.</param>
     /// <returns>
-    /// True if the culling mode is <see cref="VoronoiBoundaryMode.Culled"/>, the point belongs to a valid cell,
+    /// True if the culling mode is <see cref="VoronoiBoundaryMode.CulledSquare"/>, the point belongs to a valid cell,
     /// and that cell is a boundary cell or simply has no vertices. Otherwise... it returns false.
     /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -313,7 +313,7 @@ public partial class Voronoi
             return true;
 
         // ReSharper disable once ConvertIfStatementToReturnStatement
-        if (_boundaryMode == VoronoiBoundaryMode.Culled &&
+        if (_boundaryMode == VoronoiBoundaryMode.CulledSquare &&
             _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
             (cell.IsBoundary || cell.Vertices.Count == 0))
             return true;
@@ -366,13 +366,8 @@ public partial class Voronoi
             return false;
         }
 
-        clipped1 = new Point(
-            (int)Math.Round(x1 + dx * t0),
-            (int)Math.Round(y1 + dy * t0));
-
-        clipped2 = new Point(
-            (int)Math.Round(x1 + dx * t1),
-            (int)Math.Round(y1 + dy * t1));
+        clipped1 = new Point((int)Math.Round(x1 + dx * t0), (int)Math.Round(y1 + dy * t0));
+        clipped2 = new Point((int)Math.Round(x1 + dx * t1), (int)Math.Round(y1 + dy * t1));
 
         return true;
 
@@ -427,8 +422,7 @@ public partial class Voronoi
         if (mode == VoronoiBoundaryMode.HardEdgeClosed)
         {
             // Artificial sites are triangulation scaffolding only.
-            if (IsArtificialBoundarySite(a) ||
-                IsArtificialBoundarySite(b))
+            if (IsArtificialBoundarySite(a) || IsArtificialBoundarySite(b))
                 return;
 
             // No neighbor means this isn't an internal Voronoi edge.
@@ -452,23 +446,11 @@ public partial class Voronoi
             Point p1 = triangle.Circumcenter;
             Point p2 = neighbor.Circumcenter;
 
-            if (!ClipLineToBounds(
-                    p1,
-                    p2,
-                    out Point clipped1,
-                    out Point clipped2))
+            if (!ClipLineToBounds(p1, p2, out Point clipped1, out Point clipped2))
                 return;
 
-            _voronoiEdges.Add(
-                new Edge(clipped1, clipped2));
-
-            _cellVoronoiEdges.Add(
-                new CellVoronoiEdge(
-                    a,
-                    b,
-                    clipped1,
-                    clipped2));
-
+            _voronoiEdges.Add(new Edge(clipped1, clipped2));
+            _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, clipped1, clipped2));
             return;
         }
 
@@ -478,56 +460,31 @@ public partial class Voronoi
             if (triangle.Id >= neighbor.Id)
                 return;
 
-            if (mode == VoronoiBoundaryMode.Culled &&
-                (ShouldCullBoundarySite(a) ||
-                 ShouldCullBoundarySite(b)))
+            if (mode == VoronoiBoundaryMode.CulledSquare && (ShouldCullBoundarySite(a) || ShouldCullBoundarySite(b)))
                 return;
 
             Point p1 = triangle.Circumcenter;
             Point p2 = neighbor.Circumcenter;
 
-            if (!ClipLineToBounds(
-                    p1,
-                    p2,
-                    out Point clipped1,
-                    out Point clipped2))
+            if (!ClipLineToBounds(p1, p2, out Point clipped1, out Point clipped2))
                 return;
 
-            _voronoiEdges.Add(
-                new Edge(clipped1, clipped2));
-
-            _cellVoronoiEdges.Add(
-                new CellVoronoiEdge(
-                    a,
-                    b,
-                    clipped1,
-                    clipped2));
-
+            _voronoiEdges.Add(new Edge(clipped1, clipped2));
+            _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, clipped1, clipped2));
             return;
         }
 
-        if (mode == VoronoiBoundaryMode.Culled)
+        if (mode == VoronoiBoundaryMode.CulledSquare)
             return;
 
         if (IsGapCulledBoundaryEdge(a, b))
             return;
 
-        if (!TryGetBoundaryVoronoiEdge(
-                triangle,
-                a,
-                b,
-                out Point start,
-                out Point end))
+        if (!TryGetBoundaryVoronoiEdge(triangle, a, b, out Point start, out Point end))
             return;
 
         _voronoiEdges.Add(new Edge(start, end));
-
-        _cellVoronoiEdges.Add(
-            new CellVoronoiEdge(
-                a,
-                b,
-                start,
-                end));
+        _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, start, end));
     }
 
     private bool IsGapCulledBoundaryEdge(Point a, Point b)

@@ -122,7 +122,7 @@ public partial class Voronoi
             // The first four sites are artificial/super-triangle boundary sites.
             // They are required for Delaunay construction but are not part of
             // the actual diagram.
-            if (boundaryMode == VoronoiBoundaryMode.Culled && IsArtificialBoundaryTriangle(triangle))
+            if (boundaryMode == VoronoiBoundaryMode.CulledSquare && IsArtificialBoundaryTriangle(triangle))
                 continue;
 
             Point a = triangle.Vertices[0];

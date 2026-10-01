@@ -80,7 +80,7 @@ public partial class Voronoi
     private BasicEffect _effect;
 
     // Rendering Options
-    private VoronoiBoundaryMode _boundaryMode = VoronoiBoundaryMode.Culled;
+    private VoronoiBoundaryMode _boundaryMode = VoronoiBoundaryMode.CulledSquare;
     private readonly ColorMode CellDrawMode;
     private readonly Color _pointColor;
     private readonly Color _edgeColor;
@@ -415,12 +415,7 @@ public partial class Voronoi
 
                 // Start with the entire screen.
                 var polygon = new List<Point>(4)
-                {
-                    new(0, 0),
-                    new(_width, 0),
-                    new(_width, _height),
-                    new(0, _height)
-                };
+                    { new(0, 0), new(_width, 0), new(_width, _height), new(0, _height) };
 
                 Point site = cell.Site;
 
@@ -434,54 +429,34 @@ public partial class Voronoi
                     double dx = neighbor.X - site.X;
                     double dy = neighbor.Y - site.Y;
 
-                    double c =
-                        (double)neighbor.X * neighbor.X +
-                        (double)neighbor.Y * neighbor.Y -
-                        (double)site.X * site.X -
-                        (double)site.Y * site.Y;
+                    double c = (double)neighbor.X * neighbor.X +
+                               (double)neighbor.Y * neighbor.Y -
+                               (double)site.X * site.X -
+                               (double)site.Y * site.Y;
 
                     double a = 2.0 * dx;
                     double b = 2.0 * dy;
 
                     var clipped = new List<Point>(polygon.Count + 2);
-
                     Point previous = polygon[^1];
-
-                    double previousValue =
-                        a * previous.X +
-                        b * previous.Y -
-                        c;
-
+                    double previousValue = a * previous.X + b * previous.Y - c;
                     bool previousInside = previousValue <= 0.0;
-
                     foreach (Point current in polygon)
                     {
-                        double currentValue =
-                            a * current.X +
-                            b * current.Y -
-                            c;
-
+                        double currentValue = a * current.X + b * current.Y - c;
                         bool currentInside = currentValue <= 0.0;
-
                         if (currentInside)
                         {
                             if (!previousInside)
                             {
-                                double denominator =
-                                    previousValue - currentValue;
-
+                                double denominator = previousValue - currentValue;
                                 if (Math.Abs(denominator) > 1e-12)
                                 {
-                                    double t =
-                                        previousValue / denominator;
-
+                                    double t = previousValue / denominator;
                                     clipped.Add(new Point(
-                                        (int)Math.Round(
-                                            previous.X +
-                                            (current.X - previous.X) * t),
-                                        (int)Math.Round(
-                                            previous.Y +
-                                            (current.Y - previous.Y) * t)));
+                                        (int)Math.Round(previous.X + (current.X - previous.X) * t),
+                                        (int)Math.Round(previous.Y + (current.Y - previous.Y) * t))
+                                    );
                                 }
                             }
 
@@ -494,16 +469,11 @@ public partial class Voronoi
 
                             if (Math.Abs(denominator) > 1e-12)
                             {
-                                double t =
-                                    previousValue / denominator;
-
+                                double t = previousValue / denominator;
                                 clipped.Add(new Point(
-                                    (int)Math.Round(
-                                        previous.X +
-                                        (current.X - previous.X) * t),
-                                    (int)Math.Round(
-                                        previous.Y +
-                                        (current.Y - previous.Y) * t)));
+                                    (int)Math.Round(previous.X + (current.X - previous.X) * t),
+                                    (int)Math.Round(previous.Y + (current.Y - previous.Y) * t))
+                                );
                             }
                         }
 
@@ -545,25 +515,40 @@ public partial class Voronoi
 
             SortVerticesAround(cell.Vertices, cell.Site);
 
+            bool touchesOutside;
+            int padding = 0;
 
-            bool touchesOutside =
-                cell.Vertices.Any(v =>
+            // CULL CIRCULAR
+            if (boundaryMode == VoronoiBoundaryMode.CulledCircular)
+            {
+                touchesOutside = cell.Vertices.Any(v =>
                 {
                     double dx = (v.X - centerX) / radiusX;
                     double dy = (v.Y - centerY) / radiusY;
                     return dx * dx + dy * dy > 1.0;
                 });
+            }
+            // CULL SQUARE
+            else
+            {
+                touchesOutside = cell.Vertices.Any(v =>
+                    v.X < -padding ||
+                    v.X > _width + padding ||
+                    v.Y < -padding ||
+                    v.Y > _height + padding);
+            }
 
             if (touchesOutside)
             {
                 switch (boundaryMode)
                 {
-                    case VoronoiBoundaryMode.Culled:
+                    case VoronoiBoundaryMode.CulledCircular:
+                    case VoronoiBoundaryMode.CulledSquare:
                         cell.Vertices.Clear();
                         break;
-
                     case VoronoiBoundaryMode.HardEdgeOpen:
                     default:
+                        // TODO: This code is sketchy. May need adjustment.
                         cell.Vertices = ClipPolygonToBounds(cell.Vertices, _width, _height);
                         break;
                     case VoronoiBoundaryMode.HardEdgeClosed:
@@ -576,7 +561,7 @@ public partial class Voronoi
 
             cell.IsCulled =
                 IsArtificialBoundarySite(cell.Site) ||
-                (boundaryMode == VoronoiBoundaryMode.Culled &&
+                (boundaryMode == VoronoiBoundaryMode.CulledSquare &&
                  (cell.IsBoundary ||
                   cell.Vertices.Count == 0));
         });

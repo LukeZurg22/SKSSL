@@ -17,7 +17,7 @@ public partial class Voronoi
         public double Randomness { get; init; } = 0.8;
 
         public IPointDistributor Distributor { get; init; } = new DistributorRandomJitter();
-        public VoronoiBoundaryMode BoundaryMode { get; init; } = VoronoiBoundaryMode.Culled;
+        public VoronoiBoundaryMode BoundaryMode { get; init; } = VoronoiBoundaryMode.CulledSquare;
 
         /// Convenient Enum toggle of various parts of a Voronoi diagram.
         public VoronoiRenderingFlags Flags { get; init; } = VoronoiRenderingFlags.Cells;

@@ -5,7 +5,8 @@ public partial class Voronoi
 {
     public enum VoronoiBoundaryMode : byte
     {
-        Culled,
+        CulledSquare,
+        CulledCircular,
         HardEdgeOpen,
         HardEdgeClosed
     }

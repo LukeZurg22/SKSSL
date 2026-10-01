@@ -193,9 +193,9 @@ public unsafe class DistributorImage : IPointDistributor
 
                 // Sampling the source image.
                 int pixelIndex = pixelY * _sourceWidth + pixelX;
-                byte b = _pixels[pixelIndex * 4];
-                byte g = _pixels[pixelIndex * 4 + 1];
-                byte r = _pixels[pixelIndex * 4 + 2];
+                //byte b = _pixels[pixelIndex * 4];
+                //byte g = _pixels[pixelIndex * 4 + 1];
+                //byte r = _pixels[pixelIndex * 4 + 2];
                 //if (AllowBlackGaps && (r | g | b) == 0)
                 //    continue;
 

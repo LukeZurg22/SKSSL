@@ -96,8 +96,8 @@ public class Voronoi
         DistributorImage distributor = new(_densityTexture, new DistributorImageSettings
         {
             DensityIntensity = 1.1,
-            CenterCellSizeFactor = 0.8,
-            EdgeCellSizeFactor = 1.7,
+            CenterCellSizeFactor = 1,
+            EdgeCellSizeFactor = 4,
             AllowBlackGaps = true,
         });
 
@@ -109,7 +109,7 @@ public class Voronoi
             Randomness = 0,
             SettlePoints = false,
             Distributor = distributor,
-            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.Culled,
+            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledSquare,
             Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
