@@ -106,38 +106,23 @@ public partial class Voronoi
         return px >= Math.Min(ax, bx) && px <= Math.Max(ax, bx) && py >= Math.Min(ay, by) && py <= Math.Max(ay, by);
     }
 
-    private static void ClipCellsAgainstGaps(GapGeometry gaps, IEnumerable<VoronoiCell> cells)
+    private void ClipCellsAgainstGaps(GapGeometry gaps, IEnumerable<VoronoiCell> cells)
     {
         foreach (VoronoiCell cell in cells)
         {
-            cell.RenderPaths = null;
-
-            // Never allow a cell already rejected by boundary culling
-            // to become renderable again. Gap clipping must never make it renderable again.
-            if (cell.IsCulled || IsArtificialBoundarySite(cell.Site))
-            {
-                cell.RenderPaths = [];
-                continue;
-            }
-
-            if (cell.Vertices.Count < 3)
+            if (cell.IsCulled || cell.Vertices.Count < 3)
             {
                 cell.RenderPaths = [];
                 cell.IsCulled = true;
                 continue;
             }
-
-            if (gaps.Paths.Count == 0)
-                continue;
 
             Path64 subject = ToPath(cell.Vertices);
             Paths64 result = Clipper.Difference([subject], gaps.Paths, FillRule.NonZero);
 
-            cell.RenderPaths = result;
-
-            // The gap completely consumed this cell.
-            if (result.Count == 0)
-                cell.IsCulled = true;
+            cell.RenderPaths = result.Count == 0 ? null : result;
+            
+            
         }
     }
 

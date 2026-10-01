@@ -288,8 +288,8 @@ public partial class Voronoi
         GapGeometry? gapGeometry = null;
         if (_imageDistributor is { AllowBlackGaps: true } dim)
         {
-            gapGeometry = BuildGapGeometry(dim.GapPolygons, dim.GapMask.Width, dim.GapMask.Height, _width, _height);
-            ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values); // WARN: This clipping is off.
+            //gapGeometry = BuildGapGeometry(dim.GapPolygons, dim.GapMask.Width, dim.GapMask.Height, _width, _height);
+            //ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values); // WARN: This clipping is off.
         }
 
         BuildCellArray();
