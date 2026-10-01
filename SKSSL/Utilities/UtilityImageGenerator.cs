@@ -7,10 +7,27 @@ namespace SKSSL.Utilities;
 // ReSharper disable once UnusedType.Global
 public class UtilityImageGenerator
 {
+    /// <summary>
+    /// </summary>
+    /// <param name="graphicsDevice"></param>
+    /// <param name="width"></param>
+    /// <param name="height"></param>
+    /// <param name="radius"></param>
+    /// <returns></returns>
+    /// <code>
+    /// // Temp code to dynamically create a circular density map.
+    /// UtilityImageGenerator.CreateCircularDensityMap(
+    ///    graphicsDevice: _game.GraphicsDevice,
+    ///    width: _game.GraphicsDevice.Viewport.Width,
+    ///    height: _game.GraphicsDevice.Viewport.Height,
+    ///    radius: 2.0f
+    /// );
+    /// </code>
     // ReSharper disable once UnusedMember.Global
     public static Texture2D CreateCircularDensityMap(
         GraphicsDevice graphicsDevice,
-        int width, int height,
+        int width,
+        int height,
         float radius = 1.0f)
     {
         ArgumentNullException.ThrowIfNull(graphicsDevice);

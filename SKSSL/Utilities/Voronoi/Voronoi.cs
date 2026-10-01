@@ -76,8 +76,8 @@ public partial class Voronoi
     private int _demarcateBatchPrimitiveCount;
 
     // Rendering Basics
-    private Texture2D _pixelMap = null!;
-    private BasicEffect _effect;
+    private readonly BasicEffect _effect;
+    private Texture2D _pixelMap;
 
     // Rendering Options
     private VoronoiBoundaryMode _boundaryMode = VoronoiBoundaryMode.CulledSquare;
@@ -138,48 +138,36 @@ public partial class Voronoi
         _edgeColor = unifiedColor ?? Color.Gray;
         _pointColor = pointColor ?? Color.Red;
         _flatColor = flatColor ?? Color.Wheat;
-    }
 
-    /// Setup image data for writing. It begins as a 1x1 white pixel, but will be expanded later.
-    public void LoadContent()
-    {
+        // Setup image data for writing. It begins as a 1x1 white pixel, but will be expanded later.
         _pixelMap = new Texture2D(_graphicsDevice, 1, 1);
         _pixelMap.SetData([Color.White]);
-
         _width = _graphicsDevice.Viewport.Width;
         _height = _graphicsDevice.Viewport.Height;
-
         _effect = new BasicEffect(_graphicsDevice)
         {
             VertexColorEnabled = true,
             TextureEnabled = false,
-            World = Matrix.Identity,
-            View = Matrix.Identity,
         };
 
-        SetDiagramProjection();
+        SetDiagramProjection(Matrix.Identity, Matrix.Identity);
     }
 
-    private void SetDiagramProjection(Matrix? world = null, Matrix? view = null)
+    // ReSharper disable once MemberCanBePrivate.Global
+    public void SetDiagramProjection(Matrix world, Matrix view)
     {
-        world ??= Matrix.Identity;
-        view ??= Matrix.Identity;
-        _effect.World = world.Value;
-        _effect.View = view.Value;
-        _effect.Projection = Matrix.CreateOrthographicOffCenter(
-            0f, _width, _height, 0f, 0f, 1f
-        );
+        _effect.World = world;
+        _effect.View = view;
+        _effect.Projection = Matrix.CreateOrthographicOffCenter(0f, _width, _height, 0f, 0f, 1f);
     }
 
-    private void SetScreenProjection()
+    // ReSharper disable once MemberCanBePrivate.Global
+    public void SetScreenProjection(Matrix world, Matrix view)
     {
         Viewport viewport = _graphicsDevice.Viewport;
-
-        _effect.World = Matrix.Identity;
-        _effect.View = Matrix.Identity;
-        _effect.Projection = Matrix.CreateOrthographicOffCenter(
-            0f, viewport.Width, viewport.Height, 0f, 0f, 1f
-        );
+        _effect.World = world;
+        _effect.View = view;
+        _effect.Projection = Matrix.CreateOrthographicOffCenter(0f, viewport.Width, viewport.Height, 0f, 0f, 1f);
     }
 
     #endregion
@@ -214,8 +202,6 @@ public partial class Voronoi
         if (settings.Distributor is DistributorImage distributorImage)
             _imageDistributor = distributorImage;
 
-        SetDiagramProjection();
-
         using DelaunayTriangulator delaunay = new();
 
         // Create a list of seeded points and then handle distribution using a provided distributor.
@@ -249,11 +235,8 @@ public partial class Voronoi
         _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, (int)(points * 3));
         _voronoiCells.EnsureCapacity(_points.Length);
 
-        // POPULATE
-
-        #region Populate Cells
-
-        // LOYD RELAXATION
+        // POPULATE CELLS
+        //  -> LOYD RELAXATION
         for (int i = 0; i < 3; i++)
         {
             // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
@@ -261,15 +244,13 @@ public partial class Voronoi
             _voronoiCells.Clear();
             _cellsById.Clear();
             triangulation = delaunay.BowyerWatson(_points);
+            // --> POPULATE
             PopulateVoronoiCells();
         }
-
 
 #if DEBUG
         ValidateNeighbors(triangulation);
 #endif
-
-        #endregion
 
         // PROCESS
         ProcessCells(settings.BoundaryMode, triangulation);

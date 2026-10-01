@@ -23,84 +23,29 @@ public class Voronoi
     private UnitGame _game = null!;
     private VoronoiCell? _hoveredCell;
     private Texture2D _densityTexture = null!;
+    SpriteBatch _spriteBatch = null!;
 
     [TestMethod, UsedImplicitly]
     public void TEST_VORONOI_GEN()
     {
-        SpriteBatch spriteBatch = null!;
-        using var game = new UnitGame(() => { }, () => { _voronoi.LoadContent(); }, Update, Draw);
+        using var game = new UnitGame(() => { }, () => { }, MimicUpdate, MimicDraw);
         _game = game;
-        spriteBatch = new SpriteBatch(game.GraphicsDevice);
-        _voronoi = new Utilities.Voronoi.Voronoi(game.GraphicsDevice);
+        MimicGameObjectInstantiate(); // Mimic game object class instantiation.
+        MimicLoadContent(); // Mimic LoadContent call.
+        MimicInitialize(); // Mimic Initialize call.
         game.Run();
         Assert.IsTrue(generated);
-        return;
-
-        // ReSharper disable AccessToModifiedClosure
-        void Draw(GameTime gameTime)
-        {
-            _voronoi.Draw(spriteBatch);
-
-            if (_hoveredCell != null)
-            {
-                spriteBatch.Begin();
-                Vector2 position = Vector2.Zero;
-                spriteBatch.DrawString(font, _hoveredCell.ID.ToString(), position, Color.Wheat);
-                position = new Vector2(0, 25);
-                spriteBatch.DrawString(font, _hoveredCell.Vertices.Count.ToString(), position, Color.Wheat);
-                position = new Vector2(0, 50);
-                spriteBatch.DrawString(font, _hoveredCell.Site.ToString(), position, Color.Wheat);
-                spriteBatch.End();
-            }
-        }
     }
 
-    private SpriteFontBase font = null!;
-
-    private /*async*/ void Update(GameTime gameTime)
+    // Mimicking the Game object initialization.
+    private void MimicGameObjectInstantiate()
     {
-        if (generated)
-        {
-            MouseState mouse = Mouse.GetState();
-            Point mousePosition = new(mouse.X, mouse.Y);
+        _spriteBatch = new SpriteBatch(_game.GraphicsDevice);
+        _voronoi = new Utilities.Voronoi.Voronoi(_game.GraphicsDevice);
+    }
 
-            _voronoi.TryGetCellAt(mousePosition, out _hoveredCell);
-            if (_hoveredCell != null)
-                _voronoi.DemarcateCells([_hoveredCell], Color.Black);
-
-            if (TOGGLE_EXECUTABLE_CLOSURE)
-#pragma warning disable CS0162
-                // ReSharper disable once HeuristicUnreachableCode
-                _game.Quit();
-#pragma warning restore CS0162
-
-            return;
-        }
-
-        byte[] fontData = File.ReadAllBytes("ARIAL.ttf");
-        var fontSystem = new FontSystem();
-        fontSystem.AddFont(fontData);
-        font = fontSystem.GetFont(32);
-
-        Texture2D image = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
-            .LoadEmbeddedTexture(_game.GraphicsDevice, "PLAIN_ROUND.png");
-        _densityTexture = image;
-
-        // Temp code to dynamically create a circular density map.
-        //UtilityImageGenerator.CreateCircularDensityMap(
-        //    _game.GraphicsDevice,
-        //    _game.GraphicsDevice.Viewport.Width,
-        //    _game.GraphicsDevice.Viewport.Height
-        //);
-
-        DistributorImage distributor = new(_densityTexture, new DistributorImageSettings
-        {
-            DensityIntensity = 1.1,
-            CenterCellSizeFactor = 1,
-            EdgeCellSizeFactor = 4,
-            AllowBlackGaps = true,
-        });
-
+    private void MimicInitialize()
+    {
         // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
@@ -108,7 +53,14 @@ public class Voronoi
         {
             Randomness = 0,
             SettlePoints = false,
-            Distributor = distributor,
+            // Image Heightmap distributor.
+            Distributor = new DistributorImage(_densityTexture, new DistributorImageSettings
+            {
+                DensityIntensity = 1.1,
+                CenterCellSizeFactor = 1,
+                EdgeCellSizeFactor = 4,
+                AllowBlackGaps = true,
+            }),
             BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledSquare,
             Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points |
@@ -140,10 +92,61 @@ public class Voronoi
             _voronoi.ChangeCellColor(i, color);
         }
 
-        _voronoi.ChangeCellColor(1, Color.Gold);
+        _voronoi.ChangeCellColor(0, Color.Gold);
         _voronoi.ForceUpdate();
-
-        //_voronoi.ColorMarkedCells(Color.DarkGreen, null, true);
         generated = true;
     }
+
+    private SpriteFontBase _font = null!;
+
+    private void MimicLoadContent()
+    {
+        byte[] fontData = File.ReadAllBytes("ARIAL.ttf");
+        var fontSystem = new FontSystem();
+        fontSystem.AddFont(fontData);
+        _font = fontSystem.GetFont(32);
+
+        Texture2D image = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
+            .LoadEmbeddedTexture(_game.GraphicsDevice, "PLAIN_ROUND.png");
+        _densityTexture = image;
+    }
+
+    #region DRAW & UPDATE
+
+    private /*async*/ void MimicUpdate(GameTime gameTime)
+    {
+        if (!generated)
+            return;
+
+        MouseState mouse = Mouse.GetState();
+        Point mousePosition = new(mouse.X, mouse.Y);
+
+        _voronoi.TryGetCellAt(mousePosition, out _hoveredCell);
+        if (_hoveredCell != null)
+            _voronoi.DemarcateCells([_hoveredCell], Color.Black);
+
+        if (TOGGLE_EXECUTABLE_CLOSURE)
+#pragma warning disable CS0162
+            // ReSharper disable once HeuristicUnreachableCode
+            _game.Quit();
+#pragma warning restore CS0162
+    }
+
+    private void MimicDraw(GameTime gameTime)
+    {
+        _voronoi.Draw(_spriteBatch);
+        if (_hoveredCell == null)
+            return;
+
+        _spriteBatch.Begin();
+        Vector2 position = Vector2.Zero;
+        _spriteBatch.DrawString(_font, _hoveredCell.ID.ToString(), position, Color.Wheat);
+        position = new Vector2(0, 25);
+        _spriteBatch.DrawString(_font, _hoveredCell.Vertices.Count.ToString(), position, Color.Wheat);
+        position = new Vector2(0, 50);
+        _spriteBatch.DrawString(_font, _hoveredCell.Site.ToString(), position, Color.Wheat);
+        _spriteBatch.End();
+    }
+
+    #endregion
 }

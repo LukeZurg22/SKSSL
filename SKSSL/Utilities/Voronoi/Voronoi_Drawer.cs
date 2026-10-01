@@ -49,7 +49,6 @@ public partial class Voronoi
 
         try
         {
-            SetDiagramProjection();
             _graphicsDevice.Clear(Color.Transparent);
 
             if (flags.HasFlag(VoronoiRenderingFlags.Cells))
@@ -195,7 +194,7 @@ public partial class Voronoi
         if (_demarcateBatchPrimitiveCount == 0)
             return;
 
-        SetScreenProjection();
+        SetScreenProjection(Matrix.Identity, Matrix.Identity);
 
         BlendState previousBlend = _graphicsDevice.BlendState;
         RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;

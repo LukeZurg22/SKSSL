@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Microsoft.Xna.Framework;
+// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Utilities.Voronoi;
 
