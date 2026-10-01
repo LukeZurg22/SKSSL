@@ -80,7 +80,7 @@ public unsafe class DistributorImage : IPointDistributor
 
     #endregion
 
-    public void Generate(ref List<Point> points, int amount, float maxX, float maxY, double randomness)
+    public void Generate(ref List<Point> points, uint amount, float maxX, float maxY, double randomness)
     {
         ArgumentNullException.ThrowIfNull(points);
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
@@ -162,14 +162,14 @@ public unsafe class DistributorImage : IPointDistributor
         }
 
         Random random = Random.Shared;
-        int required = amount - count;
+        var required = amount - count;
 
         /*
          * Maximum consecutive failures.
          *
          * This prevents pathological density maps from running forever.
          */
-        int maxAttempts = Max(required * 100, 10_000);
+        var maxAttempts = Max(required * 100, 10_000);
         int attempts = 0;
         double spacingRange = _edgeCellSizeFactor - _centerCellSizeFactor;
 

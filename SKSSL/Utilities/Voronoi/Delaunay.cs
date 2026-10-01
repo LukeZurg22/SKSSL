@@ -483,11 +483,17 @@ public partial class DelaunayTriangulator : IDisposable
 
     #region Geometry
 
-    internal List<Point> CreatePointsList(float maxX, float maxY)
+    internal List<Point> CreatePointsList(float maxX, float maxY, uint realPointCount)
     {
         MaxX = maxX;
         MaxY = maxY;
-        return [new Point(0, 0), new Point(0, maxY), new Point(maxX, maxY), new Point(maxX, 0)];
+        return
+        [
+            new Point(0, 0, realPointCount),
+            new Point(0, maxY, realPointCount + 1),
+            new Point(maxX, maxY, realPointCount + 2),
+            new Point(maxX, 0, realPointCount + 3)
+        ];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

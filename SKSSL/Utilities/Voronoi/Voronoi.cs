@@ -199,7 +199,7 @@ public partial class Voronoi
     /// <param name="width">Width of diagram in pixels.</param>
     /// <param name="height">Height of diagram in pixels.</param>
     public void GenerateDiagram(
-        int points = DefaultPointCount,
+        uint points = DefaultPointCount,
         int? width = null,
         int? height = null,
         DiagramSettings? settings = null)
@@ -222,7 +222,7 @@ public partial class Voronoi
         // Create a list of seeded points and then handle distribution using a provided distributor.
         int maxX = width.Value;
         int maxY = height.Value;
-        var pointsList = delaunay.CreatePointsList(maxX, maxY);
+        var pointsList = delaunay.CreatePointsList(maxX, maxY, points);
         settings.Distributor.Generate(ref pointsList, points + 4, maxX, maxY, settings.Randomness);
         AssignSpatialIds(pointsList);
         _points = pointsList.ToArray();
@@ -247,7 +247,7 @@ public partial class Voronoi
         _voronoiEdges.Clear();
         _usedColors.Clear();
         _cellVoronoiEdges.Clear();
-        _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, points * 3);
+        _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, (int)(points * 3));
         _voronoiCells.EnsureCapacity(_points.Length);
 
         // POPULATE

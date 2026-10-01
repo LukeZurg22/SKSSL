@@ -15,7 +15,7 @@ public sealed class HeightmapPointDistributor : IPointDistributor
         _exponent = exponent;
     }
 
-    public void Generate(ref List<Point> points, int amount, float maxX, float maxY, double randomness)
+    public void Generate(ref List<Point> points, uint amount, float maxX, float maxY, double randomness)
     {
         int width = _heightmap.GetLength(0);
         int height = _heightmap.GetLength(1);
