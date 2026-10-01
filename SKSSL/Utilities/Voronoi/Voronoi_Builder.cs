@@ -312,7 +312,7 @@ public partial class Voronoi
         }
     }
 
-    // TODO: Make them "Proper" from 0.
+    // TODO: Make them "Proper" from 0 depending on mode.
     private static void AssignSpatialIds(List<Point> points)
     {
         // Preserve the four artificial boundary points.
@@ -328,7 +328,7 @@ public partial class Voronoi
         for (uint i = 0; i < realPoints.Count; i++)
         {
             Point old = realPoints[(int)i];
-            points.Add(new Point(old.X, old.Y, i+4));
+            points.Add(new Point(old.X, old.Y, i + 4));
         }
     }
 
@@ -349,7 +349,7 @@ public partial class Voronoi
             return x;
         }
     }
-    
+
     private unsafe void SetCellColor(uint cellId, Color color)
     {
         for (int cellIndex = 0; cellIndex < _voronoiCellArray.Length; cellIndex++)
@@ -515,5 +515,44 @@ public partial class Voronoi
         _cellGeometry = geometryBuffer;
         _cellGeometryOffsets = offsets;
         _cellGeometryCounts = counts;
+    }
+
+    private void BuildSelectCellEdges()
+    {
+        long maxSiteId = -1;
+        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
+        {
+            maxSiteId = Math.Max(maxSiteId, edge.SiteA.ID);
+            if (edge.SiteB.HasValue)
+                maxSiteId = Math.Max(maxSiteId, edge.SiteB.Value.ID);
+        }
+
+        if (_edgesByCell.Length != maxSiteId + 1)
+            _edgesByCell = new List<CellVoronoiEdge>?[maxSiteId + 1];
+        else Array.Clear(_edgesByCell);
+
+        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
+        {
+            var edgesA = _edgesByCell[edge.SiteA.ID];
+            if (edgesA == null)
+            {
+                edgesA = [];
+                _edgesByCell[edge.SiteA.ID] = edgesA;
+            }
+
+            edgesA.Add(edge);
+            if (!edge.SiteB.HasValue)
+                continue;
+
+            Point siteB = edge.SiteB.Value;
+            var edgesB = _edgesByCell[siteB.ID];
+            if (edgesB == null)
+            {
+                edgesB = [];
+                _edgesByCell[siteB.ID] = edgesB;
+            }
+
+            edgesB.Add(edge);
+        }
     }
 }

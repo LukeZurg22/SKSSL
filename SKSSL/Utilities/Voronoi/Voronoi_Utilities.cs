@@ -121,8 +121,6 @@ public partial class Voronoi
             Paths64 result = Clipper.Difference([subject], gaps.Paths, FillRule.NonZero);
 
             cell.RenderPaths = result.Count == 0 ? null : result;
-            
-            
         }
     }
 
@@ -424,46 +422,112 @@ public partial class Voronoi
         AddVoronoiEdge(triangle, triangle.Neighbor2, triangle.Vertices[2], triangle.Vertices[0], boundaryMode);
     }
 
-    private void AddVoronoiEdge(
-        Triangle triangle,
-        Triangle? neighbor,
-        Point a,
-        Point b,
-        VoronoiBoundaryMode boundaryMode)
+    private void AddVoronoiEdge(Triangle triangle, Triangle? neighbor, Point a, Point b, VoronoiBoundaryMode mode)
     {
-        if (neighbor != null)
+        if (mode == VoronoiBoundaryMode.HardEdgeClosed)
         {
-            if (triangle.Id >= neighbor.Id)
+            // Artificial sites are triangulation scaffolding only.
+            if (IsArtificialBoundarySite(a) ||
+                IsArtificialBoundarySite(b))
                 return;
 
-            if (boundaryMode == VoronoiBoundaryMode.Culled &&
-                (ShouldCullBoundarySite(a) || ShouldCullBoundarySite(b)))
+            // No neighbor means this isn't an internal Voronoi edge.
+            // For HardEdgeClosed the screen itself closes the cell.
+            if (neighbor == null)
+                return;
+
+            // An artificial neighboring triangle means this Delaunay
+            // edge lies on the hull of the real points.
+            //
+            // Its Voronoi dual is an unbounded ray in the ordinary
+            // Voronoi diagram, but HardEdgeClosed replaces that with
+            // the screen boundary, so DO NOT draw it.
+            if (IsArtificialBoundaryTriangle(neighbor))
+                return;
+
+            // Only emit each real-real Voronoi edge once.
+            if (triangle.Id >= neighbor.Id)
                 return;
 
             Point p1 = triangle.Circumcenter;
             Point p2 = neighbor.Circumcenter;
 
-            if (!ClipLineToBounds(p1, p2, out Point clipped1, out Point clipped2))
+            if (!ClipLineToBounds(
+                    p1,
+                    p2,
+                    out Point clipped1,
+                    out Point clipped2))
                 return;
 
-            _voronoiEdges.Add(new Edge(clipped1, clipped2));
-            _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, clipped1, clipped2));
+            _voronoiEdges.Add(
+                new Edge(clipped1, clipped2));
+
+            _cellVoronoiEdges.Add(
+                new CellVoronoiEdge(
+                    a,
+                    b,
+                    clipped1,
+                    clipped2));
 
             return;
         }
 
-        // Hull / unbounded edge.
-        if (boundaryMode == VoronoiBoundaryMode.Culled)
+        // Existing Culled / HardEdgeOpen behavior.
+        if (neighbor != null)
+        {
+            if (triangle.Id >= neighbor.Id)
+                return;
+
+            if (mode == VoronoiBoundaryMode.Culled &&
+                (ShouldCullBoundarySite(a) ||
+                 ShouldCullBoundarySite(b)))
+                return;
+
+            Point p1 = triangle.Circumcenter;
+            Point p2 = neighbor.Circumcenter;
+
+            if (!ClipLineToBounds(
+                    p1,
+                    p2,
+                    out Point clipped1,
+                    out Point clipped2))
+                return;
+
+            _voronoiEdges.Add(
+                new Edge(clipped1, clipped2));
+
+            _cellVoronoiEdges.Add(
+                new CellVoronoiEdge(
+                    a,
+                    b,
+                    clipped1,
+                    clipped2));
+
+            return;
+        }
+
+        if (mode == VoronoiBoundaryMode.Culled)
             return;
 
         if (IsGapCulledBoundaryEdge(a, b))
             return;
 
-        if (!TryGetBoundaryVoronoiEdge(triangle, a, b, out Point start, out Point end))
+        if (!TryGetBoundaryVoronoiEdge(
+                triangle,
+                a,
+                b,
+                out Point start,
+                out Point end))
             return;
 
         _voronoiEdges.Add(new Edge(start, end));
-        _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, start, end));
+
+        _cellVoronoiEdges.Add(
+            new CellVoronoiEdge(
+                a,
+                b,
+                start,
+                end));
     }
 
     private bool IsGapCulledBoundaryEdge(Point a, Point b)

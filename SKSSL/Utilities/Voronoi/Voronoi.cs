@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
@@ -206,16 +205,13 @@ public partial class Voronoi
         DiagramSettings? settings = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(points, 1);
-
         settings ??= new DiagramSettings();
 
         _isGenerated = false;
         _textureValid = false;
         _boundaryMode = settings.BoundaryMode;
-
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
-
         if (settings.Distributor is DistributorImage distributorImage)
             _imageDistributor = distributorImage;
 
@@ -258,23 +254,20 @@ public partial class Voronoi
 
         #region Populate Cells
 
-        PopulateVoronoiCells();
-
         // Lloyd relaxation requires rebuilding the triangulation and Voronoi cells, which can be a little expensive
         //  for large graphs.
-        if (settings.SettlePoints)
+        for (int i = 0; i < 3; i++)
         {
-#if DEBUG
-            Debug.WriteLine("Lloyd: starting");
-#endif
             delaunay.LloydSettlePoints(_voronoiCells.Values);
-#if DEBUG
-            Debug.WriteLine("Lloyd: finished");
-#endif
+
             _voronoiCells.Clear();
+            _cellsById.Clear();
+
             triangulation = delaunay.BowyerWatson(_points);
+
             PopulateVoronoiCells();
         }
+
 
 #if DEBUG
         ValidateNeighbors(triangulation);
@@ -283,14 +276,14 @@ public partial class Voronoi
         #endregion
 
         // PROCESS
-        ProcessCells(settings.BoundaryMode);
+        ProcessCells(settings.BoundaryMode, triangulation);
 
         // CELL CLIPPING
         GapGeometry? gapGeometry = null;
-        if (_imageDistributor is { AllowBlackGaps: true } dim)
+        if (_imageDistributor is { AllowBlackGaps: true } dim) // ERR: CLIPPING IS BROKEN
         {
             //gapGeometry = BuildGapGeometry(dim.GapPolygons, dim.GapMask.Width, dim.GapMask.Height, _width, _height);
-            //ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values); // WARN: This clipping is off.
+            //ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);
         }
 
         BuildCellArray();
@@ -369,10 +362,181 @@ public partial class Voronoi
     }
 
     /// Prepares the original cells before any special culling or other operations.
-    private void ProcessCells(VoronoiBoundaryMode boundaryMode)
+    private void ProcessCells(VoronoiBoundaryMode boundaryMode, List<Triangle> triangulation)
     {
         _usedColors.Clear();
 
+        if (boundaryMode == VoronoiBoundaryMode.HardEdgeClosed)
+        {
+            // Build the Delaunay-neighbor graph for the REAL sites only.
+            var neighbors = new Dictionary<Point, HashSet<Point>>(_voronoiCells.Count);
+            foreach (Point point in _points)
+            {
+                if (!IsArtificialBoundarySite(point))
+                    neighbors[point] = [];
+            }
+
+            foreach (Triangle triangle in triangulation)
+            {
+                Point a = triangle.Vertices[0];
+                Point b = triangle.Vertices[1];
+                Point c = triangle.Vertices[2];
+
+                // Every pair of real points in a Delaunay triangle is a
+                // Delaunay neighbor, including pairs from triangles that
+                // also contain an artificial boundary point.
+                if (!IsArtificialBoundarySite(a) && !IsArtificialBoundarySite(b))
+                {
+                    neighbors[a].Add(b);
+                    neighbors[b].Add(a);
+                }
+
+                if (!IsArtificialBoundarySite(a) && !IsArtificialBoundarySite(c))
+                {
+                    neighbors[a].Add(c);
+                    neighbors[c].Add(a);
+                }
+
+                if (!IsArtificialBoundarySite(b) && !IsArtificialBoundarySite(c))
+                {
+                    neighbors[b].Add(c);
+                    neighbors[c].Add(b);
+                }
+            }
+
+            Parallel.ForEach(_voronoiCells.Values, cell =>
+            {
+                if (IsArtificialBoundarySite(cell.Site))
+                {
+                    cell.Vertices.Clear();
+                    cell.IsCulled = true;
+                    return;
+                }
+
+                // Start with the entire screen.
+                var polygon = new List<Point>(4)
+                {
+                    new(0, 0),
+                    new(_width, 0),
+                    new(_width, _height),
+                    new(0, _height)
+                };
+
+                Point site = cell.Site;
+
+                // Intersect the screen with the half-plane
+                // containing points closer to `site` than to each neighbor.
+                foreach (Point neighbor in neighbors[site])
+                {
+                    if (polygon.Count < 3)
+                        break;
+
+                    double dx = neighbor.X - site.X;
+                    double dy = neighbor.Y - site.Y;
+
+                    double c =
+                        (double)neighbor.X * neighbor.X +
+                        (double)neighbor.Y * neighbor.Y -
+                        (double)site.X * site.X -
+                        (double)site.Y * site.Y;
+
+                    double a = 2.0 * dx;
+                    double b = 2.0 * dy;
+
+                    var clipped = new List<Point>(polygon.Count + 2);
+
+                    Point previous = polygon[^1];
+
+                    double previousValue =
+                        a * previous.X +
+                        b * previous.Y -
+                        c;
+
+                    bool previousInside = previousValue <= 0.0;
+
+                    foreach (Point current in polygon)
+                    {
+                        double currentValue =
+                            a * current.X +
+                            b * current.Y -
+                            c;
+
+                        bool currentInside = currentValue <= 0.0;
+
+                        if (currentInside)
+                        {
+                            if (!previousInside)
+                            {
+                                double denominator =
+                                    previousValue - currentValue;
+
+                                if (Math.Abs(denominator) > 1e-12)
+                                {
+                                    double t =
+                                        previousValue / denominator;
+
+                                    clipped.Add(new Point(
+                                        (int)Math.Round(
+                                            previous.X +
+                                            (current.X - previous.X) * t),
+                                        (int)Math.Round(
+                                            previous.Y +
+                                            (current.Y - previous.Y) * t)));
+                                }
+                            }
+
+                            clipped.Add(current);
+                        }
+                        else if (previousInside)
+                        {
+                            double denominator =
+                                previousValue - currentValue;
+
+                            if (Math.Abs(denominator) > 1e-12)
+                            {
+                                double t =
+                                    previousValue / denominator;
+
+                                clipped.Add(new Point(
+                                    (int)Math.Round(
+                                        previous.X +
+                                        (current.X - previous.X) * t),
+                                    (int)Math.Round(
+                                        previous.Y +
+                                        (current.Y - previous.Y) * t)));
+                            }
+                        }
+
+                        previous = current;
+                        previousValue = currentValue;
+                        previousInside = currentInside;
+                    }
+
+                    polygon = clipped
+                        .Distinct()
+                        .ToList();
+                }
+
+                cell.Vertices = polygon;
+                cell.IsBoundary = false;
+                cell.IsCulled = polygon.Count < 3;
+
+                if (!cell.IsCulled)
+                {
+                    _cellRawColors[_cellIndices[cell.ID]] =
+                        GetCellColor(cell);
+                }
+            });
+
+            return;
+        }
+
+        double centerX = _width * 0.5;
+        double centerY = _height * 0.5;
+        double radiusX = _width * 0.48;
+        double radiusY = _height * 0.48;
+
+        // Existing behavior for Culled / HardEdgeOpen.
         Parallel.ForEach(_voronoiCells.Values, cell =>
         {
             cell.Vertices = cell.Vertices
@@ -381,7 +545,15 @@ public partial class Voronoi
 
             SortVerticesAround(cell.Vertices, cell.Site);
 
-            bool touchesOutside = cell.Vertices.Any(v => v.X < 0 || v.X > _width || v.Y < 0 || v.Y > _height);
+
+            bool touchesOutside =
+                cell.Vertices.Any(v =>
+                {
+                    double dx = (v.X - centerX) / radiusX;
+                    double dy = (v.Y - centerY) / radiusY;
+                    return dx * dx + dy * dy > 1.0;
+                });
+
             if (touchesOutside)
             {
                 switch (boundaryMode)
@@ -394,144 +566,20 @@ public partial class Voronoi
                     default:
                         cell.Vertices = ClipPolygonToBounds(cell.Vertices, _width, _height);
                         break;
+                    case VoronoiBoundaryMode.HardEdgeClosed:
+                        throw new Exception("Should not have reached HardEdgeClosed when case has been covered.");
                 }
             }
 
-            _cellRawColors[_cellIndices[cell.ID]] = GetCellColor(cell);
+            _cellRawColors[_cellIndices[cell.ID]] =
+                GetCellColor(cell);
 
-            cell.IsCulled = IsArtificialBoundarySite(cell.Site) ||
-                            (boundaryMode == VoronoiBoundaryMode.Culled &&
-                             (cell.IsBoundary || cell.Vertices.Count == 0));
+            cell.IsCulled =
+                IsArtificialBoundarySite(cell.Site) ||
+                (boundaryMode == VoronoiBoundaryMode.Culled &&
+                 (cell.IsBoundary ||
+                  cell.Vertices.Count == 0));
         });
-    }
-
-
-    private void BuildSelectCellEdges()
-    {
-        long maxSiteId = -1;
-        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
-        {
-            maxSiteId = Math.Max(maxSiteId, edge.SiteA.ID);
-            if (edge.SiteB.HasValue)
-                maxSiteId = Math.Max(maxSiteId, edge.SiteB.Value.ID);
-        }
-
-        if (_edgesByCell.Length != maxSiteId + 1)
-            _edgesByCell = new List<CellVoronoiEdge>?[maxSiteId + 1];
-        else Array.Clear(_edgesByCell);
-
-        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
-        {
-            var edgesA = _edgesByCell[edge.SiteA.ID];
-            if (edgesA == null)
-            {
-                edgesA = [];
-                _edgesByCell[edge.SiteA.ID] = edgesA;
-            }
-
-            edgesA.Add(edge);
-            if (!edge.SiteB.HasValue)
-                continue;
-
-            Point siteB = edge.SiteB.Value;
-            var edgesB = _edgesByCell[siteB.ID];
-            if (edgesB == null)
-            {
-                edgesB = [];
-                _edgesByCell[siteB.ID] = edgesB;
-            }
-
-            edgesB.Add(edge);
-        }
-    }
-
-    /// <summary>
-    /// Gets the voronoi object's rasterized texture, or creates one.
-    /// </summary>
-    /// <returns>Texture2D reference of the Voronoi image result.</returns>
-    /// <remarks>
-    /// Make sure that the Diagram data is generated first through <see cref="GenerateDiagram"/>.
-    /// When this function is called, it also assigns the internal pixel data to the new image.
-    /// </remarks>
-    private void UpdateTexture(
-        VoronoiBoundaryMode boundaryMode,
-        VoronoiRenderingFlags flags,
-        float thickness,
-        float pointSize,
-        bool forceUpdate = false)
-    {
-        if (!_isGenerated)
-            throw new InvalidOperationException(
-                "Attempted to get Voronoi texture before generating a diagram.");
-
-        if (!forceUpdate &&
-            _textureValid &&
-            flags == _previousFlags &&
-            boundaryMode == _previousBoundaryMode &&
-            Math.Abs(thickness - _previousThickness) < 0.01f &&
-            Math.Abs(pointSize - _previousPointSize) < 0.01f)
-            return;
-
-        var output = new RenderTarget2D(
-            _graphicsDevice,
-            _width,
-            _height,
-            false,
-            SurfaceFormat.Color,
-            DepthFormat.None);
-
-        var previousTargets = _graphicsDevice.GetRenderTargets();
-
-        _graphicsDevice.SetRenderTarget(output);
-
-        try
-        {
-            SetDiagramProjection();
-            _graphicsDevice.Clear(Color.Transparent);
-
-            if (flags.HasFlag(VoronoiRenderingFlags.Cells))
-                DrawCellBatch();
-
-            if (flags.HasFlag(VoronoiRenderingFlags.Triangles))
-                DrawTriangleBatch();
-
-            if (flags.HasFlag(VoronoiRenderingFlags.Edges))
-                DrawEdgeBatch();
-
-            if (flags.HasFlag(VoronoiRenderingFlags.Points))
-                DrawPointBatch();
-
-            //if (_imageDistributor is { AllowBlackGaps: true })
-            //    DrawGapBatch();
-        }
-        finally
-        {
-            _graphicsDevice.SetRenderTargets(previousTargets);
-        }
-
-        Texture2D oldTexture = _pixelMap;
-        _pixelMap = output;
-
-        _previousBoundaryMode = boundaryMode;
-        _previousThickness = thickness;
-        _previousPointSize = pointSize;
-        _previousFlags = flags;
-        _textureValid = true;
-
-        if (oldTexture is RenderTarget2D oldTarget)
-            oldTarget.Dispose();
-    }
-
-    public void Draw(SpriteBatch? spriteBatch)
-    {
-        if (!_isGenerated || spriteBatch == null)
-            return;
-
-        spriteBatch.Begin();
-        spriteBatch.Draw(_pixelMap, Vector2.Zero, Color.White);
-        spriteBatch.End();
-
-        DrawHighlightedCells();
     }
 
     #endregion

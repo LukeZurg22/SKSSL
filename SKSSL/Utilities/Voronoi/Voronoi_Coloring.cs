@@ -9,9 +9,16 @@ namespace SKSSL.Utilities.Voronoi;
 public partial class Voronoi
 {
     private readonly HashSet<uint> _markedCells = []; // Collected cells to interact with.
+
+    // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private Color _demarcateColor = Color.Black; // Borders
+
+    // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private Color _highlightColor = Color.Yellow; // Full Cell Highlight
+
+    // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private Texture2D? _highlightMask; // Mask for highlighting cells.
+    // TODO: Highlights versus demarcations.
 
     #region Cell Marking
 
@@ -52,7 +59,12 @@ public partial class Voronoi
     /// <param name="blankColor"></param>
     /// <param name="flattenOthers">Set all other non-marked cells to an alternate color.</param>
     /// <param name="clear">Clear internally marked cells. False by default.</param>
-    public void ColorMarkedCells(Color color, Color? blankColor = null, bool flattenOthers = false, bool clear = false)
+    // ReSharper disable once UnusedMember.Global
+    public void ColorMarkedCells(
+        Color color,
+        Color? blankColor = null,
+        bool flattenOthers = false,
+        bool clear = false)
     {
         blankColor ??= _flatColor;
         ChangeCellColors(_markedCells, color, blankColor.Value, flattenOthers);
@@ -123,7 +135,7 @@ public partial class Voronoi
 
     #endregion
 
-    #region Demarcating Cells
+    #region Demarcating Cells by ID
 
     private readonly HashSet<uint> _demarcatedCellIds = [];
 
@@ -135,29 +147,62 @@ public partial class Voronoi
         foreach (VoronoiCell cell in cells)
             DemarcateCell(cell.ID, edgeColor, thickness);
 
-        RebuildCellSelectBorderBatch(edgeColor, thickness);
+        BatchRebuildDemarcatedCellBorders(edgeColor, thickness);
     }
 
     // ReSharper disable once MemberCanBePrivate.Global
-    public void DemarcateCell(uint cellId, Color edgeColor, float thickness = 1f, bool rebuildBatch = false)
+    public void DemarcateCell(uint cellId, Color? edgeColor = null, float thickness = 1f, bool rebuildBatch = false)
     {
         if (!_cellsById.TryGetValue(cellId, out VoronoiCell? _))
             return;
 
+        edgeColor ??= _demarcateColor;
         _demarcatedCellIds.Add(cellId);
-        if (rebuildBatch) RebuildCellSelectBorderBatch(edgeColor, thickness);
+        if (rebuildBatch) BatchRebuildDemarcatedCellBorders(edgeColor.Value, thickness);
     }
 
-
     // ReSharper disable once UnusedMember.Global
-    public void ClearDemarcatedCells()
+    private void ClearDemarcatedCells()
     {
         _demarcatedCellIds.Clear();
         _demarcateBatchVertices = [];
         _demarcateBatchPrimitiveCount = 0;
     }
 
-    private void RebuildCellSelectBorderBatch(Color color, float thickness)
+    #endregion
+
+    #region Demarcating Cells by Color (Avoid Using These!)
+
+    [UsedImplicitly, Obsolete("It may be best to highlight cells by ID, rather than color.")]
+    public void SetColorToDemarcate(Color color, float thickness = 1f, bool rebuild = true)
+    {
+        _demarcatedCellIds.Clear();
+        for (int i = 0; i < _voronoiCellArray.Length; i++)
+            if (_cellRawColors[i].PackedValue == color.PackedValue)
+                _demarcatedCellIds.Add(_voronoiCellArray[i].ID);
+
+        if (rebuild) BatchRebuildDemarcatedCellBorders(color, thickness);
+    }
+
+
+    [UsedImplicitly, Obsolete("It may be best to highlight cells by ID, rather than color.")]
+    public void SetColorsToDemarcate(IEnumerable<Color> colors, Color highlightColor, float thickness = 1f)
+    {
+        ArgumentNullException.ThrowIfNull(colors);
+
+        foreach (Color color in colors)
+        {
+            SetColorToDemarcate(color, thickness, false);
+        }
+
+        BatchRebuildDemarcatedCellBorders(highlightColor, thickness);
+    }
+
+    #endregion
+
+    #region Utility
+
+    private void BatchRebuildDemarcatedCellBorders(Color color, float thickness)
     {
         if (_demarcatedCellIds.Count == 0 || _cellVoronoiEdges.Count == 0)
         {
@@ -189,39 +234,6 @@ public partial class Voronoi
         _demarcateBatchVertices = vertices.ToArray();
         _demarcateBatchPrimitiveCount = _demarcateBatchVertices.Length / 3;
     }
-
-    #endregion
-
-    #region Demarcating by Color
-
-    [UsedImplicitly, Obsolete("It may be best to highlight cells by ID, rather than color.")]
-    public void SetColorToDemarcate(Color color, float thickness = 1f, bool rebuild = true)
-    {
-        _demarcatedCellIds.Clear();
-        for (int i = 0; i < _voronoiCellArray.Length; i++)
-            if (_cellRawColors[i].PackedValue == color.PackedValue)
-                _demarcatedCellIds.Add(_voronoiCellArray[i].ID);
-
-        if (rebuild) RebuildCellSelectBorderBatch(color, thickness);
-    }
-
-
-    [UsedImplicitly, Obsolete("It may be best to highlight cells by ID, rather than color.")]
-    public void SetColorsToDemarcate(IEnumerable<Color> colors, Color highlightColor, float thickness = 1f)
-    {
-        ArgumentNullException.ThrowIfNull(colors);
-
-        foreach (Color color in colors)
-        {
-            SetColorToDemarcate(color, thickness, false);
-        }
-
-        RebuildCellSelectBorderBatch(highlightColor, thickness);
-    }
-
-    #endregion
-
-    #region Utility
 
     public void ForceUpdate()
     {
