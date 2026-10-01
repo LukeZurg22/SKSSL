@@ -7,6 +7,7 @@ using Clipper2Lib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi.PointDistributors;
+using static SKSSL.Mathematics.Indexers;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -313,40 +314,19 @@ public partial class Voronoi
     }
 
     // TODO: Make them "Proper" from 0 depending on mode.
-    private static void AssignSpatialIds(List<Point> points)
+    private void AssignSpatialIds(List<Point> points)
     {
-        // Preserve the four artificial boundary points.
-        var realPoints = points
-            .Skip(4)
-            .OrderBy(p => MortonCode(
-                (uint)p.X,
-                (uint)p.Y))
-            .ToList();
+        var realPoints = new List<Point>(points.Count - 4);
+        foreach (Point point in points.Skip(4).OrderBy(p => Hilbert(p.X, p.Y, _width, _height)))
+        {
+            realPoints.Add(point);
+        }
 
         points.RemoveRange(4, points.Count - 4);
-
         for (uint i = 0; i < realPoints.Count; i++)
         {
-            Point old = realPoints[(int)i];
-            points.Add(new Point(old.X, old.Y, i + 4));
-        }
-    }
-
-    private static ulong MortonCode(uint x, uint y)
-    {
-        return Part1By1(x) | (Part1By1(y) << 1);
-
-        static ulong Part1By1(uint value)
-        {
-            ulong x = value;
-
-            x = (x | x << 16) & 0x0000FFFF0000FFFFUL;
-            x = (x | x << 8) & 0x00FF00FF00FF00FFUL;
-            x = (x | x << 4) & 0x0F0F0F0F0F0F0F0FUL;
-            x = (x | x << 2) & 0x3333333333333333UL;
-            x = (x | x << 1) & 0x5555555555555555UL;
-
-            return x;
+            Point p = realPoints[(int)i];
+            points.Add(new Point(p.X, p.Y, i));
         }
     }
 

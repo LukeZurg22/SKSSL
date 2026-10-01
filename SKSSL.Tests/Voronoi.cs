@@ -139,6 +139,8 @@ public class Voronoi
 
             _voronoi.ChangeCellColor(i, color);
         }
+
+        _voronoi.ChangeCellColor(1, Color.Gold);
         _voronoi.ForceUpdate();
 
         //_voronoi.ColorMarkedCells(Color.DarkGreen, null, true);

@@ -216,8 +216,9 @@ public partial class Voronoi
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsArtificialBoundaryTriangle(Triangle triangle)
-        => triangle.Vertices[0].ID < 4 || triangle.Vertices[1].ID < 4 || triangle.Vertices[2].ID < 4;
-
+        => IsArtificialBoundarySite(triangle.Vertices[0]) ||
+           IsArtificialBoundarySite(triangle.Vertices[1]) ||
+           IsArtificialBoundarySite(triangle.Vertices[2]);
     private static Point IntersectVertical(Point a, Point b, float x)
     {
         var dx = b.X - a.X;

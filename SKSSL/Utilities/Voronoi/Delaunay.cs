@@ -269,15 +269,15 @@ public partial class DelaunayTriangulator : IDisposable
             _badTriangles.Add(triangle);
 
             Triangle? neighbor = triangle.Neighbor0;
-            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp) 
+            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp)
                 _openTriangles.Push(neighbor);
 
             neighbor = triangle.Neighbor1;
-            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp) 
+            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp)
                 _openTriangles.Push(neighbor);
 
             neighbor = triangle.Neighbor2;
-            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp) 
+            if (neighbor != null && neighbor.Alive && neighbor.VisitStamp != visitStamp)
                 _openTriangles.Push(neighbor);
         }
     }
@@ -433,7 +433,7 @@ public partial class DelaunayTriangulator : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static double Cross(double ax, double ay, double bx, double by, double px, double py)
         => (px - ax) * (by - ay) - (py - ay) * (bx - ax);
-    
+
     #endregion
 
     #region Topology
@@ -498,7 +498,7 @@ public partial class DelaunayTriangulator : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static double Cross(Point a, Point b, Point c) => (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
-    
+
     #endregion
 
     #region Edge Operations

@@ -204,7 +204,6 @@ public partial class Voronoi
         int? height = null,
         DiagramSettings? settings = null)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(points, 1);
         settings ??= new DiagramSettings();
 
         _isGenerated = false;
@@ -254,17 +253,14 @@ public partial class Voronoi
 
         #region Populate Cells
 
-        // Lloyd relaxation requires rebuilding the triangulation and Voronoi cells, which can be a little expensive
-        //  for large graphs.
+        // LOYD RELAXATION
         for (int i = 0; i < 3; i++)
         {
+            // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
             delaunay.LloydSettlePoints(_voronoiCells.Values);
-
             _voronoiCells.Clear();
             _cellsById.Clear();
-
             triangulation = delaunay.BowyerWatson(_points);
-
             PopulateVoronoiCells();
         }
 
