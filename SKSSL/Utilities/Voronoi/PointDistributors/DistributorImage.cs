@@ -196,8 +196,8 @@ public unsafe class DistributorImage : IPointDistributor
                 byte b = _pixels[pixelIndex * 4];
                 byte g = _pixels[pixelIndex * 4 + 1];
                 byte r = _pixels[pixelIndex * 4 + 2];
-                if (AllowBlackGaps && (r | g | b) == 0)
-                    continue;
+                //if (AllowBlackGaps && (r | g | b) == 0)
+                //    continue;
 
                 float density = densityPtr[pixelIndex];
 
@@ -219,7 +219,6 @@ public unsafe class DistributorImage : IPointDistributor
                 var x = rx * maxX;
                 var y = ry * maxY;
 
-                /*
                  // Old code for smoothing cells.
                  double dxCenter = x - centerX;
                 double dyCenter = y - centerY;
@@ -229,10 +228,8 @@ public unsafe class DistributorImage : IPointDistributor
 
                 // Smooth transition instead of a linear spacing jump.
                 double smoothRadius = radialDistance * radialDistance * (3.0 - 2.0 * radialDistance);
-                double cellSizeFactor =
-                    _centerCellSizeFactor + (_edgeCellSizeFactor - _centerCellSizeFactor) * smoothRadius;
-                double minimumDistance = baseSpacing * spacingFactor * cellSizeFactor;*/
-                double minimumDistance = baseSpacing * spacingFactor;
+                double cellSizeFactor = _centerCellSizeFactor + (_edgeCellSizeFactor - _centerCellSizeFactor) * smoothRadius;
+                double minimumDistance = baseSpacing * spacingFactor * cellSizeFactor;
                 double minimumDistanceSquared = minimumDistance * minimumDistance;
 
                 int gx = (int)(x / cellSize);
