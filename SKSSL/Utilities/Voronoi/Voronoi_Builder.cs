@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading.Tasks;
 using Clipper2Lib;
 using Microsoft.Xna.Framework;
@@ -308,6 +309,44 @@ public partial class Voronoi
 
                 _voronoiEdges.Add(new Edge(new Point((int)a.X, (int)a.Y), new Point((int)b.X, (int)b.Y)));
             }
+        }
+    }
+
+    // TODO: Make them "Proper" from 0.
+    private static void AssignSpatialIds(List<Point> points)
+    {
+        // Preserve the four artificial boundary points.
+        var realPoints = points
+            .Skip(4)
+            .OrderBy(p => MortonCode(
+                (uint)p.X,
+                (uint)p.Y))
+            .ToList();
+
+        points.RemoveRange(4, points.Count - 4);
+
+        for (uint i = 0; i < realPoints.Count; i++)
+        {
+            Point old = realPoints[(int)i];
+            points.Add(new Point(old.X, old.Y, i+4));
+        }
+    }
+
+    private static ulong MortonCode(uint x, uint y)
+    {
+        return Part1By1(x) | (Part1By1(y) << 1);
+
+        static ulong Part1By1(uint value)
+        {
+            ulong x = value;
+
+            x = (x | x << 16) & 0x0000FFFF0000FFFFUL;
+            x = (x | x << 8) & 0x00FF00FF00FF00FFUL;
+            x = (x | x << 4) & 0x0F0F0F0F0F0F0F0FUL;
+            x = (x | x << 2) & 0x3333333333333333UL;
+            x = (x | x << 1) & 0x5555555555555555UL;
+
+            return x;
         }
     }
 
