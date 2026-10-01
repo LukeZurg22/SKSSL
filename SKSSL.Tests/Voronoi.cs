@@ -121,8 +121,15 @@ public class Voronoi
         MouseState mouse = Mouse.GetState();
         Point mousePosition = new(mouse.X, mouse.Y);
 
-        if (_voronoi.TryGetCellAt(mousePosition, out uint? id)) 
-            _voronoi.DemarcateCells([id.Value], Color.Black);
+        _voronoi.ClearDemarcatedCells();
+        if (_voronoi.TryGetCellAt(mousePosition, out VoronoiCell? cell))
+        {
+            _voronoi.DemarcateCell(cell.ID);
+            _hoveredCell = cell;
+        }
+
+        _voronoi.RebuildDemarcatedCellBorders(Color.Wheat, 1f);
+
 
         if (TOGGLE_EXECUTABLE_CLOSURE)
 #pragma warning disable CS0162

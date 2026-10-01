@@ -12,12 +12,13 @@ public record VoronoiCell
     public Point Site;
     public List<Point> Vertices;
     public bool IsBoundary;
-    
+
     /// <summary>
     /// Geometry used for rendering after gap clipping.
     /// Null means the original Vertices should be used.
     /// </summary>
     public Paths64? RenderPaths { get; set; }
+
     public bool IsCulled { get; set; }
 
     public VoronoiCell(Point site, List<Point> vertices)

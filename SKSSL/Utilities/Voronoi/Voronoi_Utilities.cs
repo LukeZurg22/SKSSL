@@ -503,7 +503,7 @@ public partial class Voronoi
         => IsArtificialBoundarySite(triangle.Vertices[0]) ||
            IsArtificialBoundarySite(triangle.Vertices[1]) ||
            IsArtificialBoundarySite(triangle.Vertices[2]);
-    
+
     private bool TryGetBoundaryVoronoiEdge(
         Triangle triangle,
         Point a,
@@ -666,8 +666,9 @@ public partial class Voronoi
         static Vector3 ToVector3(Vec3 p) => new((float)p.X, (float)p.Y, 0f);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void AddDemarcateEdge(
-        List<VertexPositionColor> vertices,
+        ref List<VertexPositionColor> vertices,
         Point point1,
         Point point2,
         Color color,

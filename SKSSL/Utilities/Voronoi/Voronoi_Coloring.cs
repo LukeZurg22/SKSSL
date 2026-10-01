@@ -12,12 +12,6 @@ public partial class Voronoi
     private readonly HashSet<uint> _markedCells = []; // Collected cells to interact with.
 
     // ReSharper disable once FieldCanBeMadeReadOnly.Local
-    private Color _demarcateColor = Color.Black; // Borders
-
-    // ReSharper disable once FieldCanBeMadeReadOnly.Local
-    private Color _highlightColor = Color.Yellow; // Full Cell Highlight
-
-    // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private Texture2D? _highlightMask; // Mask for highlighting cells.
     // TODO: Highlights versus demarcations.
 
@@ -150,7 +144,7 @@ public partial class Voronoi
     /// <param name="clearMarks"></param>
     // ReSharper disable once UnusedMember.Global
     public void DemarcateMarkedCells(
-        Color edgeColor, 
+        Color edgeColor,
         float thickness = 1f,
         bool rebuildBatch = false,
         bool clearMarks = false)
@@ -170,27 +164,22 @@ public partial class Voronoi
 
         _demarcatedCellIds.Clear();
         foreach (var cell in cells)
-            DemarcateCell(cell, edgeColor, thickness);
+            DemarcateCell(cell, thickness);
 
-        if (rebuildBatch) BatchBuildDemarcatedCellBorders(edgeColor, thickness);
+        if (rebuildBatch) RebuildDemarcatedCellBorders(edgeColor, thickness);
     }
 
     // ReSharper disable once MemberCanBePrivate.Global
-    public void DemarcateCell(uint cellId, Color? edgeColor = null, float thickness = 1f, bool rebuildBatch = false)
+    public void DemarcateCell(uint cellId, float thickness = 1f)
     {
         if (!_cellsById.TryGetValue(cellId, out VoronoiCell? _))
-        {
             return;
-        }
 
-        edgeColor ??= _demarcateColor;
         _demarcatedCellIds.Add(cellId);
-
-        if (rebuildBatch) BatchBuildDemarcatedCellBorders(edgeColor.Value, thickness);
     }
 
     // ReSharper disable once UnusedMember.Global
-    private void ClearDemarcatedCells()
+    public void ClearDemarcatedCells()
     {
         _demarcatedCellIds.Clear();
         _demarcateBatchVertices = [];
@@ -209,7 +198,7 @@ public partial class Voronoi
             if (_cellRawColors[i].PackedValue == color.PackedValue)
                 _demarcatedCellIds.Add(_voronoiCellArray[i].ID);
 
-        if (rebuild) BatchBuildDemarcatedCellBorders(color, thickness);
+        if (rebuild) RebuildDemarcatedCellBorders(color, thickness);
     }
 
 
@@ -223,14 +212,14 @@ public partial class Voronoi
             SetColorToDemarcate(color, thickness, false);
         }
 
-        BatchBuildDemarcatedCellBorders(highlightColor, thickness);
+        RebuildDemarcatedCellBorders(highlightColor, thickness);
     }
 
     #endregion
 
     #region Utility
 
-    private void BatchBuildDemarcatedCellBorders(Color color, float thickness)
+    public void RebuildDemarcatedCellBorders(Color color, float thickness)
     {
         if (_demarcatedCellIds.Count == 0 || _cellVoronoiEdges.Count == 0)
         {
@@ -256,7 +245,7 @@ public partial class Voronoi
             if (aHighlighted == bHighlighted)
                 continue;
 
-            AddDemarcateEdge(vertices, edge.Point1, edge.Point2, color, thickness);
+            AddDemarcateEdge(ref vertices, edge.Point1, edge.Point2, color, thickness);
         }
 
         _demarcateBatchVertices = vertices.ToArray();
@@ -267,6 +256,7 @@ public partial class Voronoi
     {
         if (!_isGenerated)
             return;
+
         UpdateTexture(_previousBoundaryMode, _previousFlags, _previousThickness, _previousPointSize, true);
     }
 
