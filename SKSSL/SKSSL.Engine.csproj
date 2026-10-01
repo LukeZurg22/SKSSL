@@ -26,6 +26,8 @@
     <ItemGroup>
         <!--The Ones That Flow-->
         <PackageReference Include="FlatRedBall.GumCommon" Version="2026.5.31.1" PrivateAssets="none"/>
+        <PackageReference Include="FontStashSharp.Base" Version="1.2.9" />
+        <PackageReference Include="FontStashSharp.MonoGame" Version="1.6.1" />
         <!--    ==Disabled FMOD for now until I can figure out how to actually use it. Foxes seemed dysfunctional.-->
         <!--<PackageReference Include="FmodAudio" Version="2.2.5" />
         <PackageReference Include="FmodForFoxes" Version="3.2.0" />

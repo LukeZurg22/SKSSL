@@ -37,6 +37,10 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <Link>..\localization\%(RecursiveDir)%(Filename)%(Extension)</Link>
         </Content>
+        <None Remove="ARIAL.TTF" />
+        <Content Include="ARIAL.TTF">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
         <!--      <Content Include="settings.yaml"> 
                   <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
                   <Link>..\settings.yaml</Link>
@@ -52,6 +56,8 @@
     <ItemGroup>
         <PackageReference Include="Clipper2" Version="2.0.0" />
         <PackageReference Include="Fluent.Net" Version="1.0.63"/>
+        <PackageReference Include="FontStashSharp.Base" Version="1.2.9" />
+        <PackageReference Include="FontStashSharp.MonoGame" Version="1.6.1" />
         <PackageReference Include="JetBrains.Annotations" Version="2025.2.4"/>
         <PackageReference Include="LibVLCSharp" Version="3.10.1" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0"/>
