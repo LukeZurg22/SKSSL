@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
 using Clipper2Lib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi.PointDistributors;
-using static SKSSL.Mathematics.Indexers;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -385,10 +382,10 @@ public partial class Voronoi
 
             _voronoiCellArray[index] = cell;
             _cellsById[cellId] = cell;
-
             _cellRawColors[index] = GetCellColor(cell);
         }
     }
+
 
     private void BuildSelectCellEdges()
     {
