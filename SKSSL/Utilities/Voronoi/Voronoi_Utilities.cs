@@ -517,20 +517,32 @@ public partial class Voronoi
         Color color,
         float thickness)
     {
-        Vector2 p1 = new(point1.X, point1.Y);
-        Vector2 p2 = new(point2.X, point2.Y);
+        // Vector2's, but as floats.
+        float dx = point2.X - point1.X;
+        float dy = point2.Y - point1.Y;
 
-        Vector2 direction = p2 - p1;
-        if (direction.LengthSquared() <= 0.000001f)
+        // Direction.
+        float lenSq = dx * dx + dy * dy;
+        if (lenSq <= 0.000001f)
             return;
 
-        direction.Normalize();
+        // Normalize.
+        float invLen = thickness * 0.5f / MathF.Sqrt(lenSq);
 
-        Vector2 normal = new Vector2(-direction.Y, direction.X) * (thickness * 0.5f);
-        Vector3 v1 = new(p1 - normal, 0f);
-        Vector3 v2 = new(p1 + normal, 0f);
-        Vector3 v3 = new(p2 + normal, 0f);
-        Vector3 v4 = new(p2 - normal, 0f);
+        // Normals
+        float nx = -dy * invLen;
+        float ny = dx * invLen;
+
+        // Points
+        float x1 = point1.X;
+        float y1 = point1.Y;
+        float x2 = point2.X;
+        float y2 = point2.Y;
+
+        Vector3 v1 = new(x1 - nx, y1 - ny, 0f);
+        Vector3 v2 = new(x1 + nx, y1 + ny, 0f);
+        Vector3 v3 = new(x2 + nx, y2 + ny, 0f);
+        Vector3 v4 = new(x2 - nx, y2 - ny, 0f);
 
         vertices.Add(new VertexPositionColor(v1, color));
         vertices.Add(new VertexPositionColor(v2, color));
