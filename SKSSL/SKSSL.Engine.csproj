@@ -227,6 +227,12 @@
         <Compile Update="Utilities\Voronoi\Voronoi_Geometry.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi_DoublePoint.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi_Utilities_Clipping.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

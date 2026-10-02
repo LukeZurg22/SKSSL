@@ -300,4 +300,68 @@ public partial class Voronoi
         _cellGeometryOffsets = offsets;
         _cellGeometryCounts = counts;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static List<DoublePoint> RemoveDuplicatePoints(List<DoublePoint> polygon)
+    {
+        if (polygon.Count < 2)
+            return polygon;
+
+        const double epsilon = 1e-9;
+
+        var result = new List<DoublePoint>(polygon.Count);
+        foreach (DoublePoint point in polygon)
+        {
+            if (result.Count == 0)
+            {
+                result.Add(point);
+                continue;
+            }
+
+            DoublePoint previous = result[^1];
+
+            double dx = point.X - previous.X;
+            double dy = point.Y - previous.Y;
+            if (dx * dx + dy * dy > epsilon * epsilon)
+                result.Add(point);
+        }
+
+        // ReSharper disable once InvertIf
+        if (result.Count > 1)
+        {
+            DoublePoint first = result[0];
+            DoublePoint last = result[^1];
+
+            double dx = first.X - last.X;
+            double dy = first.Y - last.Y;
+            if (dx * dx + dy * dy <= epsilon * epsilon)
+                result.RemoveAt(result.Count - 1);
+        }
+
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static List<Point> QuantizePolygon(List<DoublePoint> polygon, int width, int height)
+    {
+        if (polygon.Count < 3)
+            return [];
+
+        var result = new List<Point>(polygon.Count);
+
+        foreach (DoublePoint p in polygon)
+        {
+            var point = new Point(
+                (int)Math.Round(Math.Clamp(p.X, 0.0, width)),
+                (int)Math.Round(Math.Clamp(p.Y, 0.0, height)));
+
+            if (result.Count == 0 || result[^1] != point)
+                result.Add(point);
+        }
+
+        if (result.Count > 1 && result[0] == result[^1])
+            result.RemoveAt(result.Count - 1);
+
+        return result;
+    }
 }
