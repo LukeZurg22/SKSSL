@@ -9,9 +9,6 @@ public partial class Voronoi
     // ReSharper disable once ClassNeverInstantiated.Global
     public class DiagramSettings
     {
-        /// Toggle for easing points to a settled arrangement.
-        public bool SettlePoints { get; init; } = false;
-
         /// Evenness of distribution on a scale of 0.00 -> 1.00; only works with the
         /// Provided custom point distributor that decides the positioning of the point X and Y positions.
         public double Randomness { get; init; } = 0.8;

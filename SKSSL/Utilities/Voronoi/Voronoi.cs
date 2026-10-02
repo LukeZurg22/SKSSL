@@ -175,8 +175,6 @@ public partial class Voronoi
 
     #endregion
 
-    #region Diagram Generation
-
     /// <summary>
     /// Generates a set of voronoi cells and internally inserts them into the data of this <see cref="Voronoi"/>
     /// class object.
@@ -310,8 +308,6 @@ public partial class Voronoi
         // This is for performance.
         _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_voronoiCellArray, _width, _height);
     }
-
-    #endregion
 
     #region TryGet Methods
 

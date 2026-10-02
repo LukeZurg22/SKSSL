@@ -51,7 +51,6 @@ public class Voronoi
         var diagramSettings = new Utilities.Voronoi.Voronoi.DiagramSettings
         {
             Randomness = 0,
-            SettlePoints = false,
             // Image Heightmap distributor.
             Distributor = new DistributorImage(_densityTexture, new DistributorImageSettings
             {
