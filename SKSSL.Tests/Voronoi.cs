@@ -30,19 +30,18 @@ public class Voronoi
     {
         using var game = new UnitGame(() => { }, () => { }, MimicUpdate, MimicDraw);
         _game = game;
-        MimicGameObjectInstantiate(); // Mimic game object class instantiation.
+
+        // Mimic game object class instantiation.
+        _spriteBatch = new SpriteBatch(_game.GraphicsDevice);
+        _voronoi = new Utilities.Voronoi.Voronoi(_game.GraphicsDevice);
+
         MimicLoadContent(); // Mimic LoadContent call.
         MimicInitialize(); // Mimic Initialize call.
         game.Run();
         Assert.IsTrue(generated);
     }
 
-    // Mimicking the Game object initialization.
-    private void MimicGameObjectInstantiate()
-    {
-        _spriteBatch = new SpriteBatch(_game.GraphicsDevice);
-        _voronoi = new Utilities.Voronoi.Voronoi(_game.GraphicsDevice);
-    }
+    #region Initial Loading
 
     private void MimicInitialize()
     {
@@ -110,6 +109,8 @@ public class Voronoi
             .LoadEmbeddedTexture(_game.GraphicsDevice, "PLAIN_ROUND.png");
         _densityTexture = image;
     }
+
+    #endregion
 
     #region DRAW & UPDATE
 

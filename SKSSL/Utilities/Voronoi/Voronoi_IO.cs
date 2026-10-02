@@ -84,12 +84,12 @@ public partial class Voronoi
         _voronoiEdges.Clear();
         _cellVoronoiEdges.Clear();
         Array.Clear(_edgesByCell);
-        _cellIndices.Clear();
+        _siteIndices.Clear();
         _cellsById.Clear();
 
         foreach (VoronoiCell cell in _voronoiCells.Values)
         {
-            _cellIndices[cell.ID] = _cellIndices.Count;
+            _siteIndices[cell.ID] = _siteIndices.Count;
             _cellsById[cell.ID] = cell;
         }
 

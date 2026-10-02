@@ -120,7 +120,12 @@ public partial class Voronoi
             Path64 subject = ToPath(cell.Vertices);
             Paths64 result = Clipper.Difference([subject], gaps.Paths, FillRule.NonZero);
 
-            cell.RenderPaths = result.Count == 0 ? null : result;
+            if (result.Count == 0)
+            {
+                cell.RenderPaths = [];
+                cell.IsCulled = true;
+            }
+            else cell.RenderPaths = result;
         }
     }
 

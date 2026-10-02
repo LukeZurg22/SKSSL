@@ -8,7 +8,10 @@ namespace SKSSL.Utilities.Voronoi;
 /// </summary>
 public record VoronoiCell
 {
-    public uint ID => Site.ID;
+    public const uint InvalidId = uint.MaxValue;
+
+    public uint PublicID { get; internal set; }
+    public uint ID { get; internal set; } = InvalidId;
     public Point Site;
     public List<Point> Vertices;
     public bool IsBoundary;

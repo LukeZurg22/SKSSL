@@ -57,7 +57,7 @@ public partial class Voronoi
     private SpatialGrid? _spatialGrid;
 
     // Coloring and Visualization
-    private readonly Dictionary<uint, int> _cellIndices = [];
+    private readonly Dictionary<uint, int> _siteIndices = [];
     private Color[] _cellOverrideColors; // Override colors for cells. Indexed by ID.
     private Color[] _cellRawColors; // Raw "provincial" colors of cells. Indexed by ID.
     private readonly HashSet<int> _usedColors = []; // avoid exact RGB collisions
@@ -224,9 +224,9 @@ public partial class Voronoi
         Array.Resize(ref _cellRawColors, _points.Length + 1);
 
         // Clear and repopulate cell index dictionary.
-        _cellIndices.Clear();
+        _siteIndices.Clear();
         for (int i = 0; i < _points.Length; i++)
-            _cellIndices[_points[i].ID] = i;
+            _siteIndices[_points[i].ID] = i;
 
         // Make the triangles.
         var triangulation = delaunay.BowyerWatson(_points);
@@ -259,8 +259,6 @@ public partial class Voronoi
 
         // PROCESS
         ProcessCells(settings.BoundaryMode, triangulation);
-        BuildCellArray();
-        BuildCellGeometry();
 
         // CELL CLIPPING
         GapGeometry? gapGeometry = null;
@@ -270,6 +268,8 @@ public partial class Voronoi
             //ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);
         }
 
+        BuildCellArray();
+        BuildCellGeometry();
         BuildVoronoiEdges(triangulation, settings.BoundaryMode, gapGeometry, false);
         BuildSelectCellEdges(); // This is to improve performance for selection.
 
@@ -486,12 +486,6 @@ public partial class Voronoi
                 cell.Vertices = polygon;
                 cell.IsBoundary = false;
                 cell.IsCulled = polygon.Count < 3;
-
-                if (!cell.IsCulled)
-                {
-                    _cellRawColors[_cellIndices[cell.ID]] =
-                        GetCellColor(cell);
-                }
             });
 
             return;
@@ -552,14 +546,8 @@ public partial class Voronoi
                 }
             }
 
-            _cellRawColors[_cellIndices[cell.ID]] =
-                GetCellColor(cell);
-
-            cell.IsCulled =
-                IsArtificialBoundarySite(cell.Site) ||
-                (boundaryMode == VoronoiBoundaryMode.CulledSquare &&
-                 (cell.IsBoundary ||
-                  cell.Vertices.Count == 0));
+            cell.IsCulled = IsArtificialBoundarySite(cell.Site) || (boundaryMode == VoronoiBoundaryMode.CulledSquare &&
+                                                                    (cell.IsBoundary || cell.Vertices.Count == 0));
         });
     }
 

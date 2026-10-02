@@ -347,25 +347,23 @@ public partial class Voronoi
 
     private unsafe void SetCellColor(uint cellId, Color color)
     {
-        for (int cellIndex = 0; cellIndex < _voronoiCellArray.Length; cellIndex++)
-        {
-            if (_voronoiCellArray[cellIndex].ID != cellId)
-                continue;
-
-            int count = _cellGeometryCounts[cellIndex];
-            if (count == 0)
-                return;
-
-            int start = _cellGeometryOffsets[cellIndex];
-
-            fixed (VertexPositionColor* outputPtr = _cellBatchVertices)
-            {
-                var dst = outputPtr + start;
-                for (int i = 0; i < count; i++)
-                    dst[i].Color = color;
-            }
-
+        if (cellId >= (uint)_voronoiCellArray.Length)
             return;
+
+        int index = (int)cellId;
+        int count = _cellGeometryCounts[index];
+
+        if (count == 0)
+            return;
+
+        int start = _cellGeometryOffsets[index];
+
+        fixed (VertexPositionColor* outputPtr = _cellBatchVertices)
+        {
+            VertexPositionColor* dst = outputPtr + start;
+
+            for (int i = 0; i < count; i++)
+                dst[i].Color = color;
         }
     }
 
@@ -428,12 +426,66 @@ public partial class Voronoi
 
     private void BuildCellArray()
     {
-        int count = _cellIndices.Count;
-        if (_voronoiCellArray.Length != count)
-            _voronoiCellArray = new VoronoiCell[count];
+        // Count renderable cells first.
+        int visibleCount = 0;
 
-        foreach (VoronoiCell cell in _voronoiCells.Values)
-            _voronoiCellArray[_cellIndices[cell.ID]] = cell;
+        foreach (Point site in _points)
+        {
+            if (IsArtificialBoundarySite(site))
+                continue;
+
+            if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
+                continue;
+
+            if (!HasRenderableCellGeometry(cell))
+                continue;
+
+            visibleCount++;
+        }
+
+        if (_voronoiCellArray.Length != visibleCount)
+            _voronoiCellArray = new VoronoiCell[visibleCount];
+
+        _cellsById.Clear();
+
+        // The color arrays are now indexed by COMPACT CELL ID.
+        if (_cellRawColors.Length != visibleCount)
+            _cellRawColors = new Color[visibleCount];
+
+        if (_cellOverrideColors.Length != visibleCount)
+            _cellOverrideColors = new Color[visibleCount];
+
+        Array.Clear(_cellOverrideColors);
+
+        uint nextId = 0;
+
+        // _points is already spatially ordered by AssignSpatialIds(),
+        // so this gives deterministic compact IDs in spatial order.
+        foreach (Point site in _points)
+        {
+            if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
+                continue;
+
+            // Artificial and culled cells receive no public/render ID.
+            if (IsArtificialBoundarySite(site) ||
+                !HasRenderableCellGeometry(cell))
+            {
+                cell.ID = VoronoiCell.InvalidId;
+                continue;
+            }
+
+            uint cellId = nextId++;
+
+            cell.ID = cellId;
+
+            int index = (int)cellId;
+
+            _voronoiCellArray[index] = cell;
+            _cellsById[cellId] = cell;
+
+            // Color arrays are now compact too.
+            _cellRawColors[index] = GetCellColor(cell);
+        }
     }
 
     private void BuildCellGeometry()
@@ -457,7 +509,7 @@ public partial class Voronoi
 
             // The first four Delaunay sites are the artificial bounding rectangle.
             // They are topology scaffolding, not renderable Voronoi cells.
-            if (cell.IsCulled || !HasRenderableCellGeometry(cell) || IsArtificialBoundarySite(cell.Site))
+            if (!HasRenderableCellGeometry(cell))
             {
                 geometries[i] = [];
                 counts[i] = 0;
@@ -514,40 +566,34 @@ public partial class Voronoi
 
     private void BuildSelectCellEdges()
     {
-        long maxSiteId = -1;
-        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
-        {
-            maxSiteId = Math.Max(maxSiteId, edge.SiteA.ID);
-            if (edge.SiteB.HasValue)
-                maxSiteId = Math.Max(maxSiteId, edge.SiteB.Value.ID);
-        }
-
-        if (_edgesByCell.Length != maxSiteId + 1)
-            _edgesByCell = new List<CellVoronoiEdge>?[maxSiteId + 1];
-        else Array.Clear(_edgesByCell);
+        _edgesByCell = new List<CellVoronoiEdge>?[
+            _voronoiCellArray.Length
+        ];
 
         foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
         {
-            var edgesA = _edgesByCell[edge.SiteA.ID];
-            if (edgesA == null)
-            {
-                edgesA = [];
-                _edgesByCell[edge.SiteA.ID] = edgesA;
-            }
+            if (!_voronoiCells.TryGetValue(edge.SiteA, out VoronoiCell? cellA))
+                continue;
 
-            edgesA.Add(edge);
+            if (cellA.ID == VoronoiCell.InvalidId)
+                continue;
+
+            int idA = (int)cellA.ID;
+
+            (_edgesByCell[idA] ??= []).Add(edge);
+
             if (!edge.SiteB.HasValue)
                 continue;
 
             Point siteB = edge.SiteB.Value;
-            var edgesB = _edgesByCell[siteB.ID];
-            if (edgesB == null)
-            {
-                edgesB = [];
-                _edgesByCell[siteB.ID] = edgesB;
-            }
+            if (!_voronoiCells.TryGetValue(siteB, out VoronoiCell? cellB))
+                continue;
 
-            edgesB.Add(edge);
+            if (cellB.ID == VoronoiCell.InvalidId)
+                continue;
+
+            int idB = (int)cellB.ID;
+            (_edgesByCell[idB] ??= []).Add(edge);
         }
     }
 }
