@@ -264,8 +264,6 @@ public partial class Voronoi
         }
 
         BuildCellArray();
-
-
         BuildCellGeometry();
         BuildVoronoiEdges(triangulation, gapGeometry, false);
 

@@ -18,9 +18,14 @@ public record VoronoiCell
     /// Geometry used for rendering after gap clipping.
     /// Null means the original Vertices should be used.
     /// </summary>
-    public Paths64? RenderPaths { get; set; }
+    public Paths64? RenderPaths;
 
-    public bool IsCulled { get; set; }
+    public bool IsCulled;
+
+    /// <summary>
+    /// Caching a result of a function that checks render ability.
+    /// </summary>
+    public bool HasRenderableGeometry = true;
 
     public VoronoiCell(Point site, List<Point> vertices)
     {

@@ -307,11 +307,8 @@ public partial class Voronoi
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsGapCulledBoundaryEdge(Point a, Point b)
-    {
-        bool aRenderable = _voronoiCells.TryGetValue(a, out VoronoiCell? cellA) && HasRenderableCellGeometry(cellA);
-        bool bRenderable = _voronoiCells.TryGetValue(b, out VoronoiCell? cellB) && HasRenderableCellGeometry(cellB);
-        return !aRenderable && !bRenderable;
-    }
+        => (!_voronoiCells.TryGetValue(a, out VoronoiCell? ca) || !ca.HasRenderableGeometry) &&
+           (!_voronoiCells.TryGetValue(b, out VoronoiCell? cb) || !cb.HasRenderableGeometry);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasRenderableCellGeometry(VoronoiCell cell)
@@ -500,7 +497,7 @@ public partial class Voronoi
         }
         finally
         {
-            foreach (var array in rented) 
+            foreach (var array in rented)
                 ArrayPool<ContourVertex>.Shared.Return(array);
         }
     }

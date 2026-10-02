@@ -246,7 +246,7 @@ public partial class Voronoi
 
             // The first four Delaunay sites are the artificial bounding rectangle.
             // They are topology scaffolding, not renderable Voronoi cells.
-            if (!HasRenderableCellGeometry(cell))
+            if (!cell.HasRenderableGeometry)
             {
                 geometries[i] = [];
                 counts[i] = 0;

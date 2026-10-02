@@ -338,7 +338,10 @@ public partial class Voronoi
                 continue;
 
             if (!HasRenderableCellGeometry(cell))
+            {
+                cell.HasRenderableGeometry = false;
                 continue;
+            }
 
             visibleCount++;
         }
@@ -363,8 +366,7 @@ public partial class Voronoi
             if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
                 continue;
 
-            if (IsArtificialBoundarySite(site) ||
-                !HasRenderableCellGeometry(cell))
+            if (IsArtificialBoundarySite(site) || !cell.HasRenderableGeometry)
             {
                 cell.ID = VoronoiCell.InvalidId;
                 continue;
