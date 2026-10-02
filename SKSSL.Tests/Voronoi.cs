@@ -60,7 +60,7 @@ public class Voronoi
                 EdgeCellSizeFactor = 4,
                 AllowBlackGaps = true,
             }),
-            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledSquare,
+            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledCircular,
             Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
@@ -106,7 +106,7 @@ public class Voronoi
         _font = fontSystem.GetFont(32);
 
         Texture2D image = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
-            .LoadEmbeddedTexture(_game.GraphicsDevice, "PLAIN_ROUND.png");
+            .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Map.png");
         _densityTexture = image;
     }
 

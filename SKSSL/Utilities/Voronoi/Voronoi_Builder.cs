@@ -265,55 +265,6 @@ public partial class Voronoi
             ClipVoronoiEdgesAgainstGaps(gaps);
     }
 
-    private void ClipVoronoiEdgesAgainstGaps(GapGeometry gaps)
-    {
-        if (_voronoiEdges.Count == 0)
-            return;
-
-        int edgeCount = _voronoiEdges.Count;
-
-        var subjects = new Paths64(edgeCount);
-
-        for (int i = 0; i < edgeCount; i++)
-        {
-            Edge edge = _voronoiEdges[i];
-
-            subjects.Add(
-            [
-                new Point64(edge.Point1.X, edge.Point1.Y),
-                new Point64(edge.Point2.X, edge.Point2.Y)
-            ]);
-        }
-
-        var clipped = new Paths64();
-        var openClipped = new Paths64();
-
-        var clipper = new Clipper64();
-
-        clipper.AddOpenSubject(subjects);
-        clipper.AddClip(gaps.Paths);
-        clipper.Execute(ClipType.Difference, FillRule.EvenOdd, clipped, openClipped);
-
-        _voronoiEdges.Clear();
-
-        foreach (Path64 path in openClipped)
-        {
-            if (path.Count < 2)
-                continue;
-
-            for (int i = 1; i < path.Count; i++)
-            {
-                Point64 a = path[i - 1];
-                Point64 b = path[i];
-
-                if (a == b)
-                    continue;
-
-                _voronoiEdges.Add(new Edge(new Point((int)a.X, (int)a.Y), new Point((int)b.X, (int)b.Y)));
-            }
-        }
-    }
-
     private void AssignSpatialIds(List<Point> points)
     {
         var realPoints = points
@@ -426,7 +377,14 @@ public partial class Voronoi
 
     private void BuildCellArray()
     {
-        // Count renderable cells first.
+        int siteCount = _points.Length;
+
+        // Site ID -> compact Cell ID.
+        if (_cellIdBySiteId.Length != siteCount)
+            _cellIdBySiteId = new uint[siteCount];
+
+        Array.Fill(_cellIdBySiteId, VoronoiCell.InvalidId);
+
         int visibleCount = 0;
 
         foreach (Point site in _points)
@@ -448,7 +406,6 @@ public partial class Voronoi
 
         _cellsById.Clear();
 
-        // The color arrays are now indexed by COMPACT CELL ID.
         if (_cellRawColors.Length != visibleCount)
             _cellRawColors = new Color[visibleCount];
 
@@ -459,14 +416,11 @@ public partial class Voronoi
 
         uint nextId = 0;
 
-        // _points is already spatially ordered by AssignSpatialIds(),
-        // so this gives deterministic compact IDs in spatial order.
         foreach (Point site in _points)
         {
             if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
                 continue;
 
-            // Artificial and culled cells receive no public/render ID.
             if (IsArtificialBoundarySite(site) ||
                 !HasRenderableCellGeometry(cell))
             {
@@ -476,14 +430,17 @@ public partial class Voronoi
 
             uint cellId = nextId++;
 
+            // Public/renderable ID.
             cell.ID = cellId;
+
+            // Topology site ID -> public cell ID.
+            _cellIdBySiteId[site.ID] = cellId;
 
             int index = (int)cellId;
 
             _voronoiCellArray[index] = cell;
             _cellsById[cellId] = cell;
 
-            // Color arrays are now compact too.
             _cellRawColors[index] = GetCellColor(cell);
         }
     }

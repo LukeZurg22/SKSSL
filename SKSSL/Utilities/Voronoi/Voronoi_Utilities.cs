@@ -106,6 +106,149 @@ public partial class Voronoi
         return px >= Math.Min(ax, bx) && px <= Math.Max(ax, bx) && py >= Math.Min(ay, by) && py <= Math.Max(ay, by);
     }
 
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private uint GetCellIdFromSiteId(uint siteId)
+        => siteId >= (uint)_cellIdBySiteId.Length ? VoronoiCell.InvalidId : _cellIdBySiteId[siteId];
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Path64 ToPath(List<Point> polygon)
+    {
+        var path = new Path64(polygon.Count);
+        foreach (Point point in polygon)
+            path.Add(new Point64(point.X, point.Y));
+        return path;
+    }
+
+    #region CLIPPING
+
+    private bool ClipLineToBounds(Point p1, Point p2, out Point clipped1, out Point clipped2)
+    {
+        float x1 = p1.X;
+        float y1 = p1.Y;
+        float x2 = p2.X;
+        float y2 = p2.Y;
+
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+
+        float t0 = 0f;
+        float t1 = 1f;
+
+        // Left: x >= 0
+        if (!Clip(-dx, x1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        // Right: x <= width
+        if (!Clip(dx, _width - x1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        // Top: y >= 0
+        if (!Clip(-dy, y1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        // Bottom: y <= height
+        if (!Clip(dy, _height - y1))
+        {
+            clipped1 = default;
+            clipped2 = default;
+            return false;
+        }
+
+        clipped1 = new Point((int)Math.Round(x1 + dx * t0), (int)Math.Round(y1 + dy * t0));
+        clipped2 = new Point((int)Math.Round(x1 + dx * t1), (int)Math.Round(y1 + dy * t1));
+
+        return true;
+
+        bool Clip(float p, float q)
+        {
+            if (Math.Abs(p) < 0.000001f)
+                return q >= 0f;
+
+            float r = q / p;
+
+            if (p < 0f)
+            {
+                if (r > t1)
+                    return false;
+
+                if (r > t0)
+                    t0 = r;
+            }
+            else
+            {
+                if (r < t0)
+                    return false;
+
+                if (r < t1)
+                    t1 = r;
+            }
+
+            return true;
+        }
+    }
+    
+    private void ClipVoronoiEdgesAgainstGaps(GapGeometry gaps)
+    {
+        if (_voronoiEdges.Count == 0)
+            return;
+
+        int edgeCount = _voronoiEdges.Count;
+
+        var subjects = new Paths64(edgeCount);
+
+        for (int i = 0; i < edgeCount; i++)
+        {
+            Edge edge = _voronoiEdges[i];
+
+            subjects.Add(
+            [
+                new Point64(edge.Point1.X, edge.Point1.Y),
+                new Point64(edge.Point2.X, edge.Point2.Y)
+            ]);
+        }
+
+        var clipped = new Paths64();
+        var openClipped = new Paths64();
+
+        var clipper = new Clipper64();
+
+        clipper.AddOpenSubject(subjects);
+        clipper.AddClip(gaps.Paths);
+        clipper.Execute(ClipType.Difference, FillRule.EvenOdd, clipped, openClipped);
+
+        _voronoiEdges.Clear();
+
+        foreach (Path64 path in openClipped)
+        {
+            if (path.Count < 2)
+                continue;
+
+            for (int i = 1; i < path.Count; i++)
+            {
+                Point64 a = path[i - 1];
+                Point64 b = path[i];
+
+                if (a == b)
+                    continue;
+
+                _voronoiEdges.Add(new Edge(new Point((int)a.X, (int)a.Y), new Point((int)b.X, (int)b.Y)));
+            }
+        }
+    }
+
     private void ClipCellsAgainstGaps(GapGeometry gaps, IEnumerable<VoronoiCell> cells)
     {
         foreach (VoronoiCell cell in cells)
@@ -127,15 +270,6 @@ public partial class Voronoi
             }
             else cell.RenderPaths = result;
         }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Path64 ToPath(List<Point> polygon)
-    {
-        var path = new Path64(polygon.Count);
-        foreach (Point point in polygon)
-            path.Add(new Point64(point.X, point.Y));
-        return path;
     }
 
     private static bool ClipRayAxis(
@@ -218,6 +352,8 @@ public partial class Voronoi
 
         return result.Distinct().ToList();
     }
+
+    #endregion
 
     private static Point IntersectVertical(Point a, Point b, float x)
     {
@@ -320,84 +456,6 @@ public partial class Voronoi
             return true;
 
         return false;
-    }
-
-    private bool ClipLineToBounds(Point p1, Point p2, out Point clipped1, out Point clipped2)
-    {
-        float x1 = p1.X;
-        float y1 = p1.Y;
-        float x2 = p2.X;
-        float y2 = p2.Y;
-
-        float dx = x2 - x1;
-        float dy = y2 - y1;
-
-        float t0 = 0f;
-        float t1 = 1f;
-
-        // Left: x >= 0
-        if (!Clip(-dx, x1))
-        {
-            clipped1 = default;
-            clipped2 = default;
-            return false;
-        }
-
-        // Right: x <= width
-        if (!Clip(dx, _width - x1))
-        {
-            clipped1 = default;
-            clipped2 = default;
-            return false;
-        }
-
-        // Top: y >= 0
-        if (!Clip(-dy, y1))
-        {
-            clipped1 = default;
-            clipped2 = default;
-            return false;
-        }
-
-        // Bottom: y <= height
-        if (!Clip(dy, _height - y1))
-        {
-            clipped1 = default;
-            clipped2 = default;
-            return false;
-        }
-
-        clipped1 = new Point((int)Math.Round(x1 + dx * t0), (int)Math.Round(y1 + dy * t0));
-        clipped2 = new Point((int)Math.Round(x1 + dx * t1), (int)Math.Round(y1 + dy * t1));
-
-        return true;
-
-        bool Clip(float p, float q)
-        {
-            if (Math.Abs(p) < 0.000001f)
-                return q >= 0f;
-
-            float r = q / p;
-
-            if (p < 0f)
-            {
-                if (r > t1)
-                    return false;
-
-                if (r > t0)
-                    t0 = r;
-            }
-            else
-            {
-                if (r < t0)
-                    return false;
-
-                if (r < t1)
-                    t1 = r;
-            }
-
-            return true;
-        }
     }
 
     /// Map geometry is non-negative, so this is equivalent to Math.Round(value)
@@ -607,6 +665,8 @@ public partial class Voronoi
         return start != end;
     }
 
+    #region TESSELATION
+
     private static Vector3[] TessellateOriginalCellPositions(List<Point> vertices)
     {
         int count = vertices.Count;
@@ -670,6 +730,8 @@ public partial class Voronoi
 
         static Vector3 ToVector3(Vec3 p) => new((float)p.X, (float)p.Y, 0f);
     }
+
+    #endregion
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void AddDemarcateEdge(

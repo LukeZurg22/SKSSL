@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using JetBrains.Annotations;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -10,6 +9,7 @@ namespace SKSSL.Utilities.Voronoi;
 public partial class Voronoi
 {
     private readonly HashSet<uint> _markedCells = []; // Collected cells to interact with.
+    private uint[] _cellIdBySiteId = [];
 
     // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private Texture2D? _highlightMask; // Mask for highlighting cells.
@@ -240,8 +240,16 @@ public partial class Voronoi
 
         foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
         {
-            bool aHighlighted = _demarcatedCellIds.Contains(edge.SiteA.ID);
-            bool bHighlighted = edge.SiteB.HasValue && _demarcatedCellIds.Contains(edge.SiteB.Value.ID);
+            uint cellA = GetCellIdFromSiteId(edge.SiteA.ID);
+            bool aHighlighted = cellA != VoronoiCell.InvalidId && _demarcatedCellIds.Contains(cellA);
+            bool bHighlighted = false;
+
+            if (edge.SiteB.HasValue)
+            {
+                uint cellB = GetCellIdFromSiteId(edge.SiteB.Value.ID);
+                bHighlighted = cellB != VoronoiCell.InvalidId && _demarcatedCellIds.Contains(cellB);
+            }
+
             if (aHighlighted == bHighlighted)
                 continue;
 
@@ -260,7 +268,10 @@ public partial class Voronoi
         UpdateTexture(_previousBoundaryMode, _previousFlags, _previousThickness, _previousPointSize, true);
     }
 
-    public Color GetCellColor(VoronoiCell cell)
+    // ReSharper disable once UnusedMember.Global
+    public Color GetCellColor(uint cellId) => _cellRawColors[cellId];
+
+    private Color GetCellColor(VoronoiCell cell)
     {
         Color color;
         uint hash;
@@ -299,7 +310,7 @@ public partial class Voronoi
             case ColorMode.Semi_Deterministic_Unique:
                 // Grab a deterministic semi-unique color and go an integer check.
                 // Naturally if it isn't unique, then it is reaching the birthday-paradox point
-                color = ColorUtilities.GetSemiUniqueColor(cell.ID);
+                color = ColorUtilities.GetSemiUniqueColor(cell.Site.ID);
                 int reversed = (color.R << 16) | (color.G << 8) | color.B;
                 lock (_usedColors)
                 {

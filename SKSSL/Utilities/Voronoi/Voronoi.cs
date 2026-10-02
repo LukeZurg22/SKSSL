@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -250,14 +251,13 @@ public partial class Voronoi
             _cellsById.Clear();
             triangulation = delaunay.BowyerWatson(_points);
             // --> POPULATE
-            PopulateVoronoiCells();
+            PopulateVoronoiCells(triangulation);
         }
 
 #if DEBUG
         ValidateNeighbors(triangulation);
 #endif
 
-        // PROCESS
         ProcessCells(settings.BoundaryMode, triangulation);
 
         // CELL CLIPPING
@@ -301,58 +301,42 @@ public partial class Voronoi
         // A spatial grid, aka a bucket grid is needed to subdivide the voronoi map into workable chunks.
         // This is for performance.
         _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_voronoiCellArray, _width, _height);
-        return;
+    }
 
-        void PurgeCulledCells()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void PopulateVoronoiCells(List<Triangle>? triangulation)
+    {
+        foreach (Triangle triangle in triangulation)
         {
-            foreach (Point site in _voronoiCells.Keys
-                         .Where(site => IsArtificialBoundarySite(site) ||
-                                        _voronoiCells[site].IsCulled)
-                         .ToList())
+            foreach (Point site in triangle.Vertices)
             {
-                _voronoiCells.Remove(site);
+                if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
+                {
+                    cell = new VoronoiCell(site, []);
+                    _voronoiCells.Add(site, cell);
+                    _cellsById.Add(site.ID, cell);
+                }
+
+                cell.Vertices.Add(triangle.Circumcenter);
             }
 
-            _cellsById.Clear();
-
-            foreach (VoronoiCell cell in _voronoiCells.Values)
-                _cellsById[cell.ID] = cell;
-        }
-
-        void PopulateVoronoiCells()
-        {
-            foreach (Triangle triangle in triangulation)
+            if (triangle.Neighbor0 == null)
             {
-                foreach (Point site in triangle.Vertices)
-                {
-                    if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
-                    {
-                        cell = new VoronoiCell(site, []);
-                        _voronoiCells.Add(site, cell);
-                        _cellsById.Add(site.ID, cell);
-                    }
+                _voronoiCells[triangle.Vertices[0]].IsBoundary = true;
+                _voronoiCells[triangle.Vertices[1]].IsBoundary = true;
+            }
 
-                    cell.Vertices.Add(triangle.Circumcenter);
-                }
+            if (triangle.Neighbor1 == null)
+            {
+                _voronoiCells[triangle.Vertices[1]].IsBoundary = true;
+                _voronoiCells[triangle.Vertices[2]].IsBoundary = true;
+            }
 
-                if (triangle.Neighbor0 == null)
-                {
-                    _voronoiCells[triangle.Vertices[0]].IsBoundary = true;
-                    _voronoiCells[triangle.Vertices[1]].IsBoundary = true;
-                }
-
-                if (triangle.Neighbor1 == null)
-                {
-                    _voronoiCells[triangle.Vertices[1]].IsBoundary = true;
-                    _voronoiCells[triangle.Vertices[2]].IsBoundary = true;
-                }
-
-                // ReSharper disable once InvertIf
-                if (triangle.Neighbor2 == null)
-                {
-                    _voronoiCells[triangle.Vertices[2]].IsBoundary = true;
-                    _voronoiCells[triangle.Vertices[0]].IsBoundary = true;
-                }
+            // ReSharper disable once InvertIf
+            if (triangle.Neighbor2 == null)
+            {
+                _voronoiCells[triangle.Vertices[2]].IsBoundary = true;
+                _voronoiCells[triangle.Vertices[0]].IsBoundary = true;
             }
         }
     }
