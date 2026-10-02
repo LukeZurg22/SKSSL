@@ -224,6 +224,9 @@
         <Compile Update="Utilities\Voronoi\Voronoi_Coloring.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi_Geometry.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

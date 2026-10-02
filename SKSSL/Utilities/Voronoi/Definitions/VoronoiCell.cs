@@ -9,8 +9,6 @@ namespace SKSSL.Utilities.Voronoi;
 public record VoronoiCell
 {
     public const uint InvalidId = uint.MaxValue;
-
-    public uint PublicID { get; internal set; }
     public uint ID { get; internal set; } = InvalidId;
     public Point Site;
     public List<Point> Vertices;

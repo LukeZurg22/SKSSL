@@ -58,9 +58,11 @@ public class Voronoi
                 DensityIntensity = 1.1,
                 CenterCellSizeFactor = 1,
                 EdgeCellSizeFactor = 4,
-                AllowBlackGaps = true,
+                AllowBlackGaps = false,
             }),
-            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledCircular,
+            // ERR: HardEdgeClosed has gaps where cell points are present, but parts of them are culled away.
+            //  Hard edge open is fine. It appears that there is a limitation on cell space perhaps?
+            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledSquare,
             Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|

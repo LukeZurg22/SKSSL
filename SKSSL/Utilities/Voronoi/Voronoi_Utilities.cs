@@ -7,6 +7,7 @@ using Clipper2Lib;
 using LibTessDotNet.Double;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using static SKSSL.Mathematics.Indexers;
 
 // ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 
@@ -14,6 +15,37 @@ namespace SKSSL.Utilities.Voronoi;
 
 public partial class Voronoi
 {
+    private void AssignSpatialIds(List<Point> points)
+    {
+        var realPoints = points
+            .Skip(4)
+            .OrderBy(p => Hilbert(p.X, p.Y, _width, _height))
+            .ToList();
+
+        uint realCount = (uint)realPoints.Count;
+        _firstArtificialId = realCount;
+
+        Point artificial0 = points[0];
+        Point artificial1 = points[1];
+        Point artificial2 = points[2];
+        Point artificial3 = points[3];
+
+        points.Clear();
+
+        // Artificial points must remain at indexes 0..3.
+        points.Add(new Point(artificial0.X, artificial0.Y, realCount));
+        points.Add(new Point(artificial1.X, artificial1.Y, realCount + 1));
+        points.Add(new Point(artificial2.X, artificial2.Y, realCount + 2));
+        points.Add(new Point(artificial3.X, artificial3.Y, realCount + 3));
+
+        // Real points get spatially ordered IDs 0..N-1.
+        for (uint i = 0; i < realCount; i++)
+        {
+            Point p = realPoints[(int)i];
+            points.Add(new Point(p.X, p.Y, i));
+        }
+    }
+
     private static void SortVerticesAround(List<Point> vertices, Point center)
     {
         vertices.Sort((a, b) =>
@@ -199,7 +231,7 @@ public partial class Voronoi
             return true;
         }
     }
-    
+
     private void ClipVoronoiEdgesAgainstGaps(GapGeometry gaps)
     {
         if (_voronoiEdges.Count == 0)
@@ -464,6 +496,7 @@ public partial class Voronoi
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static long FastRoundToLong(double value) => (long)(value + 0.5);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode boundaryMode)
     {
         // Edge 0: vertices 0 -> 1
@@ -733,6 +766,8 @@ public partial class Voronoi
 
     #endregion
 
+    #region Coloring
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void AddDemarcateEdge(
         ref List<VertexPositionColor> vertices,
@@ -763,4 +798,27 @@ public partial class Voronoi
         vertices.Add(new VertexPositionColor(v3, color));
         vertices.Add(new VertexPositionColor(v4, color));
     }
+    
+    private unsafe void SetCellColor(uint cellId, Color color)
+    {
+        if (cellId >= (uint)_voronoiCellArray.Length)
+            return;
+
+        int index = (int)cellId;
+        int count = _cellGeometryCounts[index];
+
+        if (count == 0)
+            return;
+
+        int start = _cellGeometryOffsets[index];
+
+        fixed (VertexPositionColor* outputPtr = _cellBatchVertices)
+        {
+            var dst = outputPtr + start;
+            for (int i = 0; i < count; i++)
+                dst[i].Color = color;
+        }
+    }
+
+    #endregion
 }
