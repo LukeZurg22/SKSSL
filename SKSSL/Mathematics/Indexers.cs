@@ -1,5 +1,8 @@
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using SKSSL.Utilities.Voronoi;
 using static System.Math;
+using static SKSSL.Mathematics.Indexers;
 
 namespace SKSSL.Mathematics;
 
@@ -61,4 +64,21 @@ public static class Indexers
         return d;
         static uint maxCoordinate(int bits) => (1u << bits) - 1;
     }
+}
+
+/// For Voronoi Comparisons.
+internal sealed class HilbertComparer : IComparer<Point>
+{
+    private readonly int _width;
+    private readonly int _height;
+
+    public HilbertComparer(int width, int height)
+    {
+        _width = width;
+        _height = height;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int Compare(Point a, Point b)
+        => Hilbert(a.X, a.Y, _width, _height).CompareTo(Hilbert(b.X, b.Y, _width, _height));
 }

@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Clipper2Lib;
 using LibTessDotNet.Double;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using static SKSSL.Mathematics.Indexers;
+using SKSSL.Mathematics;
 
 // ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 
@@ -15,34 +14,26 @@ namespace SKSSL.Utilities.Voronoi;
 
 public partial class Voronoi
 {
+    private HilbertComparer? _hilbertComparer;
+
     private void AssignSpatialIds(List<Point> points)
     {
-        var realPoints = points
-            .Skip(4)
-            .OrderBy(p => Hilbert(p.X, p.Y, _width, _height))
-            .ToList();
+        int realCount = points.Count - 4;
 
-        uint realCount = (uint)realPoints.Count;
-        _firstArtificialId = realCount;
+        _firstArtificialId = (uint)realCount;
+        _hilbertComparer ??= new HilbertComparer(_width, _height);
 
-        Point artificial0 = points[0];
-        Point artificial1 = points[1];
-        Point artificial2 = points[2];
-        Point artificial3 = points[3];
+        points.Sort(4, realCount, _hilbertComparer);
 
-        points.Clear();
+        points[0] = new Point(points[0].X, points[0].Y, (uint)realCount);
+        points[1] = new Point(points[1].X, points[1].Y, (uint)realCount + 1);
+        points[2] = new Point(points[2].X, points[2].Y, (uint)realCount + 2);
+        points[3] = new Point(points[3].X, points[3].Y, (uint)realCount + 3);
 
-        // Artificial points must remain at indexes 0..3.
-        points.Add(new Point(artificial0.X, artificial0.Y, realCount));
-        points.Add(new Point(artificial1.X, artificial1.Y, realCount + 1));
-        points.Add(new Point(artificial2.X, artificial2.Y, realCount + 2));
-        points.Add(new Point(artificial3.X, artificial3.Y, realCount + 3));
-
-        // Real points get spatially ordered IDs 0..N-1.
-        for (uint i = 0; i < realCount; i++)
+        for (int i = 0; i < realCount; ++i)
         {
-            Point p = realPoints[(int)i];
-            points.Add(new Point(p.X, p.Y, i));
+            Point p = points[i + 4];
+            points[i + 4] = new Point(p.X, p.Y, (uint)i);
         }
     }
 
