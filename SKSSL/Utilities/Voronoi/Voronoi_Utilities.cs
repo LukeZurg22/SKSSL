@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -444,40 +445,64 @@ public partial class Voronoi
         if (paths.Count == 0)
             return [];
 
-        var tess = new Tess();
-        foreach (Path64 path in paths)
+        Tess tess = new();
+        var rented = new ContourVertex[paths.Count][];
+        try
         {
-            if (path.Count < 3)
-                continue;
-
-            var contour = new ContourVertex[path.Count];
-            for (int i = 0; i < path.Count; i++)
+            int contourIndex = 0;
+            foreach (Path64 path in paths)
             {
-                Point64 point = path[i];
-                contour[i].Position = new Vec3(point.X, point.Y, 0.0);
+                int count = path.Count;
+                if (count < 3)
+                    continue;
+
+                var contour = ArrayPool<ContourVertex>.Shared.Rent(count);
+                rented[contourIndex++] = contour;
+                for (int i = 0; i < count; ++i)
+                {
+                    Point64 p = path[i];
+                    contour[i].Position = new Vec3(p.X, p.Y, 0.0);
+                }
+
+                tess.AddContour(contour);
             }
 
-            tess.AddContour(contour);
+            tess.Tessellate();
+
+            int elementCount = tess.ElementCount;
+            if (elementCount == 0)
+                return [];
+
+            var result = new Vector3[elementCount * 3];
+
+            var vertices = tess.Vertices;
+            int[] elements = tess.Elements;
+
+            for (int i = 0, j = 0; i < elementCount; ++i)
+            {
+                int e = elements[j++];
+
+                Vec3 p = vertices[e].Position;
+                result[j - 1] = new Vector3((float)p.X, (float)p.Y, 0f);
+
+                e = elements[j++];
+
+                p = vertices[e].Position;
+                result[j - 1] = new Vector3((float)p.X, (float)p.Y, 0f);
+
+                e = elements[j++];
+
+                p = vertices[e].Position;
+                result[j - 1] = new Vector3((float)p.X, (float)p.Y, 0f);
+            }
+
+            return result;
         }
-
-        tess.Tessellate();
-
-        if (tess.ElementCount == 0)
-            return [];
-
-        var result = new Vector3[tess.ElementCount * 3];
-
-        for (int i = 0; i < tess.ElementCount; i++)
+        finally
         {
-            int elementIndex = i * 3;
-            result[elementIndex] = ToVector3(tess.Vertices[tess.Elements[elementIndex]].Position);
-            result[elementIndex + 1] = ToVector3(tess.Vertices[tess.Elements[elementIndex + 1]].Position);
-            result[elementIndex + 2] = ToVector3(tess.Vertices[tess.Elements[elementIndex + 2]].Position);
+            foreach (var array in rented) 
+                ArrayPool<ContourVertex>.Shared.Return(array);
         }
-
-        return result;
-
-        static Vector3 ToVector3(Vec3 p) => new((float)p.X, (float)p.Y, 0f);
     }
 
     #endregion
