@@ -511,40 +511,44 @@ public partial class Voronoi
 
     private void AddVoronoiEdge(Triangle triangle, Triangle? neighbor, Point a, Point b, VoronoiBoundaryMode mode)
     {
+        Point start;
+        Point end;
         if (mode == VoronoiBoundaryMode.HardEdgeClosed)
         {
             // Artificial sites are triangulation scaffolding only.
             if (IsArtificialBoundarySite(a) || IsArtificialBoundarySite(b))
                 return;
 
-            // No neighbor means this isn't an internal Voronoi edge.
-            // For HardEdgeClosed the screen itself closes the cell.
-            if (neighbor == null)
-                return;
+            // INTERNAL REAL-REAL EDGE
+            if (neighbor != null && !IsArtificialBoundaryTriangle(neighbor))
+            {
+                // Only emit each internal Voronoi edge once.
+                if (triangle.Id >= neighbor.Id)
+                    return;
 
-            // An artificial neighboring triangle means this Delaunay
-            // edge lies on the hull of the real points.
+                Point p1 = triangle.Circumcenter;
+                Point p2 = neighbor.Circumcenter;
+
+                if (!ClipLineToBounds(p1, p2, out Point clipped1, out Point clipped2))
+                    return;
+
+                _voronoiEdges.Add(new Edge(clipped1, clipped2));
+                _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, clipped1, clipped2));
+                return;
+            }
+
+            // HULL / BOUNDARY EDGE
             //
-            // Its Voronoi dual is an unbounded ray in the ordinary
-            // Voronoi diagram, but HardEdgeClosed replaces that with
-            // the screen boundary, so DO NOT draw it.
-            if (IsArtificialBoundaryTriangle(neighbor))
+            // HardEdgeClosed replaces the infinite Voronoi ray with the
+            // finite ray from the circumcenter to the screen boundary.
+            if (!TryGetBoundaryVoronoiEdge(triangle, a, b, out start, out end))
                 return;
 
-            // Only emit each real-real Voronoi edge once.
-            if (triangle.Id >= neighbor.Id)
-                return;
-
-            Point p1 = triangle.Circumcenter;
-            Point p2 = neighbor.Circumcenter;
-
-            if (!ClipLineToBounds(p1, p2, out Point clipped1, out Point clipped2))
-                return;
-
-            _voronoiEdges.Add(new Edge(clipped1, clipped2));
-            _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, clipped1, clipped2));
+            _voronoiEdges.Add(new Edge(start, end));
+            _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, start, end));
             return;
         }
+
 
         // Existing Culled / HardEdgeOpen behavior.
         if (neighbor != null)
@@ -573,7 +577,7 @@ public partial class Voronoi
         if (IsGapCulledBoundaryEdge(a, b))
             return;
 
-        if (!TryGetBoundaryVoronoiEdge(triangle, a, b, out Point start, out Point end))
+        if (!TryGetBoundaryVoronoiEdge(triangle, a, b, out start, out end))
             return;
 
         _voronoiEdges.Add(new Edge(start, end));

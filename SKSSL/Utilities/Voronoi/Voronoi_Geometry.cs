@@ -56,6 +56,7 @@ public partial class Voronoi
         {
             // Build the Delaunay-neighbor graph for the REAL sites only.
             var neighbors = new Dictionary<Point, HashSet<Point>>(_voronoiCells.Count);
+
             foreach (Point point in _points)
             {
                 if (!IsArtificialBoundarySite(point))
@@ -95,19 +96,24 @@ public partial class Voronoi
                 if (IsArtificialBoundarySite(cell.Site))
                 {
                     cell.Vertices.Clear();
+                    cell.RenderPaths = null;
                     cell.IsCulled = true;
                     return;
                 }
 
-                // Start with the entire screen.
-                var polygon = new List<Point>(4)
-                    { new(0, 0), new(_width, 0), new(_width, _height), new(0, _height) };
+                // Keep double precision until the entire cell has been clipped.
+                var polygon = new List<DoublePoint>(4)
+                {
+                    new(0.0, 0.0),
+                    new(_width, 0.0),
+                    new(_width, _height),
+                    new(0.0, _height)
+                };
 
                 Point site = cell.Site;
 
-                // Intersect the screen with the half-plane
-                // containing points closer to `site` than to each neighbor.
-                foreach (Point neighbor in neighbors[site])
+                // Deterministic ordering is useful for reproducibility.
+                foreach (Point neighbor in neighbors[site].OrderBy(p => p.ID))
                 {
                     if (polygon.Count < 3)
                         break;
@@ -115,67 +121,25 @@ public partial class Voronoi
                     double dx = neighbor.X - site.X;
                     double dy = neighbor.Y - site.Y;
 
-                    double c = (double)neighbor.X * neighbor.X +
-                               (double)neighbor.Y * neighbor.Y -
-                               (double)site.X * site.X -
-                               (double)site.Y * site.Y;
+                    double c =
+                        (double)neighbor.X * neighbor.X +
+                        (double)neighbor.Y * neighbor.Y -
+                        (double)site.X * site.X -
+                        (double)site.Y * site.Y;
 
                     double a = 2.0 * dx;
                     double b = 2.0 * dy;
 
-                    var clipped = new List<Point>(polygon.Count + 2);
-                    Point previous = polygon[^1];
-                    double previousValue = a * previous.X + b * previous.Y - c;
-                    bool previousInside = previousValue <= 0.0;
-                    foreach (Point current in polygon)
-                    {
-                        double currentValue = a * current.X + b * current.Y - c;
-                        bool currentInside = currentValue <= 0.0;
-                        if (currentInside)
-                        {
-                            if (!previousInside)
-                            {
-                                double denominator = previousValue - currentValue;
-                                if (Math.Abs(denominator) > 1e-12)
-                                {
-                                    double t = previousValue / denominator;
-                                    clipped.Add(new Point(
-                                        (int)Math.Round(previous.X + (current.X - previous.X) * t),
-                                        (int)Math.Round(previous.Y + (current.Y - previous.Y) * t))
-                                    );
-                                }
-                            }
-
-                            clipped.Add(current);
-                        }
-                        else if (previousInside)
-                        {
-                            double denominator =
-                                previousValue - currentValue;
-
-                            if (Math.Abs(denominator) > 1e-12)
-                            {
-                                double t = previousValue / denominator;
-                                clipped.Add(new Point(
-                                    (int)Math.Round(previous.X + (current.X - previous.X) * t),
-                                    (int)Math.Round(previous.Y + (current.Y - previous.Y) * t))
-                                );
-                            }
-                        }
-
-                        previous = current;
-                        previousValue = currentValue;
-                        previousInside = currentInside;
-                    }
-
-                    polygon = clipped
-                        .Distinct()
-                        .ToList();
+                    polygon = ClipHalfPlane(polygon, a, b, c);
                 }
 
-                cell.Vertices = polygon;
+                // Quantize ONCE.
+                cell.Vertices = QuantizePolygon(polygon, _width, _height);
+
+                // HardEdgeClosed owns the entire finite cell now.
+                cell.RenderPaths = null;
                 cell.IsBoundary = false;
-                cell.IsCulled = polygon.Count < 3;
+                cell.IsCulled = cell.Vertices.Count < 3;
             });
 
             return;
