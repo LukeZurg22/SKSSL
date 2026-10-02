@@ -544,6 +544,7 @@ public partial class Voronoi
         Vector3 v3 = new(x2 + nx, y2 + ny, 0f);
         Vector3 v4 = new(x2 - nx, y2 - ny, 0f);
 
+        // TODO: This .Add() method may add overhead, and could be optimized away.
         vertices.Add(new VertexPositionColor(v1, color));
         vertices.Add(new VertexPositionColor(v2, color));
         vertices.Add(new VertexPositionColor(v3, color));
@@ -552,15 +553,17 @@ public partial class Voronoi
         vertices.Add(new VertexPositionColor(v4, color));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private unsafe void SetCellColor(uint cellId, Color color)
     {
+        // TODO: Currently sets Vertex colors directly. May be optimized by GPU instance adjustment.
         if (cellId >= (uint)_voronoiCellArray.Length)
             return;
 
         int index = (int)cellId;
         int count = _cellGeometryCounts[index];
 
-        if (count == 0)
+        if (count <= 0)
             return;
 
         int start = _cellGeometryOffsets[index];
