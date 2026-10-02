@@ -482,7 +482,7 @@ public partial class Voronoi
             return true;
 
         // ReSharper disable once ConvertIfStatementToReturnStatement
-        if (_boundaryMode == VoronoiBoundaryMode.CulledSquare &&
+        if (_boundaryMode is VoronoiBoundaryMode.CulledSquare or VoronoiBoundaryMode.CulledCircular &&
             _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
             (cell.IsBoundary || cell.Vertices.Count == 0))
             return true;
@@ -552,7 +552,8 @@ public partial class Voronoi
             if (triangle.Id >= neighbor.Id)
                 return;
 
-            if (mode == VoronoiBoundaryMode.CulledSquare && (ShouldCullBoundarySite(a) || ShouldCullBoundarySite(b)))
+            if (mode is VoronoiBoundaryMode.CulledSquare or VoronoiBoundaryMode.CulledCircular
+                && (ShouldCullBoundarySite(a) || ShouldCullBoundarySite(b)))
                 return;
 
             Point p1 = triangle.Circumcenter;
@@ -798,7 +799,7 @@ public partial class Voronoi
         vertices.Add(new VertexPositionColor(v3, color));
         vertices.Add(new VertexPositionColor(v4, color));
     }
-    
+
     private unsafe void SetCellColor(uint cellId, Color color)
     {
         if (cellId >= (uint)_voronoiCellArray.Length)

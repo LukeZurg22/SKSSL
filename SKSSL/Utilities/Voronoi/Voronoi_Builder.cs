@@ -115,16 +115,15 @@ public partial class Voronoi
         _pointBatchPrimitiveCount = vertexIndex / 3;
     }
 
-    private void BuildTriangleBatch(IEnumerable<Triangle> triangles, VoronoiBoundaryMode boundaryMode)
+    private void BuildTriangleBatch(IEnumerable<Triangle> triangles)
     {
         var vertices = new List<VertexPositionColor>();
-
         foreach (Triangle triangle in triangles)
         {
             // The first four sites are artificial/super-triangle boundary sites.
             // They are required for Delaunay construction but are not part of
             // the actual diagram.
-            if (boundaryMode == VoronoiBoundaryMode.CulledSquare && IsArtificialBoundaryTriangle(triangle))
+            if (_boundaryMode == VoronoiBoundaryMode.CulledSquare && IsArtificialBoundaryTriangle(triangle))
                 continue;
 
             Point a = triangle.Vertices[0];
@@ -249,7 +248,6 @@ public partial class Voronoi
 
     private void BuildVoronoiEdges(
         List<Triangle> triangulation,
-        VoronoiBoundaryMode boundaryMode,
         GapGeometry? gaps,
         bool renderEdgesThroughGaps) // TODO: RenderDebugEdgesThroughGaps +--> Settings
     {
@@ -258,7 +256,7 @@ public partial class Voronoi
 
         foreach (Triangle triangle in triangulation)
         {
-            AddVoronoiEdges(triangle, boundaryMode);
+            AddVoronoiEdges(triangle, _boundaryMode);
         }
 
         if (renderEdgesThroughGaps && gaps is not null && gaps.Paths.Count != 0)

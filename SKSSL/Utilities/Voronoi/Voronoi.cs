@@ -271,7 +271,7 @@ public partial class Voronoi
 
 
         BuildCellGeometry();
-        BuildVoronoiEdges(triangulation, settings.BoundaryMode, gapGeometry, false);
+        BuildVoronoiEdges(triangulation, gapGeometry, false);
 
         #endregion
 
@@ -290,7 +290,7 @@ public partial class Voronoi
         // Triangles. (Best not to use these, though. They're ugly.
         // ReSharper disable once PossibleMultipleEnumeration ; False positive.
         if ((settings.Flags & VoronoiRenderingFlags.Triangles) != 0)
-            BuildTriangleBatch(triangulation, settings.BoundaryMode);
+            BuildTriangleBatch(triangulation);
 
         // Cells. (Star of the show.)
         if ((settings.Flags & VoronoiRenderingFlags.Cells) != 0)

@@ -255,13 +255,12 @@ public partial class Voronoi
                 }
             }
 
-            cell.IsCulled = IsArtificialBoundarySite(cell.Site) ||
-                            cell.Vertices.Count < 3 ||
-                            (boundaryMode is VoronoiBoundaryMode.CulledSquare or VoronoiBoundaryMode.CulledCircular &&
-                             cell.IsBoundary);
+            bool cullingMode = boundaryMode is VoronoiBoundaryMode.CulledSquare or VoronoiBoundaryMode.CulledCircular;
+            bool cellIsBoundary = cullingMode && (cell.IsBoundary || cell.Vertices.Count < 3);
+            cell.IsCulled = IsArtificialBoundarySite(cell.Site) || cellIsBoundary;
         });
     }
-    
+
     private void BuildCellGeometry()
     {
         int cellCount = _voronoiCellArray.Length;
