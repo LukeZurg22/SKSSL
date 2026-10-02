@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using Clipper2Lib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SKSSL.Utilities.Voronoi.PointDistributors;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -14,46 +12,6 @@ public partial class Voronoi
     private int[] _cellGeometryOffsets = [];
     private int[] _cellGeometryCounts = [];
     private uint _firstArtificialId;
-
-    private static GapGeometry BuildGapGeometry(
-        IReadOnlyList<GapPolygon> polygons,
-        int sourceWidth, int sourceHeight,
-        int targetWidth, int targetHeight)
-    {
-        int polygonCount = polygons.Count;
-        if (polygonCount == 0)
-            return new GapGeometry([]);
-
-        double scaleX = (double)targetWidth / sourceWidth;
-        double scaleY = (double)targetHeight / sourceHeight;
-
-        var paths = new Paths64(polygonCount);
-        for (int polygonIndex = 0; polygonIndex < polygonCount; polygonIndex++)
-        {
-            GapPolygon polygon = polygons[polygonIndex];
-            var vertices = polygon.Vertices;
-
-            int vertexCount = vertices.Count;
-            if (vertexCount < 3)
-                continue;
-
-            var path = new Path64(vertexCount);
-
-            for (int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++)
-            {
-                Vector2 vertex = vertices[vertexIndex];
-                path.Add(new Point64(FastRoundToLong(vertex.X * scaleX), FastRoundToLong(vertex.Y * scaleY)));
-            }
-
-            paths.Add(path);
-        }
-
-        if (paths.Count == 0)
-            return new GapGeometry([]);
-
-        Paths64 unioned = Clipper.Union(paths, FillRule.EvenOdd);
-        return new GapGeometry(unioned);
-    }
 
     private unsafe void BuildPointBatch(float size)
     {
@@ -266,7 +224,7 @@ public partial class Voronoi
         bool flattenOthers = false,
         (Color cell, Color blank)? @override = null)
     {
-        int cellCount = _voronoiCellArray.Length;
+        int cellCount = _renderingCells.Length;
         if (cellCount == 0 || _cellBatchVertices.Length == 0)
         {
             _cellBatchPrimitiveCount = 0;
@@ -277,7 +235,7 @@ public partial class Voronoi
         int[] offsets = _cellGeometryOffsets;
         int[] counts = _cellGeometryCounts;
         Color[] colors = _cellRawColors;
-        VoronoiCell[] cells = _voronoiCellArray;
+        VoronoiCell[] cells = _renderingCells;
         bool hasOverride = @override.HasValue;
         Color overrideCell = default;
         Color overrideBlank = default;
@@ -334,7 +292,7 @@ public partial class Voronoi
             if (IsArtificialBoundarySite(site))
                 continue;
 
-            if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
+            if (!_cellDictionary.TryGetValue(site, out VoronoiCell? cell))
                 continue;
 
             if (!HasRenderableCellGeometry(cell))
@@ -346,8 +304,8 @@ public partial class Voronoi
             visibleCount++;
         }
 
-        if (_voronoiCellArray.Length != visibleCount)
-            _voronoiCellArray = new VoronoiCell[visibleCount];
+        if (_renderingCells.Length != visibleCount)
+            _renderingCells = new VoronoiCell[visibleCount];
 
         _cellsById.Clear();
 
@@ -363,7 +321,7 @@ public partial class Voronoi
 
         foreach (Point site in _points)
         {
-            if (!_voronoiCells.TryGetValue(site, out VoronoiCell? cell))
+            if (!_cellDictionary.TryGetValue(site, out VoronoiCell? cell))
                 continue;
 
             if (IsArtificialBoundarySite(site) || !cell.HasRenderableGeometry)
@@ -382,7 +340,7 @@ public partial class Voronoi
 
             int index = (int)cellId;
 
-            _voronoiCellArray[index] = cell;
+            _renderingCells[index] = cell;
             _cellsById[cellId] = cell;
             _cellRawColors[index] = GetCellColor(cell);
         }
@@ -392,12 +350,12 @@ public partial class Voronoi
     private void BuildSelectCellEdges()
     {
         _edgesByCell = new List<CellVoronoiEdge>?[
-            _voronoiCellArray.Length
+            _renderingCells.Length
         ];
 
         foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
         {
-            if (!_voronoiCells.TryGetValue(edge.SiteA, out VoronoiCell? cellA))
+            if (!_cellDictionary.TryGetValue(edge.SiteA, out VoronoiCell? cellA))
                 continue;
 
             if (cellA.ID == VoronoiCell.InvalidId)
@@ -411,7 +369,7 @@ public partial class Voronoi
                 continue;
 
             Point siteB = edge.SiteB.Value;
-            if (!_voronoiCells.TryGetValue(siteB, out VoronoiCell? cellB))
+            if (!_cellDictionary.TryGetValue(siteB, out VoronoiCell? cellB))
                 continue;
 
             if (cellB.ID == VoronoiCell.InvalidId)

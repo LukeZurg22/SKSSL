@@ -204,7 +204,7 @@ public partial class Voronoi
             _boundaryMode != VoronoiBoundaryMode.CulledCircular)
             return false;
 
-        return _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
+        return _cellDictionary.TryGetValue(site, out VoronoiCell? cell) &&
                (cell.IsBoundary || cell.Vertices.Count == 0);
     }
 
@@ -307,8 +307,8 @@ public partial class Voronoi
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsGapCulledBoundaryEdge(Point a, Point b)
-        => (!_voronoiCells.TryGetValue(a, out VoronoiCell? ca) || !ca.HasRenderableGeometry) &&
-           (!_voronoiCells.TryGetValue(b, out VoronoiCell? cb) || !cb.HasRenderableGeometry);
+        => (!_cellDictionary.TryGetValue(a, out VoronoiCell? ca) || !ca.HasRenderableGeometry) &&
+           (!_cellDictionary.TryGetValue(b, out VoronoiCell? cb) || !cb.HasRenderableGeometry);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasRenderableCellGeometry(VoronoiCell cell)
@@ -548,29 +548,6 @@ public partial class Voronoi
         vertices.Add(new VertexPositionColor(v1, color));
         vertices.Add(new VertexPositionColor(v3, color));
         vertices.Add(new VertexPositionColor(v4, color));
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe void SetCellColor(uint cellId, Color color)
-    {
-        // TODO: Currently sets Vertex colors directly. May be optimized by GPU instance adjustment.
-        if (cellId >= (uint)_voronoiCellArray.Length)
-            return;
-
-        int index = (int)cellId;
-        int count = _cellGeometryCounts[index];
-
-        if (count <= 0)
-            return;
-
-        int start = _cellGeometryOffsets[index];
-
-        fixed (VertexPositionColor* outputPtr = _cellBatchVertices)
-        {
-            var dst = outputPtr + start;
-            for (int i = 0; i < count; i++)
-                dst[i].Color = color;
-        }
     }
 
     #endregion

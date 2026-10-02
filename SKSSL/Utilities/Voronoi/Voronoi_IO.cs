@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Microsoft.Xna.Framework;
+
 // ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Utilities.Voronoi;
@@ -23,7 +24,7 @@ public partial class Voronoi
                 .Select(p => new PointData { X = p.X, Y = p.Y })
                 .ToList(),
 
-            Cells = _voronoiCells.Values
+            Cells = _cellDictionary.Values
                 .Select(c => new CellData
                 {
                     X = c.Site.X,
@@ -80,18 +81,14 @@ public partial class Voronoi
 
         var pointLookup = _points.ToDictionary(p => (p.X, p.Y));
 
-        _voronoiCells.Clear();
+        _cellDictionary.Clear();
         _voronoiEdges.Clear();
         _cellVoronoiEdges.Clear();
         Array.Clear(_edgesByCell);
-        _siteIndices.Clear();
         _cellsById.Clear();
 
-        foreach (VoronoiCell cell in _voronoiCells.Values)
-        {
-            _siteIndices[cell.ID] = _siteIndices.Count;
+        foreach (VoronoiCell cell in _cellDictionary.Values)
             _cellsById[cell.ID] = cell;
-        }
 
         BuildCellArray();
         BuildCellGeometry();
@@ -100,7 +97,7 @@ public partial class Voronoi
         {
             Point site = pointLookup[(savedCell.X, savedCell.Y)];
             var vertices = savedCell.Vertices.Select(v => new Point(v.X, v.Y)).ToList();
-            _voronoiCells[site] = new VoronoiCell(site, vertices) { IsBoundary = savedCell.IsBoundary };
+            _cellDictionary[site] = new VoronoiCell(site, vertices) { IsBoundary = savedCell.IsBoundary };
         }
 
         foreach (EdgeData edge in data.Edges)
@@ -130,7 +127,7 @@ public partial class Voronoi
             .ToArray();
 
         BuildSelectCellEdges();
-        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_voronoiCellArray, _width, _height);
+        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_renderingCells, _width, _height);
 
         _isGenerated = true;
         _textureValid = false;

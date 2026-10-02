@@ -46,7 +46,6 @@ public partial class Voronoi
 
     // Data Storage
     private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
-    private readonly Dictionary<Point, VoronoiCell> _voronoiCells = []; // TODO: use an array.
     private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
     private List<CellVoronoiEdge>?[] _edgesByCell = [];
     private DistributorImage? _imageDistributor = null; // For heightmap distribution.
@@ -55,7 +54,6 @@ public partial class Voronoi
     private SpatialGrid? _spatialGrid;
 
     // Coloring and Visualization
-    private readonly Dictionary<uint, int> _siteIndices = [];
     private Color[] _cellOverrideColors; // Override colors for cells. Indexed by ID.
     private Color[] _cellRawColors; // Raw "provincial" colors of cells. Indexed by ID.
     private readonly HashSet<int> _usedColors = []; // avoid exact RGB collisions
@@ -92,8 +90,9 @@ public partial class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
+    private readonly Dictionary<Point, VoronoiCell> _cellDictionary = []; // TODO: use an array.
     private readonly Dictionary<uint, VoronoiCell> _cellsById = [];
-    private VoronoiCell[] _voronoiCellArray = [];
+    private VoronoiCell[] _renderingCells = [];
 
     // TODO: Support constrained and density-driven Voronoi generation.
     //  .
@@ -219,22 +218,17 @@ public partial class Voronoi
         Array.Resize(ref _cellOverrideColors, _points.Length + 1);
         Array.Resize(ref _cellRawColors, _points.Length + 1);
 
-        // Clear and repopulate cell index dictionary.
-        _siteIndices.Clear();
-        for (int i = 0; i < _points.Length; i++)
-            _siteIndices[_points[i].ID] = i;
-
         // Make the triangles.
         var triangulation = delaunay.BowyerWatson(_points);
 
         // Clear old data.
         _cellsById.Clear();
-        _voronoiCells.Clear();
+        _cellDictionary.Clear();
         _voronoiEdges.Clear();
         _usedColors.Clear();
         _cellVoronoiEdges.Clear();
         _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, (int)(points * 3));
-        _voronoiCells.EnsureCapacity(_points.Length);
+        _cellDictionary.EnsureCapacity(_points.Length);
 
         #region DATA BUILDING
 
@@ -243,8 +237,8 @@ public partial class Voronoi
         for (int i = 0; i < 3; i++)
         {
             // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
-            delaunay.LloydSettlePoints(_voronoiCells.Values);
-            _voronoiCells.Clear();
+            delaunay.LloydSettlePoints(_cellDictionary.Values);
+            _cellDictionary.Clear();
             _cellsById.Clear();
             triangulation = delaunay.BowyerWatson(_points);
             // --> POPULATE
@@ -302,7 +296,7 @@ public partial class Voronoi
 
         // A spatial grid, aka a bucket grid is needed to subdivide the voronoi map into workable chunks.
         // This is for performance.
-        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_voronoiCellArray, _width, _height);
+        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_renderingCells, _width, _height);
     }
 
     #region TryGet Methods

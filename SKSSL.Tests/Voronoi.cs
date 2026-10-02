@@ -90,6 +90,7 @@ public class Voronoi
             _voronoi.ChangeCellColor(i, color);
         }
 
+        _voronoi.ChangeCellColor(0, Color.LightGoldenrodYellow);
         _voronoi.ChangeCellColor(1, Color.Gold);
         _voronoi.ForceUpdate();
         generated = true;

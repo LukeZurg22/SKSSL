@@ -115,17 +115,33 @@ public partial class Voronoi
     /// <summary>
     /// Change color for a specific cell ID.
     /// </summary>
-    /// <param name="cell"></param>
+    /// <param name="cellId"></param>
     /// <param name="color"></param>
     /// <remarks>Make sure to call <see cref="UpdateTexture"/> afterwards.</remarks>
-    public void ChangeCellColor(uint cell, Color color)
+    public unsafe void ChangeCellColor(uint cellId, Color color)
     {
         if (!_isGenerated)
             return;
 
-        // Rebuild french cell batch with colors provided. Internal logic will handle the way they are colored,
+        // Rebuild cell batch with colors provided. Internal logic will handle the way they are colored,
         //  and outside of this function they are handled as if no ids were affected.
-        SetCellColor(cell, color);
+        // TODO: Currently sets Vertex colors directly. May be optimized by GPU instance adjustment.
+        if (cellId >= (uint)_renderingCells.Length)
+            return;
+
+        int index = (int)cellId;
+        int count = _cellGeometryCounts[index];
+
+        if (count <= 0)
+            return;
+
+        int start = _cellGeometryOffsets[index];
+        fixed (VertexPositionColor* outputPtr = _cellBatchVertices)
+        {
+            var dst = outputPtr + start;
+            for (int i = 0; i < count; i++)
+                dst[i].Color = color;
+        }
     }
 
     #endregion
@@ -194,9 +210,9 @@ public partial class Voronoi
     public void SetColorToDemarcate(Color color, float thickness = 1f, bool rebuild = true)
     {
         _demarcatedCellIds.Clear();
-        for (int i = 0; i < _voronoiCellArray.Length; i++)
+        for (int i = 0; i < _renderingCells.Length; i++)
             if (_cellRawColors[i].PackedValue == color.PackedValue)
-                _demarcatedCellIds.Add(_voronoiCellArray[i].ID);
+                _demarcatedCellIds.Add(_renderingCells[i].ID);
 
         if (rebuild) RebuildDemarcatedCellBorders(color, thickness);
     }
