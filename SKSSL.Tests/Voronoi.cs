@@ -60,12 +60,12 @@ public class Voronoi
                 AllowBlackGaps = false,
             }),
             BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledCircular,
-            Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
-                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points |
-                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|
+            Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
+                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ /*|
+                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges*/ /*|
                         Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
         };
-        const int points = 11105;
+        const int points = 10000;
         _voronoi.GenerateDiagram(
             points: points,
             //width: 1200,

@@ -208,12 +208,6 @@ public partial class Voronoi
                (cell.IsBoundary || cell.Vertices.Count == 0);
     }
 
-    /// Map geometry is non-negative, so this is equivalent to Math.Round(value)
-    /// for the normal coordinate range while avoiding the comparatively expensive
-    /// Math.Round call.
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static long FastRoundToLong(double value) => (long)(value + 0.5);
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int FastRoundToInt(float value) => (int)(value + 0.5f);
 
