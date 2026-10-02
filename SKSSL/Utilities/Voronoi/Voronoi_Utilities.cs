@@ -334,94 +334,82 @@ public partial class Voronoi
         out Point start,
         out Point end)
     {
-        Vector2 origin = new(triangle.Circumcenter.X, triangle.Circumcenter.Y);
+        float ex = b.X - a.X;
+        float ey = b.Y - a.Y;
 
-        Vector2 va = new(a.X, a.Y);
-        Vector2 vb = new(b.X, b.Y);
-        Vector2 edge = vb - va;
+        float lenSq = ex * ex + ey * ey;
 
-        if (edge.LengthSquared() < 0.000001f)
+        if (lenSq <= 0.000001f)
         {
             start = default;
             end = default;
             return false;
         }
 
-        /*
-         * There are two possible normals to the Delaunay edge.
-         *
-         * Pick the one pointing AWAY from the third vertex of the
-         * triangle. That is the direction of the unbounded Voronoi ray.
-         */
+        float invLen = 1f / MathF.Sqrt(lenSq);
 
-        Vector2 normal = new(-edge.Y, edge.X);
-        normal.Normalize();
-        Vector2 midpoint = (va + vb) * 0.5f;
+        float nx = -ey * invLen;
+        float ny = ex * invLen;
+
+        float mx = (a.X + b.X) * 0.5f;
+        float my = (a.Y + b.Y) * 0.5f;
+
         Point thirdPoint;
+
         if (triangle.Vertices[0] != a && triangle.Vertices[0] != b)
-        {
             thirdPoint = triangle.Vertices[0];
-        }
         else if (triangle.Vertices[1] != a && triangle.Vertices[1] != b)
-        {
             thirdPoint = triangle.Vertices[1];
-        }
         else
-        {
             thirdPoint = triangle.Vertices[2];
+
+        float tx = thirdPoint.X - mx;
+        float ty = thirdPoint.Y - my;
+
+        if (nx * tx + ny * ty > 0f)
+        {
+            nx = -nx;
+            ny = -ny;
         }
 
-        Vector2 third = new(thirdPoint.X, thirdPoint.Y);
-
-        // Make normal point away from the triangle.
-        if (Vector2.Dot(normal, third - midpoint) > 0f)
-            normal = -normal;
-
-        /*
-         * Intersect the ray:
-         *
-         *     origin + normal * t
-         *
-         * with the diagram rectangle.
-         *
-         * This gives us the portion of the infinite Voronoi ray
-         * that is actually visible inside the diagram.
-         */
+        float ox = triangle.Circumcenter.X;
+        float oy = triangle.Circumcenter.Y;
 
         float tMin = 0f;
         float tMax = float.MaxValue;
 
-        if (!ClipRayAxis(origin.X, normal.X, 0f, _width, ref tMin, ref tMax))
+        if (!ClipRayAxis(ox, nx, 0f, _width, ref tMin, ref tMax) ||
+            !ClipRayAxis(oy, ny, 0f, _height, ref tMin, ref tMax) ||
+            tMax < tMin ||
+            tMax < 0f)
         {
             start = default;
             end = default;
             return false;
         }
 
-        if (!ClipRayAxis(origin.Y, normal.Y, 0f, _height, ref tMin, ref tMax))
-        {
-            start = default;
-            end = default;
-            return false;
-        }
+        if (tMin < 0f)
+            tMin = 0f;
 
-        if (tMax < tMin || tMax < 0f)
-        {
-            start = default;
-            end = default;
-            return false;
-        }
+        float x1 = ox + nx * tMin;
+        float y1 = oy + ny * tMin;
+        float x2 = ox + nx * tMax;
+        float y2 = oy + ny * tMax;
 
-        tMin = Math.Max(tMin, 0f);
+        if (x1 < 0f) x1 = 0f;
+        else if (x1 > _width) x1 = _width;
 
-        Vector2 p1 = origin + normal * tMin;
-        Vector2 p2 = origin + normal * tMax;
+        if (y1 < 0f) y1 = 0f;
+        else if (y1 > _height) y1 = _height;
 
-        //@formatter:off
-        start = new Point((int)Math.Round(Math.Clamp(p1.X, 0f, _width)), (int)Math.Round(Math.Clamp(p1.Y, 0f, _height)));
-        end = new Point((int)Math.Round(Math.Clamp(p2.X, 0f, _width)), (int)Math.Round(Math.Clamp(p2.Y, 0f, _height)));
-        //@formatter:on
+        if (x2 < 0f) x2 = 0f;
+        else if (x2 > _width) x2 = _width;
 
+        if (y2 < 0f) y2 = 0f;
+        else if (y2 > _height) y2 = _height;
+
+        start = new Point(FastRoundToInt(x1), FastRoundToInt(y1));
+        end = new Point(FastRoundToInt(x2), FastRoundToInt(y2));
         return start != end;
     }
 
@@ -436,13 +424,14 @@ public partial class Voronoi
         var result = new Vector3[(count - 2) * 3];
         ReadOnlySpan<Point> points = CollectionsMarshal.AsSpan(vertices);
         Point origin = points[0];
-        Vector3 originPosition = new(origin.X, origin.Y, 0f);
+        float originX = origin.X;
+        float originY = origin.Y;
         int index = 0;
-        for (int i = 1; i < count - 1; i++)
+        for (int i = 1; i < count - 1; ++i)
         {
             Point b = points[i];
             Point c = points[i + 1];
-            result[index++] = originPosition;
+            result[index++] = new Vector3(originX, originY, 0f);
             result[index++] = new Vector3(b.X, b.Y, 0f);
             result[index++] = new Vector3(c.X, c.Y, 0f);
         }
