@@ -234,12 +234,12 @@ public partial class Voronoi
         //  -> LOYD RELAXATION
         for (int i = 0; i < 3; i++)
         {
-            Array.Clear(_cellsBySiteId);
-            PopulateVoronoiCells(triangulation);
             // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
             delaunay.LloydSettlePoints(_cellsBySiteId);
             triangulation = delaunay.BowyerWatson(_points);
             // --> POPULATE
+            Array.Clear(_cellsBySiteId);
+            PopulateVoronoiCells(triangulation);
         }
 
         ValidateNeighbors(triangulation); // Automatically culled during Release.
