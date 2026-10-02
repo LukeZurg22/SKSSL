@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Clipper2Lib;
@@ -117,20 +118,22 @@ public partial class Voronoi
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint GetCellIdFromSiteId(uint siteId)
-        => siteId >= (uint)_cellIdBySiteId.Length ? VoronoiCell.InvalidId : _cellIdBySiteId[siteId];
+        => siteId < (uint)_cellIdBySiteId.Length ? _cellIdBySiteId[siteId] : VoronoiCell.InvalidId;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Point IntersectVertical(Point a, Point b, float x)
     {
         var dx = b.X - a.X;
         if (Math.Abs(dx) < 0.000001f)
-            return new Point((int)Math.Round(x), a.Y);
+            return new Point(FastRoundToInt(x), a.Y);
 
         var t = (x - a.X) / dx;
         var y = a.Y + (b.Y - a.Y) * t;
 
-        return new Point((int)Math.Round(x), (int)Math.Round(y));
+        return new Point(FastRoundToInt(x), FastRoundToInt(y));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Point IntersectHorizontal(Point a, Point b, float y)
     {
         var dy = b.Y - a.Y;
@@ -139,11 +142,12 @@ public partial class Voronoi
 
         var t = (y - a.Y) / dy;
         var x = a.X + (b.X - a.X) * t;
-        return new Point((int)Math.Round(x), (int)Math.Round(y));
+        return new Point(FastRoundToInt(x), FastRoundToInt(y));
     }
 
 
     /// <remarks>Needed for debug in order to confirm nothings gone wrong.</remarks>
+    [Conditional("DEBUG")]
     private static void ValidateNeighbors(List<Triangle> triangles)
     {
         foreach (Triangle t in triangles)
@@ -155,33 +159,16 @@ public partial class Voronoi
 
         return;
 
-        void Validate(Triangle t, int edge, Triangle? n)
+        static void Validate(Triangle t, int edge, Triangle? n)
         {
             if (n == null)
                 return;
 
-            Point a;
-            Point b;
-
-            switch (edge)
-            {
-                case 0:
-                    a = t.Vertices[0];
-                    b = t.Vertices[1];
-                    break;
-
-                case 1:
-                    a = t.Vertices[1];
-                    b = t.Vertices[2];
-                    break;
-
-                default:
-                    a = t.Vertices[2];
-                    b = t.Vertices[0];
-                    break;
-            }
+            Point a = t.Vertices[edge];
+            Point b = t.Vertices[(edge + 1) % 3];
 
             int reciprocal = n.IndexOfEdge(a, b);
+
             if (reciprocal < 0)
                 throw new InvalidOperationException("Neighbor does not share the expected edge.");
 
@@ -209,16 +196,15 @@ public partial class Voronoi
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool ShouldCullBoundarySite(Point site)
     {
-        if (IsArtificialBoundarySite(site))
+        if (site.ID >= _firstArtificialId)
             return true;
 
-        // ReSharper disable once ConvertIfStatementToReturnStatement
-        if (_boundaryMode is VoronoiBoundaryMode.CulledSquare or VoronoiBoundaryMode.CulledCircular &&
-            _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
-            (cell.IsBoundary || cell.Vertices.Count == 0))
-            return true;
+        if (_boundaryMode != VoronoiBoundaryMode.CulledSquare &&
+            _boundaryMode != VoronoiBoundaryMode.CulledCircular)
+            return false;
 
-        return false;
+        return _voronoiCells.TryGetValue(site, out VoronoiCell? cell) &&
+               (cell.IsBoundary || cell.Vertices.Count == 0);
     }
 
     /// Map geometry is non-negative, so this is equivalent to Math.Round(value)
@@ -228,16 +214,19 @@ public partial class Voronoi
     private static long FastRoundToLong(double value) => (long)(value + 0.5);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode boundaryMode)
+    private static int FastRoundToInt(float value) => (int)(value + 0.5f);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode mode)
     {
         // Edge 0: vertices 0 -> 1
-        AddVoronoiEdge(triangle, triangle.Neighbor0, triangle.Vertices[0], triangle.Vertices[1], boundaryMode);
+        AddVoronoiEdge(triangle, triangle.Neighbor0, triangle.Vertices[0], triangle.Vertices[1], mode);
 
         // Edge 1: vertices 1 -> 2
-        AddVoronoiEdge(triangle, triangle.Neighbor1, triangle.Vertices[1], triangle.Vertices[2], boundaryMode);
+        AddVoronoiEdge(triangle, triangle.Neighbor1, triangle.Vertices[1], triangle.Vertices[2], mode);
 
         // Edge 2: vertices 2 -> 0
-        AddVoronoiEdge(triangle, triangle.Neighbor2, triangle.Vertices[2], triangle.Vertices[0], boundaryMode);
+        AddVoronoiEdge(triangle, triangle.Neighbor2, triangle.Vertices[2], triangle.Vertices[0], mode);
     }
 
     private void AddVoronoiEdge(Triangle triangle, Triangle? neighbor, Point a, Point b, VoronoiBoundaryMode mode)
@@ -333,9 +322,10 @@ public partial class Voronoi
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsArtificialBoundaryTriangle(Triangle triangle)
-        => IsArtificialBoundarySite(triangle.Vertices[0]) ||
-           IsArtificialBoundarySite(triangle.Vertices[1]) ||
-           IsArtificialBoundarySite(triangle.Vertices[2]);
+    {
+        uint first = _firstArtificialId;
+        return triangle.Vertices[0].ID >= first || triangle.Vertices[1].ID >= first || triangle.Vertices[2].ID >= first;
+    }
 
     private bool TryGetBoundaryVoronoiEdge(
         Triangle triangle,

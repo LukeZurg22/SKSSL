@@ -251,9 +251,7 @@ public partial class Voronoi
             PopulateVoronoiCells(triangulation);
         }
 
-#if DEBUG
-        ValidateNeighbors(triangulation);
-#endif
+        ValidateNeighbors(triangulation); // Automatically culled during Release.
 
         ProcessCells(settings.BoundaryMode, triangulation);
 

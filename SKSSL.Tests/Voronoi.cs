@@ -59,7 +59,7 @@ public class Voronoi
                 EdgeCellSizeFactor = 4,
                 AllowBlackGaps = false,
             }),
-            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledSquare,
+            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledCircular,
             Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points |
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges /*|

@@ -160,7 +160,7 @@ public partial class Voronoi
             SortVerticesAround(cell.Vertices, cell.Site);
 
             bool touchesOutside = false;
-            int padding = 0;
+            const int padding = 0; // TODO: Make padding do something.
 
             switch (boundaryMode)
             {
