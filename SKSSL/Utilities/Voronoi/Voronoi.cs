@@ -121,7 +121,6 @@ public partial class Voronoi
     //  fix gaps,
     //  add a state-border carver,
     //  add some highlighting,
-    //  ... and clean up.
 
     #region Construction & Mono Code
 
@@ -246,9 +245,9 @@ public partial class Voronoi
 
         ProcessCells(settings.BoundaryMode, triangulation);
 
-        // CELL CLIPPING
+        // CELL CLIPPING // ERR: CLIPPING IS BROKEN AND NEEDS A REWORK.
         GapGeometry? gapGeometry = null;
-        if (_imageDistributor is { AllowBlackGaps: true } dim) // ERR: CLIPPING IS BROKEN
+        if (_imageDistributor is { AllowBlackGaps: true } dim)
         {
             //gapGeometry = BuildGapGeometry(dim.GapPolygons, dim.GapMask.Width, dim.GapMask.Height, _width, _height);
             //ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);

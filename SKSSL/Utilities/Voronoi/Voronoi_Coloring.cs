@@ -11,7 +11,9 @@ public partial class Voronoi
     private readonly HashSet<uint> _markedCells = []; // Collected cells to interact with.
 
     // ReSharper disable once FieldCanBeMadeReadOnly.Local
+#pragma warning disable CS0169 // Field is never used
     private Texture2D? _highlightMask; // Mask for highlighting cells.
+#pragma warning restore CS0169 // Field is never used
     // TODO: Highlights versus demarcations.
 
     #region Cell Marking

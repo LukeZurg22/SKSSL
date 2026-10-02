@@ -83,127 +83,140 @@ public unsafe class DistributorImage : IPointDistributor
     public void Generate(ref List<Point> points, uint amount, float maxX, float maxY, double randomness)
     {
         ArgumentNullException.ThrowIfNull(points);
-        ArgumentOutOfRangeException.ThrowIfNegative(amount);
+        ArgumentOutOfRangeException.ThrowIfZero(amount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxX);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxY);
 
+        int targetCount = checked((int)amount);
         int count = points.Count;
-        if (count >= amount)
+        if (count >= targetCount)
             return;
 
         randomness = Clamp(randomness, 0.0, 1.0);
+
+        /*
+         * randomness = 1:
+         *     completely uniform distribution
+         * randomness = 0:
+         *     completely image-driven distribution
+         */
         double densityInfluence = 1.0 - randomness;
 
-        /*
-         * Average spacing for the requested amount.
-         */
-        double baseSpacing = Sqrt(maxX * maxY / amount) * 0.55;
-
-        // minimumSpacing
-        double _ = baseSpacing * _centerCellSizeFactor;
-        double maximumSpacing = baseSpacing * _edgeCellSizeFactor;
-        double centerX = maxX * 0.5;
-        double centerY = maxY * 0.5;
-        double maxRadius = Sqrt(centerX * centerX + centerY * centerY);
+        // Base spacing for the requested number of points.
+        float baseSpacing = (float)(Sqrt((double)maxX * maxY / targetCount) * 0.55);
 
         /*
-         * The grid is based on MAXIMUM spacing.
-         *
-         * This dramatically reduces the number of buckets compared
-         * with using minimumSpacing as the grid size.
+         * These are the actual minimum/maximum spacing multipliers
+         * used by the algorithm.
          */
-        double cellSize = maximumSpacing / Sqrt(2.0);
-        int gridWidth = Max(1, (int)Ceiling(maxX / cellSize));
-        int gridHeight = Max(1, (int)Ceiling(maxY / cellSize));
+        float centerFactor = (float)_centerCellSizeFactor;
+        float edgeFactor = (float)_edgeCellSizeFactor;
+        float spacingRange = edgeFactor - centerFactor;
+
+        /*
+         * The largest possible spacing occurs when:
+         *   density curve = 0
+         *   radial factor = edgeFactor
+         *   spacing = baseSpacing * edgeFactor * edgeFactor
+         * This allows one to build the spatial grid around the actual
+         * largest exclusion radius.
+         */
+        float maximumSpacing = baseSpacing * edgeFactor * edgeFactor;
+
+        /*
+         * A cell of maxSpacing / sqrt(2) guarantees that the
+         * exclusion circle cannot span too many unrelated buckets.
+         * Using float here substantially reduces memory bandwidth.
+         */
+        float gridCellSize = maximumSpacing * 0.7071067811865475f;
+        int gridWidth = Max(1, (int)Ceiling(maxX / gridCellSize));
+        int gridHeight = Max(1, (int)Ceiling(maxY / gridCellSize));
         int gridLength = checked(gridWidth * gridHeight);
 
         /*
-         * Head of linked list for each grid bucket.
-         *
-         * Multiple points may occupy the same bucket.
+         * Spatial hash:
+         * heads[bucket] -> first point
+         * next[point]   -> next point in bucket
          */
         int[] heads = new int[gridLength];
         Array.Fill(heads, -1);
 
-        /*
-         * Each point gets one "next" link.
-         *
-         * We allocate enough room for the requested final count.
-         */
-        int[] next = new int[amount];
+        int[] next = new int[targetCount];
         Array.Fill(next, -1);
 
         /*
-         * Cache point coordinates separately.
-         *
-         * This avoids repeatedly dereferencing Point objects/structs
-         * while doing millions of distance checks.
+         * float is sufficient here because the final Point is already
+         * being generated from screen/image coordinates.
+         * This halves coordinate-cache bandwidth compared with double.
          */
-        double[] pointX = new double[amount];
-        double[] pointY = new double[amount];
+        float[] pointX = new float[targetCount];
+        float[] pointY = new float[targetCount];
 
+        // Populate the spatial grid with existing points.
         for (int i = 0; i < count; i++)
         {
             Point point = points[i];
-
-            pointX[i] = point.X;
-            pointY[i] = point.Y;
-
-            int gx = (int)(point.X / cellSize);
-            int gy = (int)(point.Y / cellSize);
-
+            float px = point.X;
+            float py = point.Y;
+            pointX[i] = px;
+            pointY[i] = py;
+            int gx = (int)(px / gridCellSize);
+            int gy = (int)(py / gridCellSize);
             if ((uint)gx >= (uint)gridWidth || (uint)gy >= (uint)gridHeight)
                 continue;
 
             int bucket = gy * gridWidth + gx;
-
             next[i] = heads[bucket];
             heads[bucket] = i;
         }
 
-        Random random = Random.Shared;
-        var required = amount - count;
+        int required = targetCount - count;
+
+        // Don't allow a pathological density map to spin forever.
+        int maxAttempts = Max(required > int.MaxValue / 100 ? int.MaxValue : required * 100, 10_000);
+        int attempts = 0;
+        float centerX = maxX * 0.5f;
+        float centerY = maxY * 0.5f;
 
         /*
-         * Maximum consecutive failures.
-         *
-         * This prevents pathological density maps from running forever.
+         * maxRadius is constant for the entire generation.
+         * We use the reciprocal so the inner loop performs a
+         * multiplication instead of a division.
          */
-        var maxAttempts = Max(required * 100, 10_000);
-        int attempts = 0;
-        double spacingRange = _edgeCellSizeFactor - _centerCellSizeFactor;
-
+        float maxRadius = (float)Sqrt((double)centerX * centerX + (double)centerY * centerY);
+        float inverseMaxRadius = 1.0f / maxRadius;
         fixed (float* densityPtr = _density)
         fixed (float* curvePtr = _densityCurve)
         fixed (int* headsPtr = heads)
         fixed (int* nextPtr = next)
-        fixed (double* pointXPtr = pointX)
-        fixed (double* pointYPtr = pointY)
+        fixed (float* pointXPtr = pointX)
+        fixed (float* pointYPtr = pointY)
         {
-            while (count < amount)
+            Random random = Random.Shared;
+            while (count < targetCount)
             {
                 if (++attempts > maxAttempts)
                     break;
 
-                float rx = (float)random.NextDouble();
-                float ry = (float)random.NextDouble();
+                // NextSingle() is noticeably cheaper than NextDouble() and avoids double -> float conversion.
+                float rx = random.NextSingle();
+                float ry = random.NextSingle();
 
-                int pixelX = Min((int)(rx * _sourceWidth), _sourceWidth - 1);
-                int pixelY = Min((int)(ry * _sourceHeight), _sourceHeight - 1);
+                // Image lookup. Keep the calculation in integer space.
+                int pixelX = (int)(rx * _sourceWidth);
+                if (pixelX >= _sourceWidth)
+                    pixelX = _sourceWidth - 1;
 
-                // Sampling the source image.
+                int pixelY = (int)(ry * _sourceHeight);
+                if (pixelY >= _sourceHeight)
+                    pixelY = _sourceHeight - 1;
+
                 int pixelIndex = pixelY * _sourceWidth + pixelX;
-                //byte b = _pixels[pixelIndex * 4];
-                //byte g = _pixels[pixelIndex * 4 + 1];
-                //byte r = _pixels[pixelIndex * 4 + 2];
-                //if (AllowBlackGaps && (r | g | b) == 0)
-                //    continue;
-
+                
+                // Density curve.
                 float density = densityPtr[pixelIndex];
-
-                // Blend toward uniform density.
                 density = (float)(density * densityInfluence + randomness);
-                int densityIndex = (int)(density * 4095.0);
+                int densityIndex = (int)(density * (DensityCurveSize - 1));
                 densityIndex = densityIndex switch
                 {
                     < 0 => 0,
@@ -212,56 +225,81 @@ public unsafe class DistributorImage : IPointDistributor
                 };
 
                 /*
-                 * High density -> small spacing.
-                 * Low density -> large spacing.
+                 * Image-derived spacing factor.
+                 * High density -> smaller spacing.
+                 * Low density  -> larger spacing.
                  */
-                double spacingFactor = _edgeCellSizeFactor - spacingRange * curvePtr[densityIndex];
-                var x = rx * maxX;
-                var y = ry * maxY;
+                float spacingFactor =
+                    edgeFactor -
+                    spacingRange * curvePtr[densityIndex];
 
-                 // Old code for smoothing cells.
-                 double dxCenter = x - centerX;
-                double dyCenter = y - centerY;
-
-                double radialDistance = Sqrt(dxCenter * dxCenter + dyCenter * dyCenter) / maxRadius;
-                radialDistance = Clamp(radialDistance, 0.0, 1.0);
-
-                // Smooth transition instead of a linear spacing jump.
-                double smoothRadius = radialDistance * radialDistance * (3.0 - 2.0 * radialDistance);
-                double cellSizeFactor = _centerCellSizeFactor + (_edgeCellSizeFactor - _centerCellSizeFactor) * smoothRadius;
-                double minimumDistance = baseSpacing * spacingFactor * cellSizeFactor;
-                double minimumDistanceSquared = minimumDistance * minimumDistance;
-
-                int gx = (int)(x / cellSize);
-                int gy = (int)(y / cellSize);
+                // Actual world position.
+                float x = rx * maxX;
+                float y = ry * maxY;
 
                 /*
-                 * Because cellSize is based on maximumSpacing,
-                 * only a small number of neighboring cells need
-                 * to be checked.
-                 *
-                 * We calculate the required radius dynamically.
+                 * Radial falloff.
+                 * We calculate normalized squared distance first,
+                 * then only perform the sqrt needed by smooth-step.
                  */
-                int radius = (int)Ceiling(minimumDistance / cellSize);
+                float dxCenter = x - centerX;
+                float dyCenter = y - centerY;
+
+                float radiusSquared =
+                    (dxCenter * dxCenter + dyCenter * dyCenter) *
+                    (inverseMaxRadius * inverseMaxRadius);
+
+                radiusSquared = MathF.Min(radiusSquared, 1.0f);
+
+                /*
+                 * Smooth-step:
+                 * t²(3 - 2t)
+                 */
+                float smoothRadius =
+                    radiusSquared *
+                    radiusSquared *
+                    (3.0f - 2.0f * radiusSquared);
+
+                // Center -> edge spacing multiplier.
+                float cellSizeFactor = centerFactor + spacingRange * smoothRadius;
+                float minimumDistance = baseSpacing * spacingFactor * cellSizeFactor;
+                float minimumDistanceSquared = minimumDistance * minimumDistance;
+
+                // Spatial bucket.
+                int gx = (int)(x / gridCellSize);
+                int gy = (int)(y / gridCellSize);
+
+                /*
+                 * Number of buckets the exclusion radius can reach.
+                 * Because gridCellSize is based on maximum spacing,
+                 * this is normally very small.
+                 */
+                int radius = (int)Ceiling(minimumDistance / gridCellSize);
                 int minGX = Max(0, gx - radius);
                 int maxGX = Min(gridWidth - 1, gx + radius);
                 int minGY = Max(0, gy - radius);
                 int maxGY = Min(gridHeight - 1, gy + radius);
                 bool valid = true;
 
-                int bucket;
+                /*
+                 * Collision test.
+                 * This is the hottest section of the entire generator.
+                 */
                 for (int yy = minGY; yy <= maxGY && valid; yy++)
                 {
-                    int row = yy * gridWidth;
-                    for (int xx = minGX; xx <= maxGX; xx++)
+                    int bucket = yy * gridWidth + minGX;
+                    for (int xx = minGX; xx <= maxGX; xx++, bucket++)
                     {
-                        bucket = row + xx;
                         int index = headsPtr[bucket];
-
                         while (index >= 0)
                         {
-                            double dx = x - pointXPtr[index];
-                            double dy = y - pointYPtr[index];
+                            float dx =
+                                x - pointXPtr[index];
+
+                            float dy =
+                                y - pointYPtr[index];
+
+                            // Squared-distance test avoids sqrt.
                             if (dx * dx + dy * dy < minimumDistanceSquared)
                             {
                                 valid = false;
@@ -270,25 +308,25 @@ public unsafe class DistributorImage : IPointDistributor
 
                             index = nextPtr[index];
                         }
-
-                        if (!valid)
-                            break;
                     }
                 }
 
                 if (!valid)
                     continue;
 
+                // Accept point.
                 int pointIndex = count++;
+
                 points.Add(new Point(x, y));
 
-                // Next pointer.
                 pointXPtr[pointIndex] = x;
                 pointYPtr[pointIndex] = y;
 
-                bucket = gy * gridWidth + gx;
-                nextPtr[pointIndex] = headsPtr[bucket];
-                headsPtr[bucket] = pointIndex;
+                int bucketIndex = gy * gridWidth + gx;
+                nextPtr[pointIndex] = headsPtr[bucketIndex];
+                headsPtr[bucketIndex] = pointIndex;
+
+                // Reset rejection counter after successful placement.
                 attempts = 0;
             }
         }
@@ -350,7 +388,6 @@ public unsafe class DistributorImage : IPointDistributor
     {
         /// Brightness, aka the "traditional" height map.
         Luminance,
-
         Red,
         Green,
         Blue,
@@ -434,40 +471,26 @@ public sealed class VoronoiGapMask
         var edges = new Dictionary<GridPoint, List<GridPoint>>();
 
         for (int y = 0; y < Height; y++)
+        for (int x = 0; x < Width; x++)
         {
-            for (int x = 0; x < Width; x++)
-            {
-                if (!IsGap(x, y))
-                    continue;
+            if (!IsGap(x, y))
+                continue;
 
-                // Top
-                if (y == 0 || !IsGap(x, y - 1))
-                    AddEdge(
-                        edges,
-                        new GridPoint(x, y),
-                        new GridPoint(x + 1, y));
+            // Top
+            if (y == 0 || !IsGap(x, y - 1))
+                AddEdge(edges, new GridPoint(x, y), new GridPoint(x + 1, y));
 
-                // Right
-                if (x == Width - 1 || !IsGap(x + 1, y))
-                    AddEdge(
-                        edges,
-                        new GridPoint(x + 1, y),
-                        new GridPoint(x + 1, y + 1));
+            // Right
+            if (x == Width - 1 || !IsGap(x + 1, y))
+                AddEdge(edges, new GridPoint(x + 1, y), new GridPoint(x + 1, y + 1));
 
-                // Bottom
-                if (y == Height - 1 || !IsGap(x, y + 1))
-                    AddEdge(
-                        edges,
-                        new GridPoint(x + 1, y + 1),
-                        new GridPoint(x, y + 1));
+            // Bottom
+            if (y == Height - 1 || !IsGap(x, y + 1))
+                AddEdge(edges, new GridPoint(x + 1, y + 1), new GridPoint(x, y + 1));
 
-                // Left
-                if (x == 0 || !IsGap(x - 1, y))
-                    AddEdge(
-                        edges,
-                        new GridPoint(x, y + 1),
-                        new GridPoint(x, y));
-            }
+            // Left
+            if (x == 0 || !IsGap(x - 1, y))
+                AddEdge(edges, new GridPoint(x, y + 1), new GridPoint(x, y));
         }
 
         return TraceContours(edges, smoothingIterations);
@@ -563,7 +586,7 @@ public sealed class VoronoiGapMask
 
         return polygons;
     }
-    
+
     private static List<Vector2> SmoothPolygon(
         List<Vector2> polygon,
         int smoothingIterations)
