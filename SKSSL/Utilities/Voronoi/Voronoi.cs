@@ -90,8 +90,7 @@ public partial class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
-    private readonly Dictionary<Point, VoronoiCell> _cellDictionary = []; // TODO: use an array.
-    private readonly Dictionary<uint, VoronoiCell> _cellsById = [];
+    private VoronoiCell?[] _cellsBySiteId; // WIP: ACTIVE REPLACEMENT FOR CELLS BY ID
     private VoronoiCell[] _renderingCells = [];
 
     // TODO: Support constrained and density-driven Voronoi generation.
@@ -211,38 +210,36 @@ public partial class Voronoi
         settings.Distributor.Generate(ref pointsList, points + 4, maxX, maxY, settings.Randomness);
         AssignSpatialIds(pointsList);
         _points = pointsList.ToArray();
-
+        
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
         Array.Clear(_cellOverrideColors, 0, _cellRawColors.Length);
         Array.Clear(_cellRawColors, 0, _cellRawColors.Length);
         Array.Resize(ref _cellOverrideColors, _points.Length + 1);
         Array.Resize(ref _cellRawColors, _points.Length + 1);
-
-        // Make the triangles.
-        var triangulation = delaunay.BowyerWatson(_points);
+        _cellsBySiteId = new VoronoiCell[_points.Length];
+        Array.Clear(_cellsBySiteId);
 
         // Clear old data.
-        _cellsById.Clear();
-        _cellDictionary.Clear();
         _voronoiEdges.Clear();
         _usedColors.Clear();
         _cellVoronoiEdges.Clear();
         _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, (int)(points * 3));
-        _cellDictionary.EnsureCapacity(_points.Length);
 
         #region DATA BUILDING
 
+        // Make the triangles.
+        var triangulation = delaunay.BowyerWatson(_points);
+        
         // POPULATE CELLS
         //  -> LOYD RELAXATION
         for (int i = 0; i < 3; i++)
         {
+            Array.Clear(_cellsBySiteId);
+            PopulateVoronoiCells(triangulation);
             // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
-            delaunay.LloydSettlePoints(_cellDictionary.Values);
-            _cellDictionary.Clear();
-            _cellsById.Clear();
+            delaunay.LloydSettlePoints(_cellsBySiteId);
             triangulation = delaunay.BowyerWatson(_points);
             // --> POPULATE
-            PopulateVoronoiCells(triangulation);
         }
 
         ValidateNeighbors(triangulation); // Automatically culled during Release.
@@ -309,8 +306,16 @@ public partial class Voronoi
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
     public bool TryGetCell(uint cellID, [NotNullWhen(true)] out VoronoiCell? cell)
-        => _cellsById.TryGetValue(cellID, out cell);
+    {
+        if (cellID >= (uint)_renderingCells.Length)
+        {
+            cell = null;
+            return false;
+        }
 
+        cell = _renderingCells[(int)cellID];
+        return true;
+    }
     /// <summary>
     /// Attempt to get a cell at a provided screen position.
     /// </summary>

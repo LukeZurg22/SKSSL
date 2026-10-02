@@ -210,7 +210,7 @@ public partial class DelaunayTriangulator : IDisposable
     /// <summary>
     /// Performs one partial Lloyd relaxation pass.
     /// </summary>
-    public void LloydSettlePoints(ICollection<VoronoiCell> cells)
+    public void LloydSettlePoints(VoronoiCell?[] cells)
     {
         foreach (VoronoiCell cell in cells)
         {

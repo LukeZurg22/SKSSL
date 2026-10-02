@@ -9,7 +9,6 @@ namespace SKSSL.Utilities.Voronoi;
 public partial class Voronoi
 {
     private readonly HashSet<uint> _markedCells = []; // Collected cells to interact with.
-    private uint[] _cellIdBySiteId = [];
 
     // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private Texture2D? _highlightMask; // Mask for highlighting cells.
@@ -37,8 +36,8 @@ public partial class Voronoi
     // ReSharper disable once UnusedMember.Global
     public void MarkCell(uint cell)
     {
-        if (_cellsById.ContainsKey(cell))
-            _markedCells.Add(cell);
+        //if (_cellsBySiteId.ContainsKey(cell))
+        _markedCells.Add(cell);
     }
 
     public void ClearMarkedCells() => _markedCells.Clear();
@@ -188,9 +187,7 @@ public partial class Voronoi
     // ReSharper disable once MemberCanBePrivate.Global
     public void DemarcateCell(uint cellId, float thickness = 1f)
     {
-        if (!_cellsById.TryGetValue(cellId, out VoronoiCell? _))
-            return;
-
+        //_cellsBySiteId[cellId];
         _demarcatedCellIds.Add(cellId);
     }
 

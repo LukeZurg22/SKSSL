@@ -16,11 +16,13 @@ public partial class Voronoi
         {
             foreach (Point site in triangle.Vertices)
             {
-                if (!_cellDictionary.TryGetValue(site, out VoronoiCell? cell))
+                int siteId = (int)site.ID;
+
+                VoronoiCell? cell = _cellsBySiteId[siteId];
+                if (cell == null)
                 {
                     cell = new VoronoiCell(site, []);
-                    _cellDictionary.Add(site, cell);
-                    _cellsById.Add(site.ID, cell);
+                    _cellsBySiteId[siteId] = cell;
                 }
 
                 cell.Vertices.Add(triangle.Circumcenter);
@@ -28,21 +30,20 @@ public partial class Voronoi
 
             if (triangle.Neighbor0 == null)
             {
-                _cellDictionary[triangle.Vertices[0]].IsBoundary = true;
-                _cellDictionary[triangle.Vertices[1]].IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[0].ID].IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[1].ID].IsBoundary = true;
             }
 
             if (triangle.Neighbor1 == null)
             {
-                _cellDictionary[triangle.Vertices[1]].IsBoundary = true;
-                _cellDictionary[triangle.Vertices[2]].IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[1].ID].IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[2].ID].IsBoundary = true;
             }
 
-            // ReSharper disable once InvertIf
             if (triangle.Neighbor2 == null)
             {
-                _cellDictionary[triangle.Vertices[2]].IsBoundary = true;
-                _cellDictionary[triangle.Vertices[0]].IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[2].ID].IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[0].ID].IsBoundary = true;
             }
         }
     }
@@ -55,7 +56,7 @@ public partial class Voronoi
         if (boundaryMode == VoronoiBoundaryMode.HardEdgeClosed)
         {
             // Build the Delaunay-neighbor graph for the REAL sites only.
-            var neighbors = new Dictionary<Point, HashSet<Point>>(_cellDictionary.Count);
+            var neighbors = new Dictionary<Point, HashSet<Point>>(_cellsBySiteId.Length);
 
             foreach (Point point in _points)
             {
@@ -91,7 +92,7 @@ public partial class Voronoi
                 }
             }
 
-            Parallel.ForEach(_cellDictionary.Values, cell =>
+            Parallel.ForEach(_cellsBySiteId, cell =>
             {
                 if (IsArtificialBoundarySite(cell.Site))
                 {
@@ -151,7 +152,7 @@ public partial class Voronoi
         double radiusY = _height * 0.48;
 
         // Existing behavior for Culled / HardEdgeOpen.
-        Parallel.ForEach(_cellDictionary.Values, cell =>
+        Parallel.ForEach(_cellsBySiteId, cell =>
         {
             cell.Vertices = cell.Vertices
                 .Distinct()

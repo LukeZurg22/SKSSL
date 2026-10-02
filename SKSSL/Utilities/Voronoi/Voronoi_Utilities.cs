@@ -119,7 +119,9 @@ public partial class Voronoi
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint GetCellIdFromSiteId(uint siteId)
-        => siteId < (uint)_cellIdBySiteId.Length ? _cellIdBySiteId[siteId] : VoronoiCell.InvalidId;
+    {
+        return siteId >= (uint)_cellsBySiteId.Length ? VoronoiCell.InvalidId : _cellsBySiteId[(int)siteId]!.ID;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Point IntersectVertical(Point a, Point b, float x)
@@ -204,8 +206,8 @@ public partial class Voronoi
             _boundaryMode != VoronoiBoundaryMode.CulledCircular)
             return false;
 
-        return _cellDictionary.TryGetValue(site, out VoronoiCell? cell) &&
-               (cell.IsBoundary || cell.Vertices.Count == 0);
+        VoronoiCell? cell = _cellsBySiteId[(int)site.ID];
+        return cell != null && (cell.IsBoundary || cell.Vertices.Count == 0);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -301,9 +303,11 @@ public partial class Voronoi
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsGapCulledBoundaryEdge(Point a, Point b)
-        => (!_cellDictionary.TryGetValue(a, out VoronoiCell? ca) || !ca.HasRenderableGeometry) &&
-           (!_cellDictionary.TryGetValue(b, out VoronoiCell? cb) || !cb.HasRenderableGeometry);
-
+    {
+        VoronoiCell ca = _cellsBySiteId[(int)a.ID];
+        VoronoiCell cb = _cellsBySiteId[(int)b.ID];
+        return !ca.HasRenderableGeometry && !cb.HasRenderableGeometry;
+    }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasRenderableCellGeometry(VoronoiCell cell)
         => !cell.IsCulled && !IsArtificialBoundarySite(cell.Site) &&

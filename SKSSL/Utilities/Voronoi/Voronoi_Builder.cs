@@ -277,23 +277,14 @@ public partial class Voronoi
 
     private void BuildCellArray()
     {
-        int siteCount = _points.Length;
-
-        // Site ID -> compact Cell ID.
-        if (_cellIdBySiteId.Length != siteCount)
-            _cellIdBySiteId = new uint[siteCount];
-
-        Array.Fill(_cellIdBySiteId, VoronoiCell.InvalidId);
+        int realCount = (int)_firstArtificialId;
 
         int visibleCount = 0;
 
-        foreach (Point site in _points)
+        // First pass: determine how many renderable cells exist.
+        for (int siteId = 0; siteId < realCount; siteId++)
         {
-            if (IsArtificialBoundarySite(site))
-                continue;
-
-            if (!_cellDictionary.TryGetValue(site, out VoronoiCell? cell))
-                continue;
+            VoronoiCell cell = _cellsBySiteId[siteId];
 
             if (!HasRenderableCellGeometry(cell))
             {
@@ -307,8 +298,6 @@ public partial class Voronoi
         if (_renderingCells.Length != visibleCount)
             _renderingCells = new VoronoiCell[visibleCount];
 
-        _cellsById.Clear();
-
         if (_cellRawColors.Length != visibleCount)
             _cellRawColors = new Color[visibleCount];
 
@@ -317,14 +306,14 @@ public partial class Voronoi
 
         Array.Clear(_cellOverrideColors);
 
+        // Second pass: compact the renderable cells.
         uint nextId = 0;
 
-        foreach (Point site in _points)
+        for (int siteId = 0; siteId < realCount; siteId++)
         {
-            if (!_cellDictionary.TryGetValue(site, out VoronoiCell? cell))
-                continue;
+            VoronoiCell? cell = _cellsBySiteId[siteId];
 
-            if (IsArtificialBoundarySite(site) || !cell.HasRenderableGeometry)
+            if (!cell.HasRenderableGeometry)
             {
                 cell.ID = VoronoiCell.InvalidId;
                 continue;
@@ -332,46 +321,32 @@ public partial class Voronoi
 
             uint cellId = nextId++;
 
-            // Public/renderable ID.
+            // Compact public/render ID.
             cell.ID = cellId;
 
-            // Topology site ID -> public cell ID.
-            _cellIdBySiteId[site.ID] = cellId;
-
-            int index = (int)cellId;
-
-            _renderingCells[index] = cell;
-            _cellsById[cellId] = cell;
-            _cellRawColors[index] = GetCellColor(cell);
+            _renderingCells[cellId] = cell;
+            _cellRawColors[cellId] = GetCellColor(cell);
         }
     }
 
 
     private void BuildSelectCellEdges()
     {
-        _edgesByCell = new List<CellVoronoiEdge>?[
-            _renderingCells.Length
-        ];
+        _edgesByCell = new List<CellVoronoiEdge>?[_renderingCells.Length];
 
         foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
         {
-            if (!_cellDictionary.TryGetValue(edge.SiteA, out VoronoiCell? cellA))
-                continue;
-
+            VoronoiCell cellA = _cellsBySiteId[(int)edge.SiteA.ID];
             if (cellA.ID == VoronoiCell.InvalidId)
                 continue;
 
             int idA = (int)cellA.ID;
-
             (_edgesByCell[idA] ??= []).Add(edge);
 
             if (!edge.SiteB.HasValue)
                 continue;
 
-            Point siteB = edge.SiteB.Value;
-            if (!_cellDictionary.TryGetValue(siteB, out VoronoiCell? cellB))
-                continue;
-
+            VoronoiCell cellB = _cellsBySiteId[(int)edge.SiteB.Value.ID];
             if (cellB.ID == VoronoiCell.InvalidId)
                 continue;
 
