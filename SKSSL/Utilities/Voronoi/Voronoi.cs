@@ -259,6 +259,8 @@ public partial class Voronoi
 
         // PROCESS
         ProcessCells(settings.BoundaryMode, triangulation);
+        BuildCellArray();
+        BuildCellGeometry();
 
         // CELL CLIPPING
         GapGeometry? gapGeometry = null;
@@ -268,10 +270,6 @@ public partial class Voronoi
             //ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);
         }
 
-        BuildCellArray();
-        BuildCellGeometry();
-
-        // TODO: RenderDebugEdgesThroughGaps +--> Settings
         BuildVoronoiEdges(triangulation, settings.BoundaryMode, gapGeometry, false);
         BuildSelectCellEdges(); // This is to improve performance for selection.
 
@@ -304,6 +302,22 @@ public partial class Voronoi
         // This is for performance.
         _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_voronoiCellArray, _width, _height);
         return;
+
+        void PurgeCulledCells()
+        {
+            foreach (Point site in _voronoiCells.Keys
+                         .Where(site => IsArtificialBoundarySite(site) ||
+                                        _voronoiCells[site].IsCulled)
+                         .ToList())
+            {
+                _voronoiCells.Remove(site);
+            }
+
+            _cellsById.Clear();
+
+            foreach (VoronoiCell cell in _voronoiCells.Values)
+                _cellsById[cell.ID] = cell;
+        }
 
         void PopulateVoronoiCells()
         {

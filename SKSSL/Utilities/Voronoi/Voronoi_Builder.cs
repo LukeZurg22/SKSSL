@@ -251,7 +251,7 @@ public partial class Voronoi
         List<Triangle> triangulation,
         VoronoiBoundaryMode boundaryMode,
         GapGeometry? gaps,
-        bool renderEdgesThroughGaps)
+        bool renderEdgesThroughGaps) // TODO: RenderDebugEdgesThroughGaps +--> Settings
     {
         _voronoiEdges.Clear();
         _cellVoronoiEdges.Clear();
