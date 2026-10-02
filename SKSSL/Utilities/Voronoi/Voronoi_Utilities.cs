@@ -304,9 +304,9 @@ public partial class Voronoi
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsGapCulledBoundaryEdge(Point a, Point b)
     {
-        VoronoiCell ca = _cellsBySiteId[(int)a.ID];
-        VoronoiCell cb = _cellsBySiteId[(int)b.ID];
-        return !ca.HasRenderableGeometry && !cb.HasRenderableGeometry;
+        VoronoiCell? ca = _cellsBySiteId[(int)a.ID];
+        VoronoiCell? cb = _cellsBySiteId[(int)b.ID];
+        return ca != null && !ca.HasRenderableGeometry && cb != null && !cb.HasRenderableGeometry;
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasRenderableCellGeometry(VoronoiCell cell)

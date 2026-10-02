@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -284,9 +285,8 @@ public partial class Voronoi
         // First pass: determine how many renderable cells exist.
         for (int siteId = 0; siteId < realCount; siteId++)
         {
-            VoronoiCell cell = _cellsBySiteId[siteId];
-
-            if (!HasRenderableCellGeometry(cell))
+            VoronoiCell? cell = _cellsBySiteId[siteId];
+            if (cell != null && !HasRenderableCellGeometry(cell))
             {
                 cell.HasRenderableGeometry = false;
                 continue;
@@ -312,8 +312,7 @@ public partial class Voronoi
         for (int siteId = 0; siteId < realCount; siteId++)
         {
             VoronoiCell? cell = _cellsBySiteId[siteId];
-
-            if (!cell.HasRenderableGeometry)
+            if (cell != null && !cell.HasRenderableGeometry)
             {
                 cell.ID = VoronoiCell.InvalidId;
                 continue;
@@ -322,8 +321,8 @@ public partial class Voronoi
             uint cellId = nextId++;
 
             // Compact public/render ID.
+            Debug.Assert(cell != null, nameof(cell) + " != null");
             cell.ID = cellId;
-
             _renderingCells[cellId] = cell;
             _cellRawColors[cellId] = GetCellColor(cell);
         }
@@ -336,20 +335,22 @@ public partial class Voronoi
 
         foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
         {
-            VoronoiCell cellA = _cellsBySiteId[(int)edge.SiteA.ID];
-            if (cellA.ID == VoronoiCell.InvalidId)
+            VoronoiCell? cellA = _cellsBySiteId[(int)edge.SiteA.ID];
+            if (cellA != null && cellA.ID == VoronoiCell.InvalidId)
                 continue;
 
+            Debug.Assert(cellA != null, nameof(cellA) + " != null");
             int idA = (int)cellA.ID;
             (_edgesByCell[idA] ??= []).Add(edge);
 
             if (!edge.SiteB.HasValue)
                 continue;
 
-            VoronoiCell cellB = _cellsBySiteId[(int)edge.SiteB.Value.ID];
-            if (cellB.ID == VoronoiCell.InvalidId)
+            VoronoiCell? cellB = _cellsBySiteId[(int)edge.SiteB.Value.ID];
+            if (cellB != null && cellB.ID == VoronoiCell.InvalidId)
                 continue;
 
+            Debug.Assert(cellB != null, nameof(cellB) + " != null");
             int idB = (int)cellB.ID;
             (_edgesByCell[idB] ??= []).Add(edge);
         }

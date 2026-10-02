@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -30,20 +31,20 @@ public partial class Voronoi
 
             if (triangle.Neighbor0 == null)
             {
-                _cellsBySiteId[(int)triangle.Vertices[0].ID].IsBoundary = true;
-                _cellsBySiteId[(int)triangle.Vertices[1].ID].IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[0].ID]!.IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[1].ID]!.IsBoundary = true;
             }
 
             if (triangle.Neighbor1 == null)
             {
-                _cellsBySiteId[(int)triangle.Vertices[1].ID].IsBoundary = true;
-                _cellsBySiteId[(int)triangle.Vertices[2].ID].IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[1].ID]!.IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[2].ID]!.IsBoundary = true;
             }
 
             if (triangle.Neighbor2 == null)
             {
-                _cellsBySiteId[(int)triangle.Vertices[2].ID].IsBoundary = true;
-                _cellsBySiteId[(int)triangle.Vertices[0].ID].IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[2].ID]!.IsBoundary = true;
+                _cellsBySiteId[(int)triangle.Vertices[0].ID]!.IsBoundary = true;
             }
         }
     }
@@ -94,6 +95,7 @@ public partial class Voronoi
 
             Parallel.ForEach(_cellsBySiteId, cell =>
             {
+                Debug.Assert(cell != null, nameof(cell) + " != null");
                 if (IsArtificialBoundarySite(cell.Site))
                 {
                     cell.Vertices.Clear();

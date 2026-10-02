@@ -212,8 +212,9 @@ public partial class DelaunayTriangulator : IDisposable
     /// </summary>
     public void LloydSettlePoints(VoronoiCell?[] cells)
     {
-        foreach (VoronoiCell cell in cells)
+        foreach (VoronoiCell? cell in cells)
         {
+            if (cell == null) continue;
             Point point = cell.Site;
 
             // The first four points are the artificial bounding rectangle.
