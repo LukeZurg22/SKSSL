@@ -79,5 +79,9 @@
       <EmbeddedResource Include="PLAIN_ROUND.png">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </EmbeddedResource>
+      <None Remove="GG_Borders.png" />
+      <EmbeddedResource Include="GG_Borders.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
     </ItemGroup>
 </Project>
