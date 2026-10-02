@@ -2,6 +2,7 @@
 using System.IO;
 using FontStashSharp;
 using JetBrains.Annotations;
+using JetBrains.Profiler.Api;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -35,8 +36,10 @@ public class Voronoi
         _spriteBatch = new SpriteBatch(_game.GraphicsDevice);
         _voronoi = new Utilities.Voronoi.Voronoi(_game.GraphicsDevice);
 
+        MeasureProfiler.StartCollectingData();
         MimicLoadContent(); // Mimic LoadContent call.
         MimicInitialize(); // Mimic Initialize call.
+        MeasureProfiler.SaveData();
         game.Run();
         Assert.IsTrue(generated);
     }
@@ -65,7 +68,7 @@ public class Voronoi
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges*/ /*|
                         Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
         };
-        const int points = 10000;
+        const int points = 40000;
         _voronoi.GenerateDiagram(
             points: points,
             //width: 1200,
