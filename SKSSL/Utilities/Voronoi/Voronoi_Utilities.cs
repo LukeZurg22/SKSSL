@@ -38,24 +38,7 @@ public partial class Voronoi
     }
 
     private static void SortVerticesAround(List<Point> vertices, Point center)
-    {
-        vertices.Sort((a, b) =>
-        {
-            float ax = a.X - center.X;
-            float ay = a.Y - center.Y;
-            float bx = b.X - center.X;
-            float by = b.Y - center.Y;
-
-            bool aUpper = ay > 0 || (ay == 0 && ax >= 0);
-            bool bUpper = by > 0 || (by == 0 && bx >= 0);
-
-            if (aUpper != bUpper)
-                return aUpper ? -1 : 1;
-
-            float cross = ax * by - ay * bx;
-            return cross > 0 ? -1 : cross < 0 ? 1 : 0;
-        });
-    }
+        => vertices.Sort(new VertexAngleComparer(center));
 
     internal static bool IsPointInsideCell(VoronoiCell cell, int pointX, int pointY)
     {
@@ -94,33 +77,35 @@ public partial class Voronoi
         return inside;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool PointInPolygon(Path64 polygon, double x, double y)
     {
         bool inside = false;
         int count = polygon.Count;
-        for (int i = 0, j = count - 1; i < count; j = i++)
+
+        Point64 b = polygon[count - 1];
+        for (int i = 0; i < count; ++i)
         {
             Point64 a = polygon[i];
-            Point64 b = polygon[j];
+            if (a.Y > y != b.Y > y)
+            {
+                double ax = a.X;
+                double bx = b.X;
+                if (x < (bx - ax) * (y - a.Y) / (b.Y - a.Y) + ax)
+                    inside = !inside;
+            }
 
-            if (PointOnSegment(a.X, a.Y, b.X, b.Y, x, y))
-                return true;
-
-            if (Crosses(x, y, a, b))
-                inside = !inside;
+            b = a;
         }
 
         return inside;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool Crosses(double x, double y, Point64 a, Point64 b)
-        => a.Y > y != b.Y > y && x < (b.X - a.X) * (y - a.Y) / (b.Y - a.Y) + a.X;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool Crosses(double x, double y, Point a, Point b)
         => a.Y > y != b.Y > y && x < (b.X - a.X) * (y - a.Y) / (b.Y - a.Y) + a.X;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool PointOnSegment(double ax, double ay, double bx, double by, double px, double py)
     {
         double cross = (px - ax) * (by - ay) - (py - ay) * (bx - ax);
