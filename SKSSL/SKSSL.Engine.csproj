@@ -215,9 +215,6 @@
         <Compile Update="Utilities\Voronoi\Voronoi_IO.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\VoronoiDiagramSettings.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
         <Compile Update="Utilities\Voronoi\VoronoiSaveData.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>

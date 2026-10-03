@@ -24,5 +24,8 @@ public partial class Voronoi
 
         /// Size of Points, if they are rendered.
         public float PointSize { get; init; } = 2f;
+
+        /// Reference boundary (I.e. State / Regional) map.
+        public ReferenceBoundarySettings? ReferenceBoundary { get; init; } = null;
     }
 }
