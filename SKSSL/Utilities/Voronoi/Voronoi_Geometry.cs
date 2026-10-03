@@ -156,6 +156,7 @@ public partial class Voronoi
         // Existing behavior for Culled / HardEdgeOpen.
         Parallel.ForEach(_cellsBySiteId, cell =>
         {
+            Debug.Assert(cell != null, nameof(cell) + " != null");
             cell.Vertices = cell.Vertices
                 .Distinct()
                 .ToList();
@@ -200,6 +201,7 @@ public partial class Voronoi
                     break;
                 }
 
+                case VoronoiBoundaryMode.HardEdgeClosed:
                 case VoronoiBoundaryMode.HardEdgeOpen:
                 default: break;
             }
