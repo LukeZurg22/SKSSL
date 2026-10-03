@@ -15,6 +15,12 @@ public class SystemGenerator : IIncrementalGenerator
     private const string AttributeFullName = "SKSSL.ECS.RegisterSystemAttribute";
     private const string SYS_REG_NAME = "SystemRegistry.g.cs";
 
+    /*
+     * There are no Entity Systems defined in SKSSL by default as of 20260804.
+     * Why? Well, defining existing systems for specific entity types defeats the
+     * purpose of a generic library, of course!
+     */
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find all classes with the attribute
@@ -56,8 +62,9 @@ public class SystemGenerator : IIncrementalGenerator
         sb.AppendLine("         SystemManager.Clear(); // Clean the list!");
         foreach (SystemInfo? sys in systems.OrderBy(s => s.Priority))
         {
-        sb.AppendLine($"         SystemManager.Register<{sys.FullTypeName}>(); // {sys.Name}");
+            sb.AppendLine($"         SystemManager.Register<{sys.FullTypeName}>(); // {sys.Name}");
         }
+
         sb.AppendLine("     }");
         sb.AppendLine("}");
         return sb.ToString();

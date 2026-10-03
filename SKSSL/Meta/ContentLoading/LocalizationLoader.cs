@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -29,62 +30,60 @@ public static class Loc
     /// </summary>
     public static void InitalizeLocalizationCulture(string language)
     {
-        string culture = language;
-        
-        if (!IsValidCulture(language))
-        {
-            Log("Invalid language on Locale Init.: " + language, LOG.FILE_ERROR);
-            culture = CultureInfo.CurrentCulture.Name;
-        }
-
-        Thread.CurrentThread.CurrentCulture = new CultureInfo(culture);
-        Thread.CurrentThread.CurrentUICulture = new CultureInfo(culture);
-        CurrentLanguage = culture;
+        CultureInfo cultureInfo = IsValidCulture(language) ?? CultureInfo.CurrentCulture;
+        string cultureName = cultureInfo.Name;
+        Thread.CurrentThread.CurrentCulture = cultureInfo;
+        Thread.CurrentThread.CurrentUICulture = cultureInfo;
+        CurrentLanguage = cultureName;
     }
 
-    private static bool IsValidCulture(string name)
+    private static CultureInfo? IsValidCulture(string language)
     {
+        // Handle this succinctly.
+        if (string.IsNullOrEmpty(language))
+            return null;
+
         try
         {
-            // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
-            CultureInfo.GetCultureInfo(name);
-            return true;
+            var cultureInfo = CultureInfo.GetCultureInfo(language);
+            return cultureInfo;
         }
-        catch (CultureNotFoundException)
+        catch (Exception)
         {
-            return false;
+            Log($"Invalid language culture: {language}", LOG.FILE_ERROR);
         }
+
+        return null;
     }
 
-    /// <summary>
-    /// Returns a localized string. However, localizations can have variables, which are defined in {$brackets} with an
-    /// accompanying '$' to indicate that it is indeed a localizable variable. The parser ignores all lines
-    /// beginning with '#'.
-    /// </summary>
-    /// <example>
-    /// Example Usage:
-    /// <code>
-    ///public void MyFunctionName()
-    ///{
-    ///     // Define in a folder within Localizations the following:
-    ///     // my-localization-id = There are {$alpha} ways to paint something {$beta}
-    ///     //
-    ///     // Then call the following function:
-    ///     var myLocale = Loc.Get("my-localization-id",
-    ///         ("alpha", 25)
-    ///         ("beta", Color.White)
-    ///     );
-    /// }
-    /// </code>
-    /// </example>
-    public static string Get(string? localeID, params (string variableName, object variableValue)[]? values)
+    ///  <summary>
+    ///  Returns a localized string. However, localizations can have variables, which are defined in {$brackets} with an
+    ///  accompanying '$' to indicate that it is indeed a localizable variable. The parser ignores all lines
+    ///  beginning with '#'.
+    ///  </summary>
+    ///  <example>
+    ///  Example Usage:
+    ///  <code>
+    /// public void MyFunctionName()
+    /// {
+    ///      // Define in a folder within Localizations the following:
+    ///      // my-localization-id = There are {$alpha} ways to paint something {$beta}
+    ///      //
+    ///      // Then call the following function:
+    ///      var myLocale = Loc.Get("my-localization-id",
+    ///          ("alpha", 25)
+    ///          ("beta", Color.White)
+    ///      );
+    ///  }
+    ///  </code>
+    ///  </example>
+    ///  <param name="key">Localization handle defined in the FTL file.</param>
+    ///  <param name="values">Possible numerical values to replace within the localized string.</param>
+    public static string Get(string key, params (string variableName, object variableValue)[]? values)
     {
-        if (localeID == null)
-            return "";
-
         foreach (MessageContext messageContext in MessageContexts)
         {
-            Message? message = messageContext.GetMessage(localeID);
+            Message? message = messageContext.GetMessage(key);
 
             if (message is null)
                 continue;
@@ -94,10 +93,12 @@ public static class Loc
                 v => v.variableValue
             );
 
-            return messageContext.Format(message, args, new List<FluentError>());
+            // TODO: May need to add logging here for any errors that build by-ref in case the "get" ever fails.
+            var errors = new List<FluentError>();
+            return messageContext.Format(message, args, errors);
         }
 
-        return localeID;
+        return key;
     }
 
     /// <summary>
@@ -140,9 +141,11 @@ public static class Loc
         var files = Directory.GetFiles(languageFolder, "*.ftl*", SearchOption.AllDirectories);
         Parallel.ForEach(files, ProcessLocaleFile);
 
-        // Spew exceptions.
+        // Spew exceptions in the logger.
         foreach (ParseException exception in ParseExceptions)
-            Log(exception.Message, LOG.FILE_WARNING);
+        {
+            Log(exception, LOG.FILE_WARNING);
+        }
     }
 
     private static readonly ConcurrentBag<MessageContext> MessageContexts = [];

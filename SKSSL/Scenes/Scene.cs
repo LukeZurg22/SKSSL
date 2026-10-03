@@ -38,7 +38,7 @@ public abstract class Scene
     /// <summary>
     /// Initializes game world in this scene.
     /// </summary>
-    public void Initialize(GraphicsDeviceManager manager, SpriteBatch gameSpriteBatch, ref World? world)
+    public void Initialize(GraphicsDeviceManager manager, SpriteBatch gameSpriteBatch, ref World world)
     {
         _spriteBatch = gameSpriteBatch;
         _graphicsManager = manager;

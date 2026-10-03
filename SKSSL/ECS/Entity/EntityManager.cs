@@ -28,10 +28,7 @@ public partial class EntityManager
     public readonly List<EntityUid> DirtyEntities = [];
 
     /// <inheritdoc cref="EntityManager"/>
-    public EntityManager()
-    {
-        ComponentRegistry = new ComponentRegistry(this);
-    }
+    public EntityManager() => ComponentRegistry = new ComponentRegistry(this);
 
     /// <summary>
     /// Get-Method for all Entities of desired type. Does not handle components.
@@ -59,6 +56,16 @@ public partial class EntityManager
             return null;
         }
 
+        // Safety padding for handle.
+        if (definition.Handle.IsNullOrEmpty())
+        {
+            Log(
+                $"Entity definition \'{handle}\' exists, but it doesn't contain its handle within its Handle-field. " +
+                $"This was corrected at-runtime.",
+                LOG.SYSTEM_WARNING);
+            definition.Handle = handle;
+        }
+
         return Clone(definition);
     }
 
@@ -68,10 +75,14 @@ public partial class EntityManager
     /// <param name="source">Entity template to copy from.</param>
     /// <returns>Spawned copy of entity from handle.</returns>
     /// <exception cref="Exception">Thrown if entity is abstract. Abstract entities should not be instantiated.</exception>
-    public Entity Clone(Entity source)
+    public Entity? Clone(Entity source)
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         if (source.Abstract)
-            throw new Exception($"Attempted to spawn abstract entity {source.GetFullHandle()}");
+        {
+            Log(new EntityException($"Attempted to clone abstract entity {source.GetFullHandle()}"));
+            return null;
+        }
 
         var uid = EntitiesList.New().As<EntityUid>(); // Create unique ID.
         Entity entity = source.Clone(); // Create copy of source entity.
@@ -91,6 +102,7 @@ public partial class EntityManager
 
         entity.Initialize();
         return entity;
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     public bool TryGet(EntityUid uid, [NotNullWhen(true)] out Entity? entity)
@@ -111,7 +123,7 @@ public partial class EntityManager
         foreach (Entity entry in EntitiesList)
         {
             // Asserting that entities present in the super-list all have valid Uids. This assumption is as dangerous
-            //  is it is necessary to avoid some tedious workarounds. -Z
+            //  as it is necessary to avoid some tedious workarounds. -Z
             Destroy(entry.GetUid());
         }
     }

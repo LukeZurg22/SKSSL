@@ -12,47 +12,64 @@ public static class PrototypeExtensions
     private const BindingFlags Flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
 
     /// <summary>
-    /// Applies additive inheritance from a base prototype into a targe prototypet. Uses Reflection.
+    /// Applies additive inheritance from a base prototype into a target prototype. Uses Reflection.
     /// Child values take precedence (override), base only fills missing fields.
     /// Works with both Prototype and Entity (including YamlComponents).
     /// </summary>
-    public static void ApplyInheritanceOf(this Prototype target, Prototype? baseProto)
+    public static void ApplyInheritanceOf(this Entity target, Entity? baseProto)
     {
         if (baseProto == null) return;
+
+        Type targetType = target.GetType();
+        Type baseType = baseProto.GetType();
+
+        // Collect the inheritance chain of the *base* prototype (most-base first)
         var chain = new Stack<Type>();
-        for (Type? t = baseProto.GetType(); t != null; t = t.BaseType) chain.Push(t);
+        for (Type? t = baseType; t != null && t != typeof(object); t = t.BaseType)
+            chain.Push(t);
 
-        foreach (Type type in chain)
+        foreach (Type typeInChain in chain)
+        foreach (PropertyInfo declaredProp in typeInChain.GetProperties(Flags))
         {
-            var props = type.GetProperties(Flags);
-            foreach (PropertyInfo prop in props)
-            {
-                if (!prop.CanRead || !prop.CanWrite)
-                    continue;
+            if (!declaredProp.CanRead)
+                continue;
 
-                if (prop.Name is nameof(Entity.Type) or nameof(Entity.Abstract) or nameof(Entity.Inherit))
-                    continue;
+            // Skip infrastructure properties
+            if (declaredProp.Name is nameof(Entity.Type)
+                or nameof(Entity.Abstract)
+                or nameof(Entity.Inherit))
+                continue;
 
-                var baseValue = prop.GetValue(baseProto);
-                var childValue = prop.GetValue(target);
+            // Resolve the property on the *actual* runtime types
+            PropertyInfo? baseProp = GetProperty(baseType, declaredProp.Name);
+            PropertyInfo? targetProp = GetProperty(targetType, declaredProp.Name);
 
-                if (IsUnset(childValue) && !IsUnset(baseValue)) prop.SetValue(target, baseValue);
-            }
+            if (baseProp is null || targetProp is null)
+                continue;
+
+            if (!targetProp.CanWrite)
+                continue;
+
+            object? baseValue = baseProp.GetValue(baseProto);
+            object? childValue = targetProp.GetValue(target);
+
+            if (IsUnset(childValue) && !IsUnset(baseValue))
+                targetProp.SetValue(target, baseValue);
         }
 
         // Additional handling for entities.
-        if (baseProto is not Entity baseEntity ||
-            target is not Entity targetEntity ||
-            !(baseEntity.YamlComponents?.Count > 0)) return;
-        targetEntity.YamlComponents ??= [];
+        if (!(baseProto.YamlComponents?.Count > 0))
+            return;
 
-        for (int i = 0; i < baseEntity.YamlComponents.Count; i++)
+        target.YamlComponents ??= [];
+
+        for (int i = 0; i < baseProto.YamlComponents.Count; i++)
         {
-            ComponentYaml baseComp = baseEntity.YamlComponents[i];
+            ComponentYaml baseComp = baseProto.YamlComponents[i];
 
             bool found = false;
 
-            foreach (ComponentYaml targetComp in targetEntity.YamlComponents)
+            foreach (ComponentYaml targetComp in target.YamlComponents)
             {
                 if (!string.Equals(targetComp.Type, baseComp.Type, StringComparison.OrdinalIgnoreCase))
                     continue;
@@ -62,8 +79,14 @@ public static class PrototypeExtensions
             }
 
             if (!found)
-                targetEntity.YamlComponents.Add(CloneYamlComponent(baseComp));
+                target.YamlComponents.Add(CloneYamlComponent(baseComp));
         }
+    }
+
+    private static PropertyInfo? GetProperty(Type type, string name)
+    {
+        // Prefer the property as it is seen on the concrete type
+        return type.GetProperty(name, Flags);
     }
 
     private static void MergeProtoComponent(ComponentYaml target, ComponentYaml baseComp)
