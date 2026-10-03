@@ -258,8 +258,10 @@ public partial class Voronoi
 
         // TODO: ADD GAPS BACK
 
-        // Build Voronoi Edges
-        BuildVoronoiEdges(triangulation);
+        // Apply Reference-Image Boundary Constraints (to Finished Cells)
+        _referenceBoundary = settings.ReferenceBoundary;
+        if (_referenceBoundary is not null) ApplyReferenceBoundary(_referenceBoundary);
+        else BuildVoronoiEdges(triangulation); // Build Voronoi Edges
 
         // Build Selected Colors
         BuildRenderArrays();

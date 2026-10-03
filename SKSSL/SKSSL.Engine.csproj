@@ -188,43 +188,46 @@
         <Compile Update="Utilities\Flags\ShapeLayer.cs">
           <DependentUpon>IFlag.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_Drawer.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.Drawer.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_Builder.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.Builder.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_Utilities.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.Utilities.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Update="Utilities\Voronoi\DelaunayTriangulator.BoundaryEdge.cs">
           <DependentUpon>Delaunay.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_ColorMode.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.ColorMode.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_BoundaryMode.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.BoundaryMode.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_RenderingFlags.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.RenderingFlags.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Update="Utilities\Voronoi\DelaunayTriangulator.EdgeReference.cs">
           <DependentUpon>Delaunay.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_IO.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.IO.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Update="Utilities\Voronoi\VoronoiSaveData.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_Coloring.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.Coloring.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_Geometry.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.Geometry.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_DoublePoint.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.DoublePoint.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi.Utilities_Clipping.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Update="Utilities\Voronoi\Voronoi_Utilities_Clipping.cs">

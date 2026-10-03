@@ -29,9 +29,9 @@ public sealed class ReferenceBoundarySettings
     
     public ReferenceBoundarySettings(
         Texture2D texture,
-        byte blackThreshold = 0,
+        byte blackThreshold = 25,
         float guideRadius = 96f,
-        float guideStrength = 0.6f)
+        float guideStrength = 25f)
     {
         ArgumentNullException.ThrowIfNull(texture);
         ArgumentOutOfRangeException.ThrowIfLessThan(guideStrength, 0f);
