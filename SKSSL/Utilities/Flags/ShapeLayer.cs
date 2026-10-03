@@ -9,5 +9,6 @@ public sealed class ShapeLayer : IFlagLayer
     public float Rotation { get; set; }
     private readonly IFlagShape _shape;
     public ShapeLayer(IFlagShape shape) => _shape = shape;
-    public Color Sample(float x, float y, Color underlying) => _shape.Contains(x, y) ? _shape.Color : underlying;
+    public Color Sample(float posX, float posY, Color underlying)
+        => _shape.Contains(posX, posY) ? _shape.Color : underlying;
 }
