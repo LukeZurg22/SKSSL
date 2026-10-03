@@ -202,21 +202,14 @@ public partial class Voronoi
         _cellBatchPrimitiveCount = totalVertices / 3;
     }
 
-    private void BuildVoronoiEdges(
-        List<Triangle> triangulation,
-        GapGeometry? gaps,
-        bool renderEdgesThroughGaps) // TODO: RenderDebugEdgesThroughGaps +--> Settings
+    private void BuildVoronoiEdges(List<Triangle> triangulation) // TODO: RenderDebugEdgesThroughGaps +--> Settings
     {
         _voronoiEdges.Clear();
         _cellVoronoiEdges.Clear();
-
         foreach (Triangle triangle in triangulation)
         {
             AddVoronoiEdges(triangle, _boundaryMode);
         }
-
-        if (renderEdgesThroughGaps && gaps is not null && gaps.Paths.Count != 0)
-            ClipVoronoiEdgesAgainstGaps(gaps);
     }
 
     [SuppressMessage("ReSharper", "SuggestVarOrType_Elsewhere")]
@@ -276,7 +269,7 @@ public partial class Voronoi
         _cellBatchPrimitiveCount = _cellGeometry.Length / 3;
     }
 
-    private void BuildCellArray()
+    private void BuildRenderArrays()
     {
         int realCount = (int)_firstArtificialId;
 
@@ -329,7 +322,7 @@ public partial class Voronoi
     }
 
 
-    private void BuildSelectCellEdges()
+    private void BuildDemarcateCellEdges()
     {
         _edgesByCell = new List<CellVoronoiEdge>?[_renderingCells.Length];
 

@@ -90,8 +90,15 @@ public partial class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
-    private VoronoiCell?[] _cellsBySiteId; // WIP: ACTIVE REPLACEMENT FOR CELLS BY ID
-    private VoronoiCell[] _renderingCells = [];
+    private VoronoiCell?[] _cellsBySiteId;
+    private VoronoiCell[] _renderingCells;
+
+    // Reference Boundaries // WIP
+    private ReferenceBoundarySettings? _referenceBoundary;
+    private int[] _referenceGuideSource = [];
+    private Vector2[] _referenceCorrections = [];
+    private float[] _referenceWeights = [];
+    private Vector2[] _referenceProposedPositions = [];
 
     // TODO: Support constrained and density-driven Voronoi generation.
     //  .
@@ -118,9 +125,9 @@ public partial class Voronoi
     //      Replace existing "highlight" terminology with "selected", and then use "highlight" for the literal highlighting.
 
     // WIP: All I need to do now is
-    //  fix gaps,
     //  add a state-border carver,
     //  add some highlighting,
+    //  Overlay voronoi on 3D model and preserve functionality.
 
     #region Construction & Mono Code
 
@@ -209,7 +216,7 @@ public partial class Voronoi
         settings.Distributor.Generate(ref pointsList, points + 4, maxX, maxY, settings.Randomness);
         AssignSpatialIds(pointsList);
         _points = pointsList.ToArray();
-        
+
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
         Array.Clear(_cellOverrideColors, 0, _cellRawColors.Length);
         Array.Clear(_cellRawColors, 0, _cellRawColors.Length);
@@ -223,15 +230,17 @@ public partial class Voronoi
         _usedColors.Clear();
         _cellVoronoiEdges.Clear();
         _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, (int)(points * 3));
+        _renderingCells = [];
 
         #region DATA BUILDING
 
         // Make the triangles.
         var triangulation = delaunay.BowyerWatson(_points);
-        
-        // POPULATE CELLS
+
+        // Populate the Graph w. Cells
         //  -> LOYD RELAXATION
-        for (int i = 0; i < 3; i++)
+        const int passes = 3;
+        for (int i = 0; i < passes; i++)
         {
             // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
             delaunay.LloydSettlePoints(_cellsBySiteId);
@@ -241,27 +250,29 @@ public partial class Voronoi
             PopulateVoronoiCells(triangulation);
         }
 
-        ValidateNeighbors(triangulation); // Automatically culled during Release.
+        // Checking for Conflicts
+        ValidateNeighbors(triangulation); // Automatically removed in Release.
 
+        // Process Cell Culling
         ProcessCells(settings.BoundaryMode, triangulation);
 
-        // CELL CLIPPING // ERR: CLIPPING IS BROKEN AND NEEDS A REWORK.
-        GapGeometry? gapGeometry = null;
-        if (_imageDistributor is { AllowBlackGaps: true } dim)
-        {
-            //gapGeometry = BuildGapGeometry(dim.GapPolygons, dim.GapMask.Width, dim.GapMask.Height, _width, _height);
-            //ClipCellsAgainstGaps(gapGeometry, _voronoiCells.Values);
-        }
+        // TODO: ADD GAPS BACK
 
-        BuildCellArray();
+        // Build Voronoi Edges
+        BuildVoronoiEdges(triangulation);
+
+        // Build Selected Colors
+        BuildRenderArrays();
+
+        // Build Tessellations
         BuildCellGeometry();
-        BuildVoronoiEdges(triangulation, gapGeometry, false);
 
         #endregion
 
         #region BATCH BUILDING
 
-        BuildSelectCellEdges(); // This is to improve performance for selection.
+        // Edges when Cell is Demarcated
+        BuildDemarcateCellEdges(); // This is to improve performance for selection.
 
         // Points.
         if ((settings.Flags & VoronoiRenderingFlags.Points) != 0)
@@ -315,6 +326,7 @@ public partial class Voronoi
         cell = _renderingCells[(int)cellID];
         return true;
     }
+
     /// <summary>
     /// Attempt to get a cell at a provided screen position.
     /// </summary>

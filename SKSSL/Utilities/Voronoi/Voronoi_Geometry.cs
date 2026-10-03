@@ -353,13 +353,11 @@ public partial class Voronoi
             return [];
 
         var result = new List<Point>(polygon.Count);
-
         foreach (DoublePoint p in polygon)
         {
-            var point = new Point(
-                (int)Math.Round(Math.Clamp(p.X, 0.0, width)),
-                (int)Math.Round(Math.Clamp(p.Y, 0.0, height)));
-
+            var x = (int)Math.Round(Math.Clamp(p.X, 0.0, width));
+            var y = (int)Math.Round(Math.Clamp(p.Y, 0.0, height));
+            var point = new Point(x, y);
             if (result.Count == 0 || result[^1] != point)
                 result.Add(point);
         }

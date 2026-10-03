@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Clipper2Lib;
+using System.Runtime.CompilerServices;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -15,13 +15,8 @@ public partial class Voronoi
         var result = new List<DoublePoint>(polygon.Count + 2);
 
         DoublePoint previous = polygon[^1];
-        double previousValue =
-            a * previous.X +
-            b * previous.Y -
-            c;
-
+        double previousValue = a * previous.X + b * previous.Y - c;
         bool previousInside = previousValue <= 0.0;
-
         foreach (DoublePoint current in polygon)
         {
             double currentValue = a * current.X + b * current.Y - c;
@@ -30,12 +25,11 @@ public partial class Voronoi
             {
                 if (!previousInside)
                 {
-                    double denominator = previousValue - currentValue;
+                    double deltaValue = previousValue - currentValue;
 
-                    if (Math.Abs(denominator) > 1e-12)
+                    if (Math.Abs(deltaValue) > 1e-12)
                     {
-                        double t = previousValue / denominator;
-
+                        double t = previousValue / deltaValue;
                         result.Add(new DoublePoint(
                             previous.X + (current.X - previous.X) * t,
                             previous.Y + (current.Y - previous.Y) * t));
@@ -144,55 +138,6 @@ public partial class Voronoi
         }
     }
 
-    private void ClipVoronoiEdgesAgainstGaps(GapGeometry gaps)
-    {
-        if (_voronoiEdges.Count == 0)
-            return;
-
-        int edgeCount = _voronoiEdges.Count;
-
-        var subjects = new Paths64(edgeCount);
-
-        for (int i = 0; i < edgeCount; i++)
-        {
-            Edge edge = _voronoiEdges[i];
-
-            subjects.Add(
-            [
-                new Point64(edge.Point1.X, edge.Point1.Y),
-                new Point64(edge.Point2.X, edge.Point2.Y)
-            ]);
-        }
-
-        var clipped = new Paths64();
-        var openClipped = new Paths64();
-
-        var clipper = new Clipper64();
-
-        clipper.AddOpenSubject(subjects);
-        clipper.AddClip(gaps.Paths);
-        clipper.Execute(ClipType.Difference, FillRule.EvenOdd, clipped, openClipped);
-
-        _voronoiEdges.Clear();
-
-        foreach (Path64 path in openClipped)
-        {
-            if (path.Count < 2)
-                continue;
-
-            for (int i = 1; i < path.Count; i++)
-            {
-                Point64 a = path[i - 1];
-                Point64 b = path[i];
-
-                if (a == b)
-                    continue;
-
-                _voronoiEdges.Add(new Edge(new Point((int)a.X, (int)a.Y), new Point((int)b.X, (int)b.Y)));
-            }
-        }
-    }
-
     private static bool ClipRayAxis(
         float origin,
         float direction,
@@ -216,6 +161,7 @@ public partial class Voronoi
         return tMin <= tMax;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static List<Point> ClipPolygonToBounds(List<Point> polygon, int width, int height)
     {
         if (polygon.Count < 3)

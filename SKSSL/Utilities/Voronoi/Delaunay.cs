@@ -206,6 +206,19 @@ public partial class DelaunayTriangulator : IDisposable
         return _allTriangles;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool SamePosition(Point a, Point b)
+    {
+        const float epsilon = 0.0001f;
+        return MathF.Abs(a.X - b.X) <= epsilon && MathF.Abs(a.Y - b.Y) <= epsilon;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool HasNonZeroArea(Point a, Point b, Point c)
+    {
+        double area2 = (double)(b.X - a.X) * (c.Y - a.Y) - (double)(b.Y - a.Y) * (c.X - a.X);
+        return Abs(area2) > 1e-6;
+    }
 
     /// <summary>
     /// Performs one partial Lloyd relaxation pass.

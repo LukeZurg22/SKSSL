@@ -2,7 +2,6 @@
 using System.IO;
 using FontStashSharp;
 using JetBrains.Annotations;
-using JetBrains.Profiler.Api;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -25,7 +24,9 @@ public class Voronoi
     private VoronoiCell? _hoveredCell;
     private Texture2D _densityTexture = null!;
     SpriteBatch _spriteBatch = null!;
-
+    private SpriteFontBase _font = null!;
+    private Texture2D _borderMap = null!;
+    
     [TestMethod, UsedImplicitly]
     public void TEST_VORONOI_GEN()
     {
@@ -36,10 +37,10 @@ public class Voronoi
         _spriteBatch = new SpriteBatch(_game.GraphicsDevice);
         _voronoi = new Utilities.Voronoi.Voronoi(_game.GraphicsDevice);
 
-        MeasureProfiler.StartCollectingData();
+        //MeasureProfiler.StartCollectingData();
         MimicLoadContent(); // Mimic LoadContent call.
         MimicInitialize(); // Mimic Initialize call.
-        MeasureProfiler.SaveData();
+        //MeasureProfiler.SaveData();
         game.Run();
         Assert.IsTrue(generated);
     }
@@ -59,16 +60,17 @@ public class Voronoi
             {
                 DensityIntensity = 1.1,
                 CenterCellSizeFactor = 1,
-                EdgeCellSizeFactor = 4,
+                EdgeCellSizeFactor = 7,
                 AllowBlackGaps = false,
             }),
-            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledSquare,
+            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.HardEdgeClosed,
             Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ /*|
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges*/ /*|
-                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/
+                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/,
+            ReferenceBoundary = new ReferenceBoundarySettings(_borderMap)
         };
-        const int points = 40000;
+        const int points = 10000;
         _voronoi.GenerateDiagram(
             points: points,
             //width: 1200,
@@ -76,8 +78,7 @@ public class Voronoi
             settings: diagramSettings
         );
 
-        const int segmentSize = 255;
-
+        /*const int segmentSize = 255;
         for (uint i = 0; i < points; i++)
         {
             int segment = (int)(i / segmentSize);
@@ -91,7 +92,7 @@ public class Voronoi
             };
 
             _voronoi.ChangeCellColor(i, color);
-        }
+        }*/
 
         _voronoi.ChangeCellColor(0, Color.LightGoldenrodYellow);
         _voronoi.ChangeCellColor(1, Color.Gold);
@@ -99,7 +100,6 @@ public class Voronoi
         generated = true;
     }
 
-    private SpriteFontBase _font = null!;
 
     private void MimicLoadContent()
     {
@@ -108,9 +108,13 @@ public class Voronoi
         fontSystem.AddFont(fontData);
         _font = fontSystem.GetFont(32);
 
-        Texture2D image = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
+        Texture2D heightMap = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
             .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Map.png");
-        _densityTexture = image;
+        _densityTexture = heightMap;
+        
+        Texture2D borderMap = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
+            .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Borders.png");
+        _borderMap = borderMap;
     }
 
     #endregion
