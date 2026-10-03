@@ -128,12 +128,12 @@ public partial class Voronoi
     {
         var dx = b.X - a.X;
         if (Math.Abs(dx) < 0.000001f)
-            return new Point(FastRoundToInt(x), a.Y);
+            return new Point(x.FastRoundToInt(), a.Y);
 
         var t = (x - a.X) / dx;
         var y = a.Y + (b.Y - a.Y) * t;
 
-        return new Point(FastRoundToInt(x), FastRoundToInt(y));
+        return new Point(x.FastRoundToInt(), y.FastRoundToInt());
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -145,7 +145,7 @@ public partial class Voronoi
 
         var t = (y - a.Y) / dy;
         var x = a.X + (b.X - a.X) * t;
-        return new Point(FastRoundToInt(x), FastRoundToInt(y));
+        return new Point(x.FastRoundToInt(), y.FastRoundToInt());
     }
 
 
@@ -209,9 +209,6 @@ public partial class Voronoi
         VoronoiCell? cell = _cellsBySiteId[(int)site.ID];
         return cell != null && (cell.IsBoundary || cell.Vertices.Count == 0);
     }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int FastRoundToInt(float value) => (int)(value + 0.5f);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void AddVoronoiEdges(Triangle triangle, VoronoiBoundaryMode mode)
@@ -404,8 +401,8 @@ public partial class Voronoi
         if (y2 < 0f) y2 = 0f;
         else if (y2 > _height) y2 = _height;
 
-        start = new Point(FastRoundToInt(x1), FastRoundToInt(y1));
-        end = new Point(FastRoundToInt(x2), FastRoundToInt(y2));
+        start = new Point(x1.FastRoundToInt(), y1.FastRoundToInt());
+        end = new Point(x2.FastRoundToInt(), y2.FastRoundToInt());
         return start != end;
     }
 
