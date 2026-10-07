@@ -23,7 +23,7 @@ public class Voronoi
     private UnitGame _game = null!;
     private VoronoiCell? _hoveredCell;
     private Texture2D _densityTexture = null!;
-    SpriteBatch _spriteBatch = null!;
+    private SpriteBatch _spriteBatch = null!;
     private SpriteFontBase _font = null!;
     private Texture2D _borderMap = null!;
     
@@ -63,9 +63,9 @@ public class Voronoi
                 EdgeCellSizeFactor = 7,
                 AllowBlackGaps = false,
             }),
-            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.HardEdgeClosed,
-            Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells /*|
-                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points*/ /*|
+            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledCircular,
+            Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
+                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points /*|
                     Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges*/ /*|
                         Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/,
             ReferenceBoundary = new ReferenceBoundarySettings(_borderMap)
@@ -90,7 +90,7 @@ public class Voronoi
                 1 => new Color(0, (byte)value, 0),
                 _ => new Color(0, 0, (byte)value)
             };
-
+            //Color color = Color.Black;
             _voronoi.ChangeCellColor(i, color);
         }*/
 

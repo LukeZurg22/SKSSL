@@ -24,12 +24,8 @@ public unsafe class DistributorImage : IPointDistributor
     private readonly double _densityIntensity;
     private readonly double _centerCellSizeFactor;
     private readonly double _edgeCellSizeFactor;
-    public readonly bool AllowBlackGaps;
+    private readonly bool AllowBlackGaps;
     private readonly ImageDensityMode _mode;
-
-    public VoronoiGapMask GapMask { get; set; }
-
-    public IReadOnlyList<GapPolygon> GapPolygons => GapMask.Polygons;
 
     #region Constructors
 
@@ -58,7 +54,6 @@ public unsafe class DistributorImage : IPointDistributor
                 nameof(pixels));
 
         _pixels = pixels;
-        GapMask = new VoronoiGapMask(_pixels, sourceWidth, sourceHeight, 0);
 
         ValidateSpacing();
         BuildDensity();
@@ -72,13 +67,14 @@ public unsafe class DistributorImage : IPointDistributor
         int length = checked(_sourceWidth * _sourceHeight);
         _pixels = new byte[checked(length * 4)];
         texture.GetData(_pixels);
-        GapMask = new VoronoiGapMask(_pixels, texture.Width, texture.Height); // After so pixel data is filled.
 
         ValidateSpacing();
         BuildDensity();
     }
 
     #endregion
+
+    public byte[] GetPixels() => _pixels;
 
     public void Generate(ref List<Point> points, uint amount, float maxX, float maxY, double randomness)
     {
@@ -212,7 +208,7 @@ public unsafe class DistributorImage : IPointDistributor
                     pixelY = _sourceHeight - 1;
 
                 int pixelIndex = pixelY * _sourceWidth + pixelX;
-                
+
                 // Density curve.
                 float density = densityPtr[pixelIndex];
                 density = (float)(density * densityInfluence + randomness);
@@ -411,15 +407,7 @@ public class DistributorImageSettings
     public bool AllowBlackGaps = false;
 }
 
-public sealed class GapPolygon
-{
-    public IReadOnlyList<Vector2> Vertices { get; }
-
-    public GapPolygon(List<Vector2> vertices)
-    {
-        Vertices = vertices;
-    }
-}
+public sealed class GapPolygon;
 
 public sealed class VoronoiGapMask
 {
@@ -427,12 +415,6 @@ public sealed class VoronoiGapMask
 
     public int Width { get; }
     public int Height { get; }
-
-    /// <summary>
-    /// Closed contours representing the black regions.
-    /// Coordinates are floating-point so smoothing does not reintroduce pixel jagging.
-    /// </summary>
-    public IReadOnlyList<GapPolygon> Polygons { get; }
 
     public VoronoiGapMask(byte[] pixels, int width, int height, int smoothingIterations = 2)
     {
@@ -459,14 +441,14 @@ public sealed class VoronoiGapMask
             _mask[i] = (r | g | b) == 0;
         }
 
-        Polygons = BuildPolygons(smoothingIterations);
+        BuildPolygons(smoothingIterations);
     }
 
     private bool IsGap(int x, int y) => (uint)x < (uint)Width && (uint)y < (uint)Height && _mask[y * Width + x];
 
     #region Polygon Extraction
 
-    private List<GapPolygon> BuildPolygons(int smoothingIterations)
+    private void BuildPolygons(int smoothingIterations)
     {
         var edges = new Dictionary<GridPoint, List<GridPoint>>();
 
@@ -493,15 +475,13 @@ public sealed class VoronoiGapMask
                 AddEdge(edges, new GridPoint(x, y + 1), new GridPoint(x, y));
         }
 
-        return TraceContours(edges, smoothingIterations);
+        TraceContours(edges, smoothingIterations);
     }
 
-    private static void AddEdge(
-        Dictionary<GridPoint, List<GridPoint>> edges,
-        GridPoint start,
+    private static void AddEdge(Dictionary<GridPoint, List<GridPoint>> edges, GridPoint start,
         GridPoint end)
     {
-        if (!edges.TryGetValue(start, out List<GridPoint>? list))
+        if (!edges.TryGetValue(start, out var list))
         {
             list = [];
             edges.Add(start, list);
@@ -510,7 +490,7 @@ public sealed class VoronoiGapMask
         list.Add(end);
     }
 
-    private static List<GapPolygon> TraceContours(Dictionary<GridPoint, List<GridPoint>> edges, int smoothingIterations)
+    private static void TraceContours(Dictionary<GridPoint, List<GridPoint>> edges, int smoothingIterations)
     {
         var unused = new HashSet<GridEdge>();
         foreach (var pair in edges)
@@ -581,10 +561,8 @@ public sealed class VoronoiGapMask
             polygon = SmoothPolygon(polygon, smoothingIterations);
 
             if (polygon.Count >= 3)
-                polygons.Add(new GapPolygon(polygon));
+                polygons.Add(new GapPolygon());
         }
-
-        return polygons;
     }
 
     private static List<Vector2> SmoothPolygon(
@@ -749,7 +727,5 @@ public sealed class VoronoiGapMask
 
     private readonly record struct GridPoint(int X, int Y);
 
-    private readonly record struct GridEdge(
-        GridPoint Start,
-        GridPoint End);
+    private readonly record struct GridEdge(GridPoint Start, GridPoint End);
 }

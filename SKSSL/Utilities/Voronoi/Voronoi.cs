@@ -44,14 +44,22 @@ public partial class Voronoi
     /// <value>_graphicsDevice.Viewport.Height</value>
     private int _height;
 
+    // Indexing
+    private uint _firstArtificialId;
+    private VoronoiCell?[] _cellsBySiteId;
+    private VoronoiCell[] _renderingCells;
+
     // Data Storage
-    private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
     private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
     private List<CellVoronoiEdge>?[] _edgesByCell = [];
-    private DistributorImage? _imageDistributor = null; // For heightmap distribution.
+    private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
 
+    // Geometry
     //      A graph may become too large, it'll need to be divided into "chunks" / spacial grids.
     private SpatialGrid? _spatialGrid;
+    private int[] _cellGeometryOffsets = [];
+    private int[] _cellGeometryCounts = [];
+    private Vector3[] _cellGeometry = [];
 
     // Coloring and Visualization
     private Color[] _cellOverrideColors; // Override colors for cells. Indexed by ID.
@@ -90,16 +98,6 @@ public partial class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
-    private VoronoiCell?[] _cellsBySiteId;
-    private VoronoiCell[] _renderingCells;
-
-    // Reference Boundaries // WIP
-    private ReferenceBoundarySettings? _referenceBoundary;
-    private int[] _referenceGuideSource = [];
-    private Vector2[] _referenceCorrections = [];
-    private float[] _referenceWeights = [];
-    private Vector2[] _referenceProposedPositions = [];
-
     // TODO: Support constrained and density-driven Voronoi generation.
     //  .
     //  1. Explicit boundaries
@@ -107,13 +105,6 @@ public partial class Voronoi
     //     b. Extract functional edges / regions from the image.
     //        Color coding may be useful for identifying boundaries.
     //     c. Treat extracted boundaries as clipping/constraining geometry.
-    //  .
-    //  2. Hierarchical polygon generation
-    //     a. Generate a sparse Voronoi diagram.
-    //     b. Use its edges as candidate large-scale polygon boundaries.
-    //     c. Merge/partition cells into larger regions.
-    //     d. Optionally generate a denser Voronoi diagram inside each region.
-    //  .
     //  3. Density-map-driven generation
     //     e. Support combining density maps with explicit boundaries.
 
@@ -204,8 +195,6 @@ public partial class Voronoi
         _boundaryMode = settings.BoundaryMode;
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
-        if (settings.Distributor is DistributorImage distributorImage)
-            _imageDistributor = distributorImage;
 
         using DelaunayTriangulator delaunay = new();
 
@@ -239,15 +228,16 @@ public partial class Voronoi
 
         // Populate the Graph w. Cells
         //  -> LOYD RELAXATION
+        // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
+        var pixels = ((DistributorImage)settings.Distributor).GetPixels();
         const int passes = 3;
         for (int i = 0; i < passes; i++)
         {
-            // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
-            delaunay.LloydSettlePoints(_cellsBySiteId);
-            triangulation = delaunay.BowyerWatson(_points);
-            // --> POPULATE
             Array.Clear(_cellsBySiteId);
+            triangulation = delaunay.BowyerWatson(_points);
             PopulateVoronoiCells(triangulation);
+            //delaunay.LloydSettlePoints(_cellsBySiteId);
+            delaunay.WeightedLloydSettlePoints(_cellsBySiteId, ref pixels, _width, _height);
         }
 
         // Checking for Conflicts
@@ -256,12 +246,8 @@ public partial class Voronoi
         // Process Cell Culling
         ProcessCells(settings.BoundaryMode, triangulation);
 
-        // TODO: ADD GAPS BACK
-
-        // Apply Reference-Image Boundary Constraints (to Finished Cells)
-        _referenceBoundary = settings.ReferenceBoundary;
-        if (_referenceBoundary is not null) ApplyReferenceBoundary(_referenceBoundary);
-        else BuildVoronoiEdges(triangulation); // Build Voronoi Edges
+        foreach (Triangle triangle in triangulation)
+            AddVoronoiEdges(triangle, _boundaryMode);
 
         // Build Selected Colors
         BuildRenderArrays();

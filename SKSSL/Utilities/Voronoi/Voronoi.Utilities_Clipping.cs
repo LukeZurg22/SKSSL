@@ -2,55 +2,64 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Microsoft.Xna.Framework;
 
 namespace SKSSL.Utilities.Voronoi;
 
 public partial class Voronoi
 {
-    private static List<DoublePoint> ClipHalfPlane(List<DoublePoint> polygon, double a, double b, double c)
+    /// <summary>
+    /// Clips a Voronoi cell against line obstacles (impassable boundaries).
+    /// </summary>
+    private static List<DoublePoint> ClipCellByBoundarySegment(
+        List<DoublePoint> cellPolygon, Vector2 lineStart, Vector2 lineEnd, Point site)
+    {
+        // Vector along the boundary line
+        double dx = lineEnd.X - lineStart.X;
+        double dy = lineEnd.Y - lineStart.Y;
+
+        // Normal vector pointing away from boundary line toward the site
+        double nx = -dy;
+
+        // Ensure normal points toward the cell's site
+        double toSiteX = site.X - lineStart.X;
+        double toSiteY = site.Y - lineStart.Y;
+
+        // Clip cell polygon against the line using Sutherland-Hodgman
+        return !(nx * toSiteX + dx * toSiteY < 0)
+            ? ClipHalfPlane(cellPolygon, nx, dx, lineStart.X, lineStart.Y)
+            : ClipHalfPlane(cellPolygon, -nx, -dx, lineStart.X, lineStart.Y);
+    }
+
+
+    /*
+    private static List<DoublePoint> ClipHalfPlane(
+        List<DoublePoint> polygon,
+        double dx,
+        double dy,
+        double mx,
+        double my)
     {
         if (polygon.Count == 0)
             return [];
 
         var result = new List<DoublePoint>(polygon.Count + 2);
-
         DoublePoint previous = polygon[^1];
-        double previousValue = a * previous.X + b * previous.Y - c;
+        double previousValue = dx * (previous.X - mx) + dy * (previous.Y - my);
         bool previousInside = previousValue <= 0.0;
         foreach (DoublePoint current in polygon)
         {
-            double currentValue = a * current.X + b * current.Y - c;
+            double currentValue = dx * (current.X - mx) + dy * (current.Y - my);
             bool currentInside = currentValue <= 0.0;
+            if (currentInside != previousInside)
+            {
+                double t = previousValue / (previousValue - currentValue);
+                result.Add(new DoublePoint(previous.X + (current.X - previous.X) * t,
+                    previous.Y + (current.Y - previous.Y) * t));
+            }
+
             if (currentInside)
-            {
-                if (!previousInside)
-                {
-                    double deltaValue = previousValue - currentValue;
-
-                    if (Math.Abs(deltaValue) > 1e-12)
-                    {
-                        double t = previousValue / deltaValue;
-                        result.Add(new DoublePoint(
-                            previous.X + (current.X - previous.X) * t,
-                            previous.Y + (current.Y - previous.Y) * t));
-                    }
-                }
-
                 result.Add(current);
-            }
-            else if (previousInside)
-            {
-                double denominator = previousValue - currentValue;
-
-                if (Math.Abs(denominator) > 1e-12)
-                {
-                    double t = previousValue / denominator;
-
-                    result.Add(new DoublePoint(
-                        previous.X + (current.X - previous.X) * t,
-                        previous.Y + (current.Y - previous.Y) * t));
-                }
-            }
 
             previous = current;
             previousValue = currentValue;
@@ -58,6 +67,36 @@ public partial class Voronoi
         }
 
         return RemoveDuplicatePoints(result);
+    }
+    */
+
+    /// <summary>
+    /// Clips cell polygon against a boundary half-plane defined by normal (nx, ny) passing through (mx, my).
+    /// </summary>
+    private static List<DoublePoint> ClipHalfPlane(
+        List<DoublePoint> polygon, double nx, double ny, double mx, double my)
+    {
+        if (polygon.Count == 0)
+            return polygon;
+
+        var output = new List<DoublePoint>(polygon.Count);
+        for (int i = 0; i < polygon.Count; i++)
+        {
+            DoublePoint current = polygon[i];
+            DoublePoint prev = polygon[(i + polygon.Count - 1) % polygon.Count];
+
+            bool currentInside = (current.X - mx) * nx + (current.Y - my) * ny >= 0;
+            bool prevInside = (prev.X - mx) * nx + (prev.Y - my) * ny >= 0;
+
+            if (currentInside)
+            {
+                if (!prevInside) output.Add(Intersect(prev, current, nx, ny, mx, my));
+                output.Add(current);
+            }
+            else if (prevInside) output.Add(Intersect(prev, current, nx, ny, mx, my));
+        }
+
+        return RemoveDuplicatePoints(output);
     }
 
     private bool ClipLineToBounds(Point p1, Point p2, out Point clipped1, out Point clipped2)

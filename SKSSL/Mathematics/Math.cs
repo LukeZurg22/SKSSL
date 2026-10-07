@@ -51,10 +51,10 @@ public static class V3Extensions
     /// <returns>Normal Vector to provided points.</returns>
     public static Vector3 GetNormal(float sx, float sy, float sz)
     {
-        if (sx < sy && sx < sz)
-            return new Vector3(-Math.Sign(sx), 0, 0);
-        if (sy < sz)
-            return new Vector3(0, -Math.Sign(sy), 0);
-        return new Vector3(0, 0, -Math.Sign(sz));
+        return sx < sy && sx < sz
+            ? new Vector3(-Math.Sign(sx), 0, 0)
+            : sy < sz
+                ? new Vector3(0, -Math.Sign(sy), 0)
+                : new Vector3(0, 0, -Math.Sign(sz));
     }
 }

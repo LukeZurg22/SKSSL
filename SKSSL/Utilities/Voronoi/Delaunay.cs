@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using static System.Math;
 
@@ -185,14 +186,7 @@ public partial class DelaunayTriangulator : IDisposable
                 startTriangle ??= triangle;
             }
 
-#if DEBUG
-            //ValidateTopology(_allTriangles);
-#endif
-
-            /*
-             * The new triangle is an excellent starting point for the
-             * next point-location search.
-             */
+            // The new triangle is an excellent starting point for the next point-location search.
             start = startTriangle ?? throw new InvalidOperationException(
                 $"No replacement triangles were generated for point " +
                 $"{pointIndex} ({point.X}, {point.Y}).");
@@ -215,14 +209,55 @@ public partial class DelaunayTriangulator : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool HasNonZeroArea(Point a, Point b, Point c)
+        => Abs((double)(b.X - a.X) * (c.Y - a.Y) - (double)(b.Y - a.Y) * (c.X - a.X)) > 1e-6;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void WeightedLloydSettlePoints(VoronoiCell?[] cells, ref byte[] densityMap, int width, int height)
     {
-        double area2 = (double)(b.X - a.X) * (c.Y - a.Y) - (double)(b.Y - a.Y) * (c.X - a.X);
-        return Abs(area2) > 1e-6;
+        foreach (VoronoiCell? cell in cells)
+        {
+            if (cell == null || cell.Site.ID < 4 || cell.Vertices.Count < 3)
+                continue;
+
+            // Calculate weighted centroid based on density map
+            double totalWeight = 0;
+            double weightedX = 0;
+            double weightedY = 0;
+
+            // Bounding box of the cell
+            float minX = cell.Vertices.Min(v => v.X);
+            float maxX = cell.Vertices.Max(v => v.X);
+            float minY = cell.Vertices.Min(v => v.Y);
+            float maxY = cell.Vertices.Max(v => v.Y);
+
+            int startX = Clamp((int)minX, 0, width - 1);
+            int endX = Clamp((int)maxX, 0, width - 1);
+            int startY = Clamp((int)minY, 0, height - 1);
+            int endY = Clamp((int)maxY, 0, height - 1);
+
+            for (int py = startY; py <= endY; py++)
+            for (int px = startX; px <= endX; px++)
+            {
+                float density = densityMap[py * width + px];
+                weightedX += px * density;
+                weightedY += py * density;
+                totalWeight += density;
+            }
+
+            if (!(totalWeight > 1e-5))
+                continue;
+
+            float newX = (float)Clamp(weightedX / totalWeight, 0.0, MaxX);
+            float newY = (float)Clamp(weightedY / totalWeight, 0.0, MaxY);
+            cell.Site = cell.Site with { X = newX, Y = newY };
+        }
     }
 
     /// <summary>
     /// Performs one partial Lloyd relaxation pass.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // ReSharper disable once UnusedMember.Global
     public void LloydSettlePoints(VoronoiCell?[] cells)
     {
         foreach (VoronoiCell? cell in cells)

@@ -124,20 +124,14 @@ public partial class Voronoi
                     double dx = neighbor.X - site.X;
                     double dy = neighbor.Y - site.Y;
 
-                    double c =
-                        (double)neighbor.X * neighbor.X +
-                        (double)neighbor.Y * neighbor.Y -
-                        (double)site.X * site.X -
-                        (double)site.Y * site.Y;
+                    double mx = (site.X + neighbor.X) * 0.5;
+                    double my = (site.Y + neighbor.Y) * 0.5;
 
-                    double a = 2.0 * dx;
-                    double b = 2.0 * dy;
-
-                    polygon = ClipHalfPlane(polygon, a, b, c);
+                    polygon = ClipHalfPlane(polygon, dx, dy, mx, my);
                 }
 
                 // Quantize ONCE.
-                cell.Vertices = QuantizePolygon(polygon, _width, _height);
+                cell.Vertices = ConvertPolygon(polygon, _width, _height);
 
                 // HardEdgeClosed owns the entire finite cell now.
                 cell.RenderPaths = null;
@@ -247,34 +241,17 @@ public partial class Voronoi
         Parallel.For(0, cellCount, i =>
         {
             VoronoiCell cell = _renderingCells[i];
-            Vector3[] geometry;
 
-            // The first four Delaunay sites are the artificial bounding rectangle.
-            // They are topology scaffolding, not renderable Voronoi cells.
-            if (!cell.HasRenderableGeometry)
+            if (!HasRenderableCellGeometry(cell))
             {
                 geometries[i] = [];
                 counts[i] = 0;
                 return;
             }
 
-            if (cell.Vertices.Count < 3 &&
-                (cell.RenderPaths == null || cell.RenderPaths.Count == 0))
-            {
-                geometry = [];
-            }
-            else if (cell.RenderPaths == null)
-            {
-                geometry = TessellateOriginalCellPositions(cell.Vertices);
-            }
-            else if (cell.RenderPaths.Count == 0)
-            {
-                geometry = [];
-            }
-            else
-            {
-                geometry = TessellateClippedCellPositions(cell.RenderPaths);
-            }
+            var geometry = cell.RenderPaths is { Count: > 0 }
+                ? TessellateClippedCellPositions(cell.RenderPaths)
+                : TessellateOriginalCellPositions(cell.Vertices);
 
             geometries[i] = geometry;
             counts[i] = geometry.Length;
@@ -347,7 +324,7 @@ public partial class Voronoi
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static List<Point> QuantizePolygon(List<DoublePoint> polygon, int width, int height)
+    private static List<Point> ConvertPolygon(List<DoublePoint> polygon, int width, int height)
     {
         if (polygon.Count < 3)
             return [];
@@ -355,9 +332,7 @@ public partial class Voronoi
         var result = new List<Point>(polygon.Count);
         foreach (DoublePoint p in polygon)
         {
-            var x = (int)Math.Round(Math.Clamp(p.X, 0.0, width));
-            var y = (int)Math.Round(Math.Clamp(p.Y, 0.0, height));
-            var point = new Point(x, y);
+            var point = new Point((float)Math.Clamp(p.X, 0.0, width), (float)Math.Clamp(p.Y, 0.0, height));
             if (result.Count == 0 || result[^1] != point)
                 result.Add(point);
         }
@@ -365,6 +340,6 @@ public partial class Voronoi
         if (result.Count > 1 && result[0] == result[^1])
             result.RemoveAt(result.Count - 1);
 
-        return result;
+        return result.Count >= 3 ? result : [];
     }
 }

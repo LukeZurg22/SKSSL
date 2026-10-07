@@ -13,15 +13,6 @@ public readonly struct Vector2Int : IEquatable<Vector2Int>
     public readonly int Y;
 
     /// <summary>
-    /// Instantiates an instance of <see cref="Vector2Int"/> with all values 0.
-    /// </summary>
-    public Vector2Int()
-    {
-        X = 0;
-        Y = 0;
-    }
-
-    /// <summary>
     /// Instantiates an instance of <see cref="Vector2Int"/> with x and y equal to the provided values, or 0.
     /// </summary>
     public Vector2Int(int x = 0, int y = 0)
@@ -33,15 +24,9 @@ public readonly struct Vector2Int : IEquatable<Vector2Int>
 
     #region Operator Overloads
 
-    public static Vector2Int operator +(Vector2Int a, Vector2Int b) =>
-        new(a.X + b.X, a.Y + b.Y);
-
-    public static Vector2Int operator -(Vector2Int a, Vector2Int b) =>
-        new(a.X - b.X, a.Y - b.Y);
-
-    public static bool operator ==(Vector2Int a, Vector2Int b) =>
-        a.X == b.X && a.Y == b.Y;
-
+    public static Vector2Int operator +(Vector2Int a, Vector2Int b) => new(a.X + b.X, a.Y + b.Y);
+    public static Vector2Int operator -(Vector2Int a, Vector2Int b) => new(a.X - b.X, a.Y - b.Y);
+    public static bool operator ==(Vector2Int a, Vector2Int b) => a.X == b.X && a.Y == b.Y;
     public static bool operator !=(Vector2Int a, Vector2Int b) => !(a == b);
 
     #endregion

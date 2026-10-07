@@ -9,11 +9,6 @@ namespace SKSSL.Utilities.Voronoi;
 
 public partial class Voronoi
 {
-    private Vector3[] _cellGeometry = [];
-    private int[] _cellGeometryOffsets = [];
-    private int[] _cellGeometryCounts = [];
-    private uint _firstArtificialId;
-
     private unsafe void BuildPointBatch(float size)
     {
         int pointCount = _points.Length;
@@ -79,12 +74,14 @@ public partial class Voronoi
             // The first four sites are artificial/super-triangle boundary sites.
             // They are required for Delaunay construction but are not part of
             // the actual diagram.
-            if (_boundaryMode == VoronoiBoundaryMode.CulledSquare && IsArtificialBoundaryTriangle(triangle))
+            if (IsArtificialBoundaryTriangle(triangle))
                 continue;
 
             Point a = triangle.Vertices[0];
             Point b = triangle.Vertices[1];
             Point c = triangle.Vertices[2];
+            if (!HasRenderableCell(a) || !HasRenderableCell(b) || !HasRenderableCell(c))
+                continue;
 
             vertices.Add(new VertexPositionColor(new Vector3(a.X, a.Y, 0f), Color.White));
             vertices.Add(new VertexPositionColor(new Vector3(b.X, b.Y, 0f), Color.White));
@@ -93,6 +90,15 @@ public partial class Voronoi
 
         _triangleBatchVertices = vertices.ToArray();
         _triangleBatchPrimitiveCount = vertices.Count / 3;
+    }
+
+    private bool HasRenderableCell(Point site)
+    {
+        if (IsArtificialBoundarySite(site))
+            return false;
+
+        VoronoiCell? cell = _cellsBySiteId[(int)site.ID];
+        return cell != null && HasRenderableCellGeometry(cell);
     }
 
     private unsafe void BuildEdgeBatch(float thickness)
@@ -267,44 +273,43 @@ public partial class Voronoi
         for (int siteId = 0; siteId < realCount; siteId++)
         {
             VoronoiCell? cell = _cellsBySiteId[siteId];
-            if (cell != null && !HasRenderableCellGeometry(cell))
-            {
-                cell.HasRenderableGeometry = false;
-                continue;
-            }
 
-            visibleCount++;
+            if (cell == null)
+                continue;
+
+            cell.HasRenderableGeometry =
+                HasRenderableCellGeometry(cell);
+
+            if (cell.HasRenderableGeometry)
+                visibleCount++;
         }
 
-        if (_renderingCells.Length != visibleCount)
-            _renderingCells = new VoronoiCell[visibleCount];
-
-        if (_cellRawColors.Length != visibleCount)
-            _cellRawColors = new Color[visibleCount];
-
-        if (_cellOverrideColors.Length != visibleCount)
-            _cellOverrideColors = new Color[visibleCount];
+        _renderingCells = new VoronoiCell[visibleCount];
+        _cellRawColors = new Color[visibleCount];
+        _cellOverrideColors = new Color[visibleCount];
 
         Array.Clear(_cellOverrideColors);
 
         // Second pass: compact the renderable cells.
         uint nextId = 0;
+
         for (int siteId = 0; siteId < realCount; siteId++)
         {
             VoronoiCell? cell = _cellsBySiteId[siteId];
-            if (cell != null && !cell.HasRenderableGeometry)
+            if (cell is not { HasRenderableGeometry: true })
             {
-                cell.ID = VoronoiCell.InvalidId;
+                if (cell != null)
+                    cell.ID = VoronoiCell.InvalidId;
+
                 continue;
             }
 
-            uint cellId = nextId++;
-
             // Compact public/render ID.
-            Debug.Assert(cell != null, nameof(cell) + " != null");
-            cell.ID = cellId;
-            _renderingCells[cellId] = cell;
-            _cellRawColors[cellId] = GetCellColor(cell);
+            uint id = nextId++;
+            cell.ID = id;
+
+            _renderingCells[id] = cell;
+            _cellRawColors[id] = GetCellColor(cell);
         }
     }
 

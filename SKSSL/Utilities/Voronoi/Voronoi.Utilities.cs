@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -223,6 +222,7 @@ public partial class Voronoi
         AddVoronoiEdge(triangle, triangle.Neighbor2, triangle.Vertices[2], triangle.Vertices[0], mode);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void AddVoronoiEdge(Triangle triangle, Triangle? neighbor, Point a, Point b, VoronoiBoundaryMode mode)
     {
         Point start;
@@ -305,6 +305,7 @@ public partial class Voronoi
         VoronoiCell? cb = _cellsBySiteId[(int)b.ID];
         return ca != null && !ca.HasRenderableGeometry && cb != null && !cb.HasRenderableGeometry;
     }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasRenderableCellGeometry(VoronoiCell cell)
         => !cell.IsCulled && !IsArtificialBoundarySite(cell.Site) &&
@@ -320,12 +321,8 @@ public partial class Voronoi
         return triangle.Vertices[0].ID >= first || triangle.Vertices[1].ID >= first || triangle.Vertices[2].ID >= first;
     }
 
-    private bool TryGetBoundaryVoronoiEdge(
-        Triangle triangle,
-        Point a,
-        Point b,
-        out Point start,
-        out Point end)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool TryGetBoundaryVoronoiEdge(Triangle triangle, Point a, Point b, out Point start, out Point end)
     {
         float ex = b.X - a.X;
         float ey = b.Y - a.Y;
@@ -408,93 +405,88 @@ public partial class Voronoi
 
     #region TESSELATION
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector3[] TessellateOriginalCellPositions(List<Point> vertices)
     {
-        int count = vertices.Count;
-        if (count < 3)
+        if (vertices.Count < 3)
             return [];
 
-        var result = new Vector3[(count - 2) * 3];
+        var result = new Vector3[(vertices.Count - 2) * 3];
         ReadOnlySpan<Point> points = CollectionsMarshal.AsSpan(vertices);
         Point origin = points[0];
-        float originX = origin.X;
-        float originY = origin.Y;
+
         int index = 0;
-        for (int i = 1; i < count - 1; ++i)
+        for (int i = 1; i < points.Length - 1; ++i)
         {
             Point b = points[i];
             Point c = points[i + 1];
-            result[index++] = new Vector3(originX, originY, 0f);
+
+            float area = (b.X - origin.X) * (c.Y - origin.Y) - (b.Y - origin.Y) * (c.X - origin.X);
+            if (MathF.Abs(area) <= 0.0001f)
+                continue;
+
+            result[index++] = new Vector3(origin.X, origin.Y, 0f);
             result[index++] = new Vector3(b.X, b.Y, 0f);
             result[index++] = new Vector3(c.X, c.Y, 0f);
         }
 
+        if (index == result.Length)
+            return result;
+
+        Array.Resize(ref result, index);
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector3[] TessellateClippedCellPositions(Paths64 paths)
     {
         if (paths.Count == 0)
             return [];
 
         Tess tess = new();
-        var rented = new ContourVertex[paths.Count][];
-        try
+        foreach (Path64 path in paths)
         {
-            int contourIndex = 0;
-            foreach (Path64 path in paths)
+            int count = path.Count;
+            if (count < 3)
+                continue;
+
+            var contour = new ContourVertex[count];
+            for (int i = 0; i < count; ++i)
             {
-                int count = path.Count;
-                if (count < 3)
-                    continue;
-
-                var contour = ArrayPool<ContourVertex>.Shared.Rent(count);
-                rented[contourIndex++] = contour;
-                for (int i = 0; i < count; ++i)
-                {
-                    Point64 p = path[i];
-                    contour[i].Position = new Vec3(p.X, p.Y, 0.0);
-                }
-
-                tess.AddContour(contour);
+                Point64 p = path[i];
+                contour[i].Position = new Vec3(p.X, p.Y, 0.0);
             }
 
-            tess.Tessellate();
-
-            int elementCount = tess.ElementCount;
-            if (elementCount == 0)
-                return [];
-
-            var result = new Vector3[elementCount * 3];
-
-            var vertices = tess.Vertices;
-            int[] elements = tess.Elements;
-
-            for (int i = 0, j = 0; i < elementCount; ++i)
-            {
-                int e = elements[j++];
-
-                Vec3 p = vertices[e].Position;
-                result[j - 1] = new Vector3((float)p.X, (float)p.Y, 0f);
-
-                e = elements[j++];
-
-                p = vertices[e].Position;
-                result[j - 1] = new Vector3((float)p.X, (float)p.Y, 0f);
-
-                e = elements[j++];
-
-                p = vertices[e].Position;
-                result[j - 1] = new Vector3((float)p.X, (float)p.Y, 0f);
-            }
-
-            return result;
+            tess.AddContour(contour);
         }
-        finally
+
+        tess.Tessellate();
+
+        int elementCount = tess.ElementCount;
+        if (elementCount == 0)
+            return [];
+
+        var result = new Vector3[elementCount * 3];
+
+        var vertices = tess.Vertices;
+        int[] elements = tess.Elements;
+
+        for (int i = 0, j = 0; i < elementCount; ++i)
         {
-            foreach (var array in rented)
-                ArrayPool<ContourVertex>.Shared.Return(array);
+            int e = elements[j++];
+            Vec3 p = vertices[e].Position;
+            result[j - 1] = new Vector3((float)p.X, (float)p.Y, 0f);
+
+            e = elements[j++];
+            p = vertices[e].Position;
+            result[j - 1] = new Vector3((float)p.X, (float)p.Y, 0f);
+
+            e = elements[j++];
+            p = vertices[e].Position;
+            result[j - 1] = new Vector3((float)p.X, (float)p.Y, 0f);
         }
+
+        return result;
     }
 
     #endregion
