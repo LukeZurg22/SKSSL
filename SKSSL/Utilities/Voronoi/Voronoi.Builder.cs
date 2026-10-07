@@ -202,16 +202,6 @@ public partial class Voronoi
         _cellBatchPrimitiveCount = totalVertices / 3;
     }
 
-    private void BuildVoronoiEdges(List<Triangle> triangulation) // TODO: RenderDebugEdgesThroughGaps +--> Settings
-    {
-        _voronoiEdges.Clear();
-        _cellVoronoiEdges.Clear();
-        foreach (Triangle triangle in triangulation)
-        {
-            AddVoronoiEdges(triangle, _boundaryMode);
-        }
-    }
-
     [SuppressMessage("ReSharper", "SuggestVarOrType_Elsewhere")]
     private unsafe void BuildCellColorBatch(
         HashSet<uint> overrideIds,
@@ -272,10 +262,8 @@ public partial class Voronoi
     private void BuildRenderArrays()
     {
         int realCount = (int)_firstArtificialId;
-
         int visibleCount = 0;
 
-        // First pass: determine how many renderable cells exist.
         for (int siteId = 0; siteId < realCount; siteId++)
         {
             VoronoiCell? cell = _cellsBySiteId[siteId];
@@ -301,7 +289,6 @@ public partial class Voronoi
 
         // Second pass: compact the renderable cells.
         uint nextId = 0;
-
         for (int siteId = 0; siteId < realCount; siteId++)
         {
             VoronoiCell? cell = _cellsBySiteId[siteId];

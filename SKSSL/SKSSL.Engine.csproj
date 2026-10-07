@@ -230,7 +230,7 @@
         <Compile Update="Utilities\Voronoi\Voronoi.Utilities_Clipping.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi_Utilities_Clipping.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.ReferenceBoundaries.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
     </ItemGroup>

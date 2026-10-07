@@ -7,9 +7,7 @@ public partial class DelaunayTriangulator
         public readonly Triangle Triangle;
         public readonly int Edge;
 
-        public EdgeReference(
-            Triangle triangle,
-            int edge)
+        public EdgeReference(Triangle triangle, int edge)
         {
             Triangle = triangle;
             Edge = edge;

@@ -1,7 +1,6 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
-using SKSSL.ECS.Registry;
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
