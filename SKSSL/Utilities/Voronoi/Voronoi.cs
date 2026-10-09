@@ -294,16 +294,16 @@ public partial class Voronoi
             BuildCellColorBatch([]);
         }
 
+        // A spatial grid, aka a bucket grid is needed to subdivide the voronoi map into workable chunks.
+        // This is for performance.
+        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_renderingCells, _width, _height);
+
         #endregion
 
         _isGenerated = true;
 
         // Update the existing internal pixel map with visual changes.
         UpdateTexture(settings.BoundaryMode, settings.Flags, settings.Thickness, settings.PointSize);
-
-        // A spatial grid, aka a bucket grid is needed to subdivide the voronoi map into workable chunks.
-        // This is for performance.
-        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_renderingCells, _width, _height);
     }
 
     #region TryGet Methods

@@ -149,16 +149,12 @@ public partial class DelaunayTriangulator : IDisposable
             foreach (Triangle bad in _badTriangles)
                 RemoveTriangleTopology(bad);
 
-            /*
-             * The edge map is local to this cavity.
-             */
+            // The edge map is local to this cavity.
             _edgeMap.Clear();
 
             Triangle? startTriangle = null;
 
-            /*
-             * Fan new triangles around the inserted point.
-             */
+            // Fan new triangles around the inserted point.
             foreach (BoundaryEdge boundary in _boundaryEdges)
             {
                 Triangle triangle = new(boundary.Point1, boundary.Point2, point)
@@ -199,17 +195,6 @@ public partial class DelaunayTriangulator : IDisposable
         _allTriangles.RemoveAll(static triangle => !triangle.Alive);
         return _allTriangles;
     }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool SamePosition(Point a, Point b)
-    {
-        const float epsilon = 0.0001f;
-        return MathF.Abs(a.X - b.X) <= epsilon && MathF.Abs(a.Y - b.Y) <= epsilon;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool HasNonZeroArea(Point a, Point b, Point c)
-        => Abs((double)(b.X - a.X) * (c.Y - a.Y) - (double)(b.Y - a.Y) * (c.X - a.X)) > 1e-6;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     // ReSharper disable once UnusedMember.Global

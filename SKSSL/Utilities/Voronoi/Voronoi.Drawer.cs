@@ -17,7 +17,7 @@ public partial class Voronoi
     /// When this function is called, it also assigns the internal pixel data to the new image.
     /// Avoid repetitive calls, as it's expensive.
     /// </remarks>
-    private void UpdateTexture(
+    private Texture2D? UpdateTexture(
         VoronoiBoundaryMode boundaryMode,
         VoronoiRenderingFlags flags,
         float thickness,
@@ -33,7 +33,7 @@ public partial class Voronoi
             boundaryMode == _previousBoundaryMode &&
             Math.Abs(thickness - _previousThickness) < 0.01f &&
             Math.Abs(pointSize - _previousPointSize) < 0.01f)
-            return;
+            return null;
 
         var output = new RenderTarget2D(
             _graphicsDevice,
@@ -82,6 +82,8 @@ public partial class Voronoi
 
         if (oldTexture is RenderTarget2D oldTarget)
             oldTarget.Dispose();
+        
+        return _pixelMap;
     }
 
     public void Draw(SpriteBatch? spriteBatch)

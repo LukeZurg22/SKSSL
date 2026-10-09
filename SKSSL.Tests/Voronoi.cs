@@ -27,7 +27,8 @@ public class Voronoi
     private SpriteBatch _spriteBatch = null!;
     private SpriteFontBase _font = null!;
     private Texture2D _borderMap = null!;
-    
+    private const int _points = 10000;
+
     [TestMethod, UsedImplicitly]
     public void TEST_VORONOI_GEN()
     {
@@ -46,6 +47,8 @@ public class Voronoi
         generated = false;
         _voronoi = Utilities.Voronoi.Voronoi.LoadDiagram(game.GraphicsDevice, "my_voronoi");
         generated = true;
+        Regions(_points);
+        _voronoi.ForceUpdate();
 
         //MeasureProfiler.SaveData();
         game.Run();
@@ -77,16 +80,15 @@ public class Voronoi
                         Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/,
             ReferenceBoundary = new ReferenceBoundarySettings(_borderMap)
         };
-        const int points = 10000;
         _voronoi.GenerateDiagram(
-            points: points,
+            points: _points,
             //width: 1200,
             //height: 800,
             settings: diagramSettings
         );
 
-        Black(points);
-
+        Black(_points);
+        
         _voronoi.ChangeCellColor(0, Color.LightGoldenrodYellow);
         _voronoi.ChangeCellColor(1, Color.Gold);
         _voronoi.ForceUpdate();

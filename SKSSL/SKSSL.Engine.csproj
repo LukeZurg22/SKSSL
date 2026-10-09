@@ -188,9 +188,6 @@
         <Compile Update="Utilities\Flags\ShapeLayer.cs">
           <DependentUpon>IFlag.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi.Drawer.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
         <Compile Update="Utilities\Voronoi\Voronoi.Builder.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
@@ -230,7 +227,7 @@
         <Compile Update="Utilities\Voronoi\Voronoi.ReferenceBoundaries.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi.IO.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.IO.Data.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Remove="Utilities\Voronoi\VoronoiSaveData.cs" />
