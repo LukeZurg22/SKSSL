@@ -54,7 +54,6 @@ public partial class DiagramMap
     private readonly int _paletteWidth;
     private readonly int _paletteHeight;
 
-
     private const uint InvalidatedUint = uint.MaxValue;
 
     #region Constructors
@@ -64,7 +63,6 @@ public partial class DiagramMap
         _pixelMap = pixelMap;
         _overlay = overlay;
         _graphics = graphics;
-
 
         // Read the source only once. Never read it back each frame.
         int pixelCount = pixelMap.Width * pixelMap.Height;
@@ -120,30 +118,6 @@ public partial class DiagramMap
 
     #endregion
 
-    #region Projection
-
-    private Matrix _diagramTransform = Matrix.Identity;
-
-
-    // ReSharper disable once MemberCanBePrivate.Global
-    public void SetDiagramProjection(Matrix world, Matrix view, int? width = null, int? height = null)
-    {
-        width ??= _displayMap.Width;
-        height ??= _displayMap.Height;
-
-        _diagramTransform = world * view;
-    }
-
-    // ReSharper disable once MemberCanBePrivate.Global
-    // ReSharper disable once UnusedMember.Global
-    public void SetScreenProjection(Matrix world, Matrix view)
-    {
-        Viewport viewport = _graphics.Viewport;
-        _diagramTransform = world * view;
-    }
-
-    #endregion
-
     public Texture2D GetDiagram() => _displayMap;
 
     /// Useful when one needs the untouched source.
@@ -182,6 +156,12 @@ public partial class DiagramMap
         }
     }
 
+    /// <summary>
+    /// Retrieve a cell at a provided mouse position.
+    /// </summary>
+    /// <param name="mousePosition"></param>
+    /// <param name="id"></param>
+    /// <returns></returns>
     public bool TryGetCellAt(Point mousePosition, out uint id)
     {
         id = InvalidatedUint;
@@ -206,113 +186,4 @@ public partial class DiagramMap
         id = (uint)cellId;
         return true;
     }
-
-    #region Helpers
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void BuildPixelIndex()
-    {
-        for (int pixelIndex = 0;
-             pixelIndex < _sourcePixels.Length;
-             pixelIndex++)
-        {
-            if (!TryGetCellIdFromColor(_sourcePixels[pixelIndex], out uint id))
-            {
-                // Default alpha = 0, so the shader shows the
-                // original source pixel for unmatched colors.
-                continue;
-            }
-
-
-            if (id >= (uint)_pixelIndicesByCell.Length)
-                continue;
-
-            AddPixelToCell(pixelIndex, (int)id);
-            _displayPixels[pixelIndex] = id.EncodeAsColor();
-        }
-    }
-
-    private void AddPixelToCell(int pixelIndex, int cellId)
-    {
-        var pixels = _pixelIndicesByCell[cellId];
-        _pixelIndexInCell[pixelIndex] = pixels.Count;
-        pixels.Add(pixelIndex);
-        _cellIdByPixel[pixelIndex] = cellId;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void FlushTextureUpdates()
-    {
-        // Color changes: one upload for the entire small palette.
-        if (_paletteDirty)
-        {
-            _paletteTexture.SetData(_palettePixels);
-            _paletteDirty = false;
-        }
-
-        if (!_idTextureDirty)
-            return;
-
-        Rectangle rect = _dirtyIdRectangle;
-
-        long changedArea = (long)rect.Width * rect.Height;
-        long totalArea = (long)_pixelMap.Width * _pixelMap.Height;
-
-        // If most of the texture is covered, a full upload avoids
-        // copying a large staging rectangle unnecessarily.
-        if (changedArea * 10 >= totalArea * 6) _cellIdTexture.SetData(_displayPixels);
-        else
-        {
-            int sourceWidth = _pixelMap.Width;
-            int copyWidth = rect.Width;
-            for (int row = 0; row < rect.Height; row++)
-            {
-                int sourceIndex =
-                    (rect.Y + row) * sourceWidth + rect.X;
-
-                int destinationIndex = row * copyWidth;
-
-                Array.Copy(
-                    _displayPixels,
-                    sourceIndex,
-                    _uploadScratch,
-                    destinationIndex,
-                    copyWidth);
-            }
-
-            int elementCount = rect.Width * rect.Height;
-            _cellIdTexture.SetData(0, rect, _uploadScratch, 0, elementCount);
-        }
-
-        _idTextureDirty = false;
-        _dirtyIdRectangle = Rectangle.Empty;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryGetCellIdFromColor(Color color, out uint id)
-    {
-        id = InvalidatedUint;
-        if (_rawColorToIdLookup.Length == 0)
-            return false;
-
-        uint key = color.PackedValue;
-        int index = (int)(key.HashPackedColor() & (uint)_rawColorToIdMask);
-
-        while (true)
-        {
-            PackedColorEntry entry = _rawColorToIdLookup[index];
-            if (entry.CellIdPlusOne == 0)
-                return false;
-
-            if (entry.PackedColor == key)
-            {
-                id = entry.CellIdPlusOne - 1;
-                return true;
-            }
-
-            index = (index + 1) & _rawColorToIdMask;
-        }
-    }
-
-    #endregion
 }

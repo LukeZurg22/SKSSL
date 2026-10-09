@@ -67,6 +67,9 @@
         <EmbeddedResource Include="Shaders\CellPalette_DirectX_11.mgfxo" />
         <None Remove="Shaders\CellPalette_OpenGL.mgfxo" />
         <EmbeddedResource Include="Shaders\CellPalette_OpenGL.mgfxo" />
+        <None Update="Utilities\Diagramming\TODO">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </None>
     </ItemGroup>
 
     <PropertyGroup>
@@ -244,11 +247,47 @@
         <Compile Update="Utilities\Diagramming\DiagramMap.Coloring.cs">
           <DependentUpon>DiagramMap.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Diagramming\DiagramMap.Oldcoloring.cs">
-          <DependentUpon>DiagramMap.cs</DependentUpon>
-        </Compile>
         <Compile Update="Utilities\Diagramming\DiagramMap.Recoloring.cs">
           <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\DiagramMap.Projection.cs">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\DiagramMap.Helpers.cs">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.BoundaryMode.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Builder.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.ColorMode.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.DoublePoint.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Drawer.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Generation.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Geometry.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.ReferenceBoundaries.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.RenderingFlags.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Utilities.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Utilities_Clipping.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
     </ItemGroup>
 

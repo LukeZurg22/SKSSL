@@ -13,6 +13,8 @@
 //      Replace existing "highlight" terminology with "selected", and then use "highlight" for the literal highlighting.
 
 // WIP: All I need to do now is
+//  add the means to change the DiagramMap projection
 //  add a state-border carver,
+//  add back demarcations
 //  add some highlighting,
 //  Overlay voronoi on 3D model and preserve functionality.
