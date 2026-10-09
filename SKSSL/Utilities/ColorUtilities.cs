@@ -1,5 +1,7 @@
 using System;
+using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
+
 // ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Utilities;
@@ -30,23 +32,39 @@ public static class ColorUtilities
         }
     }
 
+    private const uint InvalidatedUint = uint.MaxValue;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Color EncodeAsColor(this uint i)
     {
-        if (i is uint.MaxValue or > 0x00FFFFFE /*aka MaxRasterUnsignedInteger*/)
+        if (i is InvalidatedUint or > 0x00FFFFFE /*aka MaxRasterUnsignedInteger*/)
             throw new ArgumentOutOfRangeException(nameof(i));
 
         uint encoded = i + 1u;
-        return new Color(
-            (byte)(encoded & 0xFF),
-            (byte)((encoded >> 8) & 0xFF),
-            (byte)((encoded >> 16) & 0xFF),
-            byte.MaxValue
-        );
+        var r = (byte)(encoded & 0xFF);
+        var g = (byte)((encoded >> 8) & 0xFF);
+        var b = (byte)((encoded >> 16) & 0xFF);
+        const byte alpha = byte.MaxValue;
+        return new Color(r, g, b, alpha);
     }
 
-    public static uint DecodeAsUnsignedInteger(this Color color)
+    public static uint DecodeAsUint(this Color color)
     {
         uint encoded = color.R | ((uint)color.G << 8) | ((uint)color.B << 16);
-        return encoded == 0 ? uint.MaxValue : encoded - 1u;
+        return encoded == 0 ? InvalidatedUint : encoded - 1u;
     }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static uint HashPackedColor(this uint value)
+    {
+        unchecked
+        {
+            value ^= value >> 16;
+            value *= 0x7feb352d;
+            value ^= value >> 15;
+            value *= 0x846ca68b;
+            value ^= value >> 16;
+            return value;
+        }
+    }
+
 }

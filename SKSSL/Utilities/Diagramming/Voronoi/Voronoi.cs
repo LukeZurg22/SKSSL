@@ -48,10 +48,7 @@ public partial class Voronoi
     private VoronoiCell[] _renderingCells;
 
     // Data Storage
-    private readonly List<CellVoronoiEdge> _cellVoronoiEdges = [];
-    private List<CellVoronoiEdge>?[] _edgesByCell = [];
     private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
-
     private int[] _cellGeometryOffsets = [];
     private int[] _cellGeometryCounts = [];
     private Vector3[] _cellGeometry = [];
@@ -75,7 +72,6 @@ public partial class Voronoi
 
     // Rendering Options
     private VoronoiBoundaryMode _boundaryMode = VoronoiBoundaryMode.CulledSquare;
-    private readonly ColorMode _cellDrawMode;
     private readonly Color _pointColor;
     private readonly Color _edgeColor;
 
@@ -85,37 +81,17 @@ public partial class Voronoi
     // Authoritative map data.
     private uint[] _pixelCellIds = [];
 
-    // Authoritative colors. Never overwritten by an override.
-    private Color[] _cellRawColors = [];
-
-    // Values to display when an override is active.
-    private Color[] _cellOverrideColors = [];
-
-    // 0 = use raw color, 1 = use override.
-    private byte[] _cellOverrideMask = [];
-
     // Resolved palette uploaded to the GPU.
     private Color[] _cellEffectiveColors = [];
 
     private Texture2D? _cellPaletteTexture;
 
-    private Effect? _mapEffect;
-
-    private const uint InvalidCellId = uint.MaxValue;
-
-    // Voronoi Diagram Version
-    private const uint Version = 1;
-
     public Voronoi(
         GraphicsDevice graphicsDevice,
-        ColorMode cellDrawMode = ColorMode.Semi_Deterministic_Unique,
         Color? unifiedColor = null,
         Color? pointColor = null)
     {
-        _cellDrawMode = cellDrawMode;
         _graphicsDevice = graphicsDevice;
-        _cellRawColors = new Color[DefaultPointCount + 1];
-        _cellOverrideColors = new Color[DefaultPointCount + 1];
         _edgeColor = unifiedColor ?? Color.Gray;
         _pointColor = pointColor ?? Color.Red;
 

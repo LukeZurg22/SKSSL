@@ -117,16 +117,6 @@ public partial class Voronoi
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private uint GetCellIdFromSiteId(uint siteId)
-    {
-        if (siteId >= _cellsBySiteId.Length)
-            return VoronoiCell.InvalidId;
-
-        VoronoiCell? cell = _cellsBySiteId[siteId];
-        return cell is { HasRenderableGeometry: true } ? cell.ID : VoronoiCell.InvalidId;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Point IntersectVertical(Point a, Point b, float x)
     {
         var dx = b.X - a.X;
@@ -251,7 +241,6 @@ public partial class Voronoi
                     return;
 
                 _voronoiEdges.Add(new Edge(clipped1, clipped2));
-                _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, clipped1, clipped2));
                 return;
             }
 
@@ -263,7 +252,6 @@ public partial class Voronoi
                 return;
 
             _voronoiEdges.Add(new Edge(start, end));
-            _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, start, end));
             return;
         }
 
@@ -285,7 +273,6 @@ public partial class Voronoi
                 return;
 
             _voronoiEdges.Add(new Edge(clipped1, clipped2));
-            _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, clipped1, clipped2));
             return;
         }
 
@@ -299,7 +286,6 @@ public partial class Voronoi
             return;
 
         _voronoiEdges.Add(new Edge(start, end));
-        _cellVoronoiEdges.Add(new CellVoronoiEdge(a, b, start, end));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

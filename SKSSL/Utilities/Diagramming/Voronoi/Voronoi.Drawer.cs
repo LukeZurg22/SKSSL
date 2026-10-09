@@ -17,11 +17,7 @@ public partial class Voronoi
     /// When this function is called, it also assigns the internal pixel data to the new image.
     /// Avoid repetitive calls, as it's expensive.
     /// </remarks>
-    private (Texture2D PixelMap, Texture2D? OverlayMap) CreateTextureMaps(
-        VoronoiBoundaryMode boundaryMode,
-        VoronoiRenderingFlags flags,
-        float thickness,
-        float pointSize)
+    private (Texture2D PixelMap, Texture2D? OverlayMap) CreateTextures(VoronoiRenderingFlags flags)
     {
         if (!_isGenerated)
             throw new InvalidOperationException("Attempted to get Voronoi texture before generating a diagram.");
@@ -182,15 +178,15 @@ public partial class Voronoi
     }
 
     #endregion
-    
-    private Color GenerateCellColor(float x, float y, uint id)
+
+    private Color GenerateCellColor(float x, float y, uint id, ColorMode drawMode)
     {
         Color color;
         uint hash;
         byte r, g, b;
-        switch (_cellDrawMode)
+        switch (drawMode)
         {
-            case ColorMode.Deterministic_Lines:
+            case ColorMode.Deterministic_Hash:
                 hash = (uint)x + (uint)y;
                 hash ^= hash >> 16;
                 r = (byte)hash;
@@ -200,7 +196,7 @@ public partial class Voronoi
                 b = (byte)hash;
                 color = new Color((int)r, g, b, 255);
                 return color;
-            case ColorMode.Deterministic_Random: // Throw together a lazy hash based on cell Site vertex.
+            case ColorMode.Deterministic_HashRandom: // Throw together a lazy hash based on cell Site vertex.
                 hash = (uint)x ^ (uint)y;
                 hash ^= hash >> 16;
                 hash *= 0x7FEB352Du;
@@ -219,7 +215,7 @@ public partial class Voronoi
                     _random.Next(0, 256),
                     255);
                 return color;
-            case ColorMode.Semi_Deterministic_Unique:
+            case ColorMode.Semi_Random:
                 // Grab a deterministic semi-unique color and go an integer check.
                 // Naturally if it isn't unique, then it is reaching the birthday-paradox point
                 color = ColorUtilities.GetSemiUniqueColor(id);
@@ -233,11 +229,11 @@ public partial class Voronoi
                     // than relying on the Random class to do its calls, and that for maps
                     // approximately smaller than 2000x2000, this would be incredibly efficient.
                     // As far as I see it, it's a small, but nevertheless preferred -optimization.
-                    if (!_usedColors.Add(reversed)) goto case ColorMode.Unique;
+                    if (!_usedColors.Add(reversed)) goto case ColorMode.Pure_Random;
                 }
 
                 return color;
-            case ColorMode.Unique: // Pure random RGB – three integer ops, no floats
+            case ColorMode.Pure_Random: // Pure random RGB – three integer ops, no floats
                 int rgb;
                 lock (_random)
                 lock (_usedColors)
@@ -247,6 +243,9 @@ public partial class Voronoi
                 }
 
                 color = new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 220);
+                break;
+            case ColorMode.Encoded:
+                color = id.EncodeAsColor();
                 break;
             case ColorMode.Unified:
             default:

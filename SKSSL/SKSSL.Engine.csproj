@@ -231,9 +231,6 @@
         <Compile Update="Utilities\Voronoi\Voronoi.Generation.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\CellMap.Coloring.cs">
-          <DependentUpon>CellMap.cs</DependentUpon>
-        </Compile>
         <Compile Update="Utilities\Voronoi\Voronoi.Drawer.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>

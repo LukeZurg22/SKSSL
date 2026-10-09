@@ -1,0 +1,252 @@
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using SKSSL.Utilities.Voronoi;
+using Point = Microsoft.Xna.Framework.Point;
+using Vector2 = System.Numerics.Vector2;
+
+namespace SKSSL.Utilities;
+
+/// <summary>
+/// Dynamic renderable cell map.
+/// </summary>
+public partial class DiagramMap
+{
+    private readonly Texture2D _pixelMap; // Original diagram texture. Never modify it.
+    private readonly Texture2D _displayMap; // Texture actually used for drawing.
+    private readonly Texture2D? _overlay;
+
+    private readonly BasicEffect _effect;
+    private readonly GraphicsDevice _graphics;
+
+    // Original CPU-side pixels, retained separately from the display buffer.
+    private readonly Color[] _sourcePixels;
+    private readonly Color[] _displayPixels;
+
+    // Pixel ownership: pixel index -> current cell ID.
+    // -1 means no cell owns the pixel.
+    private readonly int[] _cellIdByPixel;
+
+    // Reverse lookup: pixel index -> position inside its cell's list.
+    // -1 means the pixel isn't in a cell list.
+    private readonly int[] _pixelIndexInCell;
+
+    // Current pixel membership for each cell.
+    private List<int>[] _pixelIndicesByCell = [];
+
+    // Immutable base colors and the ID lookup.
+    private Color[] _cellRawColors = [];
+
+    private readonly PackedColorEntry[] _rawColorToIdLookup = [];
+    private readonly int _rawColorToIdMask;
+
+    // Override state, indexed by cell ID.
+    private Color[] _cellOverrideColors = [];
+    private bool[] _hasCellOverride = [];
+
+    private bool _textureDirty;
+
+    private const uint InvalidatedUint = uint.MaxValue;
+
+    #region Constructors
+
+    public DiagramMap(GraphicsDevice graphics, Texture2D pixelMap, Texture2D? overlay)
+    {
+        _pixelMap = pixelMap;
+        _overlay = overlay;
+        _graphics = graphics;
+
+        int pixelCount = pixelMap.Width * pixelMap.Height;
+
+        // Read the source only once. Never read it back each frame.
+        _sourcePixels = new Color[pixelCount];
+        _pixelMap.GetData(_sourcePixels);
+
+        _displayPixels = (Color[])_sourcePixels.Clone();
+
+        _cellIdByPixel = new int[pixelCount];
+        _pixelIndexInCell = new int[pixelCount];
+
+        Array.Fill(_cellIdByPixel, -1);
+        Array.Fill(_pixelIndexInCell, -1);
+
+        _displayMap = new Texture2D(
+            graphics,
+            pixelMap.Width,
+            pixelMap.Height,
+            mipmap: false,
+            format: SurfaceFormat.Color);
+
+        _displayMap.SetData(_displayPixels);
+
+        _effect = new BasicEffect(graphics)
+        {
+            VertexColorEnabled = true,
+            TextureEnabled = false,
+        };
+    }
+
+    public DiagramMap(GraphicsDevice graphics, VoronoiDiagramData diagramData)
+        : this(graphics, diagramData.PixelMap, diagramData.OverlayMap)
+    {
+        // Keep our own copy of the original per-cell colors.
+        _cellRawColors = (Color[])diagramData.CellRawColors.Clone();
+
+        _rawColorToIdLookup = diagramData.ColorToIdLookup;
+        _rawColorToIdMask = diagramData.ColorToIdMask;
+
+        int cellCount = _cellRawColors.Length;
+
+        _cellOverrideColors = new Color[cellCount];
+        _hasCellOverride = new bool[cellCount];
+
+        _pixelIndicesByCell = new List<int>[cellCount];
+
+        for (int i = 0; i < cellCount; i++)
+            _pixelIndicesByCell[i] = [];
+
+        BuildPixelIndex();
+
+        // The display buffer now contains the base cell colors.
+        _displayMap.SetData(_displayPixels);
+    }
+
+    #endregion
+
+    #region Projection
+
+    // ReSharper disable once MemberCanBePrivate.Global
+    public void SetDiagramProjection(Matrix world, Matrix view, int? width = null, int? height = null)
+    {
+        width ??= _displayMap.Width;
+        height ??= _displayMap.Height;
+
+        _effect.World = world;
+        _effect.View = view;
+        _effect.Projection = Matrix
+            .CreateOrthographicOffCenter(0f, width.Value, height.Value, 0f, 0f, 1f);
+    }
+
+    // ReSharper disable once MemberCanBePrivate.Global
+    // ReSharper disable once UnusedMember.Global
+    public void SetScreenProjection(Matrix world, Matrix view)
+    {
+        Viewport viewport = _graphics.Viewport;
+        _effect.World = world;
+        _effect.View = view;
+        _effect.Projection = Matrix
+            .CreateOrthographicOffCenter(0f, viewport.Width, viewport.Height, 0f, 0f, 1f);
+    }
+
+    #endregion
+
+    public Texture2D GetDiagram() => _displayMap;
+
+    /// Useful when one needs the untouched source.
+    public Texture2D GetOriginalDiagram() => _pixelMap;
+
+    public void Draw(SpriteBatch? spriteBatch)
+    {
+        if (spriteBatch == null)
+            return;
+
+        FlushTextureUpdates();
+
+        spriteBatch.Begin();
+        spriteBatch.Draw(_displayMap, Vector2.Zero, Color.White);
+        if (_overlay != null)
+            spriteBatch.Draw(_overlay, Vector2.Zero, Color.White);
+        spriteBatch.End();
+    }
+
+    public bool TryGetCellAt(Point mousePosition, out uint id)
+    {
+        id = uint.MaxValue;
+
+        int x = mousePosition.X;
+        int y = mousePosition.Y;
+
+        if ((uint)x >= (uint)_pixelMap.Width || (uint)y >= (uint)_pixelMap.Height)
+            return false;
+
+        int pixelIndex = y * _pixelMap.Width + x;
+        int cellId = _cellIdByPixel[pixelIndex];
+        if (cellId < 0)
+            return false;
+
+        id = (uint)cellId;
+        return true;
+    }
+
+    #region Helpers
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void BuildPixelIndex()
+    {
+        for (int pixelIndex = 0; pixelIndex < _sourcePixels.Length; pixelIndex++)
+        {
+            // Preserve any background or unrecognized pixels.
+            if (!TryGetCellIdFromColor(_sourcePixels[pixelIndex], out uint id))
+                continue;
+
+            int cellId = (int)id;
+            if ((uint)cellId >= (uint)_pixelIndicesByCell.Length)
+                continue;
+
+            AddPixelToCell(pixelIndex, cellId);
+
+            // The base color is authoritative, not the mutable display
+            // buffer or the original texture reference.
+            _displayPixels[pixelIndex] = _cellRawColors[cellId];
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void AddPixelToCell(int pixelIndex, int cellId)
+    {
+        var pixels = _pixelIndicesByCell[cellId];
+        _pixelIndexInCell[pixelIndex] = pixels.Count;
+        pixels.Add(pixelIndex);
+        _cellIdByPixel[pixelIndex] = cellId;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void FlushTextureUpdates()
+    {
+        if (!_textureDirty)
+            return;
+
+        _displayMap.SetData(_displayPixels);
+        _textureDirty = false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool TryGetCellIdFromColor(Color color, out uint id)
+    {
+        id = InvalidatedUint;
+        if (_rawColorToIdLookup.Length == 0)
+            return false;
+
+        uint key = color.PackedValue;
+        int index = (int)(key.HashPackedColor() & (uint)_rawColorToIdMask);
+
+        while (true)
+        {
+            PackedColorEntry entry = _rawColorToIdLookup[index];
+            if (entry.CellIdPlusOne == 0)
+                return false;
+
+            if (entry.PackedColor == key)
+            {
+                id = entry.CellIdPlusOne - 1;
+                return true;
+            }
+
+            index = (index + 1) & _rawColorToIdMask;
+        }
+    }
+
+    #endregion
+}

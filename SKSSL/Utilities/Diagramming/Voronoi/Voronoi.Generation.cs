@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi.PointDistributors;
 
@@ -12,13 +13,13 @@ public partial class Voronoi
     /// </summary>
     /// <returns>Generated 2D image of pixel data generated from diagram.</returns>
     /// <remarks>
-    /// Also calls <see cref="CreateTextureMaps"/> to populate the pixel data.
+    /// Also calls <see cref="CreateTextures"/> to populate the pixel data.
     /// </remarks>
     /// <param name="settings"></param>
     /// <param name="points"></param>
     /// <param name="width">Width of diagram in pixels.</param>
     /// <param name="height">Height of diagram in pixels.</param>
-    public (Texture2D PixelMap, Texture2D? OverlayMap) GenerateDiagram(
+    public VoronoiDiagramData GenerateDiagram(
         uint points = DefaultPointCount,
         int? width = null,
         int? height = null,
@@ -42,17 +43,12 @@ public partial class Voronoi
         _points = pointsList.ToArray();
 
         // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
-        Array.Clear(_cellOverrideColors, 0, _cellRawColors.Length);
-        Array.Clear(_cellRawColors, 0, _cellRawColors.Length);
-        Array.Resize(ref _cellOverrideColors, _points.Length + 1);
-        Array.Resize(ref _cellRawColors, _points.Length + 1);
         _cellsBySiteId = new VoronoiCell[_points.Length];
         Array.Clear(_cellsBySiteId);
 
         // Clear old data.
         _voronoiEdges.Clear();
         _usedColors.Clear();
-        _cellVoronoiEdges.Clear();
         _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, (int)(points * 3));
         _renderingCells = [];
 
@@ -97,7 +93,7 @@ public partial class Voronoi
             AddVoronoiEdges(triangle, _boundaryMode);
 
         // Build Selected Colors
-        BuildRenderArrays();
+        var colors = BuildRenderArrays(settings.CellColorMode);
 
         // Build Tessellations
         BuildCellGeometry();
@@ -122,30 +118,31 @@ public partial class Voronoi
             // ReSharper disable once PossibleMultipleEnumeration ; False positive.
             if ((settings.Flags & VoronoiRenderingFlags.Triangles) != 0)
                 BuildTriangleBatch(triangulation);
-
         }
 
         // Cells. (Star of the show.)
         if ((settings.Flags & VoronoiRenderingFlags.Cells) != 0)
         {
             BuildCellVertexBatch();
-            BuildCellColorBatch([]);
+            BuildCellColorBatch([], colors.CellRawColors);
         }
 
         #endregion
 
         _isGenerated = true;
 
-        (Texture2D PixelMap, Texture2D? OverlayMap) output = CreateTextureMaps(
-            settings.BoundaryMode,
-            settings.Flags,
-            settings.Thickness,
-            settings.PointSize
-        );
+        (Texture2D PixelMap, Texture2D? OverlayMap) output = CreateTextures(settings.Flags);
+
         ReleaseTransientGeometry();
 
         // Update the existing internal pixel map with visual changes.
-        return output;
+        return new VoronoiDiagramData(
+            settings,
+            colors.CellRawColors,
+            colors.ColorToIdLookup,
+            colors.ColorToIdMask,
+            output.PixelMap,
+            output.OverlayMap);
     }
 
     ~Voronoi() => ReleaseTransientGeometry();
@@ -167,12 +164,7 @@ public partial class Voronoi
         _pointBatchVertices = [];
         _triangleBatchVertices = [];
 
-        _cellVoronoiEdges.Clear();
-        _cellVoronoiEdges.TrimExcess();
-
         _voronoiEdges.Clear();
         _voronoiEdges.TrimExcess();
-
-        _edgesByCell = [];
     }
 }

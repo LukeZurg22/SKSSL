@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -209,7 +210,7 @@ public partial class Voronoi
 
     [SuppressMessage("ReSharper", "SuggestVarOrType_Elsewhere")]
     private unsafe void BuildCellColorBatch(
-        HashSet<uint> overrideIds,
+        HashSet<uint> overrideIds, Color[] colors,
         bool flattenOthers = false,
         (Color cell, Color blank)? @override = null)
     {
@@ -223,7 +224,6 @@ public partial class Voronoi
         VertexPositionColor[] output = _cellBatchVertices;
         int[] offsets = _cellGeometryOffsets;
         int[] counts = _cellGeometryCounts;
-        Color[] colors = _cellRawColors;
         VoronoiCell[] cells = _renderingCells;
         bool hasOverride = @override.HasValue;
         Color overrideCell = default;
@@ -264,11 +264,12 @@ public partial class Voronoi
         _cellBatchPrimitiveCount = _cellGeometry.Length / 3;
     }
 
-    private void BuildRenderArrays()
+    // ReSharper disable once RedundantAssignment
+    private (Color[] CellRawColors, PackedColorEntry[] ColorToIdLookup, int ColorToIdMask) BuildRenderArrays(
+        ColorMode colorMode)
     {
         int realCount = (int)_firstArtificialId;
         int visibleCount = 0;
-
         for (int siteId = 0; siteId < realCount; siteId++)
         {
             VoronoiCell? cell = _cellsBySiteId[siteId];
@@ -284,10 +285,8 @@ public partial class Voronoi
         }
 
         _renderingCells = new VoronoiCell[visibleCount];
-        _cellRawColors = new Color[visibleCount];
-        _cellOverrideColors = new Color[visibleCount];
-
-        Array.Clear(_cellOverrideColors);
+        var cellRawColors = new Color[visibleCount];
+        (var colorToId, int colorToIdMask) = CreateColorLookupArray(visibleCount);
 
         // Second pass: compact the renderable cells.
         uint nextId = 0;
@@ -308,7 +307,59 @@ public partial class Voronoi
             cell.ID = id;
 
             _renderingCells[id] = cell;
-            _cellRawColors[id] = GenerateCellColor(cell.Site.X, cell.Site.Y, cell.Site.ID);
+            Color cellColor = GenerateCellColor(cell.Site.X, cell.Site.Y, id, colorMode);
+            cellRawColors[id] = cellColor;
+            AddColorToId(cellColor, id, colorToIdMask, ref colorToId);
+        }
+
+        return (cellRawColors, colorToId, colorToIdMask);
+    }
+
+    private static (PackedColorEntry[] ColorToId, int ColorToIdMask) CreateColorLookupArray(int expectedColors)
+    {
+        int capacity = 2;
+        int required = checked(Math.Max(1, expectedColors) * 2);
+
+        while (capacity < required)
+            capacity = checked(capacity * 2);
+
+        var colorToId = new PackedColorEntry[capacity];
+        var colorToIdMask = capacity - 1;
+        return (colorToId, colorToIdMask);
+    }
+
+    private static void AddColorToId(Color color, uint id, int colorToIdMask, ref PackedColorEntry[] colorToId)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(id, uint.MaxValue);
+
+        uint key = color.PackedValue;
+        int index = (int)(key.HashPackedColor() & (uint)colorToIdMask);
+
+        while (true)
+        {
+            ref PackedColorEntry entry = ref colorToId[index];
+
+            if (entry.CellIdPlusOne == 0)
+            {
+                entry.PackedColor = key;
+                entry.CellIdPlusOne = id + 1;
+                return;
+            }
+
+            if (entry.PackedColor == key)
+            {
+                uint existingId = entry.CellIdPlusOne - 1;
+
+                if (existingId != id)
+                {
+                    throw new InvalidOperationException(
+                        $"Raw color collision: cells {existingId} and {id} share packed color {key}.");
+                }
+
+                return;
+            }
+
+            index = (index + 1) & colorToIdMask;
         }
     }
 }
