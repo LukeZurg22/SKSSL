@@ -63,6 +63,10 @@
         <Content Update="testhost.exe;testhost*.exe;testhost*.dll;testhost*.json"
                  CopyToOutputDirectory="Never"
                  CopyToPublishDirectory="Never"/>
+        <None Remove="Shaders\CellPalette_DirectX_11.mgfxo" />
+        <EmbeddedResource Include="Shaders\CellPalette_DirectX_11.mgfxo" />
+        <None Remove="Shaders\CellPalette_OpenGL.mgfxo" />
+        <EmbeddedResource Include="Shaders\CellPalette_OpenGL.mgfxo" />
     </ItemGroup>
 
     <PropertyGroup>
@@ -240,13 +244,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Assets\ConsoleFont.xnb"/>
-        <None Remove="Assets\icon.png"/>
-        <EmbeddedResource Include="Assets\icon.png"/>
-        <None Remove="Assets\icon.svg"/>
-        <EmbeddedResource Include="Assets\icon.svg"/>
-        <None Remove="Assets\logo_FMOD.png"/>
-        <EmbeddedResource Include="Assets\logo_FMOD.png"/>
+        <EmbeddedResource Include="Assets\ConsoleFont.xnb" />
+        <None Remove="Assets\icon.png" />
+        <EmbeddedResource Include="Assets\icon.png" />
+        <None Remove="Assets\icon.svg" />
+        <EmbeddedResource Include="Assets\icon.svg" />
+        <None Remove="Assets\logo_FMOD.png" />
+        <EmbeddedResource Include="Assets\logo_FMOD.png" />
+        <None Include="Shaders\CellPalette.fx" />
     </ItemGroup>
 
     <!-- START - !== ADD THE FOLLOWING TO INHERITING PROJECTS USING SKSSL AS AN ENGINE !== -->

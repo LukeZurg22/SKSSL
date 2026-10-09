@@ -11,6 +11,6 @@ public class ShaderLoaderTest
     public void TEST_SHADER_EFFECT_LOAD()
     {
         using var game = new UnitGame(() => { }, () => { }, _ => { }, _ => { });
-        Shaders.EffectLoader.LoadEmbedded(game.GraphicsDevice, "CellPalette");
+        Shaders.EffectLoader.LoadEmbedded(game.GraphicsDevice, "CellPalette_OpenGL.mgfxo");
     }
 }
