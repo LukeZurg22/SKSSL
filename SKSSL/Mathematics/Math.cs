@@ -2,6 +2,7 @@
 // ReSharper disable UnusedType.Global
 
 using System;
+using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 
 namespace SKSSL.Mathematics;
@@ -26,12 +27,19 @@ public static class CharacterExtensions
 {
     /// Detects Unary-Minus and Unary plus. Not an extension for ease of use.
     public static bool IsUnaryOperator(string token) => token is "u-" or "u+";
+
     public static bool IsOperator(this char token) => token is '+' or '-' or '*' or '/' or '^';
     public static bool IsBracket(this char token) => token is '(' or ')' or '{' or '}' or '[' or ']';
     public static bool IsOperator(this string token) => token is "+" or "-" or "*" or "/" or "^" or "u-";
-    
+
     // TODO: MATH FUNCTIONS NOT CURRENTLY SUPPORTED OR USED!
     public static bool IsMathFunction(this string token) => token is "sin" or "cos" or "tan";
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int FastRoundToInt(this float value) => (int)(value + 0.5f);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static long FastRoundToLong(this float value) => (long)(value + 0.5f);
 }
 
 // ReSharper disable once ConvertIfStatementToReturnStatement
@@ -43,10 +51,10 @@ public static class V3Extensions
     /// <returns>Normal Vector to provided points.</returns>
     public static Vector3 GetNormal(float sx, float sy, float sz)
     {
-        if (sx < sy && sx < sz)
-            return new Vector3(-Math.Sign(sx), 0, 0);
-        if (sy < sz)
-            return new Vector3(0, -Math.Sign(sy), 0);
-        return new Vector3(0, 0, -Math.Sign(sz));
+        return sx < sy && sx < sz
+            ? new Vector3(-Math.Sign(sx), 0, 0)
+            : sy < sz
+                ? new Vector3(0, -Math.Sign(sy), 0)
+                : new Vector3(0, 0, -Math.Sign(sz));
     }
 }

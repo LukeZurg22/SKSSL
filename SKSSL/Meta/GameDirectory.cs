@@ -3,11 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
+using SKSSL.ECS.Registry;
 using static System.IO.Path;
-
-// ReSharper disable UnusedMember.Global
-// ReSharper disable ClassNeverInstantiated.Global
-// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SKSSL;
 
@@ -19,14 +16,13 @@ public class GameContentDirectories : IEnumerable<GameDirectory>
     private readonly List<GameDirectory> Directories = [];
 
     public int Count => Directories.Count;
-    
+
     /// <summary>
     /// Sort internal directories by load order. Lower Order = Higher Priority.
     /// </summary>
-    public void Sort()
-        => Directories.Sort((a, b) => a.LoadOrder.CompareTo(b.LoadOrder));
+    public void Sort() => Directories.Sort((a, b) => a.LoadOrder.CompareTo(b.LoadOrder));
 
-    public void Add(string path = "", int? order = null) => Directories.Add(new GameDirectory(path, order));
+    public void Add(string path, int? order = null) => Directories.Add(new GameDirectory(path, order));
 
     public IEnumerator<GameDirectory> GetEnumerator() => ((IEnumerable<GameDirectory>)Directories).GetEnumerator();
 
@@ -36,18 +32,22 @@ public class GameContentDirectories : IEnumerable<GameDirectory>
 /// <summary>
 /// Wrapper for a game's content folder for getting game prototype, texture, and localization directories.
 /// </summary>
-public sealed class GameDirectory : IComparable<GameDirectory>
+public class GameDirectory : IComparable<GameDirectory> // TODO: Custom way to load game directories.
 {
     /// <summary>Name of the overall directory. Used for sorting and classification.</summary>
     public string DirectoryTitle { get; }
 
+    /// <summary>Base relative build directory of the program's executable, but one above to exit the binaries.</summary>
+    public static readonly string BuildDirectory = new DirectoryInfo(AppContext.BaseDirectory).Parent!.FullName;
+
     /// <summary>Root of this current directory that contains its content.</summary>
-    public static string RootDirectory { get; } = GetFullPath(Combine(AppContext.BaseDirectory, ".."));
+    public static string RootDirectory { get; } = GetFullPath(BuildDirectory);
 
     /// Default to "game"
     private readonly string _location;
 
     /// <returns>Directory's primary folder.</returns>
+    // ReSharper disable once UnusedMember.Global
     public string GetDirectoryPath() => _location;
 
     /// <summary>Load priority. Lower = loaded first.</summary>
@@ -73,20 +73,11 @@ public sealed class GameDirectory : IComparable<GameDirectory>
         return Directory.EnumerateFiles(fullPath, "*", SearchOption.AllDirectories);
     }
 
-    /// Nullable string to state that the folder may be locally-absent. 
-    public string? LocalizationFolder => GetSubFolder("localization");
-
-    /// Nullable string to state that the folder may be locally-absent. 
-    public string? TexturesFolder => GetSubFolder("textures");
-
     // TODO: Dedicated folders may not be required if file extensions are exclusive. Exclusive directories are default,
     //  but making them optional would be nice, assuming directory extensions and file extensions are annotated.
-    
-    /// Nullable string to state that the folder may be locally-absent. 
-    public string? PrototypesFolder => GetSubFolder("prototypes");
 
     /// <summary>Returns path to a subfolder if it exists, otherwise null.</summary>
-    private string? GetSubFolder(string folderName)
+    public string? GetSubFolder(string folderName)
     {
         if (string.IsNullOrWhiteSpace(folderName))
             ArgumentException.ThrowIfNullOrWhiteSpace(folderName);
@@ -104,7 +95,7 @@ public sealed class GameDirectory : IComparable<GameDirectory>
     /// <summary>
     /// Creates a new GameDirectory.
     /// </summary>
-    public GameDirectory(string directory = "", int? explicitLoadOrder = null)
+    public GameDirectory(string directory, int? explicitLoadOrder = null)
     {
         // For a typical directory. Root is a reserved keyword!
         if (string.IsNullOrEmpty(directory) || directory.Equals("root"))
@@ -127,6 +118,57 @@ public sealed class GameDirectory : IComparable<GameDirectory>
 
         DirectoryTitle = directory;
         LoadOrder = explicitLoadOrder ?? _nextLoadOrder++;
+    }
+
+    public virtual void Load()
+    {
+        // Assuming there are defined directories to begin with...
+        // Localization.
+
+        var localeFolder = GetSubFolder("localization");
+        if (localeFolder != null)
+        {
+            Log($"...loading {DirectoryTitle} localization.");
+            Loc.Load(localeFolder);
+        }
+
+        // Textures.
+        var texturesFolder = GetSubFolder("textures");
+        if (texturesFolder != null)
+        {
+            // The developer can bootstrap their own texture loader by adjusting the Engine Config.
+            Log($"...loading {DirectoryTitle} textures.");
+            SSLGame.Engine.TextureLoader.Load(texturesFolder);
+        }
+
+        // Prototypes.
+        var protoFolder = GetSubFolder("prototypes");
+        if (protoFolder != null) // Requires ECS to be on.
+        {
+                //@formatter:off
+                if (!SSLGame.Engine.UseECS) Log($"Cannot load prototypes from {this} folder. ECS is not Enabled!", LOG.SYSTEM_WARNING);
+                else
+                {
+                    // The developer can bootstrap their own prototype loader by adjusting the Engine Config.
+                    Log($"...loading {DirectoryTitle} prototypes.");
+                    SSLGame.Engine.PrototypeLoader.Load(protoFolder);
+                    Log($"...loaded {MasterRegistryManager.Count()} prototypes.");
+                }
+            //@formatter:on
+        }
+
+        // Sounds.
+        string? soundsFolder = GetSubFolder("audio") ?? GetSubFolder("sound") ?? GetSubFolder("sounds");
+        if (soundsFolder != null)
+        {
+            Log($"...loading {DirectoryTitle} sounds.");
+            SSLGame.Engine.SoundLoader.Load(soundsFolder);
+        }
+
+        string directoryTitle = DirectoryTitle;
+        if (string.IsNullOrEmpty(directoryTitle))
+            directoryTitle = "root";
+        Log($"...finished loading {directoryTitle} directory...");
     }
 
     public override string ToString() => _location;

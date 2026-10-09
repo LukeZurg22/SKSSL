@@ -1,0 +1,13 @@
+cd into SKSSL\SKSSL
+
+# THIS IS MAC/WINDOWS/LINUX
+mgfxc Shaders/CellPalette.fx Shaders/CellPalette_OpenGL.mgfxo /Profile:OpenGL
+
+# THIS IS WINDOWS ONLY
+mgfxc Shaders/CellPalette.fx Shaders/CellPalette_DirectX_11.mgfxo /Profile:DirectX_11
+
+# Personal Note
+I am going to be perfectly honest: I know very little about how to make, load, use, and unload shaders. HLSL is foreign
+to me, and all the shaders implementations you see before you are cheap tricks mostly to fill for my own projects'
+needs for shaders. It may not be possible to add or change the structure, nor add additional shaders outside of
+creating your own shader loader.

@@ -17,9 +17,6 @@
             Type = type;
         }
 
-        public override string ToString()
-        {
-            return Output;
-        }
+        public override string ToString() => Output;
     }
 }

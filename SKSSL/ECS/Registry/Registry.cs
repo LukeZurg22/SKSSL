@@ -72,8 +72,7 @@ public abstract class Registry<T> : Registry, IReadOnlyRegistry<T> where T : cla
     }
 
     //@formatter:off
-    public virtual void Link() { /**/ }
-    //@formatter:on
+    public virtual void Link() { /**/ } //@formatter:on
 
     /// <summary>
     /// Safe[r] TryGet method to retrieve a definition using a reference id.

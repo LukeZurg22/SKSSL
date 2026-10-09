@@ -37,11 +37,7 @@ public static class StyleSheet
             ? UIColorSheet.First(d => d.Key.Equals(name))
             : UIStyle.Default();
 
-    public static void SaveStyles()
-    {
-        using var writer = new StreamWriter(DefaultFilePath);
-        Serializer.Serialize(writer, UIColorSheet);
-    }
+    public static void SaveStyles() => Serializer.Serialize(new StreamWriter(DefaultFilePath), UIColorSheet);
 
     public static void LoadStyles()
     {
@@ -50,11 +46,10 @@ public static class StyleSheet
                                    <UIStyle Key="default" Background="#ffffff" Foreground="#000000"/>
                                </root>
                                """;
-        
+
         if (!File.Exists(DefaultFilePath))
         {
             File.WriteAllText(DefaultFilePath, Default);
-            return;
         }
 
         UIColorSheet.Clear();

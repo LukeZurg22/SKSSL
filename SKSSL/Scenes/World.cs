@@ -35,21 +35,17 @@ public interface IWorld
 
 /// <summary>
 /// Overridable inherited dictation of how a World, its Renderable Space, and its systems.
-/// <see cref="UsesECS"/> toggled override will permit automatic updating of underlying systems.
+/// <see cref="SSLGame.UsesECS"/> toggled override will permit automatic updating of underlying systems.
 /// A "physical" virtual space or area that is rendered for gameplay. Constitutes, typically, the entire field that
 /// which the user will play in. Implement this class however you see fit.
 /// Add your rendering / other code within your World class.
 /// </summary>
-public abstract class World : IWorld
+public class World : IWorld
 {
     /// <summary>
     /// Event handler for this world's systems.
     /// </summary>
     public readonly EventHandler Events = new();
-
-    /// Most worlds use ECS — this depends on overall dictation. If ECS is enabled,
-    /// then a world can be forcefully disconnected per its definition. 
-    protected static bool UsesECS => SSLGame.Config.UseECS;
 
     /// Graphics management embedded in this world.
     public GraphicsDeviceManager Graphics { get; private set; }
@@ -62,11 +58,11 @@ public abstract class World : IWorld
     //public readonly StatisticsList StatisticsList = new();
     
     /// Calls ECS Init() (if enabled)
-    protected World()
+    protected internal World()
     {
         // ReSharper disable once VirtualMemberCallInConstructor
         // Enable ECS if toggled-on.
-        if (!UsesECS) return;
+        if (!SSLGame.UsesECS) return;
         Log("...initializing world ECS...");
         EntityManager = new EntityManager();
     }
@@ -90,6 +86,7 @@ public abstract class World : IWorld
          * nothing on their own, but if for some reason you feel like overriding this Update call and overriding the
          * consensus entity-type with your own calls- you can do that.
          */
+        if (!SSLGame.UsesECS) return;
         EntityManager.Update(gameTime);
     }
 
@@ -108,7 +105,7 @@ public abstract class World : IWorld
     /// <inheritdoc cref="IWorld.Destroy"/>
     public virtual void Destroy()
     {
-        if (!UsesECS) return;
+        if (!SSLGame.UsesECS) return;
         EntityManager.DestroyAll();
     }
 }

@@ -1,5 +1,4 @@
-﻿
-// ReSharper disable InconsistentNaming
+﻿// ReSharper disable InconsistentNaming
 
 using System;
 using RandN;
@@ -34,7 +33,10 @@ public static class RNG
     /// <exception cref="Exception"></exception>
     public static T GetRandomElement<T>() where T : struct, IConvertible
     {
-        if (!typeof(T).IsEnum) { throw new Exception("Random enum variable is not an enum."); }
+        if (!typeof(T).IsEnum)
+        {
+            throw new Exception("Random enum variable is not an enum.");
+        }
 
         Array values = Enum.GetValues(typeof(T));
         int index = Uniform.NewInclusive(0, values.Length - 1).Sample(RANDOM_NUMBER_GENERATOR);
@@ -47,16 +49,16 @@ public static class RNG
         int index = Uniform.NewInclusive(min, values.Length - 1).Sample(RANDOM_NUMBER_GENERATOR);
         return values[index];
     }
-    
+
     public static string GetRandomElement(string[] array)
     {
         int index = Uniform.NewInclusive(0, array.Length - 1).Sample(RANDOM_NUMBER_GENERATOR);
         return array[index];
     }
-    
-    public static T GetRandomElement<T>(this T[] array)
+
+    public static T GetRandomElement<T>(this object[] array) where T : class
     {
         int index = Uniform.NewInclusive(0, array.Length - 1).Sample(RANDOM_NUMBER_GENERATOR);
-        return array[index];
+        return (T)array[index];
     }
 }
