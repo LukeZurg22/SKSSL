@@ -14,30 +14,29 @@ namespace SKSSL.Utilities;
 /// </summary>
 public partial class DiagramMap
 {
+    // The Maps
     private readonly Texture2D _pixelMap; // Original diagram texture. Never modify it.
     private readonly Texture2D _displayMap; // Texture actually used for drawing.
     private readonly Texture2D? _overlay;
 
-    private readonly BasicEffect _effect;
+    // Mono IO
+    private readonly Texture2D _cellIdTexture;
+    private readonly Texture2D _paletteTexture;
     private readonly GraphicsDevice _graphics;
+    private readonly Effect _paletteEffect;
 
     // Original CPU-side pixels, retained separately from the display buffer.
     private readonly Color[] _sourcePixels;
     private readonly Color[] _displayPixels;
+    private readonly Color[] _palettePixels;
 
-    // Pixel ownership: pixel index -> current cell ID.
-    // -1 means no cell owns the pixel.
+    // Pixel ownership: pixel index -> current cell ID. -1 means no cell owns the pixel.
     private readonly int[] _cellIdByPixel;
 
-    // Reverse lookup: pixel index -> position inside its cell's list.
-    // -1 means the pixel isn't in a cell list.
+    // Reverse lookup: pixel index -> position inside its cell's list. -1 means the pixel isn't in a cell list.
     private readonly int[] _pixelIndexInCell;
-
-    // Current pixel membership for each cell.
-    private List<int>[] _pixelIndicesByCell = [];
-
-    // Immutable base colors and the ID lookup.
-    private Color[] _cellRawColors = [];
+    private readonly List<int>[] _pixelIndicesByCell = []; // Current pixel membership for each cell.
+    private Color[] _cellRawColors = []; // Immutable base colors and the ID lookup.
 
     private readonly PackedColorEntry[] _rawColorToIdLookup = [];
     private readonly int _rawColorToIdMask;
@@ -46,46 +45,40 @@ public partial class DiagramMap
     private Color[] _cellOverrideColors = [];
     private bool[] _hasCellOverride = [];
 
-    private bool _textureDirty;
+    private Rectangle _dirtyIdRectangle;
+    private bool _idTextureDirty;
+    private bool _paletteDirty;
+
+    // Reused for partial rectangular uploads.
+    private readonly Color[] _uploadScratch;
+    private readonly int _paletteWidth;
+    private readonly int _paletteHeight;
+
 
     private const uint InvalidatedUint = uint.MaxValue;
 
     #region Constructors
 
-    public DiagramMap(GraphicsDevice graphics, Texture2D pixelMap, Texture2D? overlay)
+    private DiagramMap(GraphicsDevice graphics, Texture2D pixelMap, Texture2D? overlay)
     {
         _pixelMap = pixelMap;
         _overlay = overlay;
         _graphics = graphics;
 
-        int pixelCount = pixelMap.Width * pixelMap.Height;
 
         // Read the source only once. Never read it back each frame.
+        int pixelCount = pixelMap.Width * pixelMap.Height;
         _sourcePixels = new Color[pixelCount];
         _pixelMap.GetData(_sourcePixels);
-
-        _displayPixels = (Color[])_sourcePixels.Clone();
-
+        _displayPixels = new Color[pixelCount];
+        _uploadScratch = new Color[pixelCount];
         _cellIdByPixel = new int[pixelCount];
         _pixelIndexInCell = new int[pixelCount];
-
         Array.Fill(_cellIdByPixel, -1);
         Array.Fill(_pixelIndexInCell, -1);
 
-        _displayMap = new Texture2D(
-            graphics,
-            pixelMap.Width,
-            pixelMap.Height,
-            mipmap: false,
-            format: SurfaceFormat.Color);
-
-        _displayMap.SetData(_displayPixels);
-
-        _effect = new BasicEffect(graphics)
-        {
-            VertexColorEnabled = true,
-            TextureEnabled = false,
-        };
+        // OpenGL is cross-compat with the Big Three(TM) Operating Systems, so I am going with OpenGL.
+        _paletteEffect = Shaders.EffectLoader.LoadEmbedded(graphics, "CellPalette_OpenGL.mgfxo");
     }
 
     public DiagramMap(GraphicsDevice graphics, VoronoiDiagramData diagramData)
@@ -93,29 +86,44 @@ public partial class DiagramMap
     {
         // Keep our own copy of the original per-cell colors.
         _cellRawColors = (Color[])diagramData.CellRawColors.Clone();
-
         _rawColorToIdLookup = diagramData.ColorToIdLookup;
         _rawColorToIdMask = diagramData.ColorToIdMask;
 
+        // Building cell overrides and indexing.
         int cellCount = _cellRawColors.Length;
-
+        if (cellCount > 0x1000000)
+            throw new IndexOutOfRangeException("The RGB cell-ID encoding supports at most 16,777,216 cells.");
         _cellOverrideColors = new Color[cellCount];
         _hasCellOverride = new bool[cellCount];
-
         _pixelIndicesByCell = new List<int>[cellCount];
-
         for (int i = 0; i < cellCount; i++)
             _pixelIndicesByCell[i] = [];
+
+        // Build the palette dimensions.
+        //@formatter:off
+        _paletteWidth = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(cellCount)));
+        _paletteHeight = Math.Max(1, (cellCount + _paletteWidth - 1) / _paletteWidth);
+        _palettePixels = new Color[_paletteWidth * _paletteHeight];
+        Array.Copy(_cellRawColors, _palettePixels, cellCount);
+        _displayMap = new Texture2D(graphics, _pixelMap.Width, _pixelMap.Height, mipmap: false, format: SurfaceFormat.Color);
+        _cellIdTexture = new Texture2D(graphics, _pixelMap.Width, _pixelMap.Height, mipmap: false, format: SurfaceFormat.Color);
+        _paletteTexture = new Texture2D(graphics, _paletteWidth, _paletteHeight, mipmap: false, format: SurfaceFormat.Color);
+        //@formatter:on
 
         BuildPixelIndex();
 
         // The display buffer now contains the base cell colors.
-        _displayMap.SetData(_displayPixels);
+        _cellIdTexture.SetData(_displayPixels);
+        _paletteTexture.SetData(_palettePixels);
+        _displayMap.SetData(_sourcePixels);
     }
 
     #endregion
 
     #region Projection
+
+    private Matrix _diagramTransform = Matrix.Identity;
+
 
     // ReSharper disable once MemberCanBePrivate.Global
     public void SetDiagramProjection(Matrix world, Matrix view, int? width = null, int? height = null)
@@ -123,10 +131,7 @@ public partial class DiagramMap
         width ??= _displayMap.Width;
         height ??= _displayMap.Height;
 
-        _effect.World = world;
-        _effect.View = view;
-        _effect.Projection = Matrix
-            .CreateOrthographicOffCenter(0f, width.Value, height.Value, 0f, 0f, 1f);
+        _diagramTransform = world * view;
     }
 
     // ReSharper disable once MemberCanBePrivate.Global
@@ -134,10 +139,7 @@ public partial class DiagramMap
     public void SetScreenProjection(Matrix world, Matrix view)
     {
         Viewport viewport = _graphics.Viewport;
-        _effect.World = world;
-        _effect.View = view;
-        _effect.Projection = Matrix
-            .CreateOrthographicOffCenter(0f, viewport.Width, viewport.Height, 0f, 0f, 1f);
+        _diagramTransform = world * view;
     }
 
     #endregion
@@ -154,25 +156,50 @@ public partial class DiagramMap
 
         FlushTextureUpdates();
 
-        spriteBatch.Begin();
-        spriteBatch.Draw(_displayMap, Vector2.Zero, Color.White);
-        if (_overlay != null)
-            spriteBatch.Draw(_overlay, Vector2.Zero, Color.White);
+        // Set all per-map shader parameters before drawing.
+        _paletteEffect.Parameters["PaletteTexture"].SetValue(_paletteTexture);
+        _paletteEffect.Parameters["BaseTexture"].SetValue(_pixelMap);
+        _paletteEffect.Parameters["PaletteWidth"].SetValue((float)_paletteWidth);
+        _paletteEffect.Parameters["PaletteHeight"].SetValue((float)_paletteHeight);
+
+        // The cell-ID texture is bound by SpriteBatch.
+        spriteBatch.Begin(
+            sortMode: SpriteSortMode.Deferred,
+            blendState: BlendState.AlphaBlend,
+            samplerState: SamplerState.PointClamp,
+            effect: _paletteEffect,
+            transformMatrix: _diagramTransform);
+        spriteBatch.Draw(_cellIdTexture, Vector2.Zero, Color.White);
         spriteBatch.End();
+
+        // The overlay is a normal image, not a cell-ID texture,
+        // so render it separately without the palette shader.
+        if (_overlay != null)
+        {
+            spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            spriteBatch.Draw(_overlay, Vector2.Zero, Color.White);
+            spriteBatch.End();
+        }
     }
 
     public bool TryGetCellAt(Point mousePosition, out uint id)
     {
-        id = uint.MaxValue;
+        id = InvalidatedUint;
 
-        int x = mousePosition.X;
-        int y = mousePosition.Y;
+        // Convert screen coordinates into diagram-local coordinates.
+        Matrix inverse = Matrix.Invert(_diagramTransform);
+        var screenPosition = new Microsoft.Xna.Framework.Vector2(mousePosition.X, mousePosition.Y);
+        Microsoft.Xna.Framework.Vector2 localPosition =
+            Microsoft.Xna.Framework.Vector2.Transform(screenPosition, inverse);
 
+        int x = (int)MathF.Floor(localPosition.X);
+        int y = (int)MathF.Floor(localPosition.Y);
         if ((uint)x >= (uint)_pixelMap.Width || (uint)y >= (uint)_pixelMap.Height)
             return false;
 
         int pixelIndex = y * _pixelMap.Width + x;
         int cellId = _cellIdByPixel[pixelIndex];
+
         if (cellId < 0)
             return false;
 
@@ -185,25 +212,26 @@ public partial class DiagramMap
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void BuildPixelIndex()
     {
-        for (int pixelIndex = 0; pixelIndex < _sourcePixels.Length; pixelIndex++)
+        for (int pixelIndex = 0;
+             pixelIndex < _sourcePixels.Length;
+             pixelIndex++)
         {
-            // Preserve any background or unrecognized pixels.
             if (!TryGetCellIdFromColor(_sourcePixels[pixelIndex], out uint id))
+            {
+                // Default alpha = 0, so the shader shows the
+                // original source pixel for unmatched colors.
+                continue;
+            }
+
+
+            if (id >= (uint)_pixelIndicesByCell.Length)
                 continue;
 
-            int cellId = (int)id;
-            if ((uint)cellId >= (uint)_pixelIndicesByCell.Length)
-                continue;
-
-            AddPixelToCell(pixelIndex, cellId);
-
-            // The base color is authoritative, not the mutable display
-            // buffer or the original texture reference.
-            _displayPixels[pixelIndex] = _cellRawColors[cellId];
+            AddPixelToCell(pixelIndex, (int)id);
+            _displayPixels[pixelIndex] = id.EncodeAsColor();
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void AddPixelToCell(int pixelIndex, int cellId)
     {
         var pixels = _pixelIndicesByCell[cellId];
@@ -215,11 +243,49 @@ public partial class DiagramMap
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void FlushTextureUpdates()
     {
-        if (!_textureDirty)
+        // Color changes: one upload for the entire small palette.
+        if (_paletteDirty)
+        {
+            _paletteTexture.SetData(_palettePixels);
+            _paletteDirty = false;
+        }
+
+        if (!_idTextureDirty)
             return;
 
-        _displayMap.SetData(_displayPixels);
-        _textureDirty = false;
+        Rectangle rect = _dirtyIdRectangle;
+
+        long changedArea = (long)rect.Width * rect.Height;
+        long totalArea = (long)_pixelMap.Width * _pixelMap.Height;
+
+        // If most of the texture is covered, a full upload avoids
+        // copying a large staging rectangle unnecessarily.
+        if (changedArea * 10 >= totalArea * 6) _cellIdTexture.SetData(_displayPixels);
+        else
+        {
+            int sourceWidth = _pixelMap.Width;
+            int copyWidth = rect.Width;
+            for (int row = 0; row < rect.Height; row++)
+            {
+                int sourceIndex =
+                    (rect.Y + row) * sourceWidth + rect.X;
+
+                int destinationIndex = row * copyWidth;
+
+                Array.Copy(
+                    _displayPixels,
+                    sourceIndex,
+                    _uploadScratch,
+                    destinationIndex,
+                    copyWidth);
+            }
+
+            int elementCount = rect.Width * rect.Height;
+            _cellIdTexture.SetData(0, rect, _uploadScratch, 0, elementCount);
+        }
+
+        _idTextureDirty = false;
+        _dirtyIdRectangle = Rectangle.Empty;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

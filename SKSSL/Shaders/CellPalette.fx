@@ -59,8 +59,7 @@ struct PixelInput
 
 float4 MainPS(PixelInput input) : COLOR
 {
-    float4 idPixel =
-        tex2D(SpriteTextureSampler, input.UV);
+    float4 idPixel = tex2D(SpriteTextureSampler, input.UV);
 
     // Alpha < 0.25: preserve the original source pixel.
     if (idPixel.a < 0.25)
@@ -77,22 +76,14 @@ float4 MainPS(PixelInput input) : COLOR
     // Decode a 24-bit integer from RGB bytes.
     float3 bytes = floor(idPixel.rgb * 255.0 + 0.5);
 
-    float cellId =
-        bytes.r +
-        bytes.g * 256.0 +
-        bytes.b * 65536.0;
+    float cellId = bytes.r + bytes.g * 256.0 + bytes.b * 65536.0;
 
     // Convert the linear cell ID to a 2D palette coordinate.
-    float paletteX =
-        cellId - floor(cellId / PaletteWidth) * PaletteWidth;
-
+    float paletteX = cellId - floor(cellId / PaletteWidth) * PaletteWidth;
     float paletteY = floor(cellId / PaletteWidth);
 
     // Sample at the texel center to prevent interpolation.
-    float2 paletteUV =
-        (float2(paletteX, paletteY) + 0.5) /
-        float2(PaletteWidth, PaletteHeight);
-
+    float2 paletteUV = (float2(paletteX, paletteY) + 0.5) / float2(PaletteWidth, PaletteHeight);
     return tex2D(PaletteSampler, paletteUV) * input.Color;
 }
 

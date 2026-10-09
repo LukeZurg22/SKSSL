@@ -39,7 +39,7 @@ public static class ColorUtilities
         if (i is InvalidatedUint or > 0x00FFFFFE /*aka MaxRasterUnsignedInteger*/)
             throw new ArgumentOutOfRangeException(nameof(i));
 
-        uint encoded = i + 1u;
+        uint encoded = i /*+ 1u*/; // Fixed for 0-based indexing, not 1-based.
         var r = (byte)(encoded & 0xFF);
         var g = (byte)((encoded >> 8) & 0xFF);
         var b = (byte)((encoded >> 16) & 0xFF);

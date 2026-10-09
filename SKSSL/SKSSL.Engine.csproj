@@ -241,6 +241,15 @@
         <Compile Update="Utilities\Voronoi\Voronoi.Raster.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Diagramming\DiagramMap.Coloring.cs">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\DiagramMap.Oldcoloring.cs">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\DiagramMap.Recoloring.cs">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

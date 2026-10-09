@@ -1,3 +1,4 @@
+// ReSharper disable UnusedMethodReturnValue.Global
 namespace SKSSL.Shaders;
 
 using System;

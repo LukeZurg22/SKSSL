@@ -143,6 +143,7 @@ public class Voronoi
         MouseState mouse = Mouse.GetState();
         if (_diagramMap.TryGetCellAt(mouse.Position, out uint id))
         {
+            System.Console.WriteLine($"Hovered cell ID: {id}");
             _selectedIds[0] = id;
             _diagramMap.SetCellOverride(id, Color.Yellow);
         }

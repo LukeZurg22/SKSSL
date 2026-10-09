@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 
 namespace SKSSL.Utilities;
@@ -9,7 +10,7 @@ public partial class DiagramMap
     /// Assigns a pixel to a cell, updating both cells' pixel lists
     /// and the display buffer. A null ID removes cell ownership.
     /// </summary>
-    public void SetPixelCell(int x, int y, uint? cellId, Color unassignedColor = default)
+    public void SetPixelCell(int x, int y, uint? cellId)
     {
         if ((uint)x >= (uint)_pixelMap.Width || (uint)y >= (uint)_pixelMap.Height)
             throw new ArgumentOutOfRangeException(nameof(x), "Pixel coordinates are outside the texture.");
@@ -20,39 +21,37 @@ public partial class DiagramMap
         int pixelIndex = y * _pixelMap.Width + x;
         int newCellId = cellId.HasValue ? (int)cellId.Value : -1;
         int oldCellId = _cellIdByPixel[pixelIndex];
-
-        if (oldCellId == newCellId)
+        if (oldCellId == newCellId && (newCellId >= 0 || _displayPixels[pixelIndex].A == 128))
             return;
 
-        // Remove from the previous cell's membership list.
         RemovePixelFromCell(pixelIndex);
 
-        Color newColor;
         if (newCellId >= 0)
-        {
             AddPixelToCell(pixelIndex, newCellId);
-            newColor = GetEffectiveColor(newCellId);
-        }
-        else newColor = unassignedColor; // Null means the pixel is no longer part of any cell.
 
-        if (_displayPixels[pixelIndex].Equals(newColor))
-            return;
+        // -1 encodes a deliberately empty/transparent pixel.
+        _displayPixels[pixelIndex] = ((uint)newCellId).EncodeAsColor();
+        MarkIdPixelDirty(x, y);
+    }
 
-        _displayPixels[pixelIndex] = newColor;
-        _textureDirty = true;
+    private void MarkIdPixelDirty(int x, int y)
+    {
+        var pixelRect = new Rectangle(x, y, 1, 1);
+        _dirtyIdRectangle = _idTextureDirty ? Rectangle.Union(_dirtyIdRectangle, pixelRect) : pixelRect;
+        _idTextureDirty = true;
     }
 
     private void RemovePixelFromCell(int pixelIndex)
     {
         int oldCellId = _cellIdByPixel[pixelIndex];
+
         if (oldCellId < 0)
             return;
 
-        var pixels = _pixelIndicesByCell[oldCellId];
+        List<int> pixels = _pixelIndicesByCell[oldCellId];
         int removeIndex = _pixelIndexInCell[pixelIndex];
         int lastIndex = pixels.Count - 1;
 
-        // Move the final element into the removed element's position.
         if (removeIndex != lastIndex)
         {
             int movedPixelIndex = pixels[lastIndex];
