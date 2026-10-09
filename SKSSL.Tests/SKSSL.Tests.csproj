@@ -62,7 +62,7 @@
         <PackageReference Include="JetBrains.Profiler.Api" Version="1.4.13" />
         <PackageReference Include="LibVLCSharp" Version="3.10.1" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0"/>
-        <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1"/>
+        <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.6" />
         <PackageReference Include="MSTest.TestAdapter" Version="4.1.0"/>
         <PackageReference Include="MSTest.TestFramework" Version="4.1.0"/>
         <PackageReference Include="Newtonsoft.Json" Version="13.0.4"/>
