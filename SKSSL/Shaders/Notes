@@ -1,0 +1,7 @@
+cd into SKSSL\SKSSL
+
+# THIS IS MAC/WINDOWS/LINUX
+mgfxc Shaders/CellPalette.fx Shaders/CellPalette_OpenGL.mgfxo /Profile:OpenGL
+
+# THIS IS WINDOWS ONLY
+mgfxc Shaders/CellPalette.fx Shaders/CellPalette_DirectX_11.mgfxo /Profile:DirectX_11

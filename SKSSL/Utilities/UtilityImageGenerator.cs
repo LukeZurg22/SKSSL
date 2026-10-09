@@ -4,7 +4,8 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Utilities;
 
-// ReSharper disable once UnusedType.Global
+// ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedType.Global
 public class UtilityImageGenerator
 {
     /// <summary>
@@ -23,7 +24,6 @@ public class UtilityImageGenerator
     ///    radius: 2.0f
     /// );
     /// </code>
-    // ReSharper disable once UnusedMember.Global
     public static Texture2D CreateCircularDensityMap(
         GraphicsDevice graphicsDevice,
         int width,
@@ -46,11 +46,9 @@ public class UtilityImageGenerator
         for (int y = 0; y < height; y++)
         {
             float dy = y - centerY;
-
             for (int x = 0; x < width; x++)
             {
                 float dx = x - centerX;
-
                 float distance = MathF.Sqrt(dx * dx + dy * dy);
                 float normalized = distance * inverseRadius;
 
