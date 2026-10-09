@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -310,34 +309,6 @@ public partial class Voronoi
 
             _renderingCells[id] = cell;
             _cellRawColors[id] = GenerateCellColor(cell.Site.X, cell.Site.Y, cell.Site.ID);
-        }
-    }
-
-
-    private void BuildDemarcateCellEdges()
-    {
-        _edgesByCell = new List<CellVoronoiEdge>?[_renderingCells.Length];
-
-        foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
-        {
-            VoronoiCell? cellA = _cellsBySiteId[(int)edge.SiteA.ID];
-            if (cellA == null || cellA.ID == VoronoiCell.InvalidId)
-                continue;
-
-            Debug.Assert(cellA != null, nameof(cellA) + " != null");
-            int idA = (int)cellA.ID;
-            (_edgesByCell[idA] ??= []).Add(edge);
-
-            if (!edge.SiteB.HasValue)
-                continue;
-
-            VoronoiCell? cellB = _cellsBySiteId[(int)edge.SiteB.Value.ID];
-            if (cellB == null || cellB.ID == VoronoiCell.InvalidId)
-                continue;
-
-            Debug.Assert(cellB != null, nameof(cellB) + " != null");
-            int idB = (int)cellB.ID;
-            (_edgesByCell[idB] ??= []).Add(edge);
         }
     }
 }

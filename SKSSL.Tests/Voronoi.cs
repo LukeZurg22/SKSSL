@@ -79,7 +79,8 @@ public class Voronoi
             //height: 800,
             settings: diagramSettings
         );
-        _cellMap = new CellMap(diagram.PixelMap, diagram.OverlayMap);
+        _cellMap = new CellMap(_game.GraphicsDevice, diagram.PixelMap, diagram.OverlayMap);
+        _cellMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity);
 
         Black(_points);
 

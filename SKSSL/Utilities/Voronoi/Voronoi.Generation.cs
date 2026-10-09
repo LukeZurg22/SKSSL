@@ -12,7 +12,7 @@ public partial class Voronoi
     /// </summary>
     /// <returns>Generated 2D image of pixel data generated from diagram.</returns>
     /// <remarks>
-    /// Also calls <see cref="UpdateTexture"/> to populate the pixel data.
+    /// Also calls <see cref="CreateTextureMaps"/> to populate the pixel data.
     /// </remarks>
     /// <param name="settings"></param>
     /// <param name="points"></param>
@@ -27,7 +27,6 @@ public partial class Voronoi
         settings ??= new DiagramSettings();
 
         _isGenerated = false;
-        _textureValid = false;
         _boundaryMode = settings.BoundaryMode;
         _width = width ??= _graphicsDevice.Viewport.Width;
         _height = height ??= _graphicsDevice.Viewport.Height;
@@ -124,19 +123,20 @@ public partial class Voronoi
             if ((settings.Flags & VoronoiRenderingFlags.Triangles) != 0)
                 BuildTriangleBatch(triangulation);
 
-            // Cells. (Star of the show.)
-            if ((settings.Flags & VoronoiRenderingFlags.Cells) != 0)
-            {
-                BuildCellVertexBatch();
-                BuildCellColorBatch([]);
-            }
+        }
+
+        // Cells. (Star of the show.)
+        if ((settings.Flags & VoronoiRenderingFlags.Cells) != 0)
+        {
+            BuildCellVertexBatch();
+            BuildCellColorBatch([]);
         }
 
         #endregion
 
         _isGenerated = true;
 
-        (Texture2D PixelMap, Texture2D? OverlayMap) output = UpdateTexture(
+        (Texture2D PixelMap, Texture2D? OverlayMap) output = CreateTextureMaps(
             settings.BoundaryMode,
             settings.Flags,
             settings.Thickness,
@@ -166,7 +166,6 @@ public partial class Voronoi
         _edgeBatchVertices = [];
         _pointBatchVertices = [];
         _triangleBatchVertices = [];
-        _demarcateBatchVertices = [];
 
         _cellVoronoiEdges.Clear();
         _cellVoronoiEdges.TrimExcess();

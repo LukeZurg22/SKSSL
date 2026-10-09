@@ -227,9 +227,6 @@
         <Compile Update="Utilities\Voronoi\Voronoi.ReferenceBoundaries.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi.IO.Data.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
         <Compile Remove="Utilities\Voronoi\VoronoiSaveData.cs" />
         <Compile Update="Utilities\Voronoi\Voronoi.Generation.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>

@@ -11,11 +11,42 @@ public partial class CellMap
 {
     private readonly Texture2D _pixelMap;
     private readonly Texture2D? _overlay;
+    private readonly BasicEffect _effect;
+    private readonly GraphicsDevice _graphicsDevice;
 
-    public CellMap(Texture2D pixelMap, Texture2D? overlay)
+    public CellMap(GraphicsDevice graphicsDevice, Texture2D pixelMap, Texture2D? overlay)
     {
         _pixelMap = pixelMap;
         _overlay = overlay;
+        _graphicsDevice = graphicsDevice;
+        _effect = new BasicEffect(graphicsDevice)
+        {
+            VertexColorEnabled = true,
+            TextureEnabled = false,
+        };
+    }
+
+
+    // ReSharper disable once MemberCanBePrivate.Global
+    public void SetDiagramProjection(Matrix world, Matrix view, int? width = null, int? height = null)
+    {
+        width ??= _pixelMap.Width;
+        height ??= _pixelMap.Height;
+        
+        _effect.World = world;
+        _effect.View = view;
+        _effect.Projection = Matrix
+            .CreateOrthographicOffCenter(0f, width.Value, height.Value, 0f, 0f, 1f);
+    }
+
+    // ReSharper disable once MemberCanBePrivate.Global
+    public void SetScreenProjection(Matrix world, Matrix view)
+    {
+        Viewport viewport = _graphicsDevice.Viewport;
+        _effect.World = world;
+        _effect.View = view;
+        _effect.Projection = Matrix
+            .CreateOrthographicOffCenter(0f, viewport.Width, viewport.Height, 0f, 0f, 1f);
     }
 
     public void Draw(SpriteBatch? spriteBatch)

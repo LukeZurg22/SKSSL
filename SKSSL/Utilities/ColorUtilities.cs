@@ -1,4 +1,6 @@
+using System;
 using Microsoft.Xna.Framework;
+// ReSharper disable UnusedMember.Global
 
 namespace SKSSL.Utilities;
 
@@ -26,5 +28,25 @@ public static class ColorUtilities
             x ^= x >> 16;
             return new Color((byte)(x & 0xFF), (byte)((x >> 8) & 0xFF), (byte)((x >> 16) & 0xFF));
         }
+    }
+
+    public static Color EncodeAsColor(this uint i)
+    {
+        if (i is uint.MaxValue or > 0x00FFFFFE /*aka MaxRasterUnsignedInteger*/)
+            throw new ArgumentOutOfRangeException(nameof(i));
+
+        uint encoded = i + 1u;
+        return new Color(
+            (byte)(encoded & 0xFF),
+            (byte)((encoded >> 8) & 0xFF),
+            (byte)((encoded >> 16) & 0xFF),
+            byte.MaxValue
+        );
+    }
+
+    public static uint DecodeAsUnsignedInteger(this Color color)
+    {
+        uint encoded = color.R | ((uint)color.G << 8) | ((uint)color.B << 16);
+        return encoded == 0 ? uint.MaxValue : encoded - 1u;
     }
 }

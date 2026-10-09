@@ -17,15 +17,14 @@ public partial class Voronoi
     /// When this function is called, it also assigns the internal pixel data to the new image.
     /// Avoid repetitive calls, as it's expensive.
     /// </remarks>
-    private (Texture2D PixelMap, Texture2D? OverlayMap) UpdateTexture(
+    private (Texture2D PixelMap, Texture2D? OverlayMap) CreateTextureMaps(
         VoronoiBoundaryMode boundaryMode,
         VoronoiRenderingFlags flags,
         float thickness,
         float pointSize)
     {
         if (!_isGenerated)
-            throw new InvalidOperationException(
-                "Attempted to get Voronoi texture before generating a diagram.");
+            throw new InvalidOperationException("Attempted to get Voronoi texture before generating a diagram.");
 
         var previousTargets = _graphicsDevice.GetRenderTargets();
 
@@ -86,18 +85,6 @@ public partial class Voronoi
         }
 
         // Replace the old textures only after rendering succeeds.
-        _previousBoundaryMode = boundaryMode;
-        _previousThickness = thickness;
-        _previousPointSize = pointSize;
-        _previousFlags = flags;
-        _textureValid = true;
-
-        if (cellOutput is { } oldCellTarget)
-            oldCellTarget.Dispose();
-
-        if (overlayOutput is { } oldOverlayTarget)
-            oldOverlayTarget.Dispose();
-
         return (cellOutput, overlayOutput);
     }
 
@@ -194,39 +181,6 @@ public partial class Voronoi
         }
     }
 
-    private void DrawDemarcatedCells()
-    {
-        if (_demarcateBatchPrimitiveCount == 0)
-            return;
-
-        SetScreenProjection(Matrix.Identity, Matrix.Identity);
-
-        BlendState previousBlend = _graphicsDevice.BlendState;
-        RasterizerState previousRasterizer = _graphicsDevice.RasterizerState;
-
-        try
-        {
-            _graphicsDevice.BlendState = BlendState.AlphaBlend;
-            _graphicsDevice.RasterizerState = RasterizerState.CullNone;
-
-            foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
-            {
-                pass.Apply();
-
-                _graphicsDevice.DrawUserPrimitives(
-                    PrimitiveType.TriangleList,
-                    _demarcateBatchVertices,
-                    0,
-                    _demarcateBatchPrimitiveCount);
-            }
-        }
-        finally
-        {
-            _graphicsDevice.BlendState = previousBlend;
-            _graphicsDevice.RasterizerState = previousRasterizer;
-        }
-    }
-
     #endregion
     
     private Color GenerateCellColor(float x, float y, uint id)
@@ -234,7 +188,7 @@ public partial class Voronoi
         Color color;
         uint hash;
         byte r, g, b;
-        switch (CellDrawMode)
+        switch (_cellDrawMode)
         {
             case ColorMode.Deterministic_Lines:
                 hash = (uint)x + (uint)y;

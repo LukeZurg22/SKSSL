@@ -69,25 +69,17 @@ public partial class Voronoi
     private int _pointBatchPrimitiveCount;
     private VertexPositionColor[] _triangleBatchVertices = []; //  TRIANGLES
     private int _triangleBatchPrimitiveCount;
-    private VertexPositionColor[] _demarcateBatchVertices = []; //  DEMARCATIONS
-    private int _demarcateBatchPrimitiveCount;
 
     // Rendering Basics
     private readonly BasicEffect _effect;
 
     // Rendering Options
     private VoronoiBoundaryMode _boundaryMode = VoronoiBoundaryMode.CulledSquare;
-    private readonly ColorMode CellDrawMode;
+    private readonly ColorMode _cellDrawMode;
     private readonly Color _pointColor;
     private readonly Color _edgeColor;
-    private readonly Color _flatColor; // Flat color to "erase" other cells when using overrides.
 
     // Cache Flags
-    private VoronoiRenderingFlags _previousFlags;
-    private VoronoiBoundaryMode _previousBoundaryMode;
-    private float _previousThickness;
-    private float _previousPointSize;
-    private bool _textureValid;
     private bool _isGenerated = false;
 
     // Authoritative map data.
@@ -118,16 +110,14 @@ public partial class Voronoi
         GraphicsDevice graphicsDevice,
         ColorMode cellDrawMode = ColorMode.Semi_Deterministic_Unique,
         Color? unifiedColor = null,
-        Color? pointColor = null,
-        Color? flatColor = null)
+        Color? pointColor = null)
     {
-        CellDrawMode = cellDrawMode;
+        _cellDrawMode = cellDrawMode;
         _graphicsDevice = graphicsDevice;
         _cellRawColors = new Color[DefaultPointCount + 1];
         _cellOverrideColors = new Color[DefaultPointCount + 1];
         _edgeColor = unifiedColor ?? Color.Gray;
         _pointColor = pointColor ?? Color.Red;
-        _flatColor = flatColor ?? Color.Wheat;
 
         // Setup image data for writing. It begins as a 1x1 white pixel, but will be expanded later.
         _width = _graphicsDevice.Viewport.Width;
