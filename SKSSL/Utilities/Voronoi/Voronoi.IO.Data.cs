@@ -271,8 +271,6 @@ public partial class Voronoi
         _textureValid = false;
 
         UpdateTexture(_boundaryMode, _previousFlags, _previousThickness, _previousPointSize);
-
-        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_renderingCells, _width, _height);
     }
 
     private static void WriteCell(BinaryWriter writer, VoronoiCell cell)

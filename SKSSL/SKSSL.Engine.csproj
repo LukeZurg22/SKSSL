@@ -88,6 +88,9 @@
     <ItemGroup>
         <!-- Explicitly pack the generator DLL (adjust path if needed) -->
         <None Include="..\SKSSL.Generator\bin\$(Configuration)\netstandard2.0\SKSSL.Generator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="true"/>
+        <None Update="Utilities\Voronoi\todo">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </None>
     </ItemGroup>
 
     <ItemGroup>
@@ -212,9 +215,6 @@
         <Compile Update="Utilities\Voronoi\Voronoi.IO.Image.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi.Coloring.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
         <Compile Update="Utilities\Voronoi\Voronoi.Geometry.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
@@ -231,6 +231,18 @@
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Remove="Utilities\Voronoi\VoronoiSaveData.cs" />
+        <Compile Update="Utilities\Voronoi\Voronoi.Generation.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\CellMap.Coloring.cs">
+          <DependentUpon>CellMap.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi.Drawer.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi.Raster.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

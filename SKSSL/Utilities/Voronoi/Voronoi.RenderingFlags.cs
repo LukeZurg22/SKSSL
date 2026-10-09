@@ -9,19 +9,21 @@ public partial class Voronoi
     public enum VoronoiRenderingFlags : byte
     {
         //@formatter:off
-        /// Used as a "render nothing" and a null toggle.
-        None      = 0,
+        /// Draw "proper" voronoi cells. Everything else is overlaid.
+        Cells      = 1 << 0,
         /// Draw dots.
-        Points     = 1 << 0,
-        /// Draw "proper" voronoi cells.
-        Cells      = 1 << 1,
+        Points     = 1 << 1,
         /// Draw edges between cells.
         Edges     = 1 << 2,
         /// Draw the triangles that make up each cell.
         Triangles = 1 << 3,
         
-        CellsAndEdges = Cells | Edges,
-        All = Points | Cells | Edges | Triangles
+            // Grouped Flags for Simplicity 
+            CellsPoints = Cells | Points,
+            CellsEdges = Cells | Edges,
+            EdgesPoints = Edges | Points,
+            CellsEdgesPoints = Cells | Edges | Points,
+            All = Points | Cells | Edges | Triangles
         //@formatter:on
     }
 }

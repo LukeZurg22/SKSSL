@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SKSSL.Utilities.Voronoi.PointDistributors;
 
 // ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 
@@ -54,16 +52,11 @@ public partial class Voronoi
     private List<CellVoronoiEdge>?[] _edgesByCell = [];
     private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
 
-    // Geometry
-    //      A graph may become too large, it'll need to be divided into "chunks" / spacial grids.
-    private SpatialGrid? _spatialGrid;
     private int[] _cellGeometryOffsets = [];
     private int[] _cellGeometryCounts = [];
     private Vector3[] _cellGeometry = [];
 
-    // Coloring and Visualization
-    private Color[] _cellOverrideColors; // Override colors for cells. Indexed by ID.
-    private Color[] _cellRawColors; // Raw "provincial" colors of cells. Indexed by ID.
+    // RNG
     private readonly HashSet<int> _usedColors = []; // avoid exact RGB collisions
     private readonly Random _random = new(32); // fixed seed → reproducible
 
@@ -81,7 +74,6 @@ public partial class Voronoi
 
     // Rendering Basics
     private readonly BasicEffect _effect;
-    private Texture2D _pixelMap;
 
     // Rendering Options
     private VoronoiBoundaryMode _boundaryMode = VoronoiBoundaryMode.CulledSquare;
@@ -98,29 +90,29 @@ public partial class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
-    // Voronoi Diagramming Version
+    // Authoritative map data.
+    private uint[] _pixelCellIds = [];
+
+    // Authoritative colors. Never overwritten by an override.
+    private Color[] _cellRawColors = [];
+
+    // Values to display when an override is active.
+    private Color[] _cellOverrideColors = [];
+
+    // 0 = use raw color, 1 = use override.
+    private byte[] _cellOverrideMask = [];
+
+    // Resolved palette uploaded to the GPU.
+    private Color[] _cellEffectiveColors = [];
+
+    private Texture2D? _cellPaletteTexture;
+
+    private Effect? _mapEffect;
+
+    private const uint InvalidCellId = uint.MaxValue;
+
+    // Voronoi Diagram Version
     private const uint Version = 1;
-
-    // TODO: Support constrained and density-driven Voronoi generation.
-    //  1. Explicit boundaries
-    //     a. Accept an image or polygon boundary.
-    //     b. Extract functional edges / regions from the image.
-    //        Color coding may be useful for identifying boundaries.
-    //     c. Treat extracted boundaries as clipping/constraining geometry.
-
-    //  TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
-
-    // TODO: Add a flashing "Selected" highlight which uses Marked Cells. This will be rough.
-    //      To make this performant, recreate a Color highlight map every time a cell is marked, then:
-    //      - Simply decrease and increase opacity in the draw call via a Math.Lerp() or something.
-    //      Replace existing "highlight" terminology with "selected", and then use "highlight" for the literal highlighting.
-
-    // WIP: All I need to do now is
-    //  add a state-border carver,
-    //  add some highlighting,
-    //  Overlay voronoi on 3D model and preserve functionality.
-
-    #region Construction & Mono Code
 
     public Voronoi(
         GraphicsDevice graphicsDevice,
@@ -138,8 +130,6 @@ public partial class Voronoi
         _flatColor = flatColor ?? Color.Wheat;
 
         // Setup image data for writing. It begins as a 1x1 white pixel, but will be expanded later.
-        _pixelMap = new Texture2D(_graphicsDevice, 1, 1);
-        _pixelMap.SetData([Color.White]);
         _width = _graphicsDevice.Viewport.Width;
         _height = _graphicsDevice.Viewport.Height;
         _effect = new BasicEffect(_graphicsDevice)
@@ -167,199 +157,4 @@ public partial class Voronoi
         _effect.View = view;
         _effect.Projection = Matrix.CreateOrthographicOffCenter(0f, viewport.Width, viewport.Height, 0f, 0f, 1f);
     }
-
-    #endregion
-
-    /// <summary>
-    /// Generates a set of voronoi cells and internally inserts them into the data of this <see cref="Voronoi"/>
-    /// class object.
-    /// </summary>
-    /// <returns>Generated 2D image of pixel data generated from diagram.</returns>
-    /// <remarks>
-    /// Also calls <see cref="UpdateTexture"/> to populate the pixel data.
-    /// </remarks>
-    /// <param name="settings"></param>
-    /// <param name="points"></param>
-    /// <param name="width">Width of diagram in pixels.</param>
-    /// <param name="height">Height of diagram in pixels.</param>
-    public void GenerateDiagram(
-        uint points = DefaultPointCount,
-        int? width = null,
-        int? height = null,
-        DiagramSettings? settings = null)
-    {
-        settings ??= new DiagramSettings();
-
-        _isGenerated = false;
-        _textureValid = false;
-        _boundaryMode = settings.BoundaryMode;
-        _width = width ??= _graphicsDevice.Viewport.Width;
-        _height = height ??= _graphicsDevice.Viewport.Height;
-
-        using DelaunayTriangulator delaunay = new();
-
-        // Create a list of seeded points and then handle distribution using a provided distributor.
-        int maxX = width.Value;
-        int maxY = height.Value;
-        var pointsList = delaunay.CreatePointsList(maxX, maxY, points);
-        settings.Distributor.Generate(ref pointsList, points + 4, maxX, maxY, settings.Randomness);
-        AssignSpatialIds(pointsList);
-        _points = pointsList.ToArray();
-
-        // Clear color storage. New sizes are +1 due to point amount being 1-based indexed.
-        Array.Clear(_cellOverrideColors, 0, _cellRawColors.Length);
-        Array.Clear(_cellRawColors, 0, _cellRawColors.Length);
-        Array.Resize(ref _cellOverrideColors, _points.Length + 1);
-        Array.Resize(ref _cellRawColors, _points.Length + 1);
-        _cellsBySiteId = new VoronoiCell[_points.Length];
-        Array.Clear(_cellsBySiteId);
-
-        // Clear old data.
-        _voronoiEdges.Clear();
-        _usedColors.Clear();
-        _cellVoronoiEdges.Clear();
-        _voronoiEdges.Capacity = Math.Max(_voronoiEdges.Capacity, (int)(points * 3));
-        _renderingCells = [];
-
-        #region DATA BUILDING
-
-        // Make the triangles.
-        var triangulation = delaunay.BowyerWatson(_points);
-
-        // Attempt to cast the distributor as an image distributor for weighted Lloyd settling.
-        var distributor = settings.Distributor as DistributorImage;
-        var isImgDist = distributor != null;
-
-        // Populate the Graph w. Cells
-        //  -> LOYD RELAXATION
-        // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
-        //var pixels = ((DistributorImage)settings.Distributor).GetPixels();
-        const int passes = 3;
-        for (int i = 0; i < passes; i++)
-        {
-            Array.Clear(_cellsBySiteId);
-            triangulation = delaunay.BowyerWatson(_points);
-            PopulateVoronoiCells(triangulation);
-
-            switch (isImgDist)
-            {
-                case true:
-                    delaunay.WeightedLloydSettlePoints(_cellsBySiteId, distributor!.GetPixels(), _width, _height);
-                    break;
-                default:
-                    delaunay.LloydSettlePoints(_cellsBySiteId);
-                    break;
-            }
-        }
-
-        // Checking for Conflicts
-        ValidateNeighbors(triangulation); // Automatically removed in Release.
-
-        // Process Cell Culling
-        ProcessCells(settings.BoundaryMode, triangulation);
-
-        foreach (Triangle triangle in triangulation)
-            AddVoronoiEdges(triangle, _boundaryMode);
-
-        // Build Selected Colors
-        BuildRenderArrays();
-
-        // Build Tessellations
-        BuildCellGeometry();
-
-        #endregion
-
-        #region BATCH BUILDING
-
-        // Edges when Cell is Demarcated
-        BuildDemarcateCellEdges(); // This is to improve performance for selection.
-
-        // Points.
-        if ((settings.Flags & VoronoiRenderingFlags.Points) != 0)
-            BuildPointBatch(settings.PointSize);
-
-        // Edges.
-        if ((settings.Flags & VoronoiRenderingFlags.Edges) != 0)
-            BuildEdgeBatch(settings.Thickness);
-
-        // Triangles. (Best not to use these, though. They're ugly.
-        // ReSharper disable once PossibleMultipleEnumeration ; False positive.
-        if ((settings.Flags & VoronoiRenderingFlags.Triangles) != 0)
-            BuildTriangleBatch(triangulation);
-
-        // Cells. (Star of the show.)
-        if ((settings.Flags & VoronoiRenderingFlags.Cells) != 0)
-        {
-            BuildCellVertexBatch();
-            BuildCellColorBatch([]);
-        }
-
-        // A spatial grid, aka a bucket grid is needed to subdivide the voronoi map into workable chunks.
-        // This is for performance.
-        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_renderingCells, _width, _height);
-
-        #endregion
-
-        _isGenerated = true;
-
-        // Update the existing internal pixel map with visual changes.
-        UpdateTexture(settings.BoundaryMode, settings.Flags, settings.Thickness, settings.PointSize);
-    }
-
-    #region TryGet Methods
-
-    /// <summary>
-    /// Get a <see cref="VoronoiCell"/> definition using a Cell's Render ID.
-    /// </summary>
-    /// <param name="cellRenderId"></param>
-    /// <param name="cell"></param>
-    /// <returns></returns>
-    // ReSharper disable once UnusedMember.Global
-    public bool TryGetCell(uint cellRenderId, [NotNullWhen(true)] out VoronoiCell? cell)
-    {
-        cell = null;
-        if (cellRenderId >= _renderingCells.Length)
-            return false;
-
-        VoronoiCell candidate = _renderingCells[cellRenderId];
-        if (candidate.ID != cellRenderId)
-            return false;
-
-        cell = candidate;
-        return true;
-    }
-
-    /// <summary>
-    /// Attempt to get a cell at a provided screen position.
-    /// </summary>
-    /// <param name="position">Mouse position / screen position.</param>
-    /// <param name="cell">Output cell for use elsewhere. Null if not found.</param>
-    /// <returns>True if found cell, false if not. Out will be null if false.</returns>
-    /// <remarks>May cause lag at immense diagram sizes, mostly around 50k and beyond.</remarks>
-    // ReSharper disable once UnusedMethodReturnValue.Global
-    // ReSharper disable once MemberCanBePrivate.Global
-    public bool TryGetCellAt(System.Drawing.Point position, [NotNullWhen(true)] out VoronoiCell? cell)
-    {
-        cell = null;
-        return _spatialGrid != null && _spatialGrid.TryGetCellAt(position, out cell);
-    }
-
-    /// <summary>
-    /// Variant of <see cref="TryGetCellAt(System.Drawing.Point,out SKSSL.Utilities.Voronoi.VoronoiCell?)"/>
-    /// that instead outputs a found cell ID.
-    /// </summary>
-    /// <param name="position"></param>
-    /// <param name="id"></param>
-    /// <returns></returns>
-    // ReSharper disable once UnusedMember.Global
-    public bool TryGetCellRenderIDAt(System.Drawing.Point position, [NotNullWhen(true)] out uint? id)
-    {
-        id = null;
-        if (!TryGetCellAt(position, out VoronoiCell? voronoiCell))
-            return false;
-        id = voronoiCell.ID;
-        return true;
-    }
-
-    #endregion
 }

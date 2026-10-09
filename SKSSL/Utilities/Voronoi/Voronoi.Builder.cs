@@ -309,7 +309,7 @@ public partial class Voronoi
             cell.ID = id;
 
             _renderingCells[id] = cell;
-            _cellRawColors[id] = GetCellColor(cell);
+            _cellRawColors[id] = GenerateCellColor(cell.Site.X, cell.Site.Y, cell.Site.ID);
         }
     }
 
@@ -334,7 +334,7 @@ public partial class Voronoi
             VoronoiCell? cellB = _cellsBySiteId[(int)edge.SiteB.Value.ID];
             if (cellB == null || cellB.ID == VoronoiCell.InvalidId)
                 continue;
-            
+
             Debug.Assert(cellB != null, nameof(cellB) + " != null");
             int idB = (int)cellB.ID;
             (_edgesByCell[idB] ??= []).Add(edge);

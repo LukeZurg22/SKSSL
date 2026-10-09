@@ -10,7 +10,9 @@ using SKSSL.Assets;
 using SKSSL.Tests.Classes;
 using SKSSL.Utilities.Voronoi;
 using SKSSL.Utilities.Voronoi.PointDistributors;
+using CellMap = SKSSL.Utilities.CellMap;
 using Point = System.Drawing.Point;
+
 // ReSharper disable UnusedMember.Local
 
 namespace SKSSL.Tests;
@@ -20,6 +22,7 @@ public class Voronoi
 {
     private const bool TOGGLE_EXECUTABLE_CLOSURE = false;
     private Utilities.Voronoi.Voronoi _voronoi = null!;
+    private CellMap _cellMap = null!;
     private bool generated = false;
     private UnitGame _game = null!;
     private VoronoiCell? _hoveredCell;
@@ -42,13 +45,6 @@ public class Voronoi
         //MeasureProfiler.StartCollectingData();
         MimicLoadContent(); // Mimic LoadContent call.
         MimicInitialize(); // Mimic Initialize call.
-
-        _voronoi.SaveDiagram("my_voronoi");
-        generated = false;
-        _voronoi = Utilities.Voronoi.Voronoi.LoadDiagram(game.GraphicsDevice, "my_voronoi");
-        generated = true;
-        Regions(_points);
-        _voronoi.ForceUpdate();
 
         //MeasureProfiler.SaveData();
         game.Run();
@@ -74,32 +70,30 @@ public class Voronoi
                 AllowBlackGaps = false,
             }),
             BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledCircular,
-            Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Cells |
-                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Points /*|
-                    Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Edges*/ /*|
-                        Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.Triangles*/,
+            Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.CellsPoints,
             ReferenceBoundary = new ReferenceBoundarySettings(_borderMap)
         };
-        _voronoi.GenerateDiagram(
+        (Texture2D PixelMap, Texture2D? OverlayMap) diagram = _voronoi.GenerateDiagram(
             points: _points,
             //width: 1200,
             //height: 800,
             settings: diagramSettings
         );
+        _cellMap = new CellMap(diagram.PixelMap, diagram.OverlayMap);
 
         Black(_points);
-        
-        _voronoi.ChangeCellColor(0, Color.LightGoldenrodYellow);
-        _voronoi.ChangeCellColor(1, Color.Gold);
-        _voronoi.ForceUpdate();
+
+        //_cellMap.ChangeCellColor(0, Color.LightGoldenrodYellow);
+        //_cellMap.ChangeCellColor(1, Color.Gold);
+        //_cellMap.ForceUpdate();
         generated = true;
     }
 
     private void Black(int points)
     {
         Color color = Color.Black;
-        for (uint i = 0; i < points; i++)
-            _voronoi.ChangeCellColor(i, color);
+        //for (uint i = 0; i < points; i++)
+        //    _cellMap.ChangeCellColor(i, color);
     }
 
     private void Regions(int points)
@@ -116,7 +110,7 @@ public class Voronoi
                 1 => new Color(0, (byte)value, 0),
                 _ => new Color(0, 0, (byte)value)
             };
-            _voronoi.ChangeCellColor(i, color);
+            //_cellMap.ChangeCellColor(i, color);
         }
     }
 
@@ -149,10 +143,10 @@ public class Voronoi
         MouseState mouse = Mouse.GetState();
         Point mousePosition = new(mouse.X, mouse.Y);
 
-        _voronoi.ClearDemarcatedCells();
+        /*_cellMap.ClearDemarcatedCells();
         if (_voronoi.TryGetCellAt(mousePosition, out VoronoiCell? cell))
         {
-            _voronoi.DemarcateCell(cell.ID);
+            _cellMap.DemarcateCell(cell.ID);
             _hoveredCell = cell;
         }
         else
@@ -160,7 +154,7 @@ public class Voronoi
             _hoveredCell = null;
         }
 
-        _voronoi.RebuildDemarcatedCellBorders(Color.Wheat, 1f);
+        _cellMap.RebuildDemarcatedCellBorders(Color.Wheat, 1f);*/
 
 
         if (TOGGLE_EXECUTABLE_CLOSURE)
@@ -172,7 +166,7 @@ public class Voronoi
 
     private void MimicDraw(GameTime gameTime)
     {
-        _voronoi.Draw(_spriteBatch);
+        _cellMap.Draw(_spriteBatch);
 
         _spriteBatch.Begin();
         Vector2 position = Vector2.Zero;
