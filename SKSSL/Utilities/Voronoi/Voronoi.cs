@@ -46,7 +46,7 @@ public partial class Voronoi
 
     // Indexing
     private uint _firstArtificialId;
-    private VoronoiCell?[] _cellsBySiteId;
+    private VoronoiCell?[] _cellsBySiteId = null!;
     private VoronoiCell[] _renderingCells;
 
     // Data Storage
@@ -98,15 +98,15 @@ public partial class Voronoi
     private bool _textureValid;
     private bool _isGenerated = false;
 
+    // Voronoi Diagramming Version
+    private const uint Version = 1;
+
     // TODO: Support constrained and density-driven Voronoi generation.
-    //  .
     //  1. Explicit boundaries
     //     a. Accept an image or polygon boundary.
     //     b. Extract functional edges / regions from the image.
     //        Color coding may be useful for identifying boundaries.
     //     c. Treat extracted boundaries as clipping/constraining geometry.
-    //  3. Density-map-driven generation
-    //     e. Support combining density maps with explicit boundaries.
 
     //  TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
 
@@ -226,18 +226,30 @@ public partial class Voronoi
         // Make the triangles.
         var triangulation = delaunay.BowyerWatson(_points);
 
+        // Attempt to cast the distributor as an image distributor for weighted Lloyd settling.
+        var distributor = settings.Distributor as DistributorImage;
+        var isImgDist = distributor != null;
+
         // Populate the Graph w. Cells
         //  -> LOYD RELAXATION
         // Requires rebuilding the triangulation and Voronoi cells, which can be a little expensive for large graphs.
-        var pixels = ((DistributorImage)settings.Distributor).GetPixels();
+        //var pixels = ((DistributorImage)settings.Distributor).GetPixels();
         const int passes = 3;
         for (int i = 0; i < passes; i++)
         {
             Array.Clear(_cellsBySiteId);
             triangulation = delaunay.BowyerWatson(_points);
             PopulateVoronoiCells(triangulation);
-            //delaunay.LloydSettlePoints(_cellsBySiteId);
-            delaunay.WeightedLloydSettlePoints(_cellsBySiteId, ref pixels, _width, _height);
+
+            switch (isImgDist)
+            {
+                case true:
+                    delaunay.WeightedLloydSettlePoints(_cellsBySiteId, distributor!.GetPixels(), _width, _height);
+                    break;
+                default:
+                    delaunay.LloydSettlePoints(_cellsBySiteId);
+                    break;
+            }
         }
 
         // Checking for Conflicts
@@ -297,21 +309,23 @@ public partial class Voronoi
     #region TryGet Methods
 
     /// <summary>
-    /// Get a <see cref="VoronoiCell"/> definition using a Cell ID.
+    /// Get a <see cref="VoronoiCell"/> definition using a Cell's Render ID.
     /// </summary>
-    /// <param name="cellID"></param>
+    /// <param name="cellRenderId"></param>
     /// <param name="cell"></param>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
-    public bool TryGetCell(uint cellID, [NotNullWhen(true)] out VoronoiCell? cell)
+    public bool TryGetCell(uint cellRenderId, [NotNullWhen(true)] out VoronoiCell? cell)
     {
-        if (cellID >= (uint)_renderingCells.Length)
-        {
-            cell = null;
+        cell = null;
+        if (cellRenderId >= _renderingCells.Length)
             return false;
-        }
 
-        cell = _renderingCells[(int)cellID];
+        VoronoiCell candidate = _renderingCells[cellRenderId];
+        if (candidate.ID != cellRenderId)
+            return false;
+
+        cell = candidate;
         return true;
     }
 
@@ -335,15 +349,15 @@ public partial class Voronoi
     /// that instead outputs a found cell ID.
     /// </summary>
     /// <param name="position"></param>
-    /// <param name="cell"></param>
+    /// <param name="id"></param>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
-    public bool TryGetCellAt(System.Drawing.Point position, [NotNullWhen(true)] out uint? cell)
+    public bool TryGetCellRenderIDAt(System.Drawing.Point position, [NotNullWhen(true)] out uint? id)
     {
-        cell = null;
+        id = null;
         if (!TryGetCellAt(position, out VoronoiCell? voronoiCell))
             return false;
-        cell = voronoiCell.ID;
+        id = voronoiCell.ID;
         return true;
     }
 

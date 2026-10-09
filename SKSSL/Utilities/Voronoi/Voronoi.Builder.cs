@@ -321,7 +321,7 @@ public partial class Voronoi
         foreach (CellVoronoiEdge edge in _cellVoronoiEdges)
         {
             VoronoiCell? cellA = _cellsBySiteId[(int)edge.SiteA.ID];
-            if (cellA != null && cellA.ID == VoronoiCell.InvalidId)
+            if (cellA == null || cellA.ID == VoronoiCell.InvalidId)
                 continue;
 
             Debug.Assert(cellA != null, nameof(cellA) + " != null");
@@ -332,9 +332,9 @@ public partial class Voronoi
                 continue;
 
             VoronoiCell? cellB = _cellsBySiteId[(int)edge.SiteB.Value.ID];
-            if (cellB != null && cellB.ID == VoronoiCell.InvalidId)
+            if (cellB == null || cellB.ID == VoronoiCell.InvalidId)
                 continue;
-
+            
             Debug.Assert(cellB != null, nameof(cellB) + " != null");
             int idB = (int)cellB.ID;
             (_edgesByCell[idB] ??= []).Add(edge);

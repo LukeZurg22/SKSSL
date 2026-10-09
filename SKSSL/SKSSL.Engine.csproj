@@ -212,10 +212,7 @@
         <Compile Update="Utilities\Voronoi\DelaunayTriangulator.EdgeReference.cs">
           <DependentUpon>Delaunay.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Voronoi\Voronoi.IO.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Voronoi\VoronoiSaveData.cs">
+        <Compile Update="Utilities\Voronoi\Voronoi.IO.Image.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Update="Utilities\Voronoi\Voronoi.Coloring.cs">
@@ -233,6 +230,10 @@
         <Compile Update="Utilities\Voronoi\Voronoi.ReferenceBoundaries.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Voronoi\Voronoi.IO.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
+        <Compile Remove="Utilities\Voronoi\VoronoiSaveData.cs" />
     </ItemGroup>
 
     <ItemGroup>

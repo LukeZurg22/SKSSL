@@ -212,7 +212,8 @@ public partial class DelaunayTriangulator : IDisposable
         => Abs((double)(b.X - a.X) * (c.Y - a.Y) - (double)(b.Y - a.Y) * (c.X - a.X)) > 1e-6;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void WeightedLloydSettlePoints(VoronoiCell?[] cells, ref byte[] densityMap, int width, int height)
+    // ReSharper disable once UnusedMember.Global
+    public void WeightedLloydSettlePoints(VoronoiCell?[] cells, byte[] densityMap, int width, int height)
     {
         foreach (VoronoiCell? cell in cells)
         {

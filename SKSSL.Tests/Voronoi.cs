@@ -11,6 +11,7 @@ using SKSSL.Tests.Classes;
 using SKSSL.Utilities.Voronoi;
 using SKSSL.Utilities.Voronoi.PointDistributors;
 using Point = System.Drawing.Point;
+// ReSharper disable UnusedMember.Local
 
 namespace SKSSL.Tests;
 
@@ -40,6 +41,12 @@ public class Voronoi
         //MeasureProfiler.StartCollectingData();
         MimicLoadContent(); // Mimic LoadContent call.
         MimicInitialize(); // Mimic Initialize call.
+
+        _voronoi.SaveDiagram("my_voronoi");
+        generated = false;
+        _voronoi = Utilities.Voronoi.Voronoi.LoadDiagram(game.GraphicsDevice, "my_voronoi");
+        generated = true;
+
         //MeasureProfiler.SaveData();
         game.Run();
         Assert.IsTrue(generated);
@@ -78,7 +85,24 @@ public class Voronoi
             settings: diagramSettings
         );
 
-        /*const int segmentSize = 255;
+        Black(points);
+
+        _voronoi.ChangeCellColor(0, Color.LightGoldenrodYellow);
+        _voronoi.ChangeCellColor(1, Color.Gold);
+        _voronoi.ForceUpdate();
+        generated = true;
+    }
+
+    private void Black(int points)
+    {
+        Color color = Color.Black;
+        for (uint i = 0; i < points; i++)
+            _voronoi.ChangeCellColor(i, color);
+    }
+
+    private void Regions(int points)
+    {
+        const int segmentSize = 255;
         for (uint i = 0; i < points; i++)
         {
             int segment = (int)(i / segmentSize);
@@ -90,14 +114,8 @@ public class Voronoi
                 1 => new Color(0, (byte)value, 0),
                 _ => new Color(0, 0, (byte)value)
             };
-            //Color color = Color.Black;
             _voronoi.ChangeCellColor(i, color);
-        }*/
-
-        _voronoi.ChangeCellColor(0, Color.LightGoldenrodYellow);
-        _voronoi.ChangeCellColor(1, Color.Gold);
-        _voronoi.ForceUpdate();
-        generated = true;
+        }
     }
 
 
@@ -111,7 +129,7 @@ public class Voronoi
         Texture2D heightMap = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
             .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Map.png");
         _densityTexture = heightMap;
-        
+
         Texture2D borderMap = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
             .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Borders.png");
         _borderMap = borderMap;
@@ -135,6 +153,10 @@ public class Voronoi
             _voronoi.DemarcateCell(cell.ID);
             _hoveredCell = cell;
         }
+        else
+        {
+            _hoveredCell = null;
+        }
 
         _voronoi.RebuildDemarcatedCellBorders(Color.Wheat, 1f);
 
@@ -149,16 +171,21 @@ public class Voronoi
     private void MimicDraw(GameTime gameTime)
     {
         _voronoi.Draw(_spriteBatch);
-        if (_hoveredCell == null)
-            return;
 
         _spriteBatch.Begin();
         Vector2 position = Vector2.Zero;
-        _spriteBatch.DrawString(_font, _hoveredCell.ID.ToString(), position, Color.Wheat);
+        bool nullCell = _hoveredCell != null;
+        _spriteBatch.DrawString(_font, nullCell
+            ? $"RENDER: {_hoveredCell?.ID.ToString()}"
+            : "null", position, Color.Wheat);
         position = new Vector2(0, 25);
-        _spriteBatch.DrawString(_font, _hoveredCell.Vertices.Count.ToString(), position, Color.Wheat);
+        _spriteBatch.DrawString(_font, nullCell
+            ? $"VERTICES: {_hoveredCell?.Vertices.Count.ToString()}"
+            : "null", position, Color.Wheat);
         position = new Vector2(0, 50);
-        _spriteBatch.DrawString(_font, _hoveredCell.Site.ToString(), position, Color.Wheat);
+        _spriteBatch.DrawString(_font, nullCell
+            ? $"SITE: {_hoveredCell?.Site.ToString()}"
+            : "null", position, Color.Wheat);
         _spriteBatch.End();
     }
 

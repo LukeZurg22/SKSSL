@@ -1,142 +1,444 @@
-/*using System;
+using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text.Json;
+using Clipper2Lib;
 using Microsoft.Xna.Framework;
-
-// ReSharper disable UnusedMember.Global
+using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Utilities.Voronoi;
 
 public partial class Voronoi
 {
-    private readonly JsonSerializerOptions _serializerOptions = new() { WriteIndented = false };
+    private const uint SaveMagic = 0x4F524F56; // "VORO" in little-endian storage
+    private const int MaxSerializedItems = 50_000_000;
 
-    public void Save(string filePath) // TODO: Add test case for Voronoi Save()
+    /// <summary>
+    /// Writes the generated diagram to a versioned binary snapshot.
+    /// </summary>
+    public void SaveDiagram(string filePath)
     {
-        var data = new VoronoiSaveData
+        if (!_isGenerated)
+            throw new InvalidOperationException("Generate a diagram before saving it.");
+
+        string fullPath = Path.GetFullPath(filePath);
+        string? directory = Path.GetDirectoryName(fullPath);
+
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
+
+        // Write to a temporary file so an incomplete save does not leave
+        // a partially written snapshot at the target path.
+        string temporaryPath = fullPath + ".tmp";
+
+        try
         {
-            Width = _width,
-            Height = _height,
-            BoundaryMode = _boundaryMode,
+            using (var stream = new FileStream(
+                       temporaryPath,
+                       FileMode.Create,
+                       FileAccess.Write,
+                       FileShare.None,
+                       bufferSize: 1 << 20,
+                       options: FileOptions.SequentialScan))
+            using (var writer = new BinaryWriter(stream))
+            {
+                // Header and format information.
+                writer.Write(SaveMagic);
+                writer.Write(Version);
 
-            Points = _points
-                .Select(p => new PointData { X = p.X, Y = p.Y })
-                .ToList(),
+                writer.Write(_width);
+                writer.Write(_height);
 
-            Cells = _cellDictionary.Values
-                .Select(c => new CellData
+                writer.Write((int)CellDrawMode);
+                WriteColor(writer, _edgeColor);
+                WriteColor(writer, _pointColor);
+                WriteColor(writer, _flatColor);
+
+                writer.Write((int)_boundaryMode);
+                writer.Write(_firstArtificialId);
+
+                // Last-used rendering configuration.
+                writer.Write((int)_previousFlags);
+                writer.Write((int)_previousBoundaryMode);
+                writer.Write(_previousThickness);
+                writer.Write(_previousPointSize);
+
+                // Original point/site array. IDs are persisted verbatim.
+                writer.Write(_points.Length);
+
+                foreach (Point point in _points)
+                    WritePoint(writer, point);
+
+                // Save the full ID-indexed cell array, including null slots
+                // and culled cells. Do not save only _renderingCells.
+                writer.Write(_cellsBySiteId.Length);
+
+                foreach (VoronoiCell? cell in _cellsBySiteId)
                 {
-                    X = c.Site.X,
-                    Y = c.Site.Y,
-                    IsBoundary = c.IsBoundary,
-                    Vertices = c.Vertices
-                        .Select(v => new PointData { X = v.X, Y = v.Y })
-                        .ToList()
-                })
-                .ToList(),
+                    writer.Write(cell is not null);
 
-            Edges = _voronoiEdges
-                .Select(e => new EdgeData
+                    if (cell is not null)
+                        WriteCell(writer, cell);
+                }
+
+                // Preserve colors indexed by ID.
+                WriteColors(writer, _cellRawColors);
+                WriteColors(writer, _cellOverrideColors);
+
+                // Preserve render ordering using cell-array slots, not IDs.
+                // InvalidID cells can share the same ID, so IDs cannot uniquely identify a cell.
+                var cellSlots = new Dictionary<VoronoiCell, int>(ReferenceEqualityComparer.Instance);
+                for (int i = 0; i < _cellsBySiteId.Length; i++)
                 {
-                    Point1 = new PointData { X = e.Point1.X, Y = e.Point1.Y },
-                    Point2 = new PointData { X = e.Point2.X, Y = e.Point2.Y }
-                })
-                .ToList(),
+                    VoronoiCell? cell = _cellsBySiteId[i];
+                    if (cell is not null) cellSlots.TryAdd(cell, i);
+                }
 
-            CellEdges = _cellVoronoiEdges
-                .Select(e => new CellEdgeData
+                writer.Write(_renderingCells.Length);
+
+                foreach (VoronoiCell cell in _renderingCells)
                 {
-                    SiteA = new PointData { X = e.SiteA.X, Y = e.SiteA.Y },
-                    SiteB = e.SiteB.HasValue
-                        ? new PointData { X = e.SiteB.Value.X, Y = e.SiteB.Value.Y }
-                        : null,
-                    Point1 = new PointData { X = e.Point1.X, Y = e.Point1.Y },
-                    Point2 = new PointData { X = e.Point2.X, Y = e.Point2.Y }
-                })
-                .ToList(),
+                    if (!cellSlots.TryGetValue(cell, out int slot))
+                    {
+                        string e = $"Rendering cell with ID {cell.ID} is not present in _cellsBySiteId.";
+                        throw new InvalidOperationException(e);
+                    }
 
-            RawColors = _cellRawColors
-                .Select(c => new ColorData { R = c.R, G = c.G, B = c.B, A = c.A })
-                .ToArray(),
+                    writer.Write(slot);
+                }
+            }
 
-            OverrideColors = _cellOverrideColors
-                .Select(c => new ColorData { R = c.R, G = c.G, B = c.B, A = c.A })
-                .ToArray()
-        };
+            // Replace the target only after the complete file is written.
+            File.Move(temporaryPath, fullPath, overwrite: true);
+        }
+        catch
+        {
+            if (File.Exists(temporaryPath))
+                File.Delete(temporaryPath);
 
-        File.WriteAllText(filePath, JsonSerializer.Serialize(data, _serializerOptions));
+            throw;
+        }
     }
 
-    public void Load(string filePath) // TODO: Add test case for Voronoi Load()
+    /// <summary>
+    /// Loads a saved diagram into a new Voronoi instance.
+    /// Rendering resources are created for the supplied GraphicsDevice.
+    /// </summary>
+    public static Voronoi LoadDiagram(GraphicsDevice graphicsDevice, string filePath)
     {
-        var data = JsonSerializer.Deserialize<VoronoiSaveData>(File.ReadAllText(filePath));
-        if (data == null)
-            throw new InvalidDataException("Invalid Voronoi save file.");
+        using var stream = new FileStream(
+            filePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 1 << 20,
+            options: FileOptions.SequentialScan);
 
-        _width = data.Width;
-        _height = data.Height;
-        _boundaryMode = data.BoundaryMode;
-        _points = data.Points.Select(p => new Point(p.X, p.Y)).ToArray();
+        using var reader = new BinaryReader(stream);
 
-        var pointLookup = _points.ToDictionary(p => (p.X, p.Y));
+        if (reader.ReadUInt32() != SaveMagic)
+            throw new InvalidDataException("The file is not a Voronoi diagram snapshot.");
 
-        _cellDictionary.Clear();
+        int formatVersion = reader.ReadInt32();
+        if (formatVersion != Version)
+            Log(new InvalidDataException($"Unsupported Voronoi save version: {formatVersion}."));
+
+        int width = reader.ReadInt32();
+        int height = reader.ReadInt32();
+
+        if (width <= 0 || height <= 0)
+            throw new InvalidDataException("The saved diagram dimensions are invalid.");
+
+        var cellDrawMode = (ColorMode)reader.ReadInt32();
+        Color edgeColor = ReadColor(reader);
+        Color pointColor = ReadColor(reader);
+        Color flatColor = ReadColor(reader);
+
+        var boundaryMode = (VoronoiBoundaryMode)reader.ReadInt32();
+        uint firstArtificialId = reader.ReadUInt32();
+
+        var flags = (VoronoiRenderingFlags)reader.ReadInt32();
+        var previousBoundaryMode = (VoronoiBoundaryMode)reader.ReadInt32();
+
+        float thickness = reader.ReadSingle();
+        float pointSize = reader.ReadSingle();
+
+        // Read persistent data into ordinary CPU-side structures first.
+        var points = ReadPoints(reader);
+        var cells = ReadCells(reader);
+        var rawColors = ReadColors(reader);
+        var overrideColors = ReadColors(reader);
+
+        int renderCount = ReadCount(reader);
+        var renderingSlots = new int[renderCount];
+
+        for (int i = 0; i < renderCount; i++)
+            renderingSlots[i] = reader.ReadInt32();
+
+        // Detect truncated or unexpected trailing data.
+        if (stream.Position != stream.Length)
+            throw new InvalidDataException(
+                "The saved diagram contains unexpected trailing data.");
+
+        var diagram = new Voronoi(graphicsDevice, cellDrawMode, edgeColor, pointColor, flatColor)
+        {
+            _width = width,
+            _height = height,
+            _boundaryMode = boundaryMode,
+            _firstArtificialId = firstArtificialId,
+            _points = points,
+            _cellsBySiteId = cells,
+            _previousFlags = flags,
+            _previousBoundaryMode = previousBoundaryMode,
+            _previousThickness = thickness,
+            _previousPointSize = pointSize
+        };
+
+        // The constructor initially used the current viewport dimensions.
+        diagram.SetDiagramProjection(Matrix.Identity, Matrix.Identity);
+        diagram.RebuildAfterLoad(renderingSlots, rawColors, overrideColors);
+        return diagram;
+    }
+
+    private void RebuildAfterLoad(int[] renderingSlots, Color[] rawColors, Color[] overrideColors)
+    {
+        // Rebuild derived edge information from the saved sites.
+        // The saved cell polygons themselves are NOT regenerated.
         _voronoiEdges.Clear();
         _cellVoronoiEdges.Clear();
-        Array.Clear(_edgesByCell);
-        _cellsById.Clear();
+        _edgesByCell = new List<CellVoronoiEdge>?[_cellsBySiteId.Length];
 
-        foreach (VoronoiCell cell in _cellDictionary.Values)
-            _cellsById[cell.ID] = cell;
+        using var delaunay = new DelaunayTriangulator();
 
-        BuildCellArray();
+        // Initialize the triangulation's bounds for the saved diagram.
+        // Discard the generated points; the saved points remain authoritative.
+        _ = delaunay.CreatePointsList(_width, _height, (uint)_points.Length);
+        var triangulation = delaunay.BowyerWatson(_points);
+
+        foreach (Triangle triangle in triangulation)
+            AddVoronoiEdges(triangle, _boundaryMode);
+
+        // Rebuild internal render mappings from the restored cells.
+        BuildRenderArrays();
+
+        // Build an explicit ID lookup to restore the original render order.
+        // Restore rendering order by exact cell-array references.
+        // This works even when multiple cells have InvalidID.
+        _renderingCells = new VoronoiCell[renderingSlots.Length];
+
+        for (int i = 0; i < renderingSlots.Length; i++)
+        {
+            int slot = renderingSlots[i];
+            if ((uint)slot >= (uint)_cellsBySiteId.Length)
+            {
+                throw new InvalidDataException($"Invalid rendering cell slot: {slot}.");
+            }
+
+            VoronoiCell? cell = _cellsBySiteId[slot];
+
+            var message = $"Rendering cell slot {slot} references an empty cell.";
+            _renderingCells[i] = cell ?? throw new InvalidDataException(message);
+        }
+
+        // BuildRenderArrays may have created fresh colors.
+        // Restore the exact arrays saved with the diagram.
+        _cellRawColors = rawColors;
+        _cellOverrideColors = overrideColors;
+
+        _usedColors.Clear();
+        foreach (Color color in _cellRawColors)
+            _usedColors.Add((color.R << 16) | (color.G << 8) | color.B);
+
+        // Geometry, tessellations and rendering batches are derived data.
         BuildCellGeometry();
+        BuildDemarcateCellEdges();
 
-        foreach (CellData savedCell in data.Cells)
+        if ((_previousFlags & VoronoiRenderingFlags.Points) != 0)
+            BuildPointBatch(_previousPointSize);
+
+        if ((_previousFlags & VoronoiRenderingFlags.Edges) != 0)
+            BuildEdgeBatch(_previousThickness);
+
+        if ((_previousFlags & VoronoiRenderingFlags.Triangles) != 0)
+            BuildTriangleBatch(triangulation);
+
+        if ((_previousFlags & VoronoiRenderingFlags.Cells) != 0)
         {
-            Point site = pointLookup[(savedCell.X, savedCell.Y)];
-            var vertices = savedCell.Vertices.Select(v => new Point(v.X, v.Y)).ToList();
-            _cellDictionary[site] = new VoronoiCell(site, vertices) { IsBoundary = savedCell.IsBoundary };
+            BuildCellVertexBatch();
+            BuildCellColorBatch([]);
         }
-
-        foreach (EdgeData edge in data.Edges)
-        {
-            var a = new Point(edge.Point1.X, edge.Point1.Y);
-            var b = new Point(edge.Point2.X, edge.Point2.Y);
-            _voronoiEdges.Add(new Edge(a, b));
-        }
-
-        foreach (CellEdgeData edge in data.CellEdges)
-        {
-            Point siteA = pointLookup[(edge.SiteA.X, edge.SiteA.Y)];
-            Point? siteB = edge.SiteB != null ? pointLookup[(edge.SiteB.X, edge.SiteB.Y)] : null;
-
-            var point1 = new Point(edge.Point1.X, edge.Point1.Y);
-            var point2 = new Point(edge.Point2.X, edge.Point2.Y);
-            var cellVoronoiEdge = new CellVoronoiEdge(siteA, siteB, point1, point2);
-            _cellVoronoiEdges.Add(cellVoronoiEdge);
-        }
-
-        _cellRawColors = data.RawColors
-            .Select(c => new Color(c.R, c.G, c.B, c.A))
-            .ToArray();
-
-        _cellOverrideColors = data.OverrideColors
-            .Select(c => new Color(c.R, c.G, c.B, c.A))
-            .ToArray();
-
-        BuildSelectCellEdges();
-        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_renderingCells, _width, _height);
 
         _isGenerated = true;
         _textureValid = false;
 
-        UpdateTexture(
-            _boundaryMode,
-            VoronoiRenderingFlags.Cells,
-            _previousThickness,
-            _previousPointSize,
-            true);
+        UpdateTexture(_boundaryMode, _previousFlags, _previousThickness, _previousPointSize);
+
+        _spatialGrid = SpatialGrid.FactoryMakeBuildSpatialGrid(_renderingCells, _width, _height);
     }
-}*/
+
+    private static void WriteCell(BinaryWriter writer, VoronoiCell cell)
+    {
+        WritePoint(writer, cell.Site);
+
+        writer.Write(cell.IsBoundary);
+        writer.Write(cell.IsCulled);
+        writer.Write(cell.Vertices.Count);
+
+        foreach (Point vertex in cell.Vertices)
+            WritePoint(writer, vertex);
+
+        // Clipper2 uses integer coordinates here. Store its longs directly
+        // instead of converting them into floats.
+        writer.Write(cell.RenderPaths is not null);
+        if (cell.RenderPaths is null)
+            return;
+
+        writer.Write(cell.RenderPaths.Count);
+
+        foreach (Path64 path in cell.RenderPaths)
+        {
+            writer.Write(path.Count);
+            foreach (Point64 point in path)
+            {
+                writer.Write(point.X);
+                writer.Write(point.Y);
+            }
+        }
+    }
+
+    private static VoronoiCell ReadCell(BinaryReader reader)
+    {
+        Point site = ReadPoint(reader);
+
+        bool isBoundary = reader.ReadBoolean();
+        bool isCulled = reader.ReadBoolean();
+
+        int vertexCount = ReadCount(reader);
+        var vertices = new List<Point>(vertexCount);
+
+        for (int i = 0; i < vertexCount; i++)
+            vertices.Add(ReadPoint(reader));
+
+        var cell = new VoronoiCell(site, vertices)
+        {
+            IsBoundary = isBoundary,
+            IsCulled = isCulled
+        };
+
+        if (reader.ReadBoolean())
+        {
+            int pathCount = ReadCount(reader);
+            var paths = new Paths64();
+
+            for (int i = 0; i < pathCount; i++)
+            {
+                int pointCount = ReadCount(reader);
+                var path = new Path64();
+
+                for (int j = 0; j < pointCount; j++)
+                {
+                    long x = reader.ReadInt64();
+                    long y = reader.ReadInt64();
+
+                    path.Add(new Point64(x, y));
+                }
+
+                paths.Add(path);
+            }
+
+            cell.RenderPaths = paths;
+            return cell;
+        }
+
+        cell.RenderPaths = null;
+        return cell;
+    }
+
+    private static Point[] ReadPoints(BinaryReader reader)
+    {
+        int count = ReadCount(reader);
+        var points = new Point[count];
+
+        for (int i = 0; i < count; i++)
+            points[i] = ReadPoint(reader);
+
+        return points;
+    }
+
+    private static void WritePoint(BinaryWriter writer, Point point)
+    {
+        writer.Write(point.X);
+        writer.Write(point.Y);
+        writer.Write(point.ID);
+    }
+
+    private static Point ReadPoint(BinaryReader reader)
+    {
+        float x = reader.ReadSingle();
+        float y = reader.ReadSingle();
+        uint id = reader.ReadUInt32();
+        return new Point(x, y, id);
+    }
+
+    private static VoronoiCell?[] ReadCells(BinaryReader reader)
+    {
+        int count = ReadCount(reader);
+        var cells = new VoronoiCell?[count];
+        for (int i = 0; i < count; i++)
+            if (reader.ReadBoolean())
+                cells[i] = ReadCell(reader);
+
+        return cells;
+    }
+
+    private static void WriteColors(
+        BinaryWriter writer,
+        Color[] colors)
+    {
+        writer.Write(colors.Length);
+
+        foreach (Color color in colors)
+            WriteColor(writer, color);
+    }
+
+    private static Color[] ReadColors(BinaryReader reader)
+    {
+        int count = ReadCount(reader);
+        var colors = new Color[count];
+
+        for (int i = 0; i < count; i++)
+            colors[i] = ReadColor(reader);
+
+        return colors;
+    }
+
+    private static void WriteColor(
+        BinaryWriter writer,
+        Color color)
+    {
+        writer.Write(color.R);
+        writer.Write(color.G);
+        writer.Write(color.B);
+        writer.Write(color.A);
+    }
+
+    private static Color ReadColor(BinaryReader reader)
+    {
+        byte r = reader.ReadByte();
+        byte g = reader.ReadByte();
+        byte b = reader.ReadByte();
+        byte a = reader.ReadByte();
+
+        return new Color(r, g, b, a);
+    }
+
+    private static int ReadCount(BinaryReader reader)
+    {
+        int count = reader.ReadInt32();
+
+        if (count < 0 || count > MaxSerializedItems)
+            throw new InvalidDataException(
+                $"Invalid item count in Voronoi snapshot: {count}.");
+
+        return count;
+    }
+}

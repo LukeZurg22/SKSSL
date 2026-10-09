@@ -119,7 +119,11 @@ public partial class Voronoi
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint GetCellIdFromSiteId(uint siteId)
     {
-        return siteId >= (uint)_cellsBySiteId.Length ? VoronoiCell.InvalidId : _cellsBySiteId[(int)siteId]!.ID;
+        if (siteId >= _cellsBySiteId.Length)
+            return VoronoiCell.InvalidId;
+
+        VoronoiCell? cell = _cellsBySiteId[siteId];
+        return cell is { HasRenderableGeometry: true } ? cell.ID : VoronoiCell.InvalidId;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

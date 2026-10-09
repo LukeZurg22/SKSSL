@@ -112,11 +112,10 @@ public partial class Voronoi
         BuildCellColorBatch(idsAffected, flattenOthers, (color, blankColor));
     }
 
-
     /// <summary>
     /// Change color for a specific cell ID.
     /// </summary>
-    /// <param name="cellId"></param>
+    /// <param name="cellId">Cell Render ID</param>
     /// <param name="color"></param>
     /// <remarks>Make sure to call <see cref="UpdateTexture"/> afterwards.</remarks>
     public unsafe void ChangeCellColor(uint cellId, Color color)
@@ -187,10 +186,10 @@ public partial class Voronoi
     }
 
     // ReSharper disable once MemberCanBePrivate.Global
-    public void DemarcateCell(uint cellId, float thickness = 1f)
+    public void DemarcateCell(uint cellRenderId, float thickness = 1f)
     {
         //_cellsBySiteId[cellId];
-        _demarcatedCellIds.Add(cellId);
+        _demarcatedCellIds.Add(cellRenderId);
     }
 
     // ReSharper disable once UnusedMember.Global
