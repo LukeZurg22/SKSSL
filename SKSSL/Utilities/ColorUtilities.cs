@@ -33,16 +33,15 @@ public static class ColorUtilities
     }
 
     private const uint InvalidatedUint = uint.MaxValue;
+    private const uint MaxEncodableUint = 0x00FFFFFE;
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Color EncodeAsColor(this uint i)
     {
-        if (i is InvalidatedUint or > 0x00FFFFFE /*aka MaxRasterUnsignedInteger*/)
+        if (i is InvalidatedUint or > MaxEncodableUint)
             throw new ArgumentOutOfRangeException(nameof(i));
-
-        uint encoded = i /*+ 1u*/; // Fixed for 0-based indexing, not 1-based.
-        var r = (byte)(encoded & 0xFF);
-        var g = (byte)((encoded >> 8) & 0xFF);
-        var b = (byte)((encoded >> 16) & 0xFF);
+        var r = (byte)(i & 0xFF);
+        var g = (byte)((i >> 8) & 0xFF);
+        var b = (byte)((i >> 16) & 0xFF);
         const byte alpha = byte.MaxValue;
         return new Color(r, g, b, alpha);
     }
