@@ -19,7 +19,7 @@ public partial class Voronoi
     /// <param name="points"></param>
     /// <param name="width">Width of diagram in pixels.</param>
     /// <param name="height">Height of diagram in pixels.</param>
-    public VoronoiDiagramData GenerateDiagram(
+    public DiagramData GenerateDiagram(
         uint points = DefaultPointCount,
         int? width = null,
         int? height = null,
@@ -136,7 +136,7 @@ public partial class Voronoi
         ReleaseTransientGeometry();
 
         // Update the existing internal pixel map with visual changes.
-        return new VoronoiDiagramData(
+        return new DiagramData(
             settings,
             colors.CellRawColors,
             colors.ColorToIdLookup,

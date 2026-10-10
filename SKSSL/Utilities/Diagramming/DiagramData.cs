@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Utilities.Voronoi;
 
-public readonly ref struct VoronoiDiagramData
+public readonly ref struct DiagramData
 {
     public readonly Texture2D PixelMap;
     public readonly Texture2D? OverlayMap;
@@ -13,7 +13,7 @@ public readonly ref struct VoronoiDiagramData
     public readonly DiagramSettings Settings;
     public readonly int CellCount;
     
-    public VoronoiDiagramData(
+    public DiagramData(
         DiagramSettings settings,
         Color[] cellRawColors,
         PackedColorEntry[] colorToIdLookup,

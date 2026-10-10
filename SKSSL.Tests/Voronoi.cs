@@ -72,7 +72,7 @@ public class Voronoi
             Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.CellsPoints,
             ReferenceBoundary = new ReferenceBoundarySettings(_borderMap)
         };
-        VoronoiDiagramData diagram = _voronoi.GenerateDiagram(
+        DiagramData diagram = _voronoi.GenerateDiagram(
             points: _points,
             //width: 1200,
             //height: 800,

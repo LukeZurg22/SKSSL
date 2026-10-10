@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 
 namespace SKSSL.Utilities;
@@ -44,11 +43,10 @@ public partial class DiagramMap
     private void RemovePixelFromCell(int pixelIndex)
     {
         int oldCellId = _cellIdByPixel[pixelIndex];
-
         if (oldCellId < 0)
             return;
 
-        List<int> pixels = _pixelIndicesByCell[oldCellId];
+        var pixels = _pixelIndicesByCell[oldCellId];
         int removeIndex = _pixelIndexInCell[pixelIndex];
         int lastIndex = pixels.Count - 1;
 

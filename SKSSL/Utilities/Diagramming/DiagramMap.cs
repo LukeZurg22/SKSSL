@@ -35,15 +35,15 @@ public partial class DiagramMap
 
     // Reverse lookup: pixel index -> position inside its cell's list. -1 means the pixel isn't in a cell list.
     private readonly int[] _pixelIndexInCell;
-    private readonly List<int>[] _pixelIndicesByCell = []; // Current pixel membership for each cell.
-    private Color[] _cellRawColors = []; // Immutable base colors and the ID lookup.
+    private readonly List<int>[] _pixelIndicesByCell; // Current pixel membership for each cell.
+    private readonly Color[] _cellRawColors; // Immutable base colors and the ID lookup.
 
-    private readonly PackedColorEntry[] _rawColorToIdLookup = [];
+    private readonly PackedColorEntry[] _rawColorToIdLookup;
     private readonly int _rawColorToIdMask;
 
     // Override state, indexed by cell ID.
-    private Color[] _cellOverrideColors = [];
-    private bool[] _hasCellOverride = [];
+    private Color[] _cellOverrideColors;
+    private bool[] _hasCellOverride;
 
     private Rectangle _dirtyIdRectangle;
     private bool _idTextureDirty;
@@ -58,14 +58,15 @@ public partial class DiagramMap
 
     #region Constructors
 
-    private DiagramMap(GraphicsDevice graphics, Texture2D pixelMap, Texture2D? overlay)
+    public DiagramMap(GraphicsDevice graphics, DiagramData diagramData)
     {
-        _pixelMap = pixelMap;
-        _overlay = overlay;
+        // First Half - Getting the images in.
+        _pixelMap = diagramData.PixelMap;
+        _overlay = diagramData.OverlayMap;
         _graphics = graphics;
 
         // Read the source only once. Never read it back each frame.
-        int pixelCount = pixelMap.Width * pixelMap.Height;
+        int pixelCount = _pixelMap.Width * _pixelMap.Height;
         _sourcePixels = new Color[pixelCount];
         _pixelMap.GetData(_sourcePixels);
         _displayPixels = new Color[pixelCount];
@@ -75,13 +76,11 @@ public partial class DiagramMap
         Array.Fill(_cellIdByPixel, -1);
         Array.Fill(_pixelIndexInCell, -1);
 
+        // Self Half - Processing colors and cells.
+
         // OpenGL is cross-compat with the Big Three(TM) Operating Systems, so I am going with OpenGL.
         _paletteEffect = Shaders.EffectLoader.LoadEmbedded(graphics, "CellPalette_OpenGL.mgfxo");
-    }
 
-    public DiagramMap(GraphicsDevice graphics, VoronoiDiagramData diagramData)
-        : this(graphics, diagramData.PixelMap, diagramData.OverlayMap)
-    {
         // Keep our own copy of the original per-cell colors.
         _cellRawColors = (Color[])diagramData.CellRawColors.Clone();
         _rawColorToIdLookup = diagramData.ColorToIdLookup;
