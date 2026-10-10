@@ -34,7 +34,7 @@ public partial class DiagramMap
 
     // Reverse lookup: pixel index -> position inside its cell's list. -1 means the pixel isn't in a cell list.
     private readonly int[] _pixelIndexInCell;
-    private List<int>[] _pixelIndicesByCell; // Current pixel membership for each cell.
+    private readonly List<int>[] _pixelIndicesByCell; // Current pixel membership for each cell.
     private Color[] _cellRawColors; // Immutable base colors and the ID lookup.
 
     private readonly PackedColorEntry[] _rawColorToIdLookup;
@@ -54,11 +54,9 @@ public partial class DiagramMap
     private readonly int _paletteHeight;
 
     private const uint InvalidatedUint = uint.MaxValue;
-    private const int MaxEncodableCellId = 0x00FFFFFE;
 
     // Reference-region constraint. Null means no constraint.
     private int[]? _boundaryRegionByPixel;
-    private int[]? _boundaryRegionByCellId;
 
     // Alpha 128 is the empty-cell sentinel used by SetPixelCell.
     private static readonly Color EmptyCellIdColor = new(0, 0, 0, 128);
@@ -102,6 +100,20 @@ public partial class DiagramMap
         for (int i = 0; i < cellCount; i++)
             _pixelIndicesByCell[i] = [];
 
+        BuildPixelIndex();
+
+        // Rendering cells.
+        _renderCellIdByPixel = new int[pixelCount];
+        Array.Fill(_renderCellIdByPixel, -1);
+        Array.Copy(_cellIdByPixel, _renderCellIdByPixel, pixelCount);
+        _renderParentCellId = new int[_cellRawColors.Length];
+        for (int i = 0; i < _renderParentCellId.Length; i++)
+            _renderParentCellId[i] = i;
+
+        // Split original cells across reference regions, when supplied.
+        if (diagramData.Settings.ReferenceBoundary is { } boundary) 
+            ApplyReferenceBoundary(boundary);
+
         // Build the palette dimensions.
         _paletteWidth = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(cellCount)));
         _paletteHeight = Math.Max(1, (cellCount + _paletteWidth - 1) / _paletteWidth);
@@ -112,12 +124,6 @@ public partial class DiagramMap
         _cellIdTexture = new Texture2D(graphics, _pixelMap.Width, _pixelMap.Height, mipmap: false, format: SurfaceFormat.Color);
         _paletteTexture = new Texture2D(graphics, _paletteWidth, _paletteHeight, mipmap: false, format: SurfaceFormat.Color);
         //@formatter:on
-        
-        BuildPixelIndex();
-
-        // Split original cells across reference regions, when supplied.
-        //if (diagramData.Settings.ReferenceBoundary != null)
-        //    ApplyReferenceBoundary(diagramData.Settings.ReferenceBoundary);
 
         // The display buffer now contains the base cell colors.
         _cellIdTexture.SetData(_displayPixels);
@@ -168,16 +174,16 @@ public partial class DiagramMap
     /// <summary>
     /// Retrieve a cell at a provided mouse position.
     /// </summary>
-    /// <param name="mousePosition"></param>
+    /// <param name="point">Usually Mouse Position.</param>
     /// <param name="id"></param>
     /// <returns></returns>
-    public bool TryGetCellAt(Point mousePosition, out uint id)
+    public bool TryGetCellAt(Point point, out uint id)
     {
         id = InvalidatedUint;
 
         // Convert screen coordinates into diagram-local coordinates.
         Matrix inverse = Matrix.Invert(_diagramTransform);
-        var screenPosition = new Microsoft.Xna.Framework.Vector2(mousePosition.X, mousePosition.Y);
+        var screenPosition = new Microsoft.Xna.Framework.Vector2(point.X, point.Y);
         Microsoft.Xna.Framework.Vector2 localPosition =
             Microsoft.Xna.Framework.Vector2.Transform(screenPosition, inverse);
 

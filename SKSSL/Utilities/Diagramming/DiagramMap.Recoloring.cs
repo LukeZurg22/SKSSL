@@ -20,11 +20,12 @@ public partial class DiagramMap
         int pixelIndex = y * _pixelMap.Width + x;
         int newCellId = cellId.HasValue ? (int)cellId.Value : -1;
 
-        if (cellId.HasValue)
+        if (cellId.HasValue && _boundaryRegionByPixel != null)
         {
-            if (_boundaryRegionByPixel != null &&
-                _boundaryRegionByCellId![newCellId] != _boundaryRegionByPixel[pixelIndex])
-                throw new ArgumentException("The cell cannot be assigned across a reference boundary.", nameof(cellId));
+            int region = _boundaryRegionByPixel[pixelIndex];
+            ulong key = MakeCellRegionKey((int)cellId.Value, region);
+            if (!_renderIdByCellRegion.TryGetValue(key, out _))
+                throw new ArgumentException("The cell cannot be assigned to this boundary region.", nameof(cellId));
         }
 
         int oldCellId = _cellIdByPixel[pixelIndex];
@@ -40,6 +41,7 @@ public partial class DiagramMap
         _displayPixels[pixelIndex] = newCellId >= 0
             ? ((uint)newCellId).EncodeAsColor()
             : EmptyCellIdColor; MarkIdPixelDirty(x, y);
+        _renderCellIdByPixel[pixelIndex] = newCellId;
     }
 
     private void MarkIdPixelDirty(int x, int y)
