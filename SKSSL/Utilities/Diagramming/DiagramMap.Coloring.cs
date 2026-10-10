@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 
 namespace SKSSL.Utilities;
 
 public partial class DiagramMap
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetCellOverride(uint id, Color color)
     {
         ValidateCellId(id);
@@ -15,10 +17,10 @@ public partial class DiagramMap
 
         _cellOverrideColors[id] = color;
         _hasCellOverride[id] = true;
-
         UpdateEffectiveColor(id);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ClearCellOverride(uint id)
     {
         ValidateCellId(id);
@@ -35,7 +37,7 @@ public partial class DiagramMap
 
     private void UpdateEffectiveColor(uint cellId)
     {
-        Color color = _hasCellOverride[cellId] ? _cellOverrideColors[cellId] : _cellRawColors[cellId];
+        Color color = GetEffectiveColor(cellId);
         if (_palettePixels[cellId] == color)
             return;
 
@@ -43,17 +45,33 @@ public partial class DiagramMap
         _paletteDirty = true;
     }
 
-    private Color GetEffectiveColor(int cellId)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Color GetEffectiveColor(uint cellId)
         => _hasCellOverride[cellId] ? _cellOverrideColors[cellId] : _cellRawColors[cellId];
 
-    public void ClearCellOverrides(ICollection<uint> selectedIds)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ClearCellOverrides(ICollection<uint>? selectedIds = null)
     {
-        foreach (uint id in selectedIds)
+        switch (selectedIds)
         {
-            if (!_hasCellOverride[id])
-                continue;
-            _hasCellOverride[id] = false;
-            UpdateEffectiveColor(id);
+            case null:
+                // The uint cast for an int indexer is a bit dangerous. But...
+                // ...realistically-speaking, nobody is ever going to make 21 million cells on one diagram. Hopefully.
+                Parallel.For(0, _hasCellOverride.Length, i => { ClearCellOverride((uint)i); });
+                return;
+            default:
+            {
+                foreach (uint id in selectedIds)
+                    ClearCellOverride(id);
+                return;
+            }
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // ReSharper disable once UnusedMember.Global
+    public void SetCellOverrides(ICollection<uint> selectedIds, Color color)
+    {
+        foreach (uint id in selectedIds) SetCellOverride(id, color);
     }
 }
