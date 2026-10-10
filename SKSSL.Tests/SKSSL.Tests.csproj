@@ -72,6 +72,8 @@
 
     <ItemGroup>
       <None Remove="GG_Map.png" />
+      <EmbeddedResource Include="GG_Borders_0.png" />
+      <EmbeddedResource Include="GG_Borders_1.png" />
       <EmbeddedResource Include="GG_Map.png">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </EmbeddedResource>
@@ -79,9 +81,7 @@
       <EmbeddedResource Include="PLAIN_ROUND.png">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </EmbeddedResource>
-      <None Remove="GG_Borders.png" />
-      <EmbeddedResource Include="GG_Borders.png">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </EmbeddedResource>
+      <None Remove="GG_Borders_0.png" />
+      <None Remove="GG_Borders_1.png" />
     </ItemGroup>
 </Project>
