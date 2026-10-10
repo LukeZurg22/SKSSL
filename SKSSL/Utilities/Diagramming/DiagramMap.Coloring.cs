@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 
@@ -9,8 +10,7 @@ public partial class DiagramMap
     public void SetCellOverride(uint id, Color color)
     {
         ValidateCellId(id);
-        if (_hasCellOverride[id] &&
-            _cellOverrideColors[id] == color)
+        if (_hasCellOverride[id] && _cellOverrideColors[id] == color)
             return;
 
         _cellOverrideColors[id] = color;
@@ -30,7 +30,7 @@ public partial class DiagramMap
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ValidateCellId(uint id) 
+    private void ValidateCellId(uint id)
         => ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(id, (uint)_cellRawColors.Length);
 
     private void UpdateEffectiveColor(uint cellId)
@@ -45,4 +45,15 @@ public partial class DiagramMap
 
     private Color GetEffectiveColor(int cellId)
         => _hasCellOverride[cellId] ? _cellOverrideColors[cellId] : _cellRawColors[cellId];
+
+    public void ClearCellOverrides(ICollection<uint> selectedIds)
+    {
+        foreach (uint id in selectedIds)
+        {
+            if (!_hasCellOverride[id])
+                continue;
+            _hasCellOverride[id] = false;
+            UpdateEffectiveColor(id);
+        }
+    }
 }

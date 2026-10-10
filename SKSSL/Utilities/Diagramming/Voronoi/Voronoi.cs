@@ -78,14 +78,6 @@ public partial class Voronoi
     // Cache Flags
     private bool _isGenerated = false;
 
-    // Authoritative map data.
-    private uint[] _pixelCellIds = [];
-
-    // Resolved palette uploaded to the GPU.
-    private Color[] _cellEffectiveColors = [];
-
-    private Texture2D? _cellPaletteTexture;
-
     public Voronoi(
         GraphicsDevice graphicsDevice,
         Color? unifiedColor = null,

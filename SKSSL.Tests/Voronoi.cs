@@ -1,5 +1,7 @@
 #nullable enable
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using FontStashSharp;
 using JetBrains.Annotations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -29,7 +31,7 @@ public class Voronoi
     private SpriteFontBase _font = null!;
     private Texture2D _borderMap = null!;
     private const int _points = 10000;
-    private readonly uint[] _selectedIds = new uint[_points];
+    private readonly HashSet<uint> _selectedIds = [];
 
     [TestMethod, UsedImplicitly]
     public void TEST_VORONOI_GEN()
@@ -144,7 +146,8 @@ public class Voronoi
         if (_diagramMap.TryGetCellAt(mouse.Position, out uint id))
         {
             System.Console.WriteLine($"Hovered cell ID: {id}");
-            _selectedIds[0] = id;
+            _diagramMap.ClearCellOverrides(_selectedIds);
+            _selectedIds.Add(id);
             _diagramMap.SetCellOverride(id, Color.Yellow);
         }
 
@@ -161,9 +164,9 @@ public class Voronoi
 
         _spriteBatch.Begin();
         Vector2 position = Vector2.Zero;
-        bool nullCell = /*_hoveredCell*/ null != null;
+        bool nullCell = _selectedIds.FirstOrDefault() != default;
         _spriteBatch.DrawString(_font, nullCell
-            ? $"RENDER: {_selectedIds[0].ToString()}"
+            ? $"RENDER: {_selectedIds.First().ToString()}"
             : "null", position, Color.Wheat);
         position = new Vector2(0, 25);
         //_spriteBatch.DrawString(_font, nullCell

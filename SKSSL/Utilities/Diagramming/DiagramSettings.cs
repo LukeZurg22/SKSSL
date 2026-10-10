@@ -2,7 +2,7 @@ using SKSSL.Utilities.Voronoi.PointDistributors;
 
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 
-namespace SKSSL.Utilities.Voronoi;
+namespace SKSSL.Utilities;
 
 // ReSharper disable once ClassNeverInstantiated.Global
 public class DiagramSettings
@@ -12,13 +12,13 @@ public class DiagramSettings
     public double Randomness { get; init; } = 0.8;
 
     public IPointDistributor Distributor { get; init; } = new DistributorRandomJitter();
-    public Voronoi.VoronoiBoundaryMode BoundaryMode { get; init; } = Voronoi.VoronoiBoundaryMode.CulledSquare;
+    public Voronoi.Voronoi.VoronoiBoundaryMode BoundaryMode { get; init; } = Voronoi.Voronoi.VoronoiBoundaryMode.CulledSquare;
 
     /// Convenient Enum toggle of various parts of a Voronoi diagram.
-    public Voronoi.VoronoiRenderingFlags Flags { get; init; } = Voronoi.VoronoiRenderingFlags.Cells;
+    public Voronoi.Voronoi.VoronoiRenderingFlags Flags { get; init; } = Voronoi.Voronoi.VoronoiRenderingFlags.Cells;
 
     /// Control over how cell colors are assigned.
-    public Voronoi.ColorMode CellColorMode { get; init; } = Voronoi.ColorMode.Semi_Random;
+    public Voronoi.Voronoi.ColorMode CellColorMode { get; init; } = Voronoi.Voronoi.ColorMode.Semi_Random;
 
     /// Thickness of Edges, if they are rendered.
     public float Thickness { get; init; } = 1f;

@@ -19,6 +19,14 @@ public partial class DiagramMap
 
         int pixelIndex = y * _pixelMap.Width + x;
         int newCellId = cellId.HasValue ? (int)cellId.Value : -1;
+
+        if (cellId.HasValue)
+        {
+            if (_boundaryRegionByPixel != null &&
+                _boundaryRegionByCellId![newCellId] != _boundaryRegionByPixel[pixelIndex])
+                throw new ArgumentException("The cell cannot be assigned across a reference boundary.", nameof(cellId));
+        }
+
         int oldCellId = _cellIdByPixel[pixelIndex];
         if (oldCellId == newCellId && (newCellId >= 0 || _displayPixels[pixelIndex].A == 128))
             return;
@@ -29,8 +37,9 @@ public partial class DiagramMap
             AddPixelToCell(pixelIndex, newCellId);
 
         // -1 encodes a deliberately empty/transparent pixel.
-        _displayPixels[pixelIndex] = ((uint)newCellId).EncodeAsColor();
-        MarkIdPixelDirty(x, y);
+        _displayPixels[pixelIndex] = newCellId >= 0
+            ? ((uint)newCellId).EncodeAsColor()
+            : EmptyCellIdColor; MarkIdPixelDirty(x, y);
     }
 
     private void MarkIdPixelDirty(int x, int y)

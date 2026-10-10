@@ -1,7 +1,8 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SKSSL.Utilities.Voronoi;
 
-namespace SKSSL.Utilities.Voronoi;
+namespace SKSSL.Utilities;
 
 public readonly ref struct DiagramData
 {

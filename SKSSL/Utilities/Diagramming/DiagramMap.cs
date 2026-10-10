@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi;
@@ -35,8 +34,8 @@ public partial class DiagramMap
 
     // Reverse lookup: pixel index -> position inside its cell's list. -1 means the pixel isn't in a cell list.
     private readonly int[] _pixelIndexInCell;
-    private readonly List<int>[] _pixelIndicesByCell; // Current pixel membership for each cell.
-    private readonly Color[] _cellRawColors; // Immutable base colors and the ID lookup.
+    private List<int>[] _pixelIndicesByCell; // Current pixel membership for each cell.
+    private Color[] _cellRawColors; // Immutable base colors and the ID lookup.
 
     private readonly PackedColorEntry[] _rawColorToIdLookup;
     private readonly int _rawColorToIdMask;
@@ -55,31 +54,38 @@ public partial class DiagramMap
     private readonly int _paletteHeight;
 
     private const uint InvalidatedUint = uint.MaxValue;
+    private const int MaxEncodableCellId = 0x00FFFFFE;
+
+    // Reference-region constraint. Null means no constraint.
+    private int[]? _boundaryRegionByPixel;
+    private int[]? _boundaryRegionByCellId;
+
+    // Alpha 128 is the empty-cell sentinel used by SetPixelCell.
+    private static readonly Color EmptyCellIdColor = new(0, 0, 0, 128);
 
     #region Constructors
 
     public DiagramMap(GraphicsDevice graphics, DiagramData diagramData)
     {
-        // First Half - Getting the images in.
-        _pixelMap = diagramData.PixelMap;
-        _overlay = diagramData.OverlayMap;
+        // MonoGame Formalities
         _graphics = graphics;
+        // OpenGL is cross-compat with the Big Three(TM) Operating Systems, so I am going with OpenGL.
+        _paletteEffect = Shaders.EffectLoader.LoadEmbedded(graphics, "CellPalette_OpenGL.mgfxo");
+
+        // First Half - Getting the images in.
+        _overlay = diagramData.OverlayMap;
 
         // Read the source only once. Never read it back each frame.
+        _pixelMap = diagramData.PixelMap;
         int pixelCount = _pixelMap.Width * _pixelMap.Height;
         _sourcePixels = new Color[pixelCount];
         _pixelMap.GetData(_sourcePixels);
         _displayPixels = new Color[pixelCount];
         _uploadScratch = new Color[pixelCount];
         _cellIdByPixel = new int[pixelCount];
-        _pixelIndexInCell = new int[pixelCount];
         Array.Fill(_cellIdByPixel, -1);
+        _pixelIndexInCell = new int[pixelCount];
         Array.Fill(_pixelIndexInCell, -1);
-
-        // Self Half - Processing colors and cells.
-
-        // OpenGL is cross-compat with the Big Three(TM) Operating Systems, so I am going with OpenGL.
-        _paletteEffect = Shaders.EffectLoader.LoadEmbedded(graphics, "CellPalette_OpenGL.mgfxo");
 
         // Keep our own copy of the original per-cell colors.
         _cellRawColors = (Color[])diagramData.CellRawColors.Clone();
@@ -97,17 +103,21 @@ public partial class DiagramMap
             _pixelIndicesByCell[i] = [];
 
         // Build the palette dimensions.
-        //@formatter:off
         _paletteWidth = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(cellCount)));
         _paletteHeight = Math.Max(1, (cellCount + _paletteWidth - 1) / _paletteWidth);
         _palettePixels = new Color[_paletteWidth * _paletteHeight];
         Array.Copy(_cellRawColors, _palettePixels, cellCount);
+        //@formatter:off
         _displayMap = new Texture2D(graphics, _pixelMap.Width, _pixelMap.Height, mipmap: false, format: SurfaceFormat.Color);
         _cellIdTexture = new Texture2D(graphics, _pixelMap.Width, _pixelMap.Height, mipmap: false, format: SurfaceFormat.Color);
         _paletteTexture = new Texture2D(graphics, _paletteWidth, _paletteHeight, mipmap: false, format: SurfaceFormat.Color);
         //@formatter:on
-
+        
         BuildPixelIndex();
+
+        // Split original cells across reference regions, when supplied.
+        //if (diagramData.Settings.ReferenceBoundary != null)
+        //    ApplyReferenceBoundary(diagramData.Settings.ReferenceBoundary);
 
         // The display buffer now contains the base cell colors.
         _cellIdTexture.SetData(_displayPixels);

@@ -349,14 +349,11 @@ public partial class Voronoi
             if (entry.PackedColor == key)
             {
                 uint existingId = entry.CellIdPlusOne - 1;
-
-                if (existingId != id)
-                {
-                    throw new InvalidOperationException(
-                        $"Raw color collision: cells {existingId} and {id} share packed color {key}.");
-                }
-
-                return;
+                if (existingId == id)
+                    return;
+                
+                var message = $"Raw color collision: cells {existingId} and {id} share packed color {key}.";
+                throw new InvalidOperationException(message);
             }
 
             index = (index + 1) & colorToIdMask;

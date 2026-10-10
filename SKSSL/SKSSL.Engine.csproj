@@ -289,6 +289,9 @@
         <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Utilities_Clipping.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Diagramming\DiagramMap.ReferenceBounds.cs">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>
