@@ -139,6 +139,25 @@ public partial class Voronoi
                 cell.IsCulled = cell.Vertices.Count < 3;
             });
 
+
+#if DEBUG
+            int realSiteCount = (int)_firstArtificialId;
+            int validCells = 0;
+            int invalidCells = 0;
+
+            foreach (VoronoiCell? cell in _cellsBySiteId)
+            {
+                if (cell == null || IsArtificialBoundarySite(cell.Site))
+                    continue;
+
+                if (!cell.IsCulled && cell.Vertices.Count >= 3) validCells++;
+                else invalidCells++;
+            }
+
+            Debug.WriteLine(
+                $"HardEdgeClosed: real sites={realSiteCount}, " +
+                $"valid cells={validCells}, invalid cells={invalidCells}");
+#endif
             return;
         }
 

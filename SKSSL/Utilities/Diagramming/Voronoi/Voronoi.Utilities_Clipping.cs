@@ -27,7 +27,6 @@ public partial class Voronoi
 
             bool currentInside = (current.X - mx) * nx + (current.Y - my) * ny >= 0;
             bool prevInside = (prev.X - mx) * nx + (prev.Y - my) * ny >= 0;
-
             if (currentInside)
             {
                 if (!prevInside) output.Add(Intersect(prev, current, nx, ny, mx, my));

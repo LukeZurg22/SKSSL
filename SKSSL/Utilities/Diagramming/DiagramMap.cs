@@ -35,14 +35,14 @@ public partial class DiagramMap
     // Reverse lookup: pixel index -> position inside its cell's list. -1 means the pixel isn't in a cell list.
     private readonly int[] _pixelIndexInCell;
     private readonly List<int>[] _pixelIndicesByCell; // Current pixel membership for each cell.
-    private Color[] _cellRawColors; // Immutable base colors and the ID lookup.
+    private readonly Color[] _cellRawColors; // Immutable base colors and the ID lookup.
 
     private readonly PackedColorEntry[] _rawColorToIdLookup;
     private readonly int _rawColorToIdMask;
 
     // Override state, indexed by cell ID.
-    private Color[] _cellOverrideColors;
-    private bool[] _hasCellOverride;
+    private readonly Color[] _cellOverrideColors;
+    private readonly bool[] _hasCellOverride;
 
     private Rectangle _dirtyIdRectangle;
     private bool _idTextureDirty;

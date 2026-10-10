@@ -70,14 +70,12 @@ public class Voronoi
                 EdgeCellSizeFactor = 7,
                 AllowBlackGaps = false,
             }),
-            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.CulledCircular,
+            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.HardEdgeClosed,
             Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.CellsPoints,
             ReferenceBoundary = new ReferenceBoundarySettings(_borderMap)
         };
         DiagramData diagram = _voronoi.GenerateDiagram(
             points: _points,
-            //width: 1200,
-            //height: 800,
             settings: diagramSettings
         );
         _diagramMap = new DiagramMap(_game.GraphicsDevice, diagram);
@@ -129,7 +127,7 @@ public class Voronoi
         _densityTexture = heightMap;
 
         Texture2D borderMap = new EmbeddedContentManager(_game, typeof(Voronoi).Assembly)
-            .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Borders.png");
+            .LoadEmbeddedTexture(_game.GraphicsDevice, "GG_Borders_1.png");
         _borderMap = borderMap;
     }
 
@@ -150,7 +148,7 @@ public class Voronoi
             _selectedIds.Add(id);
             _diagramMap.SetCellOverride(id, Color.Yellow);
         }
-
+        
         if (TOGGLE_EXECUTABLE_CLOSURE)
 #pragma warning disable CS0162
             // ReSharper disable once HeuristicUnreachableCode
