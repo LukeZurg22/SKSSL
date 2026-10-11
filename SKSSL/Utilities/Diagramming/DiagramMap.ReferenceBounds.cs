@@ -12,257 +12,245 @@ public partial class DiagramMap
 
     private static ulong MakeCellRegionKey(int cellId, int regionId) => ((ulong)(uint)regionId << 32) | (uint)cellId;
 
-[MethodImpl(MethodImplOptions.AggressiveInlining)]
-private void ApplyReferenceBoundary(ReferenceBoundarySettings boundary)
-{
-    int width = _pixelMap.Width;
-    int pixelCount = _cellIdByPixel.Length;
-    int cellCount = _cellRawColors.Length;
-
-    bool[] blackMask = boundary.CreateResizedBlackMask(
-        width, _pixelMap.Height);
-
-    int[] regions = BuildReferenceRegions(
-        blackMask, width, _pixelMap.Height);
-
-    int[] originalOwners = (int[])_cellIdByPixel.Clone();
-
-    // Count each existing cell's pixels in each white region.
-    var cellRegionCounts = new Dictionary<ulong, int>();
-    int regionCount = 0;
-
-    for (int pixel = 0; pixel < pixelCount; pixel++)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ApplyReferenceBoundary(ReferenceBoundarySettings boundary)
     {
-        int region = regions[pixel];
-        regionCount = Math.Max(regionCount, region + 1);
+        int width = _sourceMap.Width;
+        int pixelCount = _pixelToCellId.Length;
+        int cellCount = _cellRawColors.Length;
 
-        int cellId = originalOwners[pixel];
+        bool[] blackMask = boundary.CreateResizedBlackMask(width, _sourceMap.Height);
+        int[] regions = BuildReferenceRegions(blackMask, width, _sourceMap.Height);
+        int[] originalOwners = (int[])_pixelToCellId.Clone();
 
-        if (cellId < 0 || blackMask[pixel])
-            continue;
+        // Count each existing cell's pixels in each white region.
+        var cellRegionCounts = new Dictionary<ulong, int>();
+        int regionCount = 0;
 
-        ulong key = MakeCellRegionKey(cellId, region);
-
-        cellRegionCounts.TryGetValue(key, out int count);
-        cellRegionCounts[key] = count + 1;
-    }
-
-    // Find each cell's largest region.
-    var primaryRegion = new int[cellCount];
-    var primaryCount = new int[cellCount];
-    Array.Fill(primaryRegion, -1);
-
-    foreach (KeyValuePair<ulong, int> entry in cellRegionCounts)
-    {
-        int cellId = (int)(uint)entry.Key;
-        int region = (int)(entry.Key >> 32);
-
-        if (entry.Value <= primaryCount[cellId])
-            continue;
-
-        primaryCount[cellId] = entry.Value;
-        primaryRegion[cellId] = region;
-    }
-
-    // Determine which regions have eligible cells.
-    var hasPrimaryCell = new bool[regionCount];
-
-    for (int cellId = 0; cellId < cellCount; cellId++)
-    {
-        int region = primaryRegion[cellId];
-
-        if (region >= 0)
-            hasPrimaryCell[region] = true;
-    }
-
-    // If a region has no primary cell, use its largest existing fragment.
-    // This creates no new cell IDs and fills no previously unowned pixels.
-    var fallbackCell = new int[regionCount];
-    var fallbackCount = new int[regionCount];
-    Array.Fill(fallbackCell, -1);
-
-    foreach (KeyValuePair<ulong, int> entry in cellRegionCounts)
-    {
-        int cellId = (int)(uint)entry.Key;
-        int region = (int)(entry.Key >> 32);
-
-        if (hasPrimaryCell[region] ||
-            entry.Value <= fallbackCount[region])
+        for (int pixel = 0; pixel < pixelCount; pixel++)
         {
-            continue;
+            int region = regions[pixel];
+            regionCount = Math.Max(regionCount, region + 1);
+
+            int cellId = originalOwners[pixel];
+
+            if (cellId < 0 || blackMask[pixel])
+                continue;
+
+            ulong key = MakeCellRegionKey(cellId, region);
+
+            cellRegionCounts.TryGetValue(key, out int count);
+            cellRegionCounts[key] = count + 1;
         }
 
-        fallbackCount[region] = entry.Value;
-        fallbackCell[region] = cellId;
-    }
+        // Find each cell's largest region.
+        var primaryRegion = new int[cellCount];
+        var primaryCount = new int[cellCount];
+        Array.Fill(primaryRegion, -1);
 
-    // Allowed cell/region combinations. Values remain original cell IDs.
-    var regionCellIds = new Dictionary<ulong, int>();
-
-    for (int cellId = 0; cellId < cellCount; cellId++)
-    {
-        int region = primaryRegion[cellId];
-
-        if (region >= 0)
-            regionCellIds[MakeCellRegionKey(cellId, region)] = cellId;
-    }
-
-    for (int region = 0; region < regionCount; region++)
-    {
-        int cellId = fallbackCell[region];
-
-        if (cellId >= 0)
-            regionCellIds[MakeCellRegionKey(cellId, region)] = cellId;
-    }
-
-    // Calculate nearest eligible cell ownership.
-    // This assignment buffer can cover empty pixels, but those pixels
-    // are never committed as owned cells.
-    var assigned = new int[pixelCount];
-    Array.Fill(assigned, -1);
-
-    var queue = new int[pixelCount];
-    int head = 0;
-    int tail = 0;
-
-    // Seed only white pixels that already belong to an eligible cell.
-    for (int pixel = 0; pixel < pixelCount; pixel++)
-    {
-        if (blackMask[pixel])
-            continue;
-
-        int cellId = originalOwners[pixel];
-
-        if (cellId < 0)
-            continue;
-
-        int region = regions[pixel];
-
-        if (primaryRegion[cellId] != region &&
-            fallbackCell[region] != cellId)
+        foreach (KeyValuePair<ulong, int> entry in cellRegionCounts)
         {
-            continue;
+            int cellId = (int)(uint)entry.Key;
+            int region = (int)(entry.Key >> 32);
+
+            if (entry.Value <= primaryCount[cellId])
+                continue;
+
+            primaryCount[cellId] = entry.Value;
+            primaryRegion[cellId] = region;
         }
 
-        assigned[pixel] = cellId;
-        queue[tail++] = pixel;
-    }
+        // Determine which regions have eligible cells.
+        var hasPrimaryCell = new bool[regionCount];
 
-    // Propagate ownership only within each white region.
-    while (head < tail)
-    {
-        int pixel = queue[head++];
-        int x = pixel % width;
-        int region = regions[pixel];
-
-        TryWhite(pixel - 1, x > 0);
-        TryWhite(pixel + 1, x + 1 < width);
-        TryWhite(pixel - width, pixel >= width);
-        TryWhite(pixel + width, pixel + width < pixelCount);
-
-        void TryWhite(int neighbor, bool inBounds)
+        for (int cellId = 0; cellId < cellCount; cellId++)
         {
-            if (!inBounds ||
-                blackMask[neighbor] ||
-                regions[neighbor] != region ||
-                assigned[neighbor] >= 0)
+            int region = primaryRegion[cellId];
+
+            if (region >= 0)
+                hasPrimaryCell[region] = true;
+        }
+
+        // If a region has no primary cell, use its largest existing fragment.
+        // This creates no new cell IDs and fills no previously unowned pixels.
+        var fallbackCell = new int[regionCount];
+        var fallbackCount = new int[regionCount];
+        Array.Fill(fallbackCell, -1);
+
+        foreach (KeyValuePair<ulong, int> entry in cellRegionCounts)
+        {
+            int cellId = (int)(uint)entry.Key;
+            int region = (int)(entry.Key >> 32);
+
+            if (hasPrimaryCell[region] ||
+                entry.Value <= fallbackCount[region])
             {
-                return;
+                continue;
             }
 
-            assigned[neighbor] = assigned[pixel];
-            queue[tail++] = neighbor;
+            fallbackCount[region] = entry.Value;
+            fallbackCell[region] = cellId;
         }
-    }
 
-    // Assign black boundary pixels from their nearest side.
-    // Only black pixels are traversed in this phase.
-    head = 0;
-    tail = 0;
+        // Allowed cell/region combinations. Values remain original cell IDs.
+        var regionCellIds = new Dictionary<ulong, int>();
 
-    for (int pixel = 0; pixel < pixelCount; pixel++)
-    {
-        if (!blackMask[pixel] && assigned[pixel] >= 0)
+        for (int cellId = 0; cellId < cellCount; cellId++)
+        {
+            int region = primaryRegion[cellId];
+
+            if (region >= 0)
+                regionCellIds[MakeCellRegionKey(cellId, region)] = cellId;
+        }
+
+        for (int region = 0; region < regionCount; region++)
+        {
+            int cellId = fallbackCell[region];
+
+            if (cellId >= 0)
+                regionCellIds[MakeCellRegionKey(cellId, region)] = cellId;
+        }
+
+        // Calculate nearest eligible cell ownership.
+        // This assignment buffer can cover empty pixels, but those pixels
+        // are never committed as owned cells.
+        var assigned = new int[pixelCount];
+        Array.Fill(assigned, -1);
+
+        var queue = new int[pixelCount];
+        int head = 0;
+        int tail = 0;
+
+        // Seed only white pixels that already belong to an eligible cell.
+        for (int pixel = 0; pixel < pixelCount; pixel++)
+        {
+            if (blackMask[pixel])
+                continue;
+
+            int cellId = originalOwners[pixel];
+            if (cellId < 0)
+                continue;
+
+            int region = regions[pixel];
+
+            if (primaryRegion[cellId] != region && fallbackCell[region] != cellId)
+            {
+                continue;
+            }
+
+            assigned[pixel] = cellId;
             queue[tail++] = pixel;
-    }
+        }
 
-    while (head < tail)
-    {
-        int pixel = queue[head++];
-        int x = pixel % width;
-        int region = regions[pixel];
-
-        TryBlack(pixel - 1, x > 0);
-        TryBlack(pixel + 1, x + 1 < width);
-        TryBlack(pixel - width, pixel >= width);
-        TryBlack(pixel + width, pixel + width < pixelCount);
-
-        void TryBlack(int neighbor, bool inBounds)
+        // Propagate ownership only within each white region.
+        while (head < tail)
         {
-            if (!inBounds ||
-                !blackMask[neighbor] ||
-                regions[neighbor] != region ||
-                assigned[neighbor] >= 0)
+            int pixel = queue[head++];
+            int x = pixel % width;
+            int region = regions[pixel];
+
+            TryWhite(pixel - 1, x > 0);
+            TryWhite(pixel + 1, x + 1 < width);
+            TryWhite(pixel - width, pixel >= width);
+            TryWhite(pixel + width, pixel + width < pixelCount);
+            continue;
+
+            void TryWhite(int neighbor, bool inBounds)
             {
-                return;
+                if (!inBounds ||
+                    blackMask[neighbor] ||
+                    regions[neighbor] != region ||
+                    assigned[neighbor] >= 0)
+                {
+                    return;
+                }
+
+                assigned[neighbor] = assigned[pixel];
+                queue[tail++] = neighbor;
+            }
+        }
+
+        // Assign black boundary pixels from their nearest side.
+        // Only black pixels are traversed in this phase.
+        head = 0;
+        tail = 0;
+
+        for (int pixel = 0; pixel < pixelCount; pixel++)
+        {
+            if (!blackMask[pixel] && assigned[pixel] >= 0)
+                queue[tail++] = pixel;
+        }
+
+        while (head < tail)
+        {
+            int pixel = queue[head++];
+            int x = pixel % width;
+            int region = regions[pixel];
+
+            TryBlack(pixel - 1, x > 0);
+            TryBlack(pixel + 1, x + 1 < width);
+            TryBlack(pixel - width, pixel >= width);
+            TryBlack(pixel + width, pixel + width < pixelCount);
+            continue;
+
+            void TryBlack(int neighbor, bool inBounds)
+            {
+                if (!inBounds || !blackMask[neighbor] || regions[neighbor] != region || assigned[neighbor] >= 0)
+                    return;
+
+                assigned[neighbor] = assigned[pixel];
+                queue[tail++] = neighbor;
+            }
+        }
+
+        // Commit changes only to pixels that were already owned.
+        for (int pixel = 0; pixel < pixelCount; pixel++)
+        {
+            if (originalOwners[pixel] < 0)
+            {
+                _pixelToCellId[pixel] = -1;
+                continue;
             }
 
-            assigned[neighbor] = assigned[pixel];
-            queue[tail++] = neighbor;
-        }
-    }
-
-    // Commit changes only to pixels that were already owned.
-    for (int pixel = 0; pixel < pixelCount; pixel++)
-    {
-        if (originalOwners[pixel] < 0)
-        {
-            _cellIdByPixel[pixel] = -1;
-            continue;
+            // Preserve existing ownership if no replacement was reachable.
+            _pixelToCellId[pixel] = assigned[pixel] >= 0
+                ? assigned[pixel]
+                : originalOwners[pixel];
         }
 
-        // Preserve existing ownership if no replacement was reachable.
-        _cellIdByPixel[pixel] = assigned[pixel] >= 0
-            ? assigned[pixel]
-            : originalOwners[pixel];
+        // Keep rendering IDs identical to logical cell IDs.
+        Array.Copy(_pixelToCellId, _renderCellIdByPixel, pixelCount);
+
+        _renderParentCellId = new int[cellCount];
+
+        for (int i = 0; i < cellCount; i++)
+            _renderParentCellId[i] = i;
+
+        _renderIdByCellRegion = regionCellIds;
+        _boundaryRegionByPixel = regions;
+
+        RebuildPixelIndexAfterBoundary();
     }
 
-    // Keep rendering IDs identical to logical cell IDs.
-    Array.Copy(_cellIdByPixel, _renderCellIdByPixel, pixelCount);
-
-    _renderParentCellId = new int[cellCount];
-
-    for (int i = 0; i < cellCount; i++)
-        _renderParentCellId[i] = i;
-
-    _renderIdByCellRegion = regionCellIds;
-    _boundaryRegionByPixel = regions;
-
-    RebuildPixelIndexAfterBoundary();
-    UpdateDisplayPixelsFromRenderIds();
-}
-    
     private void UpdateDisplayPixelsFromRenderIds()
     {
         for (int i = 0; i < _renderCellIdByPixel.Length; i++)
         {
             int renderId = _renderCellIdByPixel[i];
-
-            _displayPixels[i] = renderId >= 0
-                ? ((uint)renderId).EncodeAsColor()
-                : EmptyCellIdColor;
+            _displayPixels[i] = renderId >= 0 ? ((uint)renderId).EncodeAsColor() : EmptyCellIdColor;
         }
     }
-    
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void RebuildPixelIndexAfterBoundary()
     {
         foreach (var pixels in _pixelIndicesByCell)
             pixels.Clear();
 
         Array.Fill(_pixelIndexInCell, -1);
-        for (int pixel = 0; pixel < _cellIdByPixel.Length; pixel++)
+        for (int pixel = 0; pixel < _pixelToCellId.Length; pixel++)
         {
-            int cellId = _cellIdByPixel[pixel];
+            int cellId = _pixelToCellId[pixel];
             if (cellId < 0)
                 continue;
 

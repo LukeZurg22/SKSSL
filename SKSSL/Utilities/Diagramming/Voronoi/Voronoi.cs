@@ -1,118 +1,985 @@
-﻿using System;
+using System;
+using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
+using SKSSL.Utilities.Voronoi.PointDistributors;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-
-// ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 
 namespace SKSSL.Utilities.Voronoi;
 
 /// <summary>
-/// Voronoi implementation to create an image of organic-like cells using the <see cref="DelaunayTriangulator"/>
-/// algorithm.
+/// Culling removes every Voronoi cell that owns at least one border pixel;
+/// those cells become transparent. HardEdgeClosed leaves every pixel owned.
 /// </summary>
-/// <code>
-/// private readonly Voronoi _voronoi = null!;
-/// ...
-/// _voronoi = new Voronoi(GraphicsDevice);
-/// </code>
-/// <remarks>
-/// This implementation assumes the calls are being handled through Monogame in the following order:<br/>
-/// 1. Instantiate the <see cref="Voronoi"/> class.<br/>
-/// 2. Call voronoi.LoadContent() in game.<br/>
-/// 3. Call voronoi.Draw() in game.<br/>
-/// 4. Call GenerateDiagram() in Update(), or wherever desired.
-/// </remarks>
-/// <references>
-/// 1. https://www.redblobgames.com/x/2022-voronoi-maps-tutorial/<br/>
-/// 2. https://en.wikipedia.org/wiki/Delaunay_triangulation<br/>
-/// 3. https://louis-dr.github.io/voronoimap.html<br/>
-/// 4. https://mapbox.github.io/delaunator/
-/// </references>
-public partial class Voronoi
+public enum VoronoiBoundaryMode : byte
 {
-    // I/O and Seeding
+    /// <summary>Remove the entire cell if it owns any pixel on the raster border.</summary>
+    Culled = 0,
+
+    /// <summary>Every pixel in the rectangle remains assigned to a cell.</summary>
+    HardEdgeClosed = 1
+}
+
+public enum VoronoiSourceMode : byte
+{
+    /// <summary>Generate sites according to the grayscale intensity of a height/density map.</summary>
+    Heightmap,
+
+    /// <summary>Use the configured IPointDistributor to create or reposition sites.</summary>
+    CustomDistributor
+}
+
+/// <summary>
+/// Raster-first MonoGame Voronoi generator. Heightmap sampling is the default source;
+/// call UseDistributor to substitute an IPointDistributor. CellIds contain zero-based
+/// site IDs and -1 for culled pixels. No polygon mesh is built.
+/// </summary>
+[SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly")]
+public sealed class Voronoi : IDisposable
+{
     private readonly GraphicsDevice _graphicsDevice;
-    private const int DefaultPointCount = 2000;
-    private Point[] _points = [];
-
-    /// <value>_graphicsDevice.Viewport.Width</value>
-    private int _width;
-
-    /// <value>_graphicsDevice.Viewport.Height</value>
-    private int _height;
-
-    // Indexing
-    private uint _firstArtificialId;
-    private VoronoiCell?[] _cellsBySiteId = null!;
-    private VoronoiCell[] _renderingCells;
-
-    // Data Storage
-    private readonly List<Edge> _voronoiEdges = []; // For Rendering the "proper" edges of each cell.
-    private int[] _cellGeometryOffsets = [];
-    private int[] _cellGeometryCounts = [];
-    private Vector3[] _cellGeometry = [];
-
-    // RNG
-    private readonly HashSet<int> _usedColors = []; // avoid exact RGB collisions
-    private readonly Random _random = new(32); // fixed seed → reproducible
-
-    // Data Caching
-    private VertexPositionColor[] _cellBatchVertices = []; //  CELLS
-    private int _cellBatchPrimitiveCount;
-    private VertexPositionColor[] _edgeBatchVertices = []; //  EDGES
-    private int _edgeBatchPrimitiveCount;
-    private VertexPositionColor[] _pointBatchVertices = []; //  POINTS
-    private int _pointBatchPrimitiveCount;
-    private VertexPositionColor[] _triangleBatchVertices = []; //  TRIANGLES
-    private int _triangleBatchPrimitiveCount;
-
-    // Rendering Basics
-    private readonly BasicEffect _effect;
-
-    // Rendering Options
-    private VoronoiBoundaryMode _boundaryMode = VoronoiBoundaryMode.CulledSquare;
+    private readonly Color? _unifiedColor;
     private readonly Color _pointColor;
-    private readonly Color _edgeColor;
+    private Texture2D? _heightmap;
+    private Color[]? _densityPixels;
+    private int _densityPixelsWidth;
+    private int _densityPixelsHeight;
+    private IPointDistributor? _distributor;
+    private VoronoiBoundaryMode _lastBoundaryMode = VoronoiBoundaryMode.HardEdgeClosed;
 
-    // Cache Flags
-    private bool _isGenerated = false;
+    public VoronoiSourceMode SourceMode { get; private set; } = VoronoiSourceMode.Heightmap;
+    public int Width { get; private set; }
+    public int Height { get; private set; }
+    private Vector2[] _sites = [];
+    private int[] _cellIds = [];
+    public Vector2[] Sites => _sites;
+    public int[] CellIds => _cellIds;
+    public int SiteCount => _sites.Length;
+    public Texture2D? CellIdTexture { get; private set; }
+    public Texture2D? OverlayTexture { get; private set; }
 
+    private Color[] _encodedColors = []; // Colors per pixel
+    public Color[] CellColors { get; set; } // Colors per cell
+    private Color[] _heightPixels = []; // Displacement
+    private Color[] _overlayColors = []; // Overlay
+    private bool _previewIsCurrent;
+
+    private float[] _luminance = [];
+    private float[] _weights = [];
+    private double[] _cumulativeWeights = [];
+    private double _totalWeight;
+    private double _averageWeight;
+    private int _densityWidth;
+    private int _densityHeight;
+
+    private double[] _sumX = [];
+    private double[] _sumY = [];
+    private int[] _pixelCounts = [];
+    private readonly HashSet<int> _usedColors = [];
+    private readonly CellColorMode _cellColorMode;
+
+    public static Color EdgeColor = Color.Black;
+
+    #region Constructors
+
+    /// <summary>
+    /// Construct a generator. Heightmap is the default source mode; configure a map with
+    /// the constructor or UseHeightmap before GenerateDiagram. Existing color arguments are
+    /// retained for compatibility with the older Voronoi constructor.
+    /// </summary>
     public Voronoi(
         GraphicsDevice graphicsDevice,
         Color? unifiedColor = null,
-        Color? pointColor = null)
+        Color? pointColor = null,
+        Texture2D? heightmap = null,
+        IPointDistributor? distributor = null,
+        CellColorMode cellColorMode = CellColorMode.Mixed_HashId_PureRandom)
     {
+        ArgumentNullException.ThrowIfNull(graphicsDevice);
         _graphicsDevice = graphicsDevice;
-        _edgeColor = unifiedColor ?? Color.Gray;
+        _unifiedColor = unifiedColor;
         _pointColor = pointColor ?? Color.Red;
+        _cellColorMode = cellColorMode;
+        if (heightmap is not null)
+            UseHeightmap(heightmap);
+        if (distributor is not null)
+            UseDistributor(distributor);
+    }
 
-        // Setup image data for writing. It begins as a 1x1 white pixel, but will be expanded later.
-        _width = _graphicsDevice.Viewport.Width;
-        _height = _graphicsDevice.Viewport.Height;
-        _effect = new BasicEffect(_graphicsDevice)
+    /// <summary>Convenience constructor selecting heightmap sampling immediately.</summary>
+    // ReSharper disable once UnusedMember.Global
+    public Voronoi(GraphicsDevice graphicsDevice, Texture2D heightmap)
+        : this(graphicsDevice, unifiedColor: null, pointColor: null, heightmap: heightmap)
+    {
+    }
+
+    /// <summary>Convenience constructor selecting a custom point distributor immediately.</summary>
+    // ReSharper disable once UnusedMember.Global
+    public Voronoi(GraphicsDevice graphicsDevice, IPointDistributor distributor)
+        : this(graphicsDevice, unifiedColor: null, pointColor: null, distributor: distributor)
+    {
+    }
+
+    #endregion
+
+    /// <summary>Set the source to a MonoGame height/density texture.</summary>
+    public void UseHeightmap(Texture2D heightmap)
+    {
+        ArgumentNullException.ThrowIfNull(heightmap);
+        _heightmap = heightmap;
+        _densityPixels = null;
+        _densityPixelsWidth = 0;
+        _densityPixelsHeight = 0;
+        SourceMode = VoronoiSourceMode.Heightmap;
+    }
+
+    /// <summary>
+    /// Set a CPU-side height/density map. Keeping the pixels on the CPU avoids Texture2D.GetData
+    /// read-backs. The input array is retained and must not be mutated during generation.
+    /// </summary>
+    public void UseHeightmap(Color[] pixels, int width, int height)
+    {
+        ArgumentNullException.ThrowIfNull(pixels);
+        if (width <= 0 || height <= 0 || pixels.Length != checked(width * height))
+            throw new ArgumentException("Density pixel buffer dimensions are invalid.", nameof(pixels));
+        _densityPixels = pixels;
+        _densityPixelsWidth = width;
+        _densityPixelsHeight = height;
+        _heightmap = null;
+        SourceMode = VoronoiSourceMode.Heightmap;
+    }
+
+    /// <summary>Switch to a custom distributor / sampler.</summary>
+    public void UseDistributor(IPointDistributor distributor)
+    {
+        ArgumentNullException.ThrowIfNull(distributor);
+        _distributor = distributor;
+        SourceMode = VoronoiSourceMode.CustomDistributor;
+    }
+
+    /// <summary>Switch back to the previously configured heightmap. Throws if none is configured.</summary>
+    // ReSharper disable once UnusedMember.Global
+    public void UseHeightmap()
+    {
+        if (_heightmap is null && _densityPixels is null)
+            throw new InvalidOperationException(
+                "No heightmap is configured. Call UseHeightmap(texture) or UseHeightmap(pixels, width, height) first.");
+        SourceMode = VoronoiSourceMode.Heightmap;
+    }
+
+    /// <summary>
+    /// Generate from the currently selected source. Output dimensions default to the current viewport.
+    /// This method creates or reuses CellIdTexture and PreviewTexture; graphics-resource work must run
+    /// on the graphics thread.
+    /// </summary>
+    public VoronoiDiagramData GenerateDiagram(
+        int? width = null,
+        int? height = null,
+        VoronoiOptions? options = null)
+    {
+        options ??= new VoronoiOptions();
+        int outputWidth = width ?? _graphicsDevice.Viewport.Width;
+        int outputHeight = height ?? _graphicsDevice.Viewport.Height;
+        ValidateOptions(outputWidth, outputHeight, options);
+
+        Color[]? densityPixels = null;
+        int densityWidth = 0;
+        int densityHeight = 0;
+        if (SourceMode == VoronoiSourceMode.Heightmap)
         {
-            VertexColorEnabled = true,
-            TextureEnabled = false,
-        };
+            if (_densityPixels is not null)
+            {
+                densityPixels = _densityPixels;
+                densityWidth = _densityPixelsWidth;
+                densityHeight = _densityPixelsHeight;
+            }
+            else if (_heightmap is not null)
+            {
+                EnsureLength(ref _heightPixels, checked(_heightmap.Width * _heightmap.Height));
+                _heightmap.GetData(_heightPixels);
+                densityPixels = _heightPixels;
+                densityWidth = _heightmap.Width;
+                densityHeight = _heightmap.Height;
+            }
+            else
+            {
+                const string m = "Heightmap mode is selected but no heightmap is configured. Call UseHeightmap(...), " +
+                                 "or call UseDistributor(...).";
+                throw new InvalidOperationException(m);
+            }
+        }
 
-        SetDiagramProjection(Matrix.Identity, Matrix.Identity);
+        return GenerateCore(densityPixels, densityWidth, densityHeight, outputWidth, outputHeight, options);
     }
 
-    // ReSharper disable once MemberCanBePrivate.Global
-    public void SetDiagramProjection(Matrix world, Matrix view)
+    /// <summary>Convenience overload to update the heightmap from CPU pixels and generate immediately.</summary>
+    // ReSharper disable once UnusedMember.Global
+    public VoronoiDiagramData GenerateDiagram(
+        Color[] densityPixels,
+        int densityWidth,
+        int densityHeight,
+        int? outputWidth = null,
+        int? outputHeight = null,
+        VoronoiOptions? options = null)
     {
-        _effect.World = world;
-        _effect.View = view;
-        _effect.Projection = Matrix.CreateOrthographicOffCenter(0f, _width, _height, 0f, 0f, 1f);
+        UseHeightmap(densityPixels, densityWidth, densityHeight);
+        return GenerateDiagram(outputWidth, outputHeight, options);
     }
 
-    // ReSharper disable once MemberCanBePrivate.Global
-    public void SetScreenProjection(Matrix world, Matrix view)
+    private VoronoiDiagramData GenerateCore(
+        Color[]? densityPixels,
+        int densityWidth,
+        int densityHeight,
+        int outputWidth,
+        int outputHeight,
+        VoronoiOptions options)
     {
-        Viewport viewport = _graphicsDevice.Viewport;
-        _effect.World = world;
-        _effect.View = view;
-        _effect.Projection = Matrix.CreateOrthographicOffCenter(0f, viewport.Width, viewport.Height, 0f, 0f, 1f);
+        if (SourceMode == VoronoiSourceMode.Heightmap)
+        {
+            if (densityPixels is null)
+                throw new InvalidOperationException("A density map is required in heightmap mode.");
+            ValidateDensityPixels(densityPixels, densityWidth, densityHeight);
+            PrepareDensityField(densityPixels, densityWidth, densityHeight, options);
+        }
+
+        Width = outputWidth;
+        Height = outputHeight;
+        _lastBoundaryMode = options.BoundaryMode;
+        EnsureLength(ref _sites, options.SiteCount);
+        EnsureLength(ref _cellIds, checked(outputWidth * outputHeight));
+        EnsureLength(ref _encodedColors, _cellIds.Length);
+        EnsureLength(ref _sumX, options.SiteCount);
+        EnsureLength(ref _sumY, options.SiteCount);
+        EnsureLength(ref _pixelCounts, options.SiteCount);
+
+        var random = new Random(options.Seed);
+        switch (SourceMode)
+        {
+            case VoronoiSourceMode.Heightmap:
+                SampleSites(options.SiteCount, outputWidth, outputHeight, options, random);
+                break;
+            case VoronoiSourceMode.CustomDistributor:
+            default:
+                SampleWithDistributor(options.SiteCount, outputWidth, outputHeight, options, random);
+                break;
+        }
+
+        var rasterizer = new ExactRasterizer(outputWidth, outputHeight, Sites);
+        for (int i = 0; i < options.RelaxationIterations; i++)
+        {
+            rasterizer.Rebuild(Sites);
+            rasterizer.Rasterize(CellIds, options.MaxDegreeOfParallelism);
+            RelaxSites(outputWidth, outputHeight, options.RelaxationStrength);
+        }
+
+        rasterizer.Rebuild(Sites);
+        rasterizer.Rasterize(CellIds, options.MaxDegreeOfParallelism);
+
+        if (options.BoundaryMode == VoronoiBoundaryMode.Culled)
+            CullBorderCells();
+
+        // Generate one display color per site using your existing color hasher.
+        CellColors = CreateCellColors(Sites.Length);
+
+        // Fill each pixel with its owning cell's display color.
+        WriteCellIdColors();
+        _previewIsCurrent = false;
+
+        EnsureOutputTextures(options.BuildOverlay);
+        UploadCellIdTexture(CellIdTexture!);
+        BuildOverlayColors(options.ShowSiteMarkers);
+        if (options.BuildOverlay) UploadOverlayTexture(OverlayTexture!);
+        else
+        {
+            OverlayTexture!.Dispose();
+            OverlayTexture = null;
+        }
+
+        return new VoronoiDiagramData(
+            Width, Height, Sites, CellColors, CellIds, CellIdTexture!,
+            options.BuildOverlay ? OverlayTexture : null,
+            SourceMode, _lastBoundaryMode, options);
     }
+
+    /// <summary>
+    /// Upload encoded IDs into an existing same-sized SurfaceFormat.Color texture.
+    /// Create the texture once, then call this only after regenerating the map.
+    /// Texture operations should run on the graphics thread.
+    /// </summary>
+    private void UploadCellIdTexture(Texture2D target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        if (target.Width != Width || target.Height != Height)
+            throw new ArgumentException("Target texture dimensions must match the generated map.", nameof(target));
+        target.SetData(_encodedColors);
+    }
+
+    /// <summary>Upload a readable debug preview with filled cells and black boundaries.</summary>
+    public void UploadOverlayTexture(Texture2D target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        if (target.Width != Width || target.Height != Height)
+            throw new ArgumentException("Target texture dimensions must match the generated map.", nameof(target));
+        target.SetData(_overlayColors);
+    }
+
+    public Texture2D CreateCellIdTexture(GraphicsDevice graphicsDevice)
+    {
+        ArgumentNullException.ThrowIfNull(graphicsDevice);
+        var texture = new Texture2D(graphicsDevice, Width, Height, false, SurfaceFormat.Color);
+        UploadCellIdTexture(texture);
+        return texture;
+    }
+
+    public Texture2D CreatePreviewTexture(GraphicsDevice graphicsDevice, bool showSiteMarkers)
+    {
+        ArgumentNullException.ThrowIfNull(graphicsDevice);
+        var texture = new Texture2D(graphicsDevice, Width, Height, false, SurfaceFormat.Color);
+        UploadOverlayTexture(texture);
+        return texture;
+    }
+
+    private static void ValidateOptions(int outputWidth, int outputHeight, VoronoiOptions options)
+    {
+        if (outputWidth <= 0 || outputHeight <= 0)
+            throw new ArgumentOutOfRangeException(nameof(outputWidth), "Output dimensions must be positive.");
+        long pixelCount = (long)outputWidth * outputHeight;
+        if (options.SiteCount <= 0 || options.SiteCount > pixelCount)
+            throw new ArgumentOutOfRangeException(nameof(options.SiteCount),
+                "SiteCount must be positive and no larger than the raster pixel count.");
+        if (options.SiteCount > 0x00FF_FFFF)
+            throw new ArgumentOutOfRangeException(nameof(options.SiteCount),
+                "The RGB ID texture supports at most 16,777,215 sites.");
+        if (options.DensityFloor <= 0f || options.DensityFloor > 1f ||
+            float.IsNaN(options.DensityFloor) || float.IsInfinity(options.DensityFloor))
+            throw new ArgumentOutOfRangeException(nameof(options.DensityFloor), "DensityFloor must be in (0,1].");
+        if (options.DensityGamma <= 0f || float.IsNaN(options.DensityGamma) || float.IsInfinity(options.DensityGamma))
+            throw new ArgumentOutOfRangeException(nameof(options.DensityGamma), "DensityGamma must be positive.");
+        if (options.MinimumDistanceScale <= 0f || float.IsNaN(options.MinimumDistanceScale) ||
+            float.IsInfinity(options.MinimumDistanceScale))
+            throw new ArgumentOutOfRangeException(nameof(options.MinimumDistanceScale),
+                "MinimumDistanceScale must be positive.");
+        if (options.MaxSamplingAttemptsPerSite <= 0)
+            throw new ArgumentOutOfRangeException(nameof(options.MaxSamplingAttemptsPerSite));
+        if (options.RelaxationIterations < 0)
+            throw new ArgumentOutOfRangeException(nameof(options.RelaxationIterations));
+        if (options.RelaxationStrength < 0f || options.RelaxationStrength > 1f ||
+            float.IsNaN(options.RelaxationStrength) || float.IsInfinity(options.RelaxationStrength))
+            throw new ArgumentOutOfRangeException(nameof(options.RelaxationStrength),
+                "RelaxationStrength must be in [0,1].");
+        if (options.MaxDegreeOfParallelism is 0 or < -1)
+            throw new ArgumentOutOfRangeException(nameof(options.MaxDegreeOfParallelism));
+        if (double.IsNaN(options.Randomness) || double.IsInfinity(options.Randomness))
+            throw new ArgumentOutOfRangeException(nameof(options.Randomness));
+    }
+
+    private static void ValidateDensityPixels(Color[] pixels, int densityWidth, int densityHeight)
+    {
+        if (densityWidth <= 0 || densityHeight <= 0 ||
+            pixels.Length != checked(densityWidth * densityHeight))
+            throw new ArgumentException("Density pixel buffer dimensions are invalid.", nameof(pixels));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void PrepareDensityField(Color[] pixels, int densityWidth, int densityHeight, VoronoiOptions options)
+    {
+        _densityWidth = densityWidth;
+        _densityHeight = densityHeight;
+        int count = pixels.Length;
+        EnsureLength(ref _luminance, count);
+        EnsureLength(ref _weights, count);
+        EnsureLength(ref _cumulativeWeights, count);
+
+        double sum = 0;
+        for (int i = 0; i < count; i++)
+        {
+            Color c = pixels[i];
+            float luminance = (0.2126f * c.R + 0.7152f * c.G + 0.0722f * c.B) / 255f;
+            float shaped = MathF.Pow(Math.Clamp(luminance, 0f, 1f), options.DensityGamma);
+            float weight = options.DensityFloor + (1f - options.DensityFloor) * shaped;
+            _luminance[i] = luminance;
+            _weights[i] = weight;
+            sum += weight;
+            _cumulativeWeights[i] = sum;
+        }
+
+        _totalWeight = sum;
+        _averageWeight = sum / count;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SampleSites(int siteCount, int width, int height, VoronoiOptions options, Random random)
+    {
+        Array.Fill(Sites, Vector2.Zero);
+
+        // Desired mean spacing for a uniform distribution. The local minimum
+        // separation grows as density falls, approximately proportional to 1/sqrt(weight).
+        float referenceSpacing = MathF.Sqrt((float)((double)width * height / siteCount));
+        float maximumRadius = referenceSpacing * options.MinimumDistanceScale *
+                              MathF.Sqrt((float)(_averageWeight / options.DensityFloor));
+        maximumRadius = MathF.Max(maximumRadius, 1f);
+
+        // Bin width >= any possible exclusion distance means a conflicting site can
+        // only be in this bucket or one of its 8 neighbours.
+        float binSize = maximumRadius;
+        int gridWidth = Math.Max(1, (int)Math.Ceiling(width / (double)binSize));
+        int gridHeight = Math.Max(1, (int)Math.Ceiling(height / (double)binSize));
+        int[] heads = new int[checked(gridWidth * gridHeight)];
+        Array.Fill(heads, -1);
+        int[] next = new int[siteCount];
+        float[] radii = new float[siteCount];
+
+        long maxAttempts = (long)siteCount * options.MaxSamplingAttemptsPerSite;
+        long attempts = 0;
+        int accepted = 0;
+        float minX = Math.Max(1e-4f, width * 1e-7f);
+        float minY = Math.Max(1e-4f, height * 1e-7f);
+
+        while (accepted < siteCount && attempts < maxAttempts)
+        {
+            attempts++;
+            int densityIndex = SampleWeightedPixel(random);
+            int tx = densityIndex % _densityWidth;
+            int ty = densityIndex / _densityWidth;
+
+            float x = (tx + (float)random.NextDouble()) / _densityWidth * width;
+            float y = (ty + (float)random.NextDouble()) / _densityHeight * height;
+            x = Math.Clamp(x, minX, width - minX);
+            y = Math.Clamp(y, minY, height - minY);
+
+            float radius = referenceSpacing * options.MinimumDistanceScale *
+                           MathF.Sqrt((float)(_averageWeight / _weights[densityIndex]));
+            // Float rounding or extreme options must not exceed the bucket search radius.
+            radius = MathF.Min(radius, maximumRadius);
+
+            int bx = Math.Clamp((int)(x / binSize), 0, gridWidth - 1);
+            int by = Math.Clamp((int)(y / binSize), 0, gridHeight - 1);
+            bool blocked = false;
+
+            for (int gy = Math.Max(0, by - 1); gy <= Math.Min(gridHeight - 1, by + 1) && !blocked; gy++)
+            {
+                for (int gx = Math.Max(0, bx - 1); gx <= Math.Min(gridWidth - 1, bx + 1) && !blocked; gx++)
+                {
+                    int bucket = gy * gridWidth + gx;
+                    for (int other = heads[bucket]; other != -1; other = next[other])
+                    {
+                        float dx = x - Sites[other].X;
+                        float dy = y - Sites[other].Y;
+                        float required = MathF.Max(radius, radii[other]);
+                        if (!(dx * dx + dy * dy < required * required))
+                            continue;
+
+                        blocked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (blocked)
+                continue;
+
+            Sites[accepted] = new Vector2(x, y);
+            radii[accepted] = radius;
+            int ownBucket = by * gridWidth + bx;
+            next[accepted] = heads[ownBucket];
+            heads[ownBucket] = accepted;
+            accepted++;
+        }
+
+        if (accepted != siteCount)
+        {
+            throw new InvalidOperationException(
+                $"Placed {accepted:N0} of {siteCount:N0} sites after {attempts:N0} candidate attempts. " +
+                "Reduce MinimumDistanceScale (for example to 0.45), lower the target site count, or increase MaxSamplingAttemptsPerSite.");
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SampleWithDistributor(int siteCount, int width, int height, VoronoiOptions options, Random random)
+    {
+        if (_distributor is null)
+            throw new InvalidOperationException(
+                "Custom-distributor mode is selected but no IPointDistributor is configured. Call UseDistributor(...).");
+
+        // Preserve the existing IPointDistributor convention: start with an initial site list,
+        // then let the distributor reposition/replace it. It must return exactly SiteCount points.
+        var points = new List<Vector2>(siteCount);
+        float maxX = Math.Max(0.001f, width - 0.001f);
+        float maxY = Math.Max(0.001f, height - 0.001f);
+        for (int i = 0; i < siteCount; i++)
+            points.Add(new Vector2((float)random.NextDouble() * maxX, (float)random.NextDouble() * maxY));
+
+        _distributor.Generate(ref points, checked((uint)siteCount), width, height, options.Randomness);
+        if (points is null || points.Count != siteCount)
+            throw new InvalidOperationException(
+                $"The configured IPointDistributor must return exactly {siteCount:N0} points; it returned {points?.Count ?? 0:N0}.");
+
+        for (int i = 0; i < siteCount; i++)
+        {
+            Vector2 p = points[i];
+            if (float.IsNaN(p.X) || float.IsInfinity(p.X) || float.IsNaN(p.Y) || float.IsInfinity(p.Y))
+                throw new InvalidOperationException(
+                    $"The configured IPointDistributor returned a non-finite point at index {i}.");
+            _sites[i] = new Vector2(Math.Clamp(p.X, 0.001f, maxX), Math.Clamp(p.Y, 0.001f, maxY));
+        }
+    }
+
+    private int SampleWeightedPixel(Random random)
+    {
+        double target = random.NextDouble() * _totalWeight;
+        int lo = 0;
+        int hi = _cumulativeWeights.Length - 1;
+        while (lo < hi)
+        {
+            int mid = lo + ((hi - lo) >> 1);
+            if (_cumulativeWeights[mid] < target) lo = mid + 1;
+            else hi = mid;
+        }
+
+        return lo;
+    }
+
+    private void RelaxSites(int width, int height, float strength)
+    {
+        if (strength <= 0f)
+            return;
+
+        Array.Clear(_sumX, 0, _sumX.Length);
+        Array.Clear(_sumY, 0, _sumY.Length);
+        Array.Clear(_pixelCounts, 0, _pixelCounts.Length);
+
+        // CellIds are from the full closed diagram here (culling occurs only afterward).
+        for (int y = 0; y < height; y++)
+        {
+            int row = y * width;
+            double py = y + 0.5;
+            for (int x = 0; x < width; x++)
+            {
+                var id = CellIds[row + x];
+                _sumX[id] += x + 0.5;
+                _sumY[id] += py;
+                _pixelCounts[id]++;
+            }
+        }
+
+        for (int id = 0; id < Sites.Length; id++)
+        {
+            int count = _pixelCounts[id];
+            if (count == 0)
+                continue;
+
+            Vector2 site = Sites[id];
+            float cx = (float)(_sumX[id] / count);
+            float cy = (float)(_sumY[id] / count);
+            float nx = site.X + (cx - site.X) * strength;
+            float ny = site.Y + (cy - site.Y) * strength;
+            Sites[id] = new Vector2(
+                Math.Clamp(nx, 0.001f, Math.Max(0.001f, width - 0.001f)),
+                Math.Clamp(ny, 0.001f, Math.Max(0.001f, height - 0.001f)));
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void CullBorderCells()
+    {
+        var cull = new bool[Sites.Length];
+        int w = Width;
+        int h = Height;
+
+        for (int x = 0; x < w; x++)
+        {
+            Mark(CellIds[x]);
+            Mark(CellIds[(h - 1) * w + x]);
+        }
+
+        for (int y = 0; y < h; y++)
+        {
+            Mark(CellIds[y * w]);
+            Mark(CellIds[y * w + (w - 1)]);
+        }
+
+        for (int i = 0; i < CellIds.Length; i++)
+        {
+            if (cull[CellIds[i]])
+                CellIds[i] = -1;
+        }
+
+        return;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void Mark(int id) => cull[id] = true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteCellIdColors()
+    {
+        for (int i = 0; i < CellIds.Length; i++)
+        {
+            int cellId = CellIds[i];
+            _encodedColors[i] = cellId < 0 ? Color.Transparent : CellColors[cellId];
+        }
+    }
+
+    private Color[] CreateCellColors(int cellCount)
+    {
+        lock (_usedColors) _usedColors.Clear();
+        var colors = new Color[cellCount];
+        for (int cellId = 0; cellId < cellCount; cellId++)
+            colors[cellId] = ColorForId(0, 0, (uint)cellId);
+        return colors;
+    }
+
+    private void BuildOverlayColors(bool showSiteMarkers)
+    {
+        EnsureLength(ref _overlayColors, CellIds.Length);
+        int w = Width;
+        int h = Height;
+        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+        {
+            int idx = y * w + x;
+            var id = CellIds[idx];
+            if (id < 0)
+            {
+                _overlayColors[idx] = Color.Transparent;
+                continue;
+            }
+
+            // Build Edges // TODO: back to flags
+            // TODO: remove these conditionals to avoid frame border
+            bool edge = x == 0 || y == 0 || x == w - 1 || y == h - 1; 
+            if (!edge && CellIds[idx - 1] != id) edge = true;
+            if (!edge && CellIds[idx + 1] != id) edge = true;
+            if (!edge && CellIds[idx - w] != id) edge = true;
+            if (!edge && CellIds[idx + w] != id) edge = true;
+
+            _overlayColors[idx] = edge ? Color.Black : Color.Transparent;
+        }
+
+        // Build Sites
+        if (showSiteMarkers)
+        {
+            foreach (Vector2 site in Sites)
+            {
+                int sx = Math.Clamp((int)site.X, 0, w - 1);
+                int sy = Math.Clamp((int)site.Y, 0, h - 1);
+                _overlayColors[sy * w + sx] = _pointColor;
+            }
+        }
+
+        _previewIsCurrent = true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Color ColorForId(float x, float y, uint id)
+    {
+        if (_unifiedColor.HasValue)
+            return _unifiedColor.Value;
+
+        Color color;
+        uint hash;
+        byte r, g, b;
+        Random shared = Random.Shared;
+        switch (_cellColorMode)
+        {
+            case CellColorMode.Deterministic_Hash_position:
+                hash = (uint)x + (uint)y;
+                hash ^= hash >> 16;
+                r = (byte)hash;
+                hash ^= hash >> 15;
+                g = (byte)hash;
+                hash ^= hash >> 16;
+                b = (byte)hash;
+                color = new Color((int)r, g, b, 255);
+                return color;
+            case CellColorMode.Deterministic_Hash_id:
+                return GetDeterministicColorFromId(id);
+            case CellColorMode.Deterministic_HashRandom: // Throw together a lazy hash based on cell Site vertex.
+                hash = (uint)x ^ (uint)y;
+                hash ^= hash >> 16;
+                hash *= 0x7FEB352Du;
+                r = (byte)hash;
+                hash ^= hash >> 15;
+                hash *= 0x846CA68Bu;
+                g = (byte)hash;
+                hash ^= hash >> 16;
+                b = (byte)hash;
+                color = new Color((int)r, g, b, 255);
+                return color;
+            case CellColorMode.Random: // Truly random 0 -> 255
+                color = new Color(shared.Next(0, 256), shared.Next(0, 256), shared.Next(0, 256), 255);
+                return color;
+            case CellColorMode.Mixed_HashId_PureRandom:
+                // Grab a deterministic semi-unique color and go an integer check.
+                // Naturally if it isn't unique, then it is reaching the birthday-paradox point
+                color = GetDeterministicColorFromId(id);
+                int reversed = (color.R << 16) | (color.G << 8) | color.B;
+                lock (_usedColors)
+                {
+                    // If the semi-unique color turns out to no longer be unique, then
+                    // defaulting to the thread-dangerous unique color generator is the
+                    // next best option. I am aware this causes an inner-dependency, and
+                    // may also cause a little overhead. The deterministic method is faster
+                    // than relying on the Random class to do its calls, and that for maps
+                    // approximately smaller than 2000x2000, this would be incredibly efficient.
+                    // As far as I see it, it's a small, but nevertheless preferred -optimization.
+                    if (!_usedColors.Add(reversed)) goto case CellColorMode.Pure_Random;
+                }
+
+                return color;
+            case CellColorMode.Pure_Random: // Pure random RGB – three integer ops, no floats
+                int rgb;
+                lock (shared)
+                lock (_usedColors)
+                {
+                    do rgb = shared.Next(0x1000000); // 0 … 16 777 215
+                    while (!_usedColors.Add(rgb));
+                }
+
+                color = new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 255);
+                break;
+            case CellColorMode.Encoded:
+                color = id.EncodeAsColor();
+                break;
+            default:
+                color = _unifiedColor ?? Color.Gray;
+                break;
+        }
+
+        return color;
+    }
+
+    private static Color GetDeterministicColorFromId(uint id)
+    {
+        var uih = id + 0x9E3779B9u;
+        uih ^= uih >> 16;
+        uih *= 0x7FEB352Du;
+        uih ^= uih >> 15;
+        uih *= 0x846CA68Bu;
+        uih ^= uih >> 16;
+        return new Color(
+            (byte)(64 + (uih & 0x7F)),
+            (byte)(64 + ((uih >> 8) & 0x7F)),
+            (byte)(64 + ((uih >> 16) & 0x7F)),
+            (byte)255
+        );
+    }
+
+
+    private void EnsureOutputTextures(bool includeOverlay)
+    {
+        if (CellIdTexture is null || CellIdTexture.IsDisposed ||
+            CellIdTexture.Width != Width || CellIdTexture.Height != Height)
+        {
+            CellIdTexture?.Dispose();
+            CellIdTexture = new Texture2D(_graphicsDevice, Width, Height, false, SurfaceFormat.Color);
+        }
+
+        if (includeOverlay && (OverlayTexture is null ||
+                               OverlayTexture.IsDisposed ||
+                               OverlayTexture.Width != Width ||
+                               OverlayTexture.Height != Height))
+        {
+            OverlayTexture?.Dispose();
+            OverlayTexture = new Texture2D(_graphicsDevice, Width, Height, false, SurfaceFormat.Color);
+        }
+        else if (!includeOverlay && OverlayTexture is not null)
+        {
+            // Keep the allocated texture for reuse, but don't expose it in the result for this generation.
+        }
+    }
+
+    public void Dispose()
+    {
+        CellIdTexture?.Dispose();
+        OverlayTexture?.Dispose();
+        CellIdTexture = null;
+        OverlayTexture = null;
+    }
+
+    private static void EnsureLength<T>(ref T[] array, int length)
+    {
+        if (array.Length != length)
+            array = new T[length];
+    }
+
+    /// <summary>Exact nearest-site rasterizer accelerated by a uniform spatial grid.</summary>
+    private sealed class ExactRasterizer
+    {
+        private readonly int _width;
+        private readonly int _height;
+        private readonly float _binSize;
+        private readonly int _gridWidth;
+        private readonly int _gridHeight;
+        private readonly int[] _heads;
+        private readonly int[] _next;
+        private Vector2[] _sites;
+
+        public ExactRasterizer(int width, int height, Vector2[] sites)
+        {
+            _width = width;
+            _height = height;
+            _sites = sites;
+
+            // Around one site per bin on average. Sparse areas simply search more bins.
+            _binSize = MathF.Max(1f, MathF.Sqrt((float)((double)width * height / sites.Length)));
+            _gridWidth = Math.Max(1, (int)Math.Ceiling(width / (double)_binSize));
+            _gridHeight = Math.Max(1, (int)Math.Ceiling(height / (double)_binSize));
+            _heads = new int[checked(_gridWidth * _gridHeight)];
+            _next = new int[sites.Length];
+            // Rebuild is called before every raster pass.
+        }
+
+        public void Rebuild(Vector2[] sites)
+        {
+            _sites = sites;
+            Array.Fill(_heads, -1);
+            for (int i = 0; i < sites.Length; i++)
+            {
+                Vector2 p = sites[i];
+                int bx = Math.Clamp((int)(p.X / _binSize), 0, _gridWidth - 1);
+                int by = Math.Clamp((int)(p.Y / _binSize), 0, _gridHeight - 1);
+                int bucket = by * _gridWidth + bx;
+                _next[i] = _heads[bucket];
+                _heads[bucket] = i;
+            }
+        }
+
+        public void Rasterize(int[] destination, int maxDegreeOfParallelism)
+        {
+            var parallel = new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism };
+            Parallel.For(0, _height, parallel, y =>
+            {
+                int row = y * _width;
+                float py = y + 0.5f;
+                for (int x = 0; x < _width; x++)
+                    destination[row + x] = FindNearest(x + 0.5f, py);
+            });
+        }
+
+        private int FindNearest(float px, float py)
+        {
+            int bx = Math.Clamp((int)(px / _binSize), 0, _gridWidth - 1);
+            int by = Math.Clamp((int)(py / _binSize), 0, _gridHeight - 1);
+            int bestId = -1;
+            float bestDistanceSquared = float.PositiveInfinity;
+            int maxRings = Math.Max(_gridWidth, _gridHeight);
+
+            for (int ring = 0; ring <= maxRings; ring++)
+            {
+                if (ring == 0)
+                {
+                    ScanBucket(bx, by, px, py, ref bestId, ref bestDistanceSquared);
+                }
+                else
+                {
+                    int left = bx - ring;
+                    int right = bx + ring;
+                    int top = by - ring;
+                    int bottom = by + ring;
+                    int fromX = Math.Max(0, left);
+                    int toX = Math.Min(_gridWidth - 1, right);
+                    //int fromY = Math.Max(0, top);
+                    //int toY = Math.Min(_gridHeight - 1, bottom);
+
+                    // Top and bottom rows of the new perimeter.
+                    if (top >= 0)
+                        for (int gx = fromX; gx <= toX; gx++)
+                            ScanBucket(gx, top, px, py, ref bestId, ref bestDistanceSquared);
+                    if (bottom < _gridHeight && bottom != top)
+                        for (int gx = fromX; gx <= toX; gx++)
+                            ScanBucket(gx, bottom, px, py, ref bestId, ref bestDistanceSquared);
+
+                    // Left/right columns excluding corners already scanned above.
+                    int fromSideY = Math.Max(0, top + 1);
+                    int toSideY = Math.Min(_gridHeight - 1, bottom - 1);
+                    if (left >= 0)
+                        for (int gy = fromSideY; gy <= toSideY; gy++)
+                            ScanBucket(left, gy, px, py, ref bestId, ref bestDistanceSquared);
+                    if (right < _gridWidth && right != left)
+                        for (int gy = fromSideY; gy <= toSideY; gy++)
+                            ScanBucket(right, gy, px, py, ref bestId, ref bestDistanceSquared);
+                }
+
+                // Lower bound on the distance to any site in an unsearched bin.
+                // Stop only when the current winner is strictly closer than this bound.
+                float lowerBound = DistanceToUnsearchedBins(px, py, bx, by, ring);
+                if (bestDistanceSquared < lowerBound * lowerBound)
+                    break;
+            }
+
+            if (bestId < 0)
+                throw new InvalidOperationException("Rasterizer could not find a site; the site array is empty.");
+            return bestId;
+        }
+
+        private float DistanceToUnsearchedBins(float px, float py, int bx, int by, int ring)
+        {
+            int minX = Math.Max(0, bx - ring);
+            int maxX = Math.Min(_gridWidth - 1, bx + ring);
+            int minY = Math.Max(0, by - ring);
+            int maxY = Math.Min(_gridHeight - 1, by + ring);
+            float result = float.PositiveInfinity;
+
+            if (minX > 0)
+                result = MathF.Min(result, px - minX * _binSize);
+            if (maxX < _gridWidth - 1)
+            {
+                float rightEdge = MathF.Min(_width, (maxX + 1) * _binSize);
+                result = MathF.Min(result, rightEdge - px);
+            }
+
+            if (minY > 0)
+                result = MathF.Min(result, py - minY * _binSize);
+            if (maxY < _gridHeight - 1)
+            {
+                float bottomEdge = MathF.Min(_height, (maxY + 1) * _binSize);
+                result = MathF.Min(result, bottomEdge - py);
+            }
+
+            return result;
+        }
+
+        private void ScanBucket(int bx, int by, float px, float py, ref int bestId, ref float bestDistanceSquared)
+        {
+            int bucket = by * _gridWidth + bx;
+            for (int id = _heads[bucket]; id != -1; id = _next[id])
+            {
+                Vector2 site = _sites[id];
+                float dx = px - site.X;
+                float dy = py - site.Y;
+                float d2 = dx * dx + dy * dy;
+                if (!(d2 < bestDistanceSquared) &&
+                    (!(Math.Abs(d2 - bestDistanceSquared) < 0.001) || (id >= bestId)))
+                    continue;
+                bestDistanceSquared = d2;
+                bestId = id;
+            }
+        }
+    }
+}
+
+public enum CellColorMode
+{
+    Deterministic_Hash_position,
+    Deterministic_HashRandom,
+    Random,
+
+    /// <summary>
+    /// Deterministically generate a color from an integer.
+    /// </summary>
+    /// <remarks>
+    /// The same ID always produces the same color. Colors are not
+    /// mathematically guaranteed to be unique because the 32-bit hash
+    /// is reduced to 24 bits of RGB color.
+    /// </remarks>
+    /// <returns>A deterministic <see cref="Color"/> derived from the ID.</returns>
+    Mixed_HashId_PureRandom,
+    Pure_Random,
+
+    /// Stable integer hash; avoids a Random call per cell and is reproducible.
+    Deterministic_Hash_id,
+    Encoded
 }

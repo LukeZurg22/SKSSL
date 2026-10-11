@@ -7,6 +7,12 @@ using Microsoft.Xna.Framework;
 
 namespace SKSSL.Mathematics;
 
+public static class IntegerExtensions
+{
+    public const uint InvalidatedUint = uint.MaxValue;
+    public const uint MaxEncodableUint = 0x00FFFFFE;
+}
+
 public static class FloatExtensions
 {
     /// <summary>

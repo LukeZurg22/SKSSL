@@ -12,7 +12,6 @@ using SKSSL.Assets;
 using SKSSL.Tests.Classes;
 using SKSSL.Utilities;
 using SKSSL.Utilities.Voronoi;
-using SKSSL.Utilities.Voronoi.PointDistributors;
 
 // ReSharper disable UnusedMember.Local
 
@@ -22,7 +21,6 @@ namespace SKSSL.Tests;
 public class Voronoi
 {
     private const bool TOGGLE_EXECUTABLE_CLOSURE = false;
-    private Utilities.Voronoi.Voronoi _voronoi = null!;
     private DiagramMap _diagramMap = null!;
     private bool generated = false;
     private UnitGame _game = null!;
@@ -30,7 +28,6 @@ public class Voronoi
     private SpriteBatch _spriteBatch = null!;
     private SpriteFontBase _font = null!;
     private Texture2D _borderMap = null!;
-    private const int _points = 10000;
     private readonly HashSet<uint> _selectedIds = [];
 
     [TestMethod, UsedImplicitly]
@@ -41,7 +38,6 @@ public class Voronoi
 
         // Mimic game object class instantiation.
         _spriteBatch = new SpriteBatch(_game.GraphicsDevice);
-        _voronoi = new Utilities.Voronoi.Voronoi(_game.GraphicsDevice);
 
         //MeasureProfiler.StartCollectingData();
         MimicLoadContent(); // Mimic LoadContent call.
@@ -52,36 +48,28 @@ public class Voronoi
         Assert.IsTrue(generated);
     }
 
-    #region Initial Loading
+    #region INIT
 
-    private void MimicInitialize()
+    [TestMethod, UsedImplicitly]
+    public void MimicInitialize()
     {
         // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
-        var diagramSettings = new DiagramSettings
-        {
-            Randomness = 0,
-            // Image Heightmap distributor.
-            Distributor = new DistributorImage(_densityTexture, new DistributorImageSettings
+        DiagramMap diagram = VoronoiDiagramMapPipeline.FromHeightmap(
+            _game.GraphicsDevice,
+            _densityTexture,
+            1920, 1080,
+            new VoronoiOptions
             {
-                DensityIntensity = 1.1,
-                CenterCellSizeFactor = 1,
-                EdgeCellSizeFactor = 7,
-                AllowBlackGaps = false,
-            }),
-            BoundaryMode = Utilities.Voronoi.Voronoi.VoronoiBoundaryMode.HardEdgeClosed,
-            Flags = Utilities.Voronoi.Voronoi.VoronoiRenderingFlags.CellsPoints,
-            ReferenceBoundary = new ReferenceBoundarySettings(_borderMap)
-        };
-        DiagramData diagram = _voronoi.GenerateDiagram(
-            points: _points,
-            settings: diagramSettings
-        );
-        _diagramMap = new DiagramMap(_game.GraphicsDevice, diagram);
+                SiteCount = 1000,
+                ShowSiteMarkers = true,
+                BuildOverlay = true,
+                OverlayOpacity = 0.5f
+            },
+            new ReferenceBoundarySettings(_borderMap));
+        _diagramMap = diagram;
         _diagramMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity);
-
-        Black(500);
 
         //_cellMap.ChangeCellColor(0, Color.LightGoldenrodYellow);
         //_cellMap.ChangeCellColor(1, Color.Gold);
@@ -145,10 +133,13 @@ public class Voronoi
         {
             System.Console.WriteLine($"Hovered cell ID: {id}");
             _diagramMap.ClearCellOverrides(_selectedIds);
+            _selectedIds.Clear(); // Inefficient, but all I care about are results.
             _selectedIds.Add(id);
             _diagramMap.SetCellOverride(id, Color.Yellow);
         }
-        
+        _diagramMap.SetCellOverrides([1,2,3,4,5,6,7,8], Color.Red);
+        _diagramMap.SetCellOverrides([9,10,11,12,13,14,15,16], Color.Green);
+
         if (TOGGLE_EXECUTABLE_CLOSURE)
 #pragma warning disable CS0162
             // ReSharper disable once HeuristicUnreachableCode
@@ -165,7 +156,7 @@ public class Voronoi
         bool nullCell = _selectedIds.FirstOrDefault() != default;
         _spriteBatch.DrawString(_font, nullCell
             ? $"RENDER: {_selectedIds.First().ToString()}"
-            : "null", position, Color.Wheat);
+            : "null", position, Color.Black);
         position = new Vector2(0, 25);
         //_spriteBatch.DrawString(_font, nullCell
         //    ? $"VERTICES: {_hoveredCell?.Vertices.Count.ToString()}"

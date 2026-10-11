@@ -11,13 +11,13 @@ public partial class DiagramMap
     /// </summary>
     public void SetPixelCell(int x, int y, uint? cellId)
     {
-        if ((uint)x >= (uint)_pixelMap.Width || (uint)y >= (uint)_pixelMap.Height)
+        if ((uint)x >= (uint)_sourceMap.Width || (uint)y >= (uint)_sourceMap.Height)
             throw new ArgumentOutOfRangeException(nameof(x), "Pixel coordinates are outside the texture.");
 
         if (cellId.HasValue)
             ValidateCellId(cellId.Value);
 
-        int pixelIndex = y * _pixelMap.Width + x;
+        int pixelIndex = y * _sourceMap.Width + x;
         int newCellId = cellId.HasValue ? (int)cellId.Value : -1;
 
         if (cellId.HasValue && _boundaryRegionByPixel != null)
@@ -28,7 +28,7 @@ public partial class DiagramMap
                 throw new ArgumentException("The cell cannot be assigned to this boundary region.", nameof(cellId));
         }
 
-        int oldCellId = _cellIdByPixel[pixelIndex];
+        int oldCellId = _pixelToCellId[pixelIndex];
         if (oldCellId == newCellId && (newCellId >= 0 || _displayPixels[pixelIndex].A == 128))
             return;
 
@@ -38,9 +38,8 @@ public partial class DiagramMap
             AddPixelToCell(pixelIndex, newCellId);
 
         // -1 encodes a deliberately empty/transparent pixel.
-        _displayPixels[pixelIndex] = newCellId >= 0
-            ? ((uint)newCellId).EncodeAsColor()
-            : EmptyCellIdColor; MarkIdPixelDirty(x, y);
+        _displayPixels[pixelIndex] = newCellId >= 0 ? ((uint)newCellId).EncodeAsColor() : EmptyCellIdColor;
+        MarkIdPixelDirty(x, y);
         _renderCellIdByPixel[pixelIndex] = newCellId;
     }
 
@@ -53,7 +52,7 @@ public partial class DiagramMap
 
     private void RemovePixelFromCell(int pixelIndex)
     {
-        int oldCellId = _cellIdByPixel[pixelIndex];
+        int oldCellId = _pixelToCellId[pixelIndex];
         if (oldCellId < 0)
             return;
 
@@ -71,7 +70,7 @@ public partial class DiagramMap
 
         pixels.RemoveAt(lastIndex);
 
-        _cellIdByPixel[pixelIndex] = -1;
+        _pixelToCellId[pixelIndex] = -1;
         _pixelIndexInCell[pixelIndex] = -1;
     }
 }

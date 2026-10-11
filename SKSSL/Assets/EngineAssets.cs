@@ -29,11 +29,6 @@ public sealed class EmbeddedContentManager : ContentManager
         _resourcePrefix = resourcePrefix;
     }
 
-    public EmbeddedContentManager(SSLGame game, string resourcePrefix = "SKSSL")
-        : this(game, typeof(EmbeddedContentManager).Assembly, resourcePrefix)
-    {
-    }
-
     public Texture2D LoadEmbeddedTexture(GraphicsDevice graphicsDevice, string resourceName)
     {
         string? manifestName = _assembly

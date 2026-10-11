@@ -256,37 +256,7 @@
         <Compile Update="Utilities\Diagramming\DiagramMap.Helpers.cs">
           <DependentUpon>DiagramMap.cs</DependentUpon>
         </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.BoundaryMode.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Builder.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.ColorMode.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.DoublePoint.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Drawer.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Generation.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
         <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Geometry.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.ReferenceBoundaries.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.RenderingFlags.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Utilities.cs">
-          <DependentUpon>Voronoi.cs</DependentUpon>
-        </Compile>
-        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.Utilities_Clipping.cs">
           <DependentUpon>Voronoi.cs</DependentUpon>
         </Compile>
         <Compile Update="Utilities\Diagramming\DiagramMap.ReferenceBounds.cs">

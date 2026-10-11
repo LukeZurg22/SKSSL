@@ -76,7 +76,7 @@ public unsafe class DistributorImage : IPointDistributor
 
     public byte[] GetPixels() => _pixels;
 
-    public void Generate(ref List<Point> points, uint amount, float maxX, float maxY, double randomness)
+    public void Generate(ref List<Vector2> points, uint amount, float maxX, float maxY, double randomness)
     {
         ArgumentNullException.ThrowIfNull(points);
         ArgumentOutOfRangeException.ThrowIfZero(amount);
@@ -151,9 +151,7 @@ public unsafe class DistributorImage : IPointDistributor
         // Populate the spatial grid with existing points.
         for (int i = 0; i < count; i++)
         {
-            Point point = points[i];
-            float px = point.X;
-            float py = point.Y;
+            (float px, float py) = points[i];
             pointX[i] = px;
             pointY[i] = py;
             int gx = (int)(px / gridCellSize);
@@ -313,7 +311,7 @@ public unsafe class DistributorImage : IPointDistributor
                 // Accept point.
                 int pointIndex = count++;
 
-                points.Add(new Point(x, y));
+                points.Add(new Vector2((int)x, (int)y));
 
                 pointXPtr[pointIndex] = x;
                 pointYPtr[pointIndex] = y;

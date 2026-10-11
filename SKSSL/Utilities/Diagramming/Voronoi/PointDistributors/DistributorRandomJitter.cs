@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 using static System.Math;
 
 namespace SKSSL.Utilities.Voronoi.PointDistributors;
@@ -7,7 +8,7 @@ namespace SKSSL.Utilities.Voronoi.PointDistributors;
 
 public class DistributorRandomJitter : IPointDistributor
 {
-    public void Generate(ref List<Point> points, uint amount, float maxX, float maxY, double randomness)
+    public void Generate(ref List<Vector2> points, uint amount, float maxX, float maxY, double randomness)
     {
         Random random = Random.Shared;
         
@@ -26,7 +27,7 @@ public class DistributorRandomJitter : IPointDistributor
             pX = Clamp(pX, 0, maxX);
             pY = Clamp(pY, 0, maxY);
 
-            points.Add(new Point(pX, pY));
+            points.Add(new Vector2(pX, pY));
         }
     }
 }
