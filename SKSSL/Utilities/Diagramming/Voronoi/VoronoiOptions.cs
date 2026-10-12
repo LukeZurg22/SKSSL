@@ -1,3 +1,6 @@
+using System;
+using System.Diagnostics.CodeAnalysis;
+
 namespace SKSSL.Utilities.Voronoi;
 
 public sealed class VoronoiOptions
@@ -32,14 +35,11 @@ public sealed class VoronoiOptions
     /// <summary>Randomness forwarded to a custom IPointDistributor.</summary>
     public double Randomness { get; init; } = 0.25f;
 
-    /// <summary>Optionally draw site-center markers into the preview.</summary>
-    public bool ShowSiteMarkers { get; init; } = false;
+    /// <summary>Optionally and deterministically draw site-center markers into the preview.</summary>
+    public DiagramOverlayOptions OverlayFlags { get; init; } = DiagramOverlayOptions.All;
 
     /// <summary>-1 uses the default Parallel.For worker count; otherwise use a positive limit.</summary>
     public int MaxDegreeOfParallelism { get; init; } = -1;
-
-    /// <summary>Build a deterministic filled-cell preview when Generate is called.</summary>
-    public bool BuildOverlay { get; init; } = false;
 
     /// Thickness of Edges, if they are rendered.
     public float Thickness { get; init; } = 1f;
@@ -51,4 +51,19 @@ public sealed class VoronoiOptions
     public float OverlayOpacity { get; init; } = 1f;
 
     public bool RandomizeCellIds { get; init; } = false;
+}
+
+[Flags]
+[SuppressMessage("ReSharper", "UnusedMember.Global")]
+[SuppressMessage("Design", "CA1069:Enums values should not be duplicated")]
+public enum DiagramOverlayOptions : byte
+{
+    //@formatter:off
+    /// Enabling this flag will completely shut down all overlay rendering by default, even if other flags are enabled.
+    Sites         = 1 << 0,         // 1
+    Edges         = 1 << 1,         // 2
+    EdgesAndSites = Edges | Sites,  // 3
+    All                  = 254,
+    SuppressAll          = 255,            // 255
+    //@formatter:on
 }

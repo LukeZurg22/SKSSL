@@ -64,16 +64,15 @@ public class Voronoi
             new VoronoiOptions
             {
                 SiteCount = siteCount,
-                ShowSiteMarkers = true,
-                BuildOverlay = false,
+                OverlayFlags = DiagramOverlayOptions.Sites,
                 OverlayOpacity = 0.5f,
             },
             new ReferenceBoundarySettings(_borderMap));
         _diagramMap = diagram;
         _diagramMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity);
-        
+
         Regions(siteCount);
-        
+
         //_cellMap.ChangeCellColor(0, Color.LightGoldenrodYellow);
         //_cellMap.ChangeCellColor(1, Color.Gold);
         //_cellMap.ForceUpdate();
@@ -140,8 +139,9 @@ public class Voronoi
             _selectedIds.Add(id);
             _diagramMap.SetCellOverride(id, Color.Yellow);
         }
-        _diagramMap.SetCellOverrides([1,2,3,4,5,6,7,8], Color.Red);
-        _diagramMap.SetCellOverrides([9,10,11,12,13,14,15,16], Color.Green);
+
+        _diagramMap.SetCellOverrides([1, 2, 3, 4, 5, 6, 7, 8], Color.Red);
+        _diagramMap.SetCellOverrides([9, 10, 11, 12, 13, 14, 15, 16], Color.Green);
         _diagramMap.SetCellOverrides([0], Color.PaleTurquoise);
 
         if (TOGGLE_EXECUTABLE_CLOSURE)

@@ -84,8 +84,9 @@ public partial class DiagramMap
             mipmap: false,
             format: SurfaceFormat.Color
         );
-        // Raw Overlay
-        if (data.VoronoiOptions.BuildOverlay)
+        // Raw Overlay - Only if "None" is not toggled.
+        DiagramOverlayOptions overlayFlags = data.VoronoiOptions.OverlayFlags;
+        if (overlayFlags != DiagramOverlayOptions.SuppressAll)
             _overlay.SetData(data.OverlayColors);
 
         int pixelCount = _sourceMap.Width * _sourceMap.Height;

@@ -307,12 +307,14 @@ public sealed class Voronoi : IDisposable
         _previewIsCurrent = false;
 
         // Create Output Texture References
-        EnsureOutputTextures(options.BuildOverlay);
+        DiagramOverlayOptions overlayFlags = options.OverlayFlags;
+        bool includeOverlay = overlayFlags != DiagramOverlayOptions.SuppressAll;
+        EnsureOutputTextures(includeOverlay);
         UploadCellIdTexture(CellIdTexture!);
-        if (options.BuildOverlay)
+        if (includeOverlay)
         {
             BuildOverlayColors(Width, Height,
-                options.ShowSiteMarkers,
+                overlayFlags,
                 CellIds,
                 Sites,
                 ref _overlayColors,
@@ -330,7 +332,7 @@ public sealed class Voronoi : IDisposable
 
         return new VoronoiDiagramData(
             Width, Height, Sites, CellColors, CellIds, CellIdTexture!,
-            options.BuildOverlay ? _overlayColors : null,
+            includeOverlay ? _overlayColors : null,
             SourceMode, _lastBoundaryMode, options);
     }
 
@@ -686,12 +688,12 @@ public sealed class Voronoi : IDisposable
         return texture;
     }
 
-    public Texture2D CreateOverlayTexture(GraphicsDevice graphicsDevice, bool showSiteMarkers)
+    public Texture2D CreateOverlayTexture(GraphicsDevice graphicsDevice, DiagramOverlayOptions overlayOptions)
     {
         ArgumentNullException.ThrowIfNull(graphicsDevice);
         var texture = new Texture2D(graphicsDevice, Width, Height, false, SurfaceFormat.Color);
         BuildOverlayColors(
-            Width, Height, showSiteMarkers, CellIds, Sites,
+            Width, Height, overlayOptions, CellIds, Sites,
             ref _overlayColors, _edgeColor, _pointColor, _referenceBoundaryMask);
         _previewIsCurrent = true;
         UploadOverlayTexture(texture);
@@ -1073,7 +1075,7 @@ public sealed class Voronoi : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void BuildOverlayColors(int w, int h,
-        bool showSiteMarkers,
+        DiagramOverlayOptions showSiteMarkers,
         int[] cellIds,
         Vector2[] sites,
         ref Color[] overlayColors,
@@ -1082,33 +1084,37 @@ public sealed class Voronoi : IDisposable
         bool[]? referenceBoundaryMask)
     {
         EnsureLength(ref overlayColors, cellIds.Length);
-        for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++)
+        
+        if ((showSiteMarkers & DiagramOverlayOptions.Edges) != 0)
         {
-            int idx = y * w + x;
-            int id = cellIds[idx];
-            bool referenceEdge = referenceBoundaryMask is not null && referenceBoundaryMask[idx];
-
-            // Keep reference-mask boundaries visible even when a pixel is unowned
-            // (for example, when the Voronoi border-culling option removed its cell).
-            if (id < 0)
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
             {
-                overlayColors[idx] = referenceEdge ? edgeColor : Color.Transparent;
-                continue;
+                int idx = y * w + x;
+                int id = cellIds[idx];
+                bool referenceEdge = referenceBoundaryMask is not null && referenceBoundaryMask[idx];
+
+                // Keep reference-mask boundaries visible even when a pixel is unowned
+                // (for example, when the Voronoi border-culling option removed its cell).
+                if (id < 0)
+                {
+                    overlayColors[idx] = referenceEdge ? edgeColor : Color.Transparent;
+                    continue;
+                }
+
+                // Build edges from neighboring cell IDs, while also preserving the reference mask.
+                bool edge = referenceEdge || x == 0 || y == 0 || x == w - 1 || y == h - 1;
+                if (!edge && cellIds[idx - 1] != id) edge = true;
+                if (!edge && cellIds[idx + 1] != id) edge = true;
+                if (!edge && cellIds[idx - w] != id) edge = true;
+                if (!edge && cellIds[idx + w] != id) edge = true;
+
+                overlayColors[idx] = edge ? edgeColor : Color.Transparent;
             }
-
-            // Build edges from neighboring cell IDs, while also preserving the reference mask.
-            bool edge = referenceEdge || x == 0 || y == 0 || x == w - 1 || y == h - 1;
-            if (!edge && cellIds[idx - 1] != id) edge = true;
-            if (!edge && cellIds[idx + 1] != id) edge = true;
-            if (!edge && cellIds[idx - w] != id) edge = true;
-            if (!edge && cellIds[idx + w] != id) edge = true;
-
-            overlayColors[idx] = edge ? edgeColor : Color.Transparent;
         }
 
         // Build Sites
-        if (showSiteMarkers)
+        if ((showSiteMarkers & DiagramOverlayOptions.Sites) != 0)
         {
             foreach (Vector2 site in sites)
             {
