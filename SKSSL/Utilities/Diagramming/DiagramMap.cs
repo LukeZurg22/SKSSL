@@ -72,9 +72,9 @@ public partial class DiagramMap
         _diagramOpacity = data.VoronoiOptions.DiagramOpacity;
 
         // First Half - Getting the images in.
-        _overlay = data.OverlayTexture;
         // Read the source only once. Never read it back each frame.
         _sourceMap = data.CellIdTexture;
+        _overlay = data.OverlayTexture;
         int pixelCount = _sourceMap.Width * _sourceMap.Height;
         var sourcePixels = new Color[pixelCount];
         _sourceMap.GetData(sourcePixels);
@@ -99,7 +99,6 @@ public partial class DiagramMap
                 throw new InvalidOperationException($"Duplicate palette color encountered for cell ID {id}.");
         }
 
-
         // Building cell overrides and indexing.
         if (cellCount > 0x1000000)
             throw new IndexOutOfRangeException("The RGB cell-ID encoding supports at most 16,777,216 cells.");
@@ -121,7 +120,7 @@ public partial class DiagramMap
 
         // Split original cells across reference regions, when supplied.
         if (referenceBoundary != null)
-            ApplyReferenceBoundary(referenceBoundary);
+            ApplyReferenceBoundary(referenceBoundary); // WIP: Fixing Apply Ref. Boundary (again)
         UpdateDisplayPixelsFromRenderIds(); // Keep after referenceBoundary.
 
         // Build the palette dimensions.
@@ -176,10 +175,10 @@ public partial class DiagramMap
 
         // The overlay is a normal image, not a cell-ID texture,
         // so render it separately without the palette shader.
-        if (false /*_overlay != null*/)
+        if (false /*_overlay != null*/) // WIP: Fix overlay not overlaying.
         {
             spriteBatch.Begin(
-                blendState: BlendState.AlphaBlend,
+                blendState: BlendState.Opaque,
                 sortMode: SpriteSortMode.Deferred,
                 samplerState: SamplerState.PointClamp
             );
@@ -188,7 +187,7 @@ public partial class DiagramMap
             spriteBatch.End();
         }
     }
-
+    
     /// <summary>
     /// Retrieve a cell at a provided mouse position.
     /// </summary>

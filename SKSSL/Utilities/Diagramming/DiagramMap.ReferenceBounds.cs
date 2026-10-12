@@ -33,7 +33,6 @@ public partial class DiagramMap
             regionCount = Math.Max(regionCount, region + 1);
 
             int cellId = originalOwners[pixel];
-
             if (cellId < 0 || blackMask[pixel])
                 continue;
 
@@ -261,13 +260,13 @@ public partial class DiagramMap
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int[] BuildReferenceRegions(bool[] blackMask, int width, int height)
     {
         int pixelCount = checked(width * height);
-
         var regionByPixel = new int[pixelCount];
         Array.Fill(regionByPixel, -1);
-
+        
         var queue = new int[pixelCount];
         int regionCount = 0;
 
