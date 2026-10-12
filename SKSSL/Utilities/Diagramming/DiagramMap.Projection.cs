@@ -12,8 +12,12 @@ public partial class DiagramMap
     {
         width ??= _displayMap.Width;
         height ??= _displayMap.Height;
-
-        _diagramTransform = world * view;
+        var scale = Matrix.CreateScale(
+            (float)width.Value / _displayMap.Width,
+            (float)height.Value / _displayMap.Height,
+            1f
+        );
+        _diagramTransform = world * view * scale;
     }
 
     // ReSharper disable once MemberCanBePrivate.Global
