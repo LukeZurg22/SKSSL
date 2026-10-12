@@ -45,7 +45,7 @@ public sealed class VoronoiOptions
     public float Thickness { get; init; } = 1f;
 
     /// Size of Points, if they are rendered.
-    public float PointSize { get; init; } = 2f;
+    public int PointSize { get; init; } = 2;
 
     public float DiagramOpacity { get; init; } = 1f;
     public float OverlayOpacity { get; init; } = 1f;
