@@ -11,7 +11,7 @@ public sealed class VoronoiDiagramData
 {
     internal VoronoiDiagramData(
         int width, int height, Vector2[] sites, Color[] cellIdToCellColor, int[] pixelToCellId,
-        Texture2D cellIdTexture, Texture2D? overlayTexture,
+        Texture2D cellIdTexture, Color[]? overlayColors,
         VoronoiSourceMode sourceMode, VoronoiBoundaryMode boundaryMode, VoronoiOptions voronoiOptions)
     {
         Width = width;
@@ -20,7 +20,7 @@ public sealed class VoronoiDiagramData
         CellIdToCellColor = cellIdToCellColor;
         PixelToCellId = pixelToCellId;
         CellIdTexture = cellIdTexture;
-        OverlayTexture = overlayTexture;
+        OverlayColors = overlayColors;
         SourceMode = sourceMode;
         BoundaryMode = boundaryMode;
         VoronoiOptions = voronoiOptions;
@@ -38,7 +38,7 @@ public sealed class VoronoiDiagramData
     /// <summary>RGBA8 texture encoding site ID + 1 in RGB; alpha zero is the background.</summary>
     public Texture2D CellIdTexture { get; }
 
-    public Texture2D? OverlayTexture { get; set; }
+    public Color[]? OverlayColors { get; set; }
 
     public VoronoiSourceMode SourceMode { get; }
     public VoronoiBoundaryMode BoundaryMode { get; }

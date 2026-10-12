@@ -28,11 +28,11 @@ public static class VoronoiDiagramMapPipeline
         ArgumentNullException.ThrowIfNull(heightmap);
 
         using var generator = new Voronoi.Voronoi(graphics, heightmap);
-        VoronoiDiagramData data = generator.GenerateDiagram(width, height, options);
-
+        VoronoiDiagramData data = generator.GenerateDiagram(width, height, options, referenceBoundary);
+        
         // DiagramMap snapshots data.CellIds and owns its own textures, so it remains valid
         // after this local generator is disposed.
-        return new DiagramMap(graphics, data, referenceBoundary);
+        return new DiagramMap(graphics, data);
     }
 
     public static DiagramMap FromHeightmapPixels(
@@ -55,8 +55,8 @@ public static class VoronoiDiagramMapPipeline
             heightmapHeight,
             outputWidth,
             outputHeight,
-            options);
-        return new DiagramMap(graphics, data, referenceBoundary);
+            options, referenceBoundary);
+        return new DiagramMap(graphics, data);
     }
 
     public static DiagramMap FromDistributor(
@@ -71,7 +71,7 @@ public static class VoronoiDiagramMapPipeline
         ArgumentNullException.ThrowIfNull(distributor);
 
         using var generator = new Voronoi.Voronoi(graphics, distributor);
-        VoronoiDiagramData data = generator.GenerateDiagram(width, height, options);
-        return new DiagramMap(graphics, data, referenceBoundary);
+        VoronoiDiagramData data = generator.GenerateDiagram(width, height, options, referenceBoundary);
+        return new DiagramMap(graphics, data);
     }
 }

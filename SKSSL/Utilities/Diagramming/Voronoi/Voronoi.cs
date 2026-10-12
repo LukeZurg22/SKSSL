@@ -64,6 +64,7 @@ public sealed class Voronoi : IDisposable
     private Color[]? _densityPixels; // Displacement
     private Color[] _overlayColors = []; // Overlay
     private bool _previewIsCurrent;
+    private bool[]? _referenceBoundaryMask;
 
     private float[] _luminance = [];
     private float[] _weights = [];
@@ -183,7 +184,11 @@ public sealed class Voronoi : IDisposable
     /// This method creates or reuses CellIdTexture and PreviewTexture; graphics-resource work must run
     /// on the graphics thread.
     /// </summary>
-    public VoronoiDiagramData GenerateDiagram(int? width = null, int? height = null, VoronoiOptions? options = null)
+    public VoronoiDiagramData GenerateDiagram(
+        int? width = null,
+        int? height = null,
+        VoronoiOptions? options = null,
+        ReferenceBoundarySettings? referenceBoundary = null)
     {
         options ??= new VoronoiOptions();
         int outputWidth = width ?? _graphicsDevice.Viewport.Width;
@@ -209,7 +214,9 @@ public sealed class Voronoi : IDisposable
             }
         }
 
-        return GenerateCore(densityPixels, densityWidth, densityHeight, outputWidth, outputHeight, options);
+        return GenerateCore(
+            densityPixels, densityWidth, densityHeight,
+            outputWidth, outputHeight, options, referenceBoundary);
     }
 
     /// <summary>Convenience overload to update the heightmap from CPU pixels and generate immediately.</summary>
@@ -220,10 +227,11 @@ public sealed class Voronoi : IDisposable
         int densityHeight,
         int? outputWidth = null,
         int? outputHeight = null,
-        VoronoiOptions? options = null)
+        VoronoiOptions? options = null,
+        ReferenceBoundarySettings? referenceBoundary = null)
     {
         UseHeightmap(densityPixels, densityWidth, densityHeight);
-        return GenerateDiagram(outputWidth, outputHeight, options);
+        return GenerateDiagram(outputWidth, outputHeight, options, referenceBoundary);
     }
 
     private VoronoiDiagramData GenerateCore(
@@ -232,7 +240,8 @@ public sealed class Voronoi : IDisposable
         int densityHeight,
         int outputWidth,
         int outputHeight,
-        VoronoiOptions options)
+        VoronoiOptions options,
+        ReferenceBoundarySettings? referenceBoundary)
     {
         if (SourceMode == VoronoiSourceMode.Heightmap)
         {
@@ -285,9 +294,10 @@ public sealed class Voronoi : IDisposable
         if (!options.RandomizeCellIds)
             SortCellsTopLeftToBottomRight();
 
-        // TODO: Add more border / boundary / culling options, handled here.
-        if (options.BoundaryMode == VoronoiBoundaryMode.Culled)
-            CullBorderCells();
+        // Apply the reference mask after rasterization/ID sorting and optional border culling.
+        // Cell IDs remain zero-based; -1 remains unowned. The mask also stays available
+        // for overlay rendering so reference boundaries remain visible.
+        _referenceBoundaryMask = referenceBoundary is null ? null : ApplyReferenceBoundary(referenceBoundary);
 
         // Generate one display color per site using your existing color hasher.
         CellColors = CreateCellColors(Sites.Length);
@@ -296,14 +306,23 @@ public sealed class Voronoi : IDisposable
         WriteCellIdColors();
         _previewIsCurrent = false;
 
+        // Create Output Texture References
         EnsureOutputTextures(options.BuildOverlay);
         UploadCellIdTexture(CellIdTexture!);
         if (options.BuildOverlay)
         {
-            BuildOverlayColors(options.ShowSiteMarkers);
+            BuildOverlayColors(Width, Height,
+                options.ShowSiteMarkers,
+                CellIds,
+                Sites,
+                ref _overlayColors,
+                _edgeColor, _pointColor,
+                _referenceBoundaryMask
+            );
+            _previewIsCurrent = true;
             UploadOverlayTexture(OverlayTexture!);
         }
-        else
+        else // Fallback for BuildOverlay.
         {
             OverlayTexture?.Dispose();
             OverlayTexture = null;
@@ -311,11 +330,329 @@ public sealed class Voronoi : IDisposable
 
         return new VoronoiDiagramData(
             Width, Height, Sites, CellColors, CellIds, CellIdTexture!,
-            options.BuildOverlay ? OverlayTexture : null,
+            options.BuildOverlay ? _overlayColors : null,
             SourceMode, _lastBoundaryMode, options);
     }
 
     #endregion
+
+
+    /// <summary>
+    /// Constrains existing cell ownership to connected white regions of a reference mask.
+    /// Existing cell IDs and sites are retained; pixels that were unowned remain unowned.
+    /// Returns the resized black mask so those reference boundaries can also be drawn in the overlay.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool[] ApplyReferenceBoundary(ReferenceBoundarySettings boundary)
+    {
+        int width = Width;
+        int height = Height;
+        int pixelCount = _cellIds.Length;
+        int cellCount = _sites.Length;
+
+        bool[] blackMask = boundary.CreateResizedBlackMask(width, height);
+        int[] regions = BuildReferenceRegions(blackMask, width, height);
+        int[] originalOwners = (int[])_cellIds.Clone();
+
+        // Count each existing cell's pixels in each white region.
+        var cellRegionCounts = new Dictionary<ulong, int>();
+        int regionCount = 0;
+
+        for (int pixel = 0; pixel < pixelCount; pixel++)
+        {
+            int region = regions[pixel];
+            regionCount = Math.Max(regionCount, region + 1);
+
+            int cellId = originalOwners[pixel];
+            if (cellId < 0 || blackMask[pixel])
+                continue;
+
+            ulong key = MakeCellRegionKey(cellId, region);
+            cellRegionCounts.TryGetValue(key, out int count);
+            cellRegionCounts[key] = count + 1;
+        }
+
+        // Find each cell's largest white region.
+        var primaryRegion = new int[cellCount];
+        var primaryCount = new int[cellCount];
+        Array.Fill(primaryRegion, -1);
+
+        foreach (KeyValuePair<ulong, int> entry in cellRegionCounts)
+        {
+            int cellId = (int)(uint)entry.Key;
+            int region = (int)(entry.Key >> 32);
+            if (entry.Value <= primaryCount[cellId])
+                continue;
+
+            primaryCount[cellId] = entry.Value;
+            primaryRegion[cellId] = region;
+        }
+
+        // Identify regions already served by at least one cell's primary region.
+        var hasPrimaryCell = new bool[regionCount];
+        for (int cellId = 0; cellId < cellCount; cellId++)
+        {
+            int region = primaryRegion[cellId];
+            if (region >= 0)
+                hasPrimaryCell[region] = true;
+        }
+
+        // Regions without a primary cell adopt their largest existing cell fragment.
+        var fallbackCell = new int[regionCount];
+        var fallbackCount = new int[regionCount];
+        Array.Fill(fallbackCell, -1);
+
+        foreach (KeyValuePair<ulong, int> entry in cellRegionCounts)
+        {
+            int cellId = (int)(uint)entry.Key;
+            int region = (int)(entry.Key >> 32);
+            if (hasPrimaryCell[region] || entry.Value <= fallbackCount[region])
+                continue;
+
+            fallbackCount[region] = entry.Value;
+            fallbackCell[region] = cellId;
+        }
+
+        // Seed each region from pixels already owned by an eligible cell.
+        var assigned = new int[pixelCount];
+        Array.Fill(assigned, -1);
+        var queue = new int[pixelCount];
+        int head = 0;
+        int tail = 0;
+
+        for (int pixel = 0; pixel < pixelCount; pixel++)
+        {
+            if (blackMask[pixel])
+                continue;
+
+            int cellId = originalOwners[pixel];
+            if (cellId < 0)
+                continue;
+
+            int region = regions[pixel];
+            if (primaryRegion[cellId] != region && fallbackCell[region] != cellId)
+                continue;
+
+            assigned[pixel] = cellId;
+            queue[tail++] = pixel;
+        }
+
+        // Propagate ownership only inside each white region.
+        while (head < tail)
+        {
+            int pixel = queue[head++];
+            int x = pixel % width;
+            int region = regions[pixel];
+
+            TryWhite(pixel - 1, x > 0);
+            TryWhite(pixel + 1, x + 1 < width);
+            TryWhite(pixel - width, pixel >= width);
+            TryWhite(pixel + width, pixel + width < pixelCount);
+            continue;
+
+            void TryWhite(int neighbor, bool inBounds)
+            {
+                if (!inBounds ||
+                    blackMask[neighbor] ||
+                    regions[neighbor] != region ||
+                    assigned[neighbor] >= 0)
+                    return;
+
+                assigned[neighbor] = assigned[pixel];
+                queue[tail++] = neighbor;
+            }
+        }
+
+        // Propagate assignments onto black mask pixels from their nearest side.
+        // This assigns ownership for continuity, but the overlay still renders the mask black.
+        head = 0;
+        tail = 0;
+        for (int pixel = 0; pixel < pixelCount; pixel++)
+        {
+            if (!blackMask[pixel] && assigned[pixel] >= 0)
+                queue[tail++] = pixel;
+        }
+
+        while (head < tail)
+        {
+            int pixel = queue[head++];
+            int x = pixel % width;
+            int region = regions[pixel];
+
+            TryBlack(pixel - 1, x > 0);
+            TryBlack(pixel + 1, x + 1 < width);
+            TryBlack(pixel - width, pixel >= width);
+            TryBlack(pixel + width, pixel + width < pixelCount);
+            continue;
+
+            void TryBlack(int neighbor, bool inBounds)
+            {
+                if (!inBounds ||
+                    !blackMask[neighbor] ||
+                    regions[neighbor] != region ||
+                    assigned[neighbor] >= 0)
+                    return;
+
+                assigned[neighbor] = assigned[pixel];
+                queue[tail++] = neighbor;
+            }
+        }
+
+        // Never claim pixels that were originally unowned (including culled cells).
+        for (int pixel = 0; pixel < pixelCount; pixel++)
+        {
+            if (originalOwners[pixel] < 0)
+            {
+                _cellIds[pixel] = -1;
+                continue;
+            }
+
+            _cellIds[pixel] = assigned[pixel] >= 0
+                ? assigned[pixel]
+                : originalOwners[pixel];
+        }
+
+        return blackMask;
+    }
+
+    private static ulong MakeCellRegionKey(int cellId, int regionId) =>
+        ((ulong)(uint)regionId << 32) | (uint)cellId;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int[] BuildReferenceRegions(bool[] blackMask, int width, int height)
+    {
+        int pixelCount = checked(width * height);
+        var regionByPixel = new int[pixelCount];
+        Array.Fill(regionByPixel, -1);
+
+        var queue = new int[pixelCount];
+        int regionCount = 0;
+
+        // Flood-fill white pixels; black pixels cannot connect separate regions.
+        for (int start = 0; start < pixelCount; start++)
+        {
+            if (blackMask[start] || regionByPixel[start] >= 0)
+                continue;
+
+            int head = 0;
+            int tail = 0;
+            regionByPixel[start] = regionCount;
+            queue[tail++] = start;
+
+            while (head < tail)
+            {
+                int pixel = queue[head++];
+                int x = pixel % width;
+
+                if (x > 0)
+                {
+                    int n = pixel - 1;
+                    if (regionByPixel[n] < 0 && !blackMask[n])
+                    {
+                        regionByPixel[n] = regionCount;
+                        queue[tail++] = n;
+                    }
+                }
+
+                if (x + 1 < width)
+                {
+                    int n = pixel + 1;
+                    if (regionByPixel[n] < 0 && !blackMask[n])
+                    {
+                        regionByPixel[n] = regionCount;
+                        queue[tail++] = n;
+                    }
+                }
+
+                if (pixel >= width)
+                {
+                    int n = pixel - width;
+                    if (regionByPixel[n] < 0 && !blackMask[n])
+                    {
+                        regionByPixel[n] = regionCount;
+                        queue[tail++] = n;
+                    }
+                }
+
+                if (pixel + width < pixelCount)
+                {
+                    int n = pixel + width;
+                    if (regionByPixel[n] < 0 && !blackMask[n])
+                    {
+                        regionByPixel[n] = regionCount;
+                        queue[tail++] = n;
+                    }
+                }
+            }
+
+            regionCount++;
+        }
+
+        // An all-black reference mask has no white regions to seed from.
+        if (regionCount == 0)
+        {
+            Array.Fill(regionByPixel, 0);
+            return regionByPixel;
+        }
+
+        // Assign each black pixel to the nearest white region by multi-source BFS.
+        int expansionHead = 0;
+        int expansionTail = 0;
+        for (int i = 0; i < pixelCount; i++)
+        {
+            if (!blackMask[i])
+                queue[expansionTail++] = i;
+        }
+
+        while (expansionHead < expansionTail)
+        {
+            int pixel = queue[expansionHead++];
+            int x = pixel % width;
+            int regionId = regionByPixel[pixel];
+
+            if (x > 0)
+            {
+                int n = pixel - 1;
+                if (regionByPixel[n] < 0)
+                {
+                    regionByPixel[n] = regionId;
+                    queue[expansionTail++] = n;
+                }
+            }
+
+            if (x + 1 < width)
+            {
+                int n = pixel + 1;
+                if (regionByPixel[n] < 0)
+                {
+                    regionByPixel[n] = regionId;
+                    queue[expansionTail++] = n;
+                }
+            }
+
+            if (pixel >= width)
+            {
+                int n = pixel - width;
+                if (regionByPixel[n] < 0)
+                {
+                    regionByPixel[n] = regionId;
+                    queue[expansionTail++] = n;
+                }
+            }
+
+            if (pixel + width < pixelCount)
+            {
+                int n = pixel + width;
+                if (regionByPixel[n] < 0)
+                {
+                    regionByPixel[n] = regionId;
+                    queue[expansionTail++] = n;
+                }
+            }
+        }
+
+        return regionByPixel;
+    }
 
     #region TEXTURES
 
@@ -353,11 +690,15 @@ public sealed class Voronoi : IDisposable
     {
         ArgumentNullException.ThrowIfNull(graphicsDevice);
         var texture = new Texture2D(graphicsDevice, Width, Height, false, SurfaceFormat.Color);
+        BuildOverlayColors(
+            Width, Height, showSiteMarkers, CellIds, Sites,
+            ref _overlayColors, _edgeColor, _pointColor, _referenceBoundaryMask);
+        _previewIsCurrent = true;
         UploadOverlayTexture(texture);
         return texture;
     }
 
-
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void EnsureOutputTextures(bool includeOverlay)
     {
         if (CellIdTexture is null || CellIdTexture.IsDisposed ||
@@ -367,17 +708,17 @@ public sealed class Voronoi : IDisposable
             CellIdTexture = new Texture2D(_graphicsDevice, Width, Height, false, SurfaceFormat.Color);
         }
 
-        if (includeOverlay && (OverlayTexture is null ||
-                               OverlayTexture.IsDisposed ||
-                               OverlayTexture.Width != Width ||
-                               OverlayTexture.Height != Height))
+        bool textureInvalid = OverlayTexture is null || OverlayTexture.IsDisposed;
+        bool dimensionsFaulty = OverlayTexture?.Width != Width || OverlayTexture.Height != Height;
+        switch (includeOverlay)
         {
-            OverlayTexture?.Dispose();
-            OverlayTexture = new Texture2D(_graphicsDevice, Width, Height, false, SurfaceFormat.Color);
-        }
-        else if (!includeOverlay && OverlayTexture is not null)
-        {
-            // Keep the allocated texture for reuse, but don't expose it in the result for this generation.
+            case true when textureInvalid || dimensionsFaulty:
+                OverlayTexture?.Dispose();
+                OverlayTexture = new Texture2D(_graphicsDevice, Width, Height, false, SurfaceFormat.Color);
+                break;
+            case false when OverlayTexture is not null:
+                // Keep the allocated texture for reuse, but don't expose it in the result for this generation.
+                break;
         }
     }
 
@@ -731,45 +1072,51 @@ public sealed class Voronoi : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void BuildOverlayColors(bool showSiteMarkers)
+    private static void BuildOverlayColors(int w, int h,
+        bool showSiteMarkers,
+        int[] cellIds,
+        Vector2[] sites,
+        ref Color[] overlayColors,
+        Color edgeColor,
+        Color pointColor,
+        bool[]? referenceBoundaryMask)
     {
-        EnsureLength(ref _overlayColors, CellIds.Length);
-        int w = Width;
-        int h = Height;
+        EnsureLength(ref overlayColors, cellIds.Length);
         for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++)
         {
             int idx = y * w + x;
-            var id = CellIds[idx];
+            int id = cellIds[idx];
+            bool referenceEdge = referenceBoundaryMask is not null && referenceBoundaryMask[idx];
+
+            // Keep reference-mask boundaries visible even when a pixel is unowned
+            // (for example, when the Voronoi border-culling option removed its cell).
             if (id < 0)
             {
-                _overlayColors[idx] = Color.Transparent;
+                overlayColors[idx] = referenceEdge ? edgeColor : Color.Transparent;
                 continue;
             }
 
-            // Build Edges // TODO: back to flags
-            // TODO: remove these conditionals to avoid frame border
-            bool edge = x == 0 || y == 0 || x == w - 1 || y == h - 1;
-            if (!edge && CellIds[idx - 1] != id) edge = true;
-            if (!edge && CellIds[idx + 1] != id) edge = true;
-            if (!edge && CellIds[idx - w] != id) edge = true;
-            if (!edge && CellIds[idx + w] != id) edge = true;
+            // Build edges from neighboring cell IDs, while also preserving the reference mask.
+            bool edge = referenceEdge || x == 0 || y == 0 || x == w - 1 || y == h - 1;
+            if (!edge && cellIds[idx - 1] != id) edge = true;
+            if (!edge && cellIds[idx + 1] != id) edge = true;
+            if (!edge && cellIds[idx - w] != id) edge = true;
+            if (!edge && cellIds[idx + w] != id) edge = true;
 
-            _overlayColors[idx] = edge ? _edgeColor : Color.Transparent;
+            overlayColors[idx] = edge ? edgeColor : Color.Transparent;
         }
 
         // Build Sites
         if (showSiteMarkers)
         {
-            foreach (Vector2 site in Sites)
+            foreach (Vector2 site in sites)
             {
                 int sx = Math.Clamp((int)site.X, 0, w - 1);
                 int sy = Math.Clamp((int)site.Y, 0, h - 1);
-                _overlayColors[sy * w + sx] = _pointColor;
+                overlayColors[sy * w + sx] = pointColor;
             }
         }
-
-        _previewIsCurrent = true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

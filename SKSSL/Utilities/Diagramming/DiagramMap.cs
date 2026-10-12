@@ -62,7 +62,7 @@ public partial class DiagramMap
 
     #region Constructors
 
-    public DiagramMap(GraphicsDevice graphics, VoronoiDiagramData data, ReferenceBoundarySettings? referenceBoundary)
+    public DiagramMap(GraphicsDevice graphics, VoronoiDiagramData data)
     {
         // MonoGame Formalities
         _graphics = graphics;
@@ -71,26 +71,43 @@ public partial class DiagramMap
         _overlayOpacity = data.VoronoiOptions.OverlayOpacity;
         _diagramOpacity = data.VoronoiOptions.DiagramOpacity;
 
-        // First Half - Getting the images in.
-        // Read the source only once. Never read it back each frame.
-        _sourceMap = data.CellIdTexture;
-        _overlay = data.OverlayTexture;
+        // Populate Source Map
+        _sourceMap = new Texture2D(graphics,
+            data.CellIdTexture.Width,
+            data.CellIdTexture.Height,
+            mipmap: false,
+            format: SurfaceFormat.Color
+        );
+        _overlay = new Texture2D(graphics,
+            _sourceMap.Width,
+            _sourceMap.Height,
+            mipmap: false,
+            format: SurfaceFormat.Color
+        );
+        // Raw Overlay
+        if (data.VoronoiOptions.BuildOverlay)
+            _overlay.SetData(data.OverlayColors);
+
         int pixelCount = _sourceMap.Width * _sourceMap.Height;
         var sourcePixels = new Color[pixelCount];
         _sourceMap.GetData(sourcePixels);
+
+        // Populate Display Pixels using Source Map
         _displayPixels = new Color[pixelCount];
         _uploadScratch = new Color[pixelCount];
+
+        // Populate Pixel Indexers
         _pixelToCellId = new int[pixelCount];
         Array.Copy(data.PixelToCellId, _pixelToCellId, pixelCount);
         _pixelIndexInCell = new int[pixelCount];
         Array.Fill(_pixelIndexInCell, -1);
 
-        // Keep our own copy of the original per-cell colors.
+        // Keep a Copy of the Original Per-Cell Colors
         int cellCount = data.Sites.Length;
         _cellRawColors = new Color[cellCount];
         Array.Copy(data.CellIdToCellColor, _cellRawColors, cellCount);
 
-        // Pack cell raw colors
+        // Pack Raw Colors for Cells
         _paletteColorToId.Clear();
         for (int id = 0; id < _cellRawColors.Length; id++)
         {
@@ -99,18 +116,16 @@ public partial class DiagramMap
                 throw new InvalidOperationException($"Duplicate palette color encountered for cell ID {id}.");
         }
 
-        // Building cell overrides and indexing.
+        // Build Cell Overrides and do Indexing
         if (cellCount > 0x1000000)
             throw new IndexOutOfRangeException("The RGB cell-ID encoding supports at most 16,777,216 cells.");
         _cellOverrideColors = new Color[cellCount];
         _hasCellOverride = new bool[cellCount];
         _pixelIndicesByCell = new List<int>[cellCount];
-        for (int i = 0; i < cellCount; i++)
-            _pixelIndicesByCell[i] = [];
-
+        for (int i = 0; i < cellCount; i++) _pixelIndicesByCell[i] = [];
         BuildPixelIndexFromIds();
 
-        // Rendering cells.
+        // Build Rendering Cell Pixels
         _renderCellIdByPixel = new int[pixelCount];
         Array.Fill(_renderCellIdByPixel, -1);
         Array.Copy(_pixelToCellId, _renderCellIdByPixel, pixelCount);
@@ -118,12 +133,9 @@ public partial class DiagramMap
         for (int i = 0; i < _renderParentCellId.Length; i++)
             _renderParentCellId[i] = i;
 
-        // Split original cells across reference regions, when supplied.
-        if (referenceBoundary != null)
-            ApplyReferenceBoundary(referenceBoundary); // WIP: Fixing Apply Ref. Boundary (again)
-        UpdateDisplayPixelsFromRenderIds(); // Keep after referenceBoundary.
+        UpdateDisplayPixelsFromRenderIds(); // Keep after referenceBoundary. Updates routing.
 
-        // Build the palette dimensions.
+        // Build the Palette
         _paletteWidth = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(cellCount)));
         _paletteHeight = Math.Max(1, (cellCount + _paletteWidth - 1) / _paletteWidth);
         _palettePixels = new Color[_paletteWidth * _paletteHeight];
@@ -131,7 +143,6 @@ public partial class DiagramMap
         
         //@formatter:off
         _displayMap = new Texture2D(graphics, _sourceMap.Width, _sourceMap.Height, mipmap: false, format: SurfaceFormat.Color);
-        _sourceMap = new Texture2D(graphics, _sourceMap.Width, _sourceMap.Height, mipmap: false, format: SurfaceFormat.Color);
         _paletteTexture = new Texture2D(graphics, _paletteWidth, _paletteHeight, mipmap: false, format: SurfaceFormat.Color);
         //@formatter:on
 
@@ -144,6 +155,7 @@ public partial class DiagramMap
     #endregion
 
     public Texture2D GetRenderedMap() => _displayMap;
+    public Texture2D? GetOverlay() => _overlay;
 
     /// Useful when one needs the untouched source.
     public Texture2D GetSourceMap() => _sourceMap;
@@ -175,19 +187,20 @@ public partial class DiagramMap
 
         // The overlay is a normal image, not a cell-ID texture,
         // so render it separately without the palette shader.
-        if (false /*_overlay != null*/) // WIP: Fix overlay not overlaying.
+        if (true /*_overlay != null*/) // WIP: Fix overlay not overlaying.
         {
             spriteBatch.Begin(
-                blendState: BlendState.Opaque,
+                blendState: BlendState.AlphaBlend,
                 sortMode: SpriteSortMode.Deferred,
-                samplerState: SamplerState.PointClamp
+                samplerState: SamplerState.PointClamp,
+                transformMatrix: _diagramTransform
             );
             opacity = MathHelper.Clamp(_overlayOpacity, 0f, 1f);
             spriteBatch.Draw(_overlay, Vector2.Zero, Color.White * opacity);
             spriteBatch.End();
         }
     }
-    
+
     /// <summary>
     /// Retrieve a cell at a provided mouse position.
     /// </summary>

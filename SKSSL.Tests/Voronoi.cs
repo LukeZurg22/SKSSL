@@ -65,13 +65,13 @@ public class Voronoi
             {
                 SiteCount = siteCount,
                 ShowSiteMarkers = true,
-                BuildOverlay = true,
+                BuildOverlay = false,
                 OverlayOpacity = 0.5f,
             },
             new ReferenceBoundarySettings(_borderMap));
         _diagramMap = diagram;
         _diagramMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity);
-
+        
         Regions(siteCount);
         
         //_cellMap.ChangeCellColor(0, Color.LightGoldenrodYellow);

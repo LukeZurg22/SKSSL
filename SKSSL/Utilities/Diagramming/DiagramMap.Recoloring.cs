@@ -32,7 +32,7 @@ public partial class DiagramMap
         if (oldCellId == newCellId && (newCellId >= 0 || _displayPixels[pixelIndex].A == 128))
             return;
 
-        RemovePixelFromCell(pixelIndex);
+        RemovePixelFromCell(pixelIndex); // TODO: Return Color removed to re-put elsewhere.
 
         if (newCellId >= 0)
             AddPixelToCell(pixelIndex, newCellId);
