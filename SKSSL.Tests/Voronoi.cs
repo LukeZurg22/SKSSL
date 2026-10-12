@@ -56,13 +56,14 @@ public class Voronoi
         // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
+        const int siteCount = 1000;
         DiagramMap diagram = VoronoiDiagramMapPipeline.FromHeightmap(
             _game.GraphicsDevice,
             _densityTexture,
             1920, 1080,
             new VoronoiOptions
             {
-                SiteCount = 1000,
+                SiteCount = siteCount,
                 ShowSiteMarkers = true,
                 BuildOverlay = true,
                 OverlayOpacity = 0.5f,
@@ -71,6 +72,8 @@ public class Voronoi
         _diagramMap = diagram;
         _diagramMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity);
 
+        Regions(siteCount);
+        
         //_cellMap.ChangeCellColor(0, Color.LightGoldenrodYellow);
         //_cellMap.ChangeCellColor(1, Color.Gold);
         //_cellMap.ForceUpdate();
@@ -139,6 +142,7 @@ public class Voronoi
         }
         _diagramMap.SetCellOverrides([1,2,3,4,5,6,7,8], Color.Red);
         _diagramMap.SetCellOverrides([9,10,11,12,13,14,15,16], Color.Green);
+        _diagramMap.SetCellOverrides([0], Color.PaleTurquoise);
 
         if (TOGGLE_EXECUTABLE_CLOSURE)
 #pragma warning disable CS0162
@@ -153,10 +157,7 @@ public class Voronoi
 
         _spriteBatch.Begin();
         Vector2 position = Vector2.Zero;
-        bool nullCell = _selectedIds.FirstOrDefault() != default;
-        _spriteBatch.DrawString(_font, nullCell
-            ? $"RENDER: {_selectedIds.First().ToString()}"
-            : "null", position, Color.Black);
+        _spriteBatch.DrawString(_font, $"RENDER: {_selectedIds.First().ToString()}", position, Color.Black);
         position = new Vector2(0, 25);
         //_spriteBatch.DrawString(_font, nullCell
         //    ? $"VERTICES: {_hoveredCell?.Vertices.Count.ToString()}"

@@ -87,7 +87,6 @@ Ensure SKSSL.Generator is also packed in.
 Tap Github Releases into Nuget
 
 // WIP: - Overlays (still broken. All black)
-// WIP: - Cell ID reordering / de-randomization (called before texture updates and cell id assignations)
 // WIP: - Consider switching back to deterministic encoded ids. It’s faster, and nobody’s gonna stare at cell maps anyway.
 
 

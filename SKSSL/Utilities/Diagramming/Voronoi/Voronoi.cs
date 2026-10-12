@@ -280,6 +280,11 @@ public sealed class Voronoi : IDisposable
         rasterizer.Rebuild(Sites);
         rasterizer.Rasterize(CellIds, options.MaxDegreeOfParallelism);
 
+        // Toggle-able randomized cell IDs. Rather than state "Sort Cell IDs", I prefer to have the Cell IDs sorted by
+        //  default.
+        if (!options.RandomizeCellIds)
+            SortCellsTopLeftToBottomRight();
+
         // TODO: Add more border / boundary / culling options, handled here.
         if (options.BoundaryMode == VoronoiBoundaryMode.Culled)
             CullBorderCells();
@@ -647,6 +652,60 @@ public sealed class Voronoi : IDisposable
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void Mark(int id) => cull[id] = true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SortCellsTopLeftToBottomRight()
+    {
+        int count = _sites.Length;
+        if (count == 0) return;
+
+        var firstPixel = new int[count];
+        Array.Fill(firstPixel, int.MaxValue);
+
+        // O(pixel count): find each cell's first row-major pixel.
+        for (int pixel = 0; pixel < _cellIds.Length; pixel++)
+        {
+            int id = _cellIds[pixel];
+            if ((uint)id < (uint)count && pixel < firstPixel[id]) firstPixel[id] = pixel;
+        }
+
+        // O(cell count log cell count): sort original IDs by first pixel.
+        var order = new int[count];
+        for (int i = 0; i < count; i++)
+            order[i] = i;
+
+        Array.Sort(order, (a, b) =>
+        {
+            int compare = firstPixel[a].CompareTo(firstPixel[b]);
+            if (compare != 0) return compare;
+            compare = _sites[a].Y.CompareTo(_sites[b].Y);
+            if (compare != 0) return compare;
+            compare = _sites[a].X.CompareTo(_sites[b].X);
+            return compare != 0 ? compare : a.CompareTo(b);
+        });
+
+        var oldToNew = new int[count];
+        var sortedSites = new Vector2[count];
+
+        // Map IDs to 1..count; reorder sites into matching ID order.
+        for (int newIndex = 0; newIndex < count; newIndex++)
+        {
+            int oldId = order[newIndex];
+            oldToNew[oldId] = newIndex;
+            sortedSites[newIndex] = _sites[oldId];
+        }
+
+        // Replace this with copying into the appropriate backing storage
+        // if _sites is a fixed-size array.
+        _sites = sortedSites;
+
+        // O(pixel count): remap every rasterized cell ID.
+        for (int pixel = 0; pixel < _cellIds.Length; pixel++)
+        {
+            int oldId = _cellIds[pixel];
+            if ((uint)oldId < (uint)count) _cellIds[pixel] = oldToNew[oldId];
+        }
     }
 
     #region COLORS
