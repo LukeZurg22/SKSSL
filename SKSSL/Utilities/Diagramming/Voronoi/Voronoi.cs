@@ -42,8 +42,7 @@ public sealed class Voronoi : IDisposable
     private readonly GraphicsDevice _graphicsDevice;
     private readonly Color? _unifiedColor;
     private readonly Color _pointColor;
-    private Texture2D? _heightmap;
-    private Color[]? _densityPixels;
+    private readonly Color _edgeColor;
     private int _densityPixelsWidth;
     private int _densityPixelsHeight;
     private IPointDistributor? _distributor;
@@ -62,7 +61,7 @@ public sealed class Voronoi : IDisposable
 
     private Color[] _encodedColors = []; // Colors per pixel
     public Color[] CellColors { get; set; } // Colors per cell
-    private Color[] _heightPixels = []; // Displacement
+    private Color[]? _densityPixels; // Displacement
     private Color[] _overlayColors = []; // Overlay
     private bool _previewIsCurrent;
 
@@ -71,8 +70,6 @@ public sealed class Voronoi : IDisposable
     private double[] _cumulativeWeights = [];
     private double _totalWeight;
     private double _averageWeight;
-    private int _densityWidth;
-    private int _densityHeight;
 
     private double[] _sumX = [];
     private double[] _sumY = [];
@@ -80,9 +77,10 @@ public sealed class Voronoi : IDisposable
     private readonly HashSet<int> _usedColors = [];
     private readonly CellColorMode _cellColorMode;
 
-    public static Color EdgeColor = Color.Black;
+    public static readonly Color DefaultEdgeColor = Color.Black;
+    public static readonly Color DefaultPointColor = Color.Red;
 
-    #region Constructors
+    #region CONSTRUCTORS
 
     /// <summary>
     /// Construct a generator. Heightmap is the default source mode; configure a map with
@@ -100,7 +98,8 @@ public sealed class Voronoi : IDisposable
         ArgumentNullException.ThrowIfNull(graphicsDevice);
         _graphicsDevice = graphicsDevice;
         _unifiedColor = unifiedColor;
-        _pointColor = pointColor ?? Color.Red;
+        _pointColor = pointColor ?? DefaultPointColor;
+        _edgeColor = DefaultEdgeColor;
         _cellColorMode = cellColorMode;
         if (heightmap is not null)
             UseHeightmap(heightmap);
@@ -124,14 +123,17 @@ public sealed class Voronoi : IDisposable
 
     #endregion
 
+    #region HEIGHTMAP TOGGLES
+
     /// <summary>Set the source to a MonoGame height/density texture.</summary>
     public void UseHeightmap(Texture2D heightmap)
     {
         ArgumentNullException.ThrowIfNull(heightmap);
-        _heightmap = heightmap;
-        _densityPixels = null;
-        _densityPixelsWidth = 0;
-        _densityPixelsHeight = 0;
+        _densityPixels = [];
+        EnsureLength(ref _densityPixels, checked(heightmap.Width * heightmap.Height));
+        heightmap.GetData(_densityPixels);
+        _densityPixelsWidth = heightmap.Width;
+        _densityPixelsHeight = heightmap.Height;
         SourceMode = VoronoiSourceMode.Heightmap;
     }
 
@@ -147,7 +149,6 @@ public sealed class Voronoi : IDisposable
         _densityPixels = pixels;
         _densityPixelsWidth = width;
         _densityPixelsHeight = height;
-        _heightmap = null;
         SourceMode = VoronoiSourceMode.Heightmap;
     }
 
@@ -163,21 +164,26 @@ public sealed class Voronoi : IDisposable
     // ReSharper disable once UnusedMember.Global
     public void UseHeightmap()
     {
-        if (_heightmap is null && _densityPixels is null)
-            throw new InvalidOperationException(
-                "No heightmap is configured. Call UseHeightmap(texture) or UseHeightmap(pixels, width, height) first.");
+        if (_densityPixels is null)
+        {
+            const string e =
+                "No heightmap is configured. Call UseHeightmap(texture) or UseHeightmap(pixels, width, height) first.";
+            throw new InvalidOperationException(e);
+        }
+
         SourceMode = VoronoiSourceMode.Heightmap;
     }
+
+    #endregion
+
+    #region GENERATION
 
     /// <summary>
     /// Generate from the currently selected source. Output dimensions default to the current viewport.
     /// This method creates or reuses CellIdTexture and PreviewTexture; graphics-resource work must run
     /// on the graphics thread.
     /// </summary>
-    public VoronoiDiagramData GenerateDiagram(
-        int? width = null,
-        int? height = null,
-        VoronoiOptions? options = null)
+    public VoronoiDiagramData GenerateDiagram(int? width = null, int? height = null, VoronoiOptions? options = null)
     {
         options ??= new VoronoiOptions();
         int outputWidth = width ?? _graphicsDevice.Viewport.Width;
@@ -194,14 +200,6 @@ public sealed class Voronoi : IDisposable
                 densityPixels = _densityPixels;
                 densityWidth = _densityPixelsWidth;
                 densityHeight = _densityPixelsHeight;
-            }
-            else if (_heightmap is not null)
-            {
-                EnsureLength(ref _heightPixels, checked(_heightmap.Width * _heightmap.Height));
-                _heightmap.GetData(_heightPixels);
-                densityPixels = _heightPixels;
-                densityWidth = _heightmap.Width;
-                densityHeight = _heightmap.Height;
             }
             else
             {
@@ -238,10 +236,15 @@ public sealed class Voronoi : IDisposable
     {
         if (SourceMode == VoronoiSourceMode.Heightmap)
         {
+            // Ensure Density Map was actually provided, earlier.
             if (densityPixels is null)
                 throw new InvalidOperationException("A density map is required in heightmap mode.");
-            ValidateDensityPixels(densityPixels, densityWidth, densityHeight);
-            PrepareDensityField(densityPixels, densityWidth, densityHeight, options);
+
+            // Validate Density Pixels
+            bool densityPixelLengthProperlySized = densityPixels.Length != checked(densityWidth * densityHeight);
+            if (densityWidth <= 0 || densityHeight <= 0 || densityPixelLengthProperlySized)
+                throw new ArgumentException("Density pixel buffer dimensions are invalid.", nameof(densityPixels));
+            PrepareDensityField(densityPixels, options);
         }
 
         Width = outputWidth;
@@ -277,6 +280,7 @@ public sealed class Voronoi : IDisposable
         rasterizer.Rebuild(Sites);
         rasterizer.Rasterize(CellIds, options.MaxDegreeOfParallelism);
 
+        // TODO: Add more border / boundary / culling options, handled here.
         if (options.BoundaryMode == VoronoiBoundaryMode.Culled)
             CullBorderCells();
 
@@ -289,11 +293,14 @@ public sealed class Voronoi : IDisposable
 
         EnsureOutputTextures(options.BuildOverlay);
         UploadCellIdTexture(CellIdTexture!);
-        BuildOverlayColors(options.ShowSiteMarkers);
-        if (options.BuildOverlay) UploadOverlayTexture(OverlayTexture!);
+        if (options.BuildOverlay)
+        {
+            BuildOverlayColors(options.ShowSiteMarkers);
+            UploadOverlayTexture(OverlayTexture!);
+        }
         else
         {
-            OverlayTexture!.Dispose();
+            OverlayTexture?.Dispose();
             OverlayTexture = null;
         }
 
@@ -302,6 +309,10 @@ public sealed class Voronoi : IDisposable
             options.BuildOverlay ? OverlayTexture : null,
             SourceMode, _lastBoundaryMode, options);
     }
+
+    #endregion
+
+    #region TEXTURES
 
     /// <summary>
     /// Upload encoded IDs into an existing same-sized SurfaceFormat.Color texture.
@@ -333,13 +344,39 @@ public sealed class Voronoi : IDisposable
         return texture;
     }
 
-    public Texture2D CreatePreviewTexture(GraphicsDevice graphicsDevice, bool showSiteMarkers)
+    public Texture2D CreateOverlayTexture(GraphicsDevice graphicsDevice, bool showSiteMarkers)
     {
         ArgumentNullException.ThrowIfNull(graphicsDevice);
         var texture = new Texture2D(graphicsDevice, Width, Height, false, SurfaceFormat.Color);
         UploadOverlayTexture(texture);
         return texture;
     }
+
+
+    private void EnsureOutputTextures(bool includeOverlay)
+    {
+        if (CellIdTexture is null || CellIdTexture.IsDisposed ||
+            CellIdTexture.Width != Width || CellIdTexture.Height != Height)
+        {
+            CellIdTexture?.Dispose();
+            CellIdTexture = new Texture2D(_graphicsDevice, Width, Height, false, SurfaceFormat.Color);
+        }
+
+        if (includeOverlay && (OverlayTexture is null ||
+                               OverlayTexture.IsDisposed ||
+                               OverlayTexture.Width != Width ||
+                               OverlayTexture.Height != Height))
+        {
+            OverlayTexture?.Dispose();
+            OverlayTexture = new Texture2D(_graphicsDevice, Width, Height, false, SurfaceFormat.Color);
+        }
+        else if (!includeOverlay && OverlayTexture is not null)
+        {
+            // Keep the allocated texture for reuse, but don't expose it in the result for this generation.
+        }
+    }
+
+    #endregion
 
     private static void ValidateOptions(int outputWidth, int outputHeight, VoronoiOptions options)
     {
@@ -375,6 +412,8 @@ public sealed class Voronoi : IDisposable
             throw new ArgumentOutOfRangeException(nameof(options.Randomness));
     }
 
+    #region SAMPLING
+
     private static void ValidateDensityPixels(Color[] pixels, int densityWidth, int densityHeight)
     {
         if (densityWidth <= 0 || densityHeight <= 0 ||
@@ -383,10 +422,8 @@ public sealed class Voronoi : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void PrepareDensityField(Color[] pixels, int densityWidth, int densityHeight, VoronoiOptions options)
+    private void PrepareDensityField(Color[] pixels, VoronoiOptions options)
     {
-        _densityWidth = densityWidth;
-        _densityHeight = densityHeight;
         int count = pixels.Length;
         EnsureLength(ref _luminance, count);
         EnsureLength(ref _weights, count);
@@ -441,11 +478,11 @@ public sealed class Voronoi : IDisposable
         {
             attempts++;
             int densityIndex = SampleWeightedPixel(random);
-            int tx = densityIndex % _densityWidth;
-            int ty = densityIndex / _densityWidth;
+            int tx = densityIndex % _densityPixelsWidth;
+            int ty = densityIndex / _densityPixelsWidth;
 
-            float x = (tx + (float)random.NextDouble()) / _densityWidth * width;
-            float y = (ty + (float)random.NextDouble()) / _densityHeight * height;
+            float x = (tx + (float)random.NextDouble()) / _densityPixelsWidth * width;
+            float y = (ty + (float)random.NextDouble()) / _densityPixelsHeight * height;
             x = Math.Clamp(x, minX, width - minX);
             y = Math.Clamp(y, minY, height - minY);
 
@@ -459,21 +496,19 @@ public sealed class Voronoi : IDisposable
             bool blocked = false;
 
             for (int gy = Math.Max(0, by - 1); gy <= Math.Min(gridHeight - 1, by + 1) && !blocked; gy++)
+            for (int gx = Math.Max(0, bx - 1); gx <= Math.Min(gridWidth - 1, bx + 1) && !blocked; gx++)
             {
-                for (int gx = Math.Max(0, bx - 1); gx <= Math.Min(gridWidth - 1, bx + 1) && !blocked; gx++)
+                int bucket = gy * gridWidth + gx;
+                for (int other = heads[bucket]; other != -1; other = next[other])
                 {
-                    int bucket = gy * gridWidth + gx;
-                    for (int other = heads[bucket]; other != -1; other = next[other])
-                    {
-                        float dx = x - Sites[other].X;
-                        float dy = y - Sites[other].Y;
-                        float required = MathF.Max(radius, radii[other]);
-                        if (!(dx * dx + dy * dy < required * required))
-                            continue;
+                    float dx = x - Sites[other].X;
+                    float dy = y - Sites[other].Y;
+                    float required = MathF.Max(radius, radii[other]);
+                    if (!(dx * dx + dy * dy < required * required))
+                        continue;
 
-                        blocked = true;
-                        break;
-                    }
+                    blocked = true;
+                    break;
                 }
             }
 
@@ -540,6 +575,8 @@ public sealed class Voronoi : IDisposable
 
         return lo;
     }
+
+    #endregion
 
     private void RelaxSites(int width, int height, float strength)
     {
@@ -612,6 +649,8 @@ public sealed class Voronoi : IDisposable
         void Mark(int id) => cull[id] = true;
     }
 
+    #region COLORS
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteCellIdColors()
     {
@@ -622,6 +661,7 @@ public sealed class Voronoi : IDisposable
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Color[] CreateCellColors(int cellCount)
     {
         lock (_usedColors) _usedColors.Clear();
@@ -631,6 +671,7 @@ public sealed class Voronoi : IDisposable
         return colors;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void BuildOverlayColors(bool showSiteMarkers)
     {
         EnsureLength(ref _overlayColors, CellIds.Length);
@@ -649,13 +690,13 @@ public sealed class Voronoi : IDisposable
 
             // Build Edges // TODO: back to flags
             // TODO: remove these conditionals to avoid frame border
-            bool edge = x == 0 || y == 0 || x == w - 1 || y == h - 1; 
+            bool edge = x == 0 || y == 0 || x == w - 1 || y == h - 1;
             if (!edge && CellIds[idx - 1] != id) edge = true;
             if (!edge && CellIds[idx + 1] != id) edge = true;
             if (!edge && CellIds[idx - w] != id) edge = true;
             if (!edge && CellIds[idx + w] != id) edge = true;
 
-            _overlayColors[idx] = edge ? Color.Black : Color.Transparent;
+            _overlayColors[idx] = edge ? _edgeColor : Color.Transparent;
         }
 
         // Build Sites
@@ -767,29 +808,7 @@ public sealed class Voronoi : IDisposable
         );
     }
 
-
-    private void EnsureOutputTextures(bool includeOverlay)
-    {
-        if (CellIdTexture is null || CellIdTexture.IsDisposed ||
-            CellIdTexture.Width != Width || CellIdTexture.Height != Height)
-        {
-            CellIdTexture?.Dispose();
-            CellIdTexture = new Texture2D(_graphicsDevice, Width, Height, false, SurfaceFormat.Color);
-        }
-
-        if (includeOverlay && (OverlayTexture is null ||
-                               OverlayTexture.IsDisposed ||
-                               OverlayTexture.Width != Width ||
-                               OverlayTexture.Height != Height))
-        {
-            OverlayTexture?.Dispose();
-            OverlayTexture = new Texture2D(_graphicsDevice, Width, Height, false, SurfaceFormat.Color);
-        }
-        else if (!includeOverlay && OverlayTexture is not null)
-        {
-            // Keep the allocated texture for reuse, but don't expose it in the result for this generation.
-        }
-    }
+    #endregion
 
     public void Dispose()
     {
@@ -910,9 +929,8 @@ public sealed class Voronoi : IDisposable
                     break;
             }
 
-            if (bestId < 0)
-                throw new InvalidOperationException("Rasterizer could not find a site; the site array is empty.");
-            return bestId;
+            if (bestId >= 0) return bestId;
+            throw new InvalidOperationException("Rasterizer could not find a site; the site array is empty.");
         }
 
         private float DistanceToUnsearchedBins(float px, float py, int bx, int by, int ring)
@@ -922,23 +940,17 @@ public sealed class Voronoi : IDisposable
             int minY = Math.Max(0, by - ring);
             int maxY = Math.Min(_gridHeight - 1, by + ring);
             float result = float.PositiveInfinity;
-
-            if (minX > 0)
-                result = MathF.Min(result, px - minX * _binSize);
+            if (minX > 0) result = MathF.Min(result, px - minX * _binSize);
             if (maxX < _gridWidth - 1)
             {
                 float rightEdge = MathF.Min(_width, (maxX + 1) * _binSize);
                 result = MathF.Min(result, rightEdge - px);
             }
 
-            if (minY > 0)
-                result = MathF.Min(result, py - minY * _binSize);
-            if (maxY < _gridHeight - 1)
-            {
-                float bottomEdge = MathF.Min(_height, (maxY + 1) * _binSize);
-                result = MathF.Min(result, bottomEdge - py);
-            }
-
+            if (minY > 0) result = MathF.Min(result, py - minY * _binSize);
+            if (maxY >= _gridHeight - 1) return result;
+            float bottomEdge = MathF.Min(_height, (maxY + 1) * _binSize);
+            result = MathF.Min(result, bottomEdge - py);
             return result;
         }
 

@@ -65,7 +65,7 @@ public class Voronoi
                 SiteCount = 1000,
                 ShowSiteMarkers = true,
                 BuildOverlay = true,
-                OverlayOpacity = 0.5f
+                OverlayOpacity = 0.5f,
             },
             new ReferenceBoundarySettings(_borderMap));
         _diagramMap = diagram;

@@ -30,7 +30,7 @@ public sealed class VoronoiOptions
     public VoronoiBoundaryMode BoundaryMode { get; init; } = VoronoiBoundaryMode.HardEdgeClosed;
 
     /// <summary>Randomness forwarded to a custom IPointDistributor.</summary>
-    public double Randomness { get; init; } = 0.0;
+    public double Randomness { get; init; } = 0.25f;
 
     /// <summary>Optionally draw site-center markers into the preview.</summary>
     public bool ShowSiteMarkers { get; init; } = false;
