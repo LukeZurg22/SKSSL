@@ -3,11 +3,16 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace SKSSL.Utilities;
 
 public partial class DiagramMap
 {
+    // Override state, indexed by cell ID.
+    private readonly Color[] _cellOverrideColors;
+    private readonly bool[] _hasCellOverride;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetCellOverride(uint id, Color color)
     {
@@ -73,5 +78,27 @@ public partial class DiagramMap
     public void SetCellOverrides(ICollection<uint> selectedIds, Color color)
     {
         foreach (uint id in selectedIds) SetCellOverride(id, color);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void DrawDiagram(SpriteBatch spriteBatch)
+    {
+        // Set all per-map shader parameters before drawing.
+        _paletteEffect.Parameters["SpriteTexture"].SetValue(_displayMap);
+        _paletteEffect.Parameters["PaletteTexture"].SetValue(_paletteTexture);
+        _paletteEffect.Parameters["BaseTexture"].SetValue(_sourceMap);
+        _paletteEffect.Parameters["PaletteWidth"].SetValue((float)_paletteWidth);
+        _paletteEffect.Parameters["PaletteHeight"].SetValue((float)_paletteHeight);
+
+        // The cell-ID texture is bound by SpriteBatch.
+        spriteBatch.Begin(
+            sortMode: SpriteSortMode.Deferred,
+            blendState: BlendState.AlphaBlend,
+            samplerState: SamplerState.PointClamp,
+            effect: _paletteEffect,
+            transformMatrix: _diagramTransform);
+        float opacity = MathHelper.Clamp(_diagramOpacity, 0f, 1f);
+        spriteBatch.Draw(_displayMap, Vector2.Zero, Color.White * opacity);
+        spriteBatch.End();
     }
 }

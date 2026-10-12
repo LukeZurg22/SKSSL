@@ -36,7 +36,7 @@ public sealed class VoronoiOptions
     public double Randomness { get; init; } = 0.25f;
 
     /// <summary>Optionally and deterministically draw site-center markers into the preview.</summary>
-    public DiagramOverlayOptions OverlayFlags { get; init; } = DiagramOverlayOptions.All;
+    public DiagramOverlayOptions OverlayFlags { get; init; } = DiagramOverlayOptions.SuppressAll;
 
     /// <summary>-1 uses the default Parallel.For worker count; otherwise use a positive limit.</summary>
     public int MaxDegreeOfParallelism { get; init; } = -1;

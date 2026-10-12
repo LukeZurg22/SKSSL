@@ -5,6 +5,13 @@ namespace SKSSL.Utilities;
 
 public partial class DiagramMap
 {
+    // Reference-region constraint. Null means no constraint.
+    // WARN: Boundary Region by Pixel isn't created here anymore. It's in Voronoi. I figured i'd do this later, since I
+    //  am not planning to make the diagram map editable anytime soon.
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
+    private int[]? _boundaryRegionByPixel;
+#pragma warning restore CS0649 // Field is never assigned to, and will always have its default value
+
     /// <summary>
     /// Assigns a pixel to a cell, updating both cells' pixel lists
     /// and the display buffer. A null ID removes cell ownership.

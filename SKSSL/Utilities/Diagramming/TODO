@@ -1,10 +1,3 @@
-// TODO: Support constrained and density-driven Voronoi generation.
-//  1. Explicit boundaries
-//     a. Accept an image or polygon boundary.
-//     b. Extract functional edges / regions from the image.
-//        Color coding may be useful for identifying boundaries.
-//     c. Treat extracted boundaries as clipping/constraining geometry.
-
 //  TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
 
 // TODO: Add a flashing "Selected" highlight which uses Marked Cells. This will be rough.

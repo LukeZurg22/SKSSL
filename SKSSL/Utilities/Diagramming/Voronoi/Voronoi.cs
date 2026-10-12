@@ -63,7 +63,6 @@ public sealed class Voronoi : IDisposable
     public Color[] CellColors { get; set; } // Colors per cell
     private Color[]? _densityPixels; // Displacement
     private Color[] _overlayColors = []; // Overlay
-    private bool _previewIsCurrent;
     private bool[]? _referenceBoundaryMask;
 
     private float[] _luminance = [];
@@ -293,12 +292,12 @@ public sealed class Voronoi : IDisposable
 
         if (options.BoundaryMode == VoronoiBoundaryMode.Culled)
             CullBorderCells();
-        
+
         // Toggle-able randomized cell IDs. Rather than state "Sort Cell IDs", I prefer to have the Cell IDs sorted by
         //  default.
         if (!options.RandomizeCellIds)
             SortCellsTopLeftToBottomRight();
-        
+
         // Apply the reference mask after rasterization/ID sorting and optional border culling.
         // Cell IDs remain zero-based; -1 remains unowned. The mask also stays available
         // for overlay rendering so reference boundaries remain visible.
@@ -309,7 +308,6 @@ public sealed class Voronoi : IDisposable
 
         // Fill each pixel with its owning cell's display color.
         WriteCellIdColors();
-        _previewIsCurrent = false;
 
         // Create Output Texture References
         DiagramOverlayOptions overlayFlags = options.OverlayFlags;
@@ -327,7 +325,6 @@ public sealed class Voronoi : IDisposable
                 _pointColor, _pointRadius,
                 _referenceBoundaryMask
             );
-            _previewIsCurrent = true;
             UploadOverlayTexture(OverlayTexture!);
         }
         else // Fallback for BuildOverlay.
@@ -701,7 +698,6 @@ public sealed class Voronoi : IDisposable
         BuildOverlayColors(
             Width, Height, overlayOptions, CellIds, Sites,
             ref _overlayColors, _edgeColor, _pointColor, _pointRadius, _referenceBoundaryMask);
-        _previewIsCurrent = true;
         UploadOverlayTexture(texture);
         return texture;
     }
@@ -1084,7 +1080,7 @@ public sealed class Voronoi : IDisposable
         bool[]? referenceBoundaryMask)
     {
         EnsureLength(ref overlayColors, cellIds.Length);
-        
+
         if ((showSiteMarkers & DiagramOverlayOptions.Edges) != 0)
         {
             for (int y = 0; y < h; y++)

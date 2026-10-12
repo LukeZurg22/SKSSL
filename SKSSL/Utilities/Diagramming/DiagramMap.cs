@@ -50,9 +50,6 @@ public partial class DiagramMap
     private readonly int _paletteWidth;
     private readonly int _paletteHeight;
 
-    // Reference-region constraint. Null means no constraint.
-    private int[]? _boundaryRegionByPixel;
-
     // Alpha 128 is the empty-cell sentinel used by SetPixelCell.
     private static readonly Color EmptyCellIdColor = new(0, 0, 0, 0);
 
@@ -113,13 +110,13 @@ public partial class DiagramMap
         for (int id = 0; id < _cellRawColors.Length; id++)
         {
             uint packedColor = _cellRawColors[id].PackedValue;
-            if (!_paletteColorToId.TryAdd(packedColor, id))
-                throw new InvalidOperationException($"Duplicate palette color encountered for cell ID {id}.");
+            string e_0 = $"Duplicate palette color encountered for cell ID {id}.";
+            if (!_paletteColorToId.TryAdd(packedColor, id)) throw new InvalidOperationException(e_0);
         }
 
         // Build Cell Overrides and do Indexing
-        if (cellCount > 0x1000000)
-            throw new IndexOutOfRangeException("The RGB cell-ID encoding supports at most 16,777,216 cells.");
+        const string e_1 = "The RGB cell-ID encoding supports at most 16,777,216 cells.";
+        if (cellCount > 0x1000000) throw new IndexOutOfRangeException(e_1);
         _cellOverrideColors = new Color[cellCount];
         _hasCellOverride = new bool[cellCount];
         _pixelIndicesByCell = new List<int>[cellCount];
