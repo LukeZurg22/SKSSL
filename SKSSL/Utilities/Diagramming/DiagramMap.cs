@@ -120,7 +120,7 @@ public partial class DiagramMap
 
         // Split original cells across reference regions, when supplied.
         if (referenceBoundary != null)
-            ApplyReferenceBoundary(referenceBoundary);
+            ApplyReferenceBoundary(referenceBoundary); // WIP: Fixing Apply Ref. Boundary (again)
         UpdateDisplayPixelsFromRenderIds(); // Keep after referenceBoundary.
 
         // Build the palette dimensions.
