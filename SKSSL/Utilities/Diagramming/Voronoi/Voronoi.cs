@@ -77,6 +77,7 @@ public sealed class Voronoi : IDisposable
     private int[] _pixelCounts = [];
     private readonly HashSet<int> _usedColors = [];
     private readonly CellColorMode _cellColorMode;
+    private int _pointRadius;
 
     public static readonly Color DefaultEdgeColor = Color.Black;
     public static readonly Color DefaultPointColor = Color.Red;
@@ -259,6 +260,7 @@ public sealed class Voronoi : IDisposable
         Width = outputWidth;
         Height = outputHeight;
         _lastBoundaryMode = options.BoundaryMode;
+        _pointRadius = options.PointSize;
         EnsureLength(ref _sites, options.SiteCount);
         EnsureLength(ref _cellIds, checked(outputWidth * outputHeight));
         EnsureLength(ref _encodedColors, _cellIds.Length);
@@ -318,7 +320,8 @@ public sealed class Voronoi : IDisposable
                 CellIds,
                 Sites,
                 ref _overlayColors,
-                _edgeColor, _pointColor,
+                _edgeColor,
+                _pointColor, _pointRadius,
                 _referenceBoundaryMask
             );
             _previewIsCurrent = true;
@@ -694,7 +697,7 @@ public sealed class Voronoi : IDisposable
         var texture = new Texture2D(graphicsDevice, Width, Height, false, SurfaceFormat.Color);
         BuildOverlayColors(
             Width, Height, overlayOptions, CellIds, Sites,
-            ref _overlayColors, _edgeColor, _pointColor, _referenceBoundaryMask);
+            ref _overlayColors, _edgeColor, _pointColor, _pointRadius, _referenceBoundaryMask);
         _previewIsCurrent = true;
         UploadOverlayTexture(texture);
         return texture;
@@ -1081,6 +1084,7 @@ public sealed class Voronoi : IDisposable
         ref Color[] overlayColors,
         Color edgeColor,
         Color pointColor,
+        int pointRadius,
         bool[]? referenceBoundaryMask)
     {
         EnsureLength(ref overlayColors, cellIds.Length);
@@ -1116,11 +1120,30 @@ public sealed class Voronoi : IDisposable
         // Build Sites
         if ((showSiteMarkers & DiagramOverlayOptions.Sites) != 0)
         {
+            int radius = Math.Max(0, pointRadius);
+
             foreach (Vector2 site in sites)
             {
                 int sx = Math.Clamp((int)site.X, 0, w - 1);
                 int sy = Math.Clamp((int)site.Y, 0, h - 1);
-                overlayColors[sy * w + sx] = pointColor;
+
+                for (int dy = -radius; dy <= radius; dy++)
+                {
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        // Keep the marker circular.
+                        if (dx * dx + dy * dy > radius * radius)
+                            continue;
+
+                        int x = sx + dx;
+                        int y = sy + dy;
+
+                        if ((uint)x >= (uint)w || (uint)y >= (uint)h)
+                            continue;
+
+                        overlayColors[y * w + x] = pointColor;
+                    }
+                }
             }
         }
     }

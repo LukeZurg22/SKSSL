@@ -188,7 +188,7 @@ public partial class DiagramMap
 
         // The overlay is a normal image, not a cell-ID texture,
         // so render it separately without the palette shader.
-        if (true /*_overlay != null*/) // WIP: Fix overlay not overlaying.
+        if (_overlay != null)
         {
             spriteBatch.Begin(
                 blendState: BlendState.AlphaBlend,

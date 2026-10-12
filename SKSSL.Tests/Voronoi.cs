@@ -69,7 +69,7 @@ public class Voronoi
             },
             new ReferenceBoundarySettings(_borderMap));
         _diagramMap = diagram;
-        _diagramMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity);
+        _diagramMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity, _game.GraphicsDevice.Viewport.Width, _game.GraphicsDevice.Viewport.Height);
 
         Regions(siteCount);
 
