@@ -65,7 +65,6 @@ public class Voronoi
             {
                 SiteCount = siteCount,
                 OverlayFlags = DiagramOverlayOptions.Sites,
-                OverlayOpacity = 0.5f,
             },
             new ReferenceBoundarySettings(_borderMap));
         _diagramMap = diagram;

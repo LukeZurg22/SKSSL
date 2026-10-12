@@ -132,7 +132,7 @@ public sealed class Voronoi : IDisposable
     {
         ArgumentNullException.ThrowIfNull(heightmap);
         _densityPixels = [];
-        EnsureLength(ref _densityPixels, checked(heightmap.Width * heightmap.Height));
+        EnsureLength(ref _densityPixels, heightmap.Width * heightmap.Height);
         heightmap.GetData(_densityPixels);
         _densityPixelsWidth = heightmap.Width;
         _densityPixelsHeight = heightmap.Height;
@@ -291,11 +291,14 @@ public sealed class Voronoi : IDisposable
         rasterizer.Rebuild(Sites);
         rasterizer.Rasterize(CellIds, options.MaxDegreeOfParallelism);
 
+        if (options.BoundaryMode == VoronoiBoundaryMode.Culled)
+            CullBorderCells();
+        
         // Toggle-able randomized cell IDs. Rather than state "Sort Cell IDs", I prefer to have the Cell IDs sorted by
         //  default.
         if (!options.RandomizeCellIds)
             SortCellsTopLeftToBottomRight();
-
+        
         // Apply the reference mask after rasterization/ID sorting and optional border culling.
         // Cell IDs remain zero-based; -1 remains unowned. The mask also stays available
         // for overlay rendering so reference boundaries remain visible.
@@ -765,13 +768,6 @@ public sealed class Voronoi : IDisposable
 
     #region SAMPLING
 
-    private static void ValidateDensityPixels(Color[] pixels, int densityWidth, int densityHeight)
-    {
-        if (densityWidth <= 0 || densityHeight <= 0 ||
-            pixels.Length != checked(densityWidth * densityHeight))
-            throw new ArgumentException("Density pixel buffer dimensions are invalid.", nameof(pixels));
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void PrepareDensityField(Color[] pixels, VoronoiOptions options)
     {
@@ -1121,28 +1117,25 @@ public sealed class Voronoi : IDisposable
         if ((showSiteMarkers & DiagramOverlayOptions.Sites) != 0)
         {
             int radius = Math.Max(0, pointRadius);
-
             foreach (Vector2 site in sites)
             {
                 int sx = Math.Clamp((int)site.X, 0, w - 1);
                 int sy = Math.Clamp((int)site.Y, 0, h - 1);
 
                 for (int dy = -radius; dy <= radius; dy++)
+                for (int dx = -radius; dx <= radius; dx++)
                 {
-                    for (int dx = -radius; dx <= radius; dx++)
-                    {
-                        // Keep the marker circular.
-                        if (dx * dx + dy * dy > radius * radius)
-                            continue;
+                    // Keep the marker circular.
+                    if (dx * dx + dy * dy > radius * radius)
+                        continue;
 
-                        int x = sx + dx;
-                        int y = sy + dy;
+                    int x = sx + dx;
+                    int y = sy + dy;
 
-                        if ((uint)x >= (uint)w || (uint)y >= (uint)h)
-                            continue;
+                    if ((uint)x >= (uint)w || (uint)y >= (uint)h)
+                        continue;
 
-                        overlayColors[y * w + x] = pointColor;
-                    }
+                    overlayColors[y * w + x] = pointColor;
                 }
             }
         }
