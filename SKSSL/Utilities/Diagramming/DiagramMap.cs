@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi;
@@ -36,10 +37,6 @@ public partial class DiagramMap
     private readonly List<int>[] _pixelIndicesByCell; // Current pixel membership for each cell.
     private readonly Color[] _cellRawColors; // Immutable base colors and the ID lookup.
     private readonly Dictionary<uint, int> _paletteColorToId = new();
-
-    // Override state, indexed by cell ID.
-    private readonly Color[] _cellOverrideColors;
-    private readonly bool[] _hasCellOverride;
 
     private Rectangle _dirtyIdRectangle;
     private bool _idTextureDirty;
@@ -96,8 +93,8 @@ public partial class DiagramMap
 
         // Populate Pixel Indexers
         _pixelToCellId = new int[pixelCount];
-        Array.Copy(data.PixelToCellId, _pixelToCellId, pixelCount);
         _pixelIndexInCell = new int[pixelCount];
+        Array.Copy(data.PixelToCellId, _pixelToCellId, pixelCount);
         Array.Fill(_pixelIndexInCell, -1);
 
         // Keep a Copy of the Original Per-Cell Colors
@@ -138,16 +135,25 @@ public partial class DiagramMap
         _paletteHeight = Math.Max(1, (cellCount + _paletteWidth - 1) / _paletteWidth);
         _palettePixels = new Color[_paletteWidth * _paletteHeight];
         Array.Copy(_cellRawColors, _palettePixels, cellCount);
-        
+
+        // Finalize Display and Palette Textures
         //@formatter:off
+        _sourceMap.SetData(sourcePixels);
         _displayMap = new Texture2D(graphics, _sourceMap.Width, _sourceMap.Height, mipmap: false, format: SurfaceFormat.Color);
         _paletteTexture = new Texture2D(graphics, _paletteWidth, _paletteHeight, mipmap: false, format: SurfaceFormat.Color);
+        _displayMap.SetData(_displayPixels);
+        _paletteTexture.SetData(_palettePixels);
         //@formatter:on
 
-        // The display buffer now contains the base cell colors.
-        _sourceMap.SetData(sourcePixels);
-        _paletteTexture.SetData(_palettePixels);
-        _displayMap.SetData(_displayPixels);
+        // Create Highlighting
+        //@formatter:off
+        _highlightPixels = new Color[pixelCount];
+        _cellHighlightColors = new Color[cellCount];
+        _hasCellHighlight = new bool[cellCount];
+        _highlightMap = new Texture2D(graphics, _sourceMap.Width, _sourceMap.Height, mipmap: false, format: SurfaceFormat.Color);
+        Array.Fill(_highlightPixels, Color.Transparent);
+        _highlightMap.SetData(_highlightPixels);
+        //@formatter:on
     }
 
     #endregion
@@ -164,39 +170,32 @@ public partial class DiagramMap
             return;
 
         FlushTextureUpdates();
+        DrawDiagram(spriteBatch); // Main Diagram
+        DrawOverlay(spriteBatch); // Overlay (Sites, etc.)
+        DrawHighlights(spriteBatch); // Flashing Highlights
+    }
 
-        // Set all per-map shader parameters before drawing.
-        _paletteEffect.Parameters["SpriteTexture"].SetValue(_displayMap);
-        _paletteEffect.Parameters["PaletteTexture"].SetValue(_paletteTexture);
-        _paletteEffect.Parameters["BaseTexture"].SetValue(_sourceMap);
-        _paletteEffect.Parameters["PaletteWidth"].SetValue((float)_paletteWidth);
-        _paletteEffect.Parameters["PaletteHeight"].SetValue((float)_paletteHeight);
-
-        // The cell-ID texture is bound by SpriteBatch.
-        spriteBatch.Begin(
-            sortMode: SpriteSortMode.Deferred,
-            blendState: BlendState.AlphaBlend,
-            samplerState: SamplerState.PointClamp,
-            effect: _paletteEffect,
-            transformMatrix: _diagramTransform);
-        float opacity = MathHelper.Clamp(_diagramOpacity, 0f, 1f);
-        spriteBatch.Draw(_displayMap, Vector2.Zero, Color.White * opacity);
-        spriteBatch.End();
-
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void DrawOverlay(SpriteBatch spriteBatch)
+    {
         // The overlay is a normal image, not a cell-ID texture,
         // so render it separately without the palette shader.
-        if (_overlay != null)
-        {
-            spriteBatch.Begin(
-                blendState: BlendState.AlphaBlend,
-                sortMode: SpriteSortMode.Deferred,
-                samplerState: SamplerState.PointClamp,
-                transformMatrix: _diagramTransform
-            );
-            opacity = MathHelper.Clamp(_overlayOpacity, 0f, 1f);
-            spriteBatch.Draw(_overlay, Vector2.Zero, Color.White * opacity);
-            spriteBatch.End();
-        }
+        if (_overlay == null) return;
+        spriteBatch.Begin(
+            blendState: BlendState.AlphaBlend,
+            sortMode: SpriteSortMode.Deferred,
+            samplerState: SamplerState.PointClamp,
+            transformMatrix: _diagramTransform
+        );
+        float opacity = MathHelper.Clamp(_overlayOpacity, 0f, 1f);
+        spriteBatch.Draw(_overlay, Vector2.Zero, Color.White * opacity);
+        spriteBatch.End();
+    }
+
+    // ReSharper disable once UnusedMember.Global
+    public void Update(GameTime gameTime)
+    {
+        UpdateHighlights(gameTime);
     }
 
     /// <summary>

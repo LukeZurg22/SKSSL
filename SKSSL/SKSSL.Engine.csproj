@@ -262,6 +262,9 @@
         <Compile Update="Utilities\Diagramming\DiagramMap.ReferenceBounds.cs">
           <DependentUpon>DiagramMap.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Diagramming\DiagramMap.Highlighting.cs">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

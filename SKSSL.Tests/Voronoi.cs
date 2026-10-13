@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -68,7 +69,18 @@ public class Voronoi
             },
             new ReferenceBoundarySettings(_borderMap));
         _diagramMap = diagram;
-        _diagramMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity, _game.GraphicsDevice.Viewport.Width, _game.GraphicsDevice.Viewport.Height);
+        _diagramMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity, _game.GraphicsDevice.Viewport.Width,
+            _game.GraphicsDevice.Viewport.Height);
+
+        // Highlight a cell in translucent yellow.
+        _diagramMap.SetCellHighlight(cellId: 42, color: new Color(12, 220, 0, 160));
+        _diagramMap.SetHighlightOpacity(1f);
+
+        // Flash every 250 milliseconds.
+        _diagramMap.SetHighlightFlashing(
+            enabled: true,
+            interval: TimeSpan.FromMilliseconds(250)
+        );
 
         Regions(siteCount);
 
@@ -142,6 +154,8 @@ public class Voronoi
         _diagramMap.SetCellOverrides([1, 2, 3, 4, 5, 6, 7, 8], Color.Red);
         _diagramMap.SetCellOverrides([9, 10, 11, 12, 13, 14, 15, 16], Color.Green);
         _diagramMap.SetCellOverrides([0], Color.PaleTurquoise);
+
+        _diagramMap.Update(gameTime);
 
         if (TOGGLE_EXECUTABLE_CLOSURE)
 #pragma warning disable CS0162
