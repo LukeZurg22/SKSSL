@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+
 // ReSharper disable PropertyCanBeMadeInitOnly.Global
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 
@@ -50,9 +51,11 @@ public sealed class VoronoiOptions
 
     /// Size of Points, if they are rendered.
     public int PointSize { get; set; } = 2;
+
     public float DiagramOpacity { get; set; } = 1f;
     public float OverlayOpacity { get; set; } = 1f;
     public CellIdSortingMode CellSortingMode { get; set; } = CellIdSortingMode.Random;
+    public string DiagramName { get; set; } = "VoronoiDiagram";
 }
 
 [Flags]

@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -28,33 +30,57 @@ public class DiagramMapSaveData
     /// The most "expensive" data that needs binary serialization.
     public uint[] RawPixelCellData { get; set; } = [];
 
-    /// Serialize as a separate, user-friendly map that maps CELL ID -> CELL COLOR.
-    public Dictionary<int, uint> CellIdToColor { get; set; } = new();
-
     #region I/O === Cell ID -> Color
 
     private const string FileNameCellsXML = "cells.xml";
 
-    public void SaveCellIds(string path)
+    /// Serialize as a separate, user-friendly map that maps CELL ID -> CELL COLOR.
+    public static void SaveCellIds(string path)
     {
-        var contents = CellIdToColor
-            .Select(entry => $"{entry.Key};{entry.Value.ToString(CultureInfo.InvariantCulture)}");
-        File.WriteAllLines(Path.Combine(path, FileNameCellsXML), contents);
+        //var contents = CellIdToColor
+        //    .Select(entry => $"{entry.Key};{entry.Value.ToString(CultureInfo.InvariantCulture)}");
+        //File.WriteAllLines(Path.Combine(path, FileNameCellsXML), contents);
     }
 
-    public void LoadCellIds(string path)
+    /// <summary>
+    /// Loads cell ids in parallel from a file.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <param name="cellCount"></param>
+    private static Color[] LoadCellIdsToColors(string path, int cellCount)
     {
-        CellIdToColor.Clear();
-        foreach (string line in File.ReadLines(path))
-        {
-            string[] parts = line.Split(';');
-            if (parts.Length != 2)
-                continue;
+        var cellColors = new Color[cellCount];
+        string[] lines = File.ReadAllLines(path);
+        var entries = lines
+            .AsParallel()
+            .Select(line =>
+            {
+                // Ignore any lines starting with a comment, or empty lines.
+                var text = line.AsSpan().Trim();
+                if (text.IsEmpty || text[0] == '#') return null;
 
-            bool canKey = int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int key);
-            bool canValue = uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint value);
-            if (canKey && canValue) CellIdToColor[key] = value;
-        }
+                // If a line is incomplete, short-circuit.
+                string[] parts = line.Split(';');
+                if (parts.Length < 2) return null;
+
+                // Remove comments, and short-circuit if the comment -was- the second half.
+                string cleanedLine = line.Split('#')[0].Trim();
+                if (cleanedLine.Length == 0) return null;
+                parts[1] = cleanedLine;
+
+                // Parse Key and Value for int/uint KVP, where uint is a packed color.
+                bool ky = int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int key);
+                bool va = uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint value);
+                return !ky || !va ? ((int Key, uint Value)?)null : (key, value);
+            })
+            .Where(entry => entry.HasValue)
+            .Select(entry => entry!.Value)
+            .ToArray();
+
+        foreach ((int Key, uint Value) entry in entries)
+            cellColors[entry.Key] = new Color(entry.Value);
+
+        return cellColors;
     }
 
     #endregion
@@ -69,7 +95,7 @@ public class DiagramMapSaveData
     /// <summary>
     /// Save a <see cref="DiagramMap"/> for later use at a provided location, with a dedicated name.
     /// </summary>
-    /// <param name="diagramName">Name of the diagram.</param>
+    /// <param name="diagramMap">Used to get Diagram Data to save</param>
     /// <param name="hostFolderPath">The path where the diagram will be saved in its own directory.</param>
     /// <remarks>
     /// [MyGameFolder]<br/>
@@ -77,12 +103,15 @@ public class DiagramMapSaveData
     /// --> WorldFolder/MyDiagram<br/>
     /// +--> WorldFolder/MyDiagram (a bunch of data)
     /// </remarks>
-    public void SaveDiagram(string diagramName, string hostFolderPath)
+    public void SaveDiagram(DiagramMap diagramMap, string hostFolderPath)
     {
         // Create a directory with the diagram name.
-        DirectoryInfo diagramDirectory = Directory.CreateDirectory(Path.Combine(hostFolderPath, diagramName));
+        DirectoryInfo diagramDirectory =
+            Directory.CreateDirectory(Path.Combine(hostFolderPath, diagramMap.DiagramName));
 
         // TODO: Serialize everything else.
+
+        // TODO: Assign CellIds dictionary.
         SaveCellIds(diagramDirectory.ToString());
     }
 
@@ -110,12 +139,13 @@ public class DiagramMapSaveData
         // TEMP: Pixel count can be reconstructed from these two.
 
         // Load Sites
+        int cellCount = 0;
 
         // Load Cell Id -> Cell Color Map
         /* ===Diagram===
          * -> [DiagramDirectory]
          * +--> DiagramDirectory/cells.xml */
-        LoadCellIds(Path.Combine(diagramDirectory, FileNameCellsXML));
+        var cellIdToCellColor = LoadCellIdsToColors(Path.Combine(diagramDirectory, FileNameCellsXML), cellCount);
 
         // Load PNG Texture of Raw Cell Data & Map to CellIdToCellColor
 
@@ -124,8 +154,9 @@ public class DiagramMapSaveData
         // Load Voronoi Options (VoronoiOptions only contains simple types! It'll be fine!)
 
         // TODO: Populate this.
-        var dd = new VoronoiDiagramData([],
+        var dd = new VoronoiDiagramData(
             [],
+            cellIdToCellColor,
             [],
             null,
             null,

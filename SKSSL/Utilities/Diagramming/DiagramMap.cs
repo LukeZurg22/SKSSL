@@ -14,6 +14,8 @@ namespace SKSSL.Utilities;
 /// </summary>
 public partial class DiagramMap
 {
+    public string DiagramName { get; set; }
+
     // The Maps
     private readonly Texture2D _sourceMap; // Original diagram texture. Never modify it.
     private readonly Texture2D _displayMap; // Texture actually used for drawing.
@@ -57,6 +59,7 @@ public partial class DiagramMap
 
     public DiagramMap(GraphicsDevice graphics, VoronoiDiagramData data)
     {
+        DiagramName = data.VoronoiOptions.DiagramName;
         // MonoGame Formalities
         _graphics = graphics;
         // OpenGL is cross-compat with the Big Three(TM) Operating Systems, so I am going with OpenGL.
@@ -176,6 +179,11 @@ public partial class DiagramMap
     /// Useful when one needs the untouched source.
     public Texture2D GetSourceMap() => _sourceMap;
 
+    public void Save()
+    {
+        
+    }
+    
     public void Draw(SpriteBatch? spriteBatch)
     {
         if (spriteBatch == null)

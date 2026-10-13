@@ -26,8 +26,11 @@ public sealed class VoronoiDiagramData
         CellIdTexture = cellIdTexture;
         OverlayColors = overlayColors;
         VoronoiOptions = voronoiOptions;
+        DiagramName = voronoiOptions.DiagramName;
     }
 
+    public string DiagramName { get; set; }
+    
     /// <summary>RGBA8 texture encoding site ID + 1 in RGB; alpha zero is the background.</summary>
     public Texture2D CellIdTexture { get; set; }
 
