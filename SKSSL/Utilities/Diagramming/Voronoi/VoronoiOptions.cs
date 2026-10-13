@@ -5,6 +5,10 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SKSSL.Utilities.Voronoi;
 
+/// <summary>
+/// A set of options dictating the generation behaviour of a Voronoi Diagram, 
+/// </summary>
+/// <remarks>Ensure that this class only contains SIMPLE types, for serialization convenience.</remarks>
 public sealed class VoronoiOptions
 {
     public int SiteCount { get; set; } = 100_000;

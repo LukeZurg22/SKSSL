@@ -349,8 +349,7 @@ public sealed class Voronoi : IDisposable
             OverlayTexture = null;
         }
 
-        return new VoronoiDiagramData(
-            Width, Height, Sites, CellColors, CellIds, CellIdTexture!,
+        return new VoronoiDiagramData(Sites, CellColors, CellIds, CellIdTexture!,
             includeOverlay ? _overlayColors : null, options);
     }
 
