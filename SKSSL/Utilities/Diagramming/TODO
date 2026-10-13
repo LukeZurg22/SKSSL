@@ -1,6 +1,3 @@
 //  TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
-
-// WIP: All I need to do now is
-//  Overlay voronoi on 3D model and preserve functionality.
-//  Optimize:
-//   - Demarcations, Highlights, and etc. need to all reference a set of regions w. a Dirty/Clean system.
+//  TODO: Overlay voronoi on 3D model and preserve functionality.
+//  TODO: Optimize Demarcations, Highlights, and etc. need to all reference a set of regions w. a Dirty/Clean system.
