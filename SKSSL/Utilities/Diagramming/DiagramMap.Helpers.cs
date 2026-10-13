@@ -45,11 +45,8 @@ public partial class DiagramMap
             _paletteDirty = false;
         }
 
-        if (!_idTextureDirty)
-            return;
-
+        if (!_idTextureDirty) return;
         Rectangle rect = _dirtyIdRectangle;
-
         long changedArea = (long)rect.Width * rect.Height;
         long totalArea = (long)_sourceMap.Width * _sourceMap.Height;
 
@@ -64,8 +61,7 @@ public partial class DiagramMap
             {
                 int sourceIndex = (rect.Y + row) * sourceWidth + rect.X;
                 int destinationIndex = row * copyWidth;
-                Copy(
-                    _displayPixels,
+                Copy(_displayPixels,
                     sourceIndex,
                     _uploadScratch,
                     destinationIndex,
@@ -80,15 +76,12 @@ public partial class DiagramMap
         _dirtyIdRectangle = Rectangle.Empty;
     }
 
+    //@formatter:off
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     // ReSharper disable once UnusedMember.Local
-    private bool TryGetCellIdFromColor(Color color, out int id)
-        => _paletteColorToId.TryGetValue(color.PackedValue, out id) || Fail(out id);
+    private bool TryGetCellIdFromColor(Color color, out int id) => _paletteColorToId.TryGetValue(color.PackedValue, out id) || Fail(out id);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool Fail(out int id)
-    {
-        id = -1;
-        return false;
-    }
+    private static bool Fail(out int id) { id = -1; return false; }
+    //@formatter:on
 }

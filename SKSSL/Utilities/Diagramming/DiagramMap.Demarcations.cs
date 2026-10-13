@@ -36,7 +36,7 @@ public partial class DiagramMap
         RebuildDemarcations();
     }
 
-    public void DemarcateCells(ICollection<int> cellIds, bool selected)
+    public void DemarcateCells(IEnumerable<int> cellIds, bool selected)
     {
         ArgumentNullException.ThrowIfNull(cellIds);
 

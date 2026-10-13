@@ -1,3 +1,5 @@
+using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -18,6 +20,21 @@ public partial class DiagramMap
             1f
         );
         _diagramTransform = world * view * scale;
+    }
+
+    /// <summary>
+    /// Used to get the "physical" vector position of the center of the map.
+    /// </summary>
+    /// <returns><see cref="Vector2"/> location of the center of the map.</returns>
+    // ReSharper disable once UnusedMember.Global
+    public Vector2 GetCentre()
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(_displayMap.Width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(_displayMap.Height);
+        return new Vector2(
+            /*ReSharper disable once PossibleLossOfFraction*/ _displayMap.Width / 2,
+            /*ReSharper disable once PossibleLossOfFraction*/_displayMap.Height / 2
+        );
     }
 
     // ReSharper disable once MemberCanBePrivate.Global

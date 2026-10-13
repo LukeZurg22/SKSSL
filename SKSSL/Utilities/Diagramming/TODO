@@ -2,4 +2,5 @@
 
 // WIP: All I need to do now is
 //  Overlay voronoi on 3D model and preserve functionality.
-//  Cell ID selection helpers.
+//  Optimize:
+//   - Demarcations, Highlights, and etc. need to all reference a set of regions w. a Dirty/Clean system.

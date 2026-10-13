@@ -98,9 +98,9 @@ public partial class DiagramMap
         Array.Fill(_pixelIndexInCell, -1);
 
         // Keep a Copy of the Original Per-Cell Colors
-        int cellCount = data.Sites.Length;
-        _cellRawColors = new Color[cellCount];
-        Array.Copy(data.CellIdToCellColor, _cellRawColors, cellCount);
+        _sites = data.Sites;
+        _cellRawColors = new Color[CellCount];
+        Array.Copy(data.CellIdToCellColor, _cellRawColors, CellCount);
 
         // Pack Raw Colors for Cells
         _paletteColorToId.Clear();
@@ -113,11 +113,11 @@ public partial class DiagramMap
 
         // Build Cell Overrides and do Indexing
         const string e_1 = "The RGB cell-ID encoding supports at most 16,777,216 cells.";
-        if (cellCount > 0x1000000) throw new IndexOutOfRangeException(e_1);
-        _cellOverrideColors = new Color[cellCount];
-        _hasCellOverride = new bool[cellCount];
-        _pixelIndicesByCell = new List<int>[cellCount];
-        for (int i = 0; i < cellCount; i++) _pixelIndicesByCell[i] = [];
+        if (CellCount > 0x1000000) throw new IndexOutOfRangeException(e_1);
+        _cellOverrideColors = new Color[CellCount];
+        _hasCellOverride = new bool[CellCount];
+        _pixelIndicesByCell = new List<int>[CellCount];
+        for (int i = 0; i < CellCount; i++) _pixelIndicesByCell[i] = [];
         BuildPixelIndexFromIds();
 
         // Build Rendering Cell Pixels
@@ -131,11 +131,15 @@ public partial class DiagramMap
         UpdateDisplayPixelsFromRenderIds(); // Keep after referenceBoundary. Updates routing.
 
         // Build the Palette
-        _paletteWidth = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(cellCount)));
-        _paletteHeight = Math.Max(1, (cellCount + _paletteWidth - 1) / _paletteWidth);
+        _paletteWidth = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(CellCount)));
+        _paletteHeight = Math.Max(1, (CellCount + _paletteWidth - 1) / _paletteWidth);
         _palettePixels = new Color[_paletteWidth * _paletteHeight];
-        Array.Copy(_cellRawColors, _palettePixels, cellCount);
+        Array.Copy(_cellRawColors, _palettePixels, CellCount);
 
+        // Neighbor Graphing
+        // Doing this after everything else just to be absolutely certain everything is sorted by this point.
+        _cellNeighbors = BuildCellAdjacency(_pixelToCellId, _sourceMap.Width, _sourceMap.Height, CellCount);
+        
         // Finalize Display and Palette Textures
         //@formatter:off
         _sourceMap.SetData(sourcePixels);
@@ -148,8 +152,8 @@ public partial class DiagramMap
         // Create Highlighting
         //@formatter:off
         _highlightPixels = new Color[pixelCount];
-        _cellHighlightColors = new Color[cellCount];
-        _hasCellHighlight = new bool[cellCount];
+        _cellHighlightColors = new Color[CellCount];
+        _hasCellHighlight = new bool[CellCount];
         _highlightMap = new Texture2D(graphics, _sourceMap.Width, _sourceMap.Height, mipmap: false, format: SurfaceFormat.Color);
         Array.Fill(_highlightPixels, Color.Transparent);
         _highlightMap.SetData(_highlightPixels);
@@ -157,7 +161,7 @@ public partial class DiagramMap
 
         // Create Demarcation Map
         //@formatter:off
-        _demarcatedCells = new bool[cellCount];
+        _demarcatedCells = new bool[CellCount];
         _demarcationPixels = new Color[pixelCount];
         _demarcationScratch = new byte[_demarcationPixels.Length];
         _demarcationGroupByCell = new long[_demarcatedCells.Length];

@@ -66,8 +66,8 @@ public class Voronoi
             {
                 SiteCount = siteCount,
                 OverlayFlags = DiagramOverlayOptions.Sites,
-            },
-            new ReferenceBoundarySettings(_borderMap));
+            } /*,
+            new ReferenceBoundarySettings(_borderMap)*/);
         _diagramMap = diagram;
         _diagramMap.SetDiagramProjection(Matrix.Identity, Matrix.Identity, _game.GraphicsDevice.Viewport.Width,
             _game.GraphicsDevice.Viewport.Height);
@@ -82,9 +82,12 @@ public class Voronoi
             interval: TimeSpan.FromMilliseconds(250),
             smooth: true
         );
-        _diagramMap.DemarcateCells([20, 40, 41, 42, 43, 51, 52, 54, 55, 90, 51], true);
-        _diagramMap.DemarcateCells([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], true);
-        _diagramMap.DemarcateCells([13,14,15,16,17,18,19], true);
+        var selector = DiagramMap.CreateRadialWeightSelector(
+            _diagramMap.GetCellPosition, center: _diagramMap.GetCentre(), radius: 250, falloffPower: 2);
+
+        var cells = _diagramMap.SelectCellClumps(100, 5, 10, selector);
+        foreach (var cellGroup in cells)
+            _diagramMap.DemarcateCells(cellGroup, true);
 
         Regions(siteCount);
 
@@ -108,7 +111,6 @@ public class Voronoi
         {
             int segment = (int)(i / segmentSize);
             int value = (int)(i % segmentSize) * 255 / (segmentSize - 1);
-
             Color color = (segment % 3) switch
             {
                 0 => new Color((byte)value, 0, 0),
