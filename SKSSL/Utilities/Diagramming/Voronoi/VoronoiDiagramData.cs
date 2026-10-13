@@ -1,5 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -10,9 +12,13 @@ namespace SKSSL.Utilities.Voronoi;
 public sealed class VoronoiDiagramData
 {
     internal VoronoiDiagramData(
-        int width, int height, Vector2[] sites, Color[] cellIdToCellColor, int[] pixelToCellId,
-        Texture2D cellIdTexture, Color[]? overlayColors,
-        VoronoiSourceMode sourceMode, VoronoiBoundaryMode boundaryMode, VoronoiOptions voronoiOptions)
+        int width, int height,
+        Vector2[] sites,
+        Color[] cellIdToCellColor,
+        int[] pixelToCellId,
+        Texture2D cellIdTexture,
+        Color[]? overlayColors,
+        VoronoiOptions voronoiOptions)
     {
         Width = width;
         Height = height;
@@ -21,26 +27,21 @@ public sealed class VoronoiDiagramData
         PixelToCellId = pixelToCellId;
         CellIdTexture = cellIdTexture;
         OverlayColors = overlayColors;
-        SourceMode = sourceMode;
-        BoundaryMode = boundaryMode;
         VoronoiOptions = voronoiOptions;
     }
 
-    public int Width { get; }
-    public int Height { get; }
-    public Vector2[] Sites { get; }
-
-    /// <summary>Zero-based site ID per pixel; -1 means transparent/unassigned.</summary>
-    public int[] PixelToCellId { get; }
-
-    public Color[] CellIdToCellColor { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
 
     /// <summary>RGBA8 texture encoding site ID + 1 in RGB; alpha zero is the background.</summary>
-    public Texture2D CellIdTexture { get; }
+    public Texture2D CellIdTexture { get; set; }
 
+    public int[] PixelToCellId { get; set; }
+
+    /// <summary>Zero-based site ID per pixel; -1 means transparent/unassigned.</summary>
+    public Vector2[] Sites { get; set; }
+
+    public Color[] CellIdToCellColor { get; set; }
     public Color[]? OverlayColors { get; set; }
-
-    public VoronoiSourceMode SourceMode { get; }
-    public VoronoiBoundaryMode BoundaryMode { get; }
     public VoronoiOptions VoronoiOptions { get; set; }
 }

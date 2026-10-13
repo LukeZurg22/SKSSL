@@ -47,8 +47,6 @@ public sealed class Voronoi : IDisposable
     private int _densityPixelsWidth;
     private int _densityPixelsHeight;
     private IPointDistributor? _distributor;
-    private VoronoiBoundaryMode _lastBoundaryMode = VoronoiBoundaryMode.HardEdgeClosed;
-
     public VoronoiSourceMode SourceMode { get; private set; } = VoronoiSourceMode.Heightmap;
     public int Width { get; private set; }
     public int Height { get; private set; }
@@ -259,7 +257,6 @@ public sealed class Voronoi : IDisposable
 
         Width = outputWidth;
         Height = outputHeight;
-        _lastBoundaryMode = options.BoundaryMode;
         _pointRadius = options.PointSize;
         EnsureLength(ref _sites, options.SiteCount);
         EnsureLength(ref _cellIds, checked(outputWidth * outputHeight));
@@ -354,8 +351,7 @@ public sealed class Voronoi : IDisposable
 
         return new VoronoiDiagramData(
             Width, Height, Sites, CellColors, CellIds, CellIdTexture!,
-            includeOverlay ? _overlayColors : null,
-            SourceMode, _lastBoundaryMode, options);
+            includeOverlay ? _overlayColors : null, options);
     }
 
     #endregion

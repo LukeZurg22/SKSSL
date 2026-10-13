@@ -129,31 +129,31 @@ public partial class DiagramMap
 
         UpdateDisplayPixelsFromRenderIds(); // Keep after referenceBoundary. Updates routing.
 
+        // Neighbor Graphing
+        // Doing this after everything else just to be absolutely certain everything is sorted by this point.
+        _cellNeighbors = BuildCellAdjacency(_pixelToCellId, _sourceMap.Width, _sourceMap.Height, CellCount);
+
+        // Finalize Display Texture
+        //@formatter:off
+        _sourceMap.SetData(sourcePixels);
+        _displayMap = new Texture2D(graphics, _sourceMap.Width, _sourceMap.Height, mipmap: false, format: SurfaceFormat.Color);
+        _displayMap.SetData(_displayPixels);
+        
         // Build the Palette
         _paletteWidth = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(CellCount)));
         _paletteHeight = Math.Max(1, (CellCount + _paletteWidth - 1) / _paletteWidth);
         _palettePixels = new Color[_paletteWidth * _paletteHeight];
         Array.Copy(_cellRawColors, _palettePixels, CellCount);
-
-        // Neighbor Graphing
-        // Doing this after everything else just to be absolutely certain everything is sorted by this point.
-        _cellNeighbors = BuildCellAdjacency(_pixelToCellId, _sourceMap.Width, _sourceMap.Height, CellCount);
-        
-        // Finalize Display and Palette Textures
-        //@formatter:off
-        _sourceMap.SetData(sourcePixels);
-        _displayMap = new Texture2D(graphics, _sourceMap.Width, _sourceMap.Height, mipmap: false, format: SurfaceFormat.Color);
         _paletteTexture = new Texture2D(graphics, _paletteWidth, _paletteHeight, mipmap: false, format: SurfaceFormat.Color);
-        _displayMap.SetData(_displayPixels);
         _paletteTexture.SetData(_palettePixels);
         //@formatter:on
 
         // Create Highlighting
         //@formatter:off
-        _highlightPixels = new Color[pixelCount];
         _cellHighlightColors = new Color[CellCount];
         _hasCellHighlight = new bool[CellCount];
         _highlightMap = new Texture2D(graphics, _sourceMap.Width, _sourceMap.Height, mipmap: false, format: SurfaceFormat.Color);
+        _highlightPixels = new Color[pixelCount];
         Array.Fill(_highlightPixels, Color.Transparent);
         _highlightMap.SetData(_highlightPixels);
         //@formatter:on
