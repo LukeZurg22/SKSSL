@@ -82,6 +82,9 @@ public class Voronoi
             interval: TimeSpan.FromMilliseconds(250),
             smooth: true
         );
+        _diagramMap.DemarcateCells([20, 40, 41, 42, 43, 51, 52, 54, 55, 90, 51], true);
+        _diagramMap.DemarcateCells([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], true);
+        _diagramMap.DemarcateCells([13,14,15,16,17,18,19], true);
 
         Regions(siteCount);
 

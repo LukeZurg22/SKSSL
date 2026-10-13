@@ -154,6 +154,15 @@ public partial class DiagramMap
         Array.Fill(_highlightPixels, Color.Transparent);
         _highlightMap.SetData(_highlightPixels);
         //@formatter:on
+
+        // Create Demarcation Map
+        //@formatter:off
+        _demarcatedCells = new bool[cellCount];
+        _demarcationPixels = new Color[pixelCount];
+        _demarcationScratch = new byte[_demarcationPixels.Length];
+        _demarcationGroupByCell = new long[_demarcatedCells.Length];
+        _demarcationMap = new Texture2D(graphics, _sourceMap.Width, _sourceMap.Height, mipmap: false, format: SurfaceFormat.Color);
+        //@formatter:on
     }
 
     #endregion
@@ -173,6 +182,7 @@ public partial class DiagramMap
         DrawDiagram(spriteBatch); // Main Diagram
         DrawOverlay(spriteBatch); // Overlay (Sites, etc.)
         DrawHighlights(spriteBatch); // Flashing Highlights
+        DrawDemarcations(spriteBatch); // Demarcations
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

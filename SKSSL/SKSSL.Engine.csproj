@@ -265,6 +265,12 @@
         <Compile Update="Utilities\Diagramming\DiagramMap.Highlighting.cs">
           <DependentUpon>DiagramMap.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Diagramming\DiagramMap.Demarcations.cs">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Utilities\Diagramming\DiagramMap.Selection.cs">
+          <DependentUpon>DiagramMap.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

@@ -1,5 +1,5 @@
 //  TODO: Implement LOD & Mip-Mapping, to coincide with culling when out-of view of the "camera".
 
 // WIP: All I need to do now is
-//  add back demarcations
 //  Overlay voronoi on 3D model and preserve functionality.
+//  Cell ID selection helpers.
