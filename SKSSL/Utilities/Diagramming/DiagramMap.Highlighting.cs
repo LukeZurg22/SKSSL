@@ -1,5 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -39,7 +41,7 @@ public partial class DiagramMap
 
     /// Indicates whether the highlight layer is currently visible.
     /// Toggled by the flashing animation.
-    private bool _highlightVisible = true;
+    private int _highlightedCells = 0;
 
     /// Duration of each visible or hidden phase of the flashing animation.
     private TimeSpan _highlightInterval = TimeSpan.FromMilliseconds(500);
@@ -63,13 +65,13 @@ public partial class DiagramMap
     /// for that cell. The highlight is rendered independently of the cell's
     /// base color and color override.
     /// </remarks>
-    public void SetCellHighlight(uint cellId, Color color)
+    public void SetCellHighlight(int cellId, Color color)
     {
-        if (cellId >= _cellHighlightColors.Length) return;
-        int id = (int)cellId;
-        _cellHighlightColors[id] = color;
-        _hasCellHighlight[id] = true;
-        foreach (int pixelIndex in _pixelIndicesByCell[id]) _highlightPixels[pixelIndex] = color;
+        if (cellId < 0 || cellId >= _cellHighlightColors.Length) return;
+        if (!_hasCellHighlight[cellId]) Interlocked.Increment(ref _highlightedCells);
+        _cellHighlightColors[cellId] = color;
+        _hasCellHighlight[cellId] = true;
+        foreach (int pixelIndex in _pixelIndicesByCell[cellId]) _highlightPixels[pixelIndex] = color;
         _highlightMap.SetData(_highlightPixels);
     }
 
@@ -86,10 +88,18 @@ public partial class DiagramMap
     {
         if (cellId >= _cellHighlightColors.Length) return;
         int id = (int)cellId;
+        if (_hasCellHighlight[cellId]) Interlocked.Decrement(ref _highlightedCells);
         _hasCellHighlight[id] = false;
         foreach (int pixelIndex in _pixelIndicesByCell[id]) _highlightPixels[pixelIndex] = Color.Transparent;
         _highlightMap.SetData(_highlightPixels);
     }
+
+    /// <summary>
+    /// Highlight every cell a provided color.
+    /// </summary>
+    /// <param name="color"></param>
+    public void HighlightAllCells(Color color)
+        => Parallel.ForEach(SelectAllCells(), cell => SetCellHighlight(cell, color));
 
     /// <summary>
     /// Removes all cell highlights from the diagram.
@@ -104,6 +114,7 @@ public partial class DiagramMap
         Array.Clear(_hasCellHighlight);
         Array.Fill(_highlightPixels, Color.Transparent);
         _highlightMap.SetData(_highlightPixels);
+        _highlightedCells = 0;
     }
 
     /// <summary>
@@ -137,7 +148,6 @@ public partial class DiagramMap
 
         _highlightFlashing = enabled;
         _smoothHighlightFlashing = smooth;
-        _highlightVisible = true;
         _highlightElapsed = TimeSpan.Zero;
     }
 
@@ -169,18 +179,18 @@ public partial class DiagramMap
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void UpdateHighlights(GameTime gameTime)
     {
-        if (!_highlightFlashing)
-            return;
-
+        if (!_highlightFlashing || _highlightedCells == 0) return;
         _highlightElapsed += gameTime.ElapsedGameTime;
 
         double intervalMs = _highlightInterval.TotalMilliseconds;
         double phase = _highlightElapsed.TotalMilliseconds / intervalMs % 2.0;
 
         // Smoothly fade out, then smoothly fade in.
-        _highlightVisibility = _smoothHighlightFlashing 
-            ? phase < 1.0 ? 1f - (float)phase : (float)(phase - 1.0) 
-            : phase < 1.0 ? 1f : 0f;
+        _highlightVisibility = _smoothHighlightFlashing
+            ? phase < 1.0 ? 1f - (float)phase : (float)(phase - 1.0)
+            : phase < 1.0
+                ? 1f
+                : 0f;
 
         // Retain only elapsed time within the complete cycle.
         _highlightElapsed = TimeSpan.FromMilliseconds(
@@ -202,9 +212,7 @@ public partial class DiagramMap
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawHighlights(SpriteBatch spriteBatch)
     {
-        if (_highlightVisibility <= 0f)
-            return;
-
+        if (_highlightVisibility <= 0f || _highlightedCells == 0) return;
         spriteBatch.Begin(
             sortMode: SpriteSortMode.Deferred,
             blendState: BlendState.AlphaBlend,
