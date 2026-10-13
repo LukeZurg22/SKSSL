@@ -2,4 +2,5 @@
 //  TODO: Overlay voronoi on 3D model and preserve functionality.
 //  TODO: Optimize Demarcations, Highlights, and etc. need to all reference a set of regions w. a Dirty/Clean system.
 //  TODO: Raise the limit of disparity of cell sizes for the Voronoi Diagram much higher; make it a VoronoiOption.
+//  TODO: Terrain Map Overlay (?). I don't personally need it at the moment, but it would be nice.
 //  IMPL: TODO: Implement saving and loading. It's pretty important.
