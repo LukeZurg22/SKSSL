@@ -64,6 +64,34 @@ public static class Indexers
         return d;
         static uint maxCoordinate(int bits) => (1u << bits) - 1;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ulong HilbertIndex16(uint x, uint y)
+    {
+        ulong distance = 0;
+        for (uint s = 1u << 15; s > 0; s >>= 1)
+        {
+            uint rx = (x & s) != 0 ? 1u : 0u;
+            uint ry = (y & s) != 0 ? 1u : 0u;
+            distance += (ulong)s * s * ((3u * rx) ^ ry);
+            RotateHilbert(ref x, ref y, rx, ry);
+        }
+
+        return distance;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void RotateHilbert(ref uint x, ref uint y, uint rx, uint ry)
+    {
+        if (ry != 0) return;
+        if (rx != 0)
+        {
+            x = 65535u - x;
+            y = 65535u - y;
+        }
+
+        (x, y) = (y, x);
+    }
 }
 
 /// For Voronoi Comparisons.

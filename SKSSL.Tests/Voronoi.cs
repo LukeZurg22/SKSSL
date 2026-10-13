@@ -29,7 +29,7 @@ public class Voronoi
     private SpriteBatch _spriteBatch = null!;
     private SpriteFontBase _font = null!;
     private Texture2D _borderMap = null!;
-    private readonly HashSet<uint> _selectedIds = [];
+    private readonly HashSet<int> _selectedIds = [];
 
     [TestMethod, UsedImplicitly]
     public void TEST_VORONOI_GEN()
@@ -57,7 +57,7 @@ public class Voronoi
         // EU5 has around 30k~. This can generate 100k and highlight cells somewhat smoothly. The catch is that this
         //  does not guarantee to be performance when extra data like province goods is hooked-up. That might require
         //  some kind of culling.
-        const int siteCount = 1000;
+        const int siteCount = 5000;
         DiagramMap diagram = VoronoiDiagramMapPipeline.FromHeightmap(
             _game.GraphicsDevice,
             _densityTexture,
@@ -66,6 +66,7 @@ public class Voronoi
             {
                 SiteCount = siteCount,
                 OverlayFlags = DiagramOverlayOptions.Sites,
+                CellSortingMode = CellIdSortingMode.HeightMapExperimental
             } /*,
             new ReferenceBoundarySettings(_borderMap)*/);
         _diagramMap = diagram;
@@ -100,17 +101,17 @@ public class Voronoi
     private void Black(int points)
     {
         Color color = Color.Black;
-        for (uint i = 0; i < points; i++)
+        for (int i = 0; i < points; i++)
             _diagramMap.SetCellOverride(i, color);
     }
 
     private void Regions(int points)
     {
         const int segmentSize = 255;
-        for (uint i = 0; i < points; i++)
+        for (int i = 0; i < points; i++)
         {
-            int segment = (int)(i / segmentSize);
-            int value = (int)(i % segmentSize) * 255 / (segmentSize - 1);
+            int segment = i / segmentSize;
+            int value = i % segmentSize * 255 / (segmentSize - 1);
             Color color = (segment % 3) switch
             {
                 0 => new Color((byte)value, 0, 0),
@@ -148,18 +149,18 @@ public class Voronoi
             return;
 
         MouseState mouse = Mouse.GetState();
-        if (_diagramMap.TryGetCellAt(mouse.Position, out uint id))
+        if (_diagramMap.TryGetCellAt(mouse.Position, out int id))
         {
             System.Console.WriteLine($"Hovered cell ID: {id}");
-            _diagramMap.ClearCellOverrides(_selectedIds);
+            _diagramMap.ClearAllCellHighlights();
             _selectedIds.Clear(); // Inefficient, but all I care about are results.
             _selectedIds.Add(id);
-            _diagramMap.SetCellOverride(id, Color.Yellow);
+            _diagramMap.SetCellHighlight(id, Color.Wheat);
         }
 
-        _diagramMap.SetCellOverrides([1, 2, 3, 4, 5, 6, 7, 8], Color.Red);
-        _diagramMap.SetCellOverrides([9, 10, 11, 12, 13, 14, 15, 16], Color.Green);
-        _diagramMap.SetCellOverrides([0], Color.PaleTurquoise);
+        _diagramMap.SetAllCellOverrides([1, 2, 3, 4, 5, 6, 7, 8], Color.Red);
+        _diagramMap.SetAllCellOverrides([9, 10, 11, 12, 13, 14, 15, 16], Color.Green);
+        _diagramMap.SetAllCellOverrides([0], Color.PaleTurquoise);
 
         _diagramMap.Update(gameTime);
 

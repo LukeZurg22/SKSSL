@@ -48,7 +48,7 @@ public sealed class VoronoiOptions
     public int PointSize { get; init; } = 2;
     public float DiagramOpacity { get; init; } = 1f;
     public float OverlayOpacity { get; init; } = 1f;
-    public bool RandomizeCellIds { get; init; } = false;
+    public CellIdSortingMode CellSortingMode { get; init; } = CellIdSortingMode.Random;
 }
 
 [Flags]

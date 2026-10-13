@@ -271,6 +271,9 @@
         <Compile Update="Utilities\Diagramming\DiagramMap.Selection.cs">
           <DependentUpon>DiagramMap.cs</DependentUpon>
         </Compile>
+        <Compile Update="Utilities\Diagramming\Voronoi\Voronoi.CellSorting.cs">
+          <DependentUpon>Voronoi.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using SKSSL.Utilities.Voronoi.PointDistributors;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using static SKSSL.Utilities.Voronoi.Voronoi_CellSorting;
 
 namespace SKSSL.Utilities.Voronoi;
 
@@ -295,8 +296,26 @@ public sealed class Voronoi : IDisposable
 
         // Toggle-able randomized cell IDs. Rather than state "Sort Cell IDs", I prefer to have the Cell IDs sorted by
         //  default.
-        if (!options.RandomizeCellIds)
-            SortCellsTopLeftToBottomRight();
+        switch (options.CellSortingMode)
+        {
+            case CellIdSortingMode.SpatialConnectivity:
+                SortCellsBySpatialConnectivity(Width, Height, ref _cellIds, ref _sites);
+                break;
+            case CellIdSortingMode.TopLeftToBottomRight_Linear_v1:
+                SortCellsTopLeftToBottomRight_Linear_v1(_sites.Length, ref _cellIds, ref _sites);
+                break;
+            case CellIdSortingMode.TopLeftToBottomRight_Circular_v1:
+                SortCellsTopLeftToBottomRight_Circular_v1(ref _cellIds, ref _sites);
+                break;
+            case CellIdSortingMode.HeightMapExperimental:
+                if (densityPixels != null)
+                    SortCellsHilbertByHeightAndAdjacency(Width, Height, densityPixels, ref _cellIds, ref _sites);
+                // ReSharper disable once RedundantJumpStatement
+                else goto case CellIdSortingMode.Random;
+                break;
+            case CellIdSortingMode.Random:
+            default: break; // Random: Sort nothing!
+        }
 
         // Apply the reference mask after rasterization/ID sorting and optional border culling.
         // Cell IDs remain zero-based; -1 remains unowned. The mask also stays available
@@ -921,6 +940,8 @@ public sealed class Voronoi : IDisposable
 
     #endregion
 
+    #region HELPERS
+
     private void RelaxSites(int width, int height, float strength)
     {
         if (strength <= 0f)
@@ -992,59 +1013,7 @@ public sealed class Voronoi : IDisposable
         void Mark(int id) => cull[id] = true;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SortCellsTopLeftToBottomRight()
-    {
-        int count = _sites.Length;
-        if (count == 0) return;
-
-        var firstPixel = new int[count];
-        Array.Fill(firstPixel, int.MaxValue);
-
-        // O(pixel count): find each cell's first row-major pixel.
-        for (int pixel = 0; pixel < _cellIds.Length; pixel++)
-        {
-            int id = _cellIds[pixel];
-            if ((uint)id < (uint)count && pixel < firstPixel[id]) firstPixel[id] = pixel;
-        }
-
-        // O(cell count log cell count): sort original IDs by first pixel.
-        var order = new int[count];
-        for (int i = 0; i < count; i++)
-            order[i] = i;
-
-        Array.Sort(order, (a, b) =>
-        {
-            int compare = firstPixel[a].CompareTo(firstPixel[b]);
-            if (compare != 0) return compare;
-            compare = _sites[a].Y.CompareTo(_sites[b].Y);
-            if (compare != 0) return compare;
-            compare = _sites[a].X.CompareTo(_sites[b].X);
-            return compare != 0 ? compare : a.CompareTo(b);
-        });
-
-        var oldToNew = new int[count];
-        var sortedSites = new Vector2[count];
-
-        // Map IDs to 1..count; reorder sites into matching ID order.
-        for (int newIndex = 0; newIndex < count; newIndex++)
-        {
-            int oldId = order[newIndex];
-            oldToNew[oldId] = newIndex;
-            sortedSites[newIndex] = _sites[oldId];
-        }
-
-        // Replace this with copying into the appropriate backing storage
-        // if _sites is a fixed-size array.
-        _sites = sortedSites;
-
-        // O(pixel count): remap every rasterized cell ID.
-        for (int pixel = 0; pixel < _cellIds.Length; pixel++)
-        {
-            int oldId = _cellIds[pixel];
-            if ((uint)oldId < (uint)count) _cellIds[pixel] = oldToNew[oldId];
-        }
-    }
+    #endregion
 
     #region COLORS
 
