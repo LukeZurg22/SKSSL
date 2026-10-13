@@ -69,8 +69,8 @@ public partial class DiagramMap
 
         // Populate Source Map
         _sourceMap = new Texture2D(graphics,
-            data.CellIdTexture.Width,
-            data.CellIdTexture.Height,
+            data.RawCellTexture.Width,
+            data.RawCellTexture.Height,
             mipmap: false,
             format: SurfaceFormat.Color
         );

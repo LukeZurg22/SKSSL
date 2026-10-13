@@ -16,14 +16,14 @@ public sealed class VoronoiDiagramData
         Vector2[] sites,
         Color[] cellIdToCellColor,
         int[] pixelToCellId,
-        Texture2D cellIdTexture,
+        Texture2D rawCellTexture,
         Color[]? overlayColors,
         VoronoiOptions voronoiOptions)
     {
         Sites = sites;
         CellIdToCellColor = cellIdToCellColor;
         PixelToCellId = pixelToCellId;
-        CellIdTexture = cellIdTexture;
+        RawCellTexture = rawCellTexture;
         OverlayColors = overlayColors;
         VoronoiOptions = voronoiOptions;
         DiagramName = voronoiOptions.DiagramName;
@@ -32,7 +32,7 @@ public sealed class VoronoiDiagramData
     public string DiagramName { get; set; }
     
     /// <summary>RGBA8 texture encoding site ID + 1 in RGB; alpha zero is the background.</summary>
-    public Texture2D CellIdTexture { get; set; }
+    public Texture2D RawCellTexture { get; set; }
 
     public int[] PixelToCellId { get; set; }
 
