@@ -79,7 +79,8 @@ public class Voronoi
         // Flash every 250 milliseconds.
         _diagramMap.SetHighlightFlashing(
             enabled: true,
-            interval: TimeSpan.FromMilliseconds(250)
+            interval: TimeSpan.FromMilliseconds(250),
+            smooth: true
         );
 
         Regions(siteCount);

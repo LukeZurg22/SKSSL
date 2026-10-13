@@ -9,56 +9,48 @@ namespace SKSSL.Utilities;
 
 public partial class DiagramMap
 {
-    /// <summary>
+    #region Fields
+
     /// Texture containing the per-pixel colors of the cell highlight layer.
-    /// </summary>
     private readonly Texture2D _highlightMap;
 
-    /// <summary>
     /// Indicates whether each cell currently has an active highlight.
     /// Indexed by cell ID.
-    /// </summary>
     private readonly bool[] _hasCellHighlight;
 
-    /// <summary>
     /// CPU-side pixel buffer for the highlight texture.
     /// Each pixel stores its cell's highlight color or transparency
     /// when no highlight is present.
-    /// </summary>
     private readonly Color[] _highlightPixels;
 
-    /// <summary>
     /// Highlight color assigned to each cell.
     /// Indexed by cell ID.
-    /// </summary>
     private readonly Color[] _cellHighlightColors;
 
-    /// <summary>
     /// Opacity multiplier applied when drawing the highlight layer.
     /// Values are expected to be in the range from 0 to 1.
-    /// </summary>
     private float _highlightOpacity = 1f;
 
-    /// <summary>
     /// Indicates whether highlighted cells should flash.
-    /// </summary>
     private bool _highlightFlashing;
 
-    /// <summary>
+    /// Toggles whether highlighting is applied with a Lerp.
+    private bool _smoothHighlightFlashing;
+
     /// Indicates whether the highlight layer is currently visible.
     /// Toggled by the flashing animation.
-    /// </summary>
     private bool _highlightVisible = true;
 
-    /// <summary>
     /// Duration of each visible or hidden phase of the flashing animation.
-    /// </summary>
     private TimeSpan _highlightInterval = TimeSpan.FromMilliseconds(500);
 
-    /// <summary>
     /// Elapsed time accumulated toward the next flashing state change.
-    /// </summary>
     private TimeSpan _highlightElapsed;
+
+    /// Control for highlight visibility when flashing.
+    private float _highlightVisibility = 1f;
+
+    #endregion
 
     /// <summary>
     /// Sets the highlight color for the specified cell.
@@ -126,6 +118,7 @@ public partial class DiagramMap
     /// Must be greater than <see cref="TimeSpan.Zero"/> when specified.
     /// If omitted, the previously configured interval is retained.
     /// </param>
+    /// <param name="smooth">Smooth highlighting with a LERP?</param>
     /// <exception cref="ArgumentOutOfRangeException">
     /// Thrown when the specified interval is zero or negative.
     /// </exception>
@@ -134,7 +127,7 @@ public partial class DiagramMap
     /// visible immediately. When flashing is enabled, visibility alternates
     /// after each configured interval.
     /// </remarks>
-    public void SetHighlightFlashing(bool enabled, TimeSpan? interval = null)
+    public void SetHighlightFlashing(bool enabled, TimeSpan? interval = null, bool smooth = false)
     {
         if (interval.HasValue)
         {
@@ -143,6 +136,7 @@ public partial class DiagramMap
         }
 
         _highlightFlashing = enabled;
+        _smoothHighlightFlashing = smooth;
         _highlightVisible = true;
         _highlightElapsed = TimeSpan.Zero;
     }
@@ -175,13 +169,23 @@ public partial class DiagramMap
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void UpdateHighlights(GameTime gameTime)
     {
-        if (!_highlightFlashing) return;
+        if (!_highlightFlashing)
+            return;
+
         _highlightElapsed += gameTime.ElapsedGameTime;
-        while (_highlightElapsed >= _highlightInterval)
-        {
-            _highlightElapsed -= _highlightInterval;
-            _highlightVisible = !_highlightVisible;
-        }
+
+        double intervalMs = _highlightInterval.TotalMilliseconds;
+        double phase = _highlightElapsed.TotalMilliseconds / intervalMs % 2.0;
+
+        // Smoothly fade out, then smoothly fade in.
+        _highlightVisibility = _smoothHighlightFlashing 
+            ? phase < 1.0 ? 1f - (float)phase : (float)(phase - 1.0) 
+            : phase < 1.0 ? 1f : 0f;
+
+        // Retain only elapsed time within the complete cycle.
+        _highlightElapsed = TimeSpan.FromMilliseconds(
+            _highlightElapsed.TotalMilliseconds % (intervalMs * 2.0)
+        );
     }
 
     /// <summary>
@@ -198,14 +202,18 @@ public partial class DiagramMap
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawHighlights(SpriteBatch spriteBatch)
     {
-        if (!_highlightVisible) return;
+        if (_highlightVisibility <= 0f)
+            return;
+
         spriteBatch.Begin(
             sortMode: SpriteSortMode.Deferred,
             blendState: BlendState.AlphaBlend,
             samplerState: SamplerState.PointClamp,
             transformMatrix: _diagramTransform
         );
-        spriteBatch.Draw(_highlightMap, Vector2.Zero, Color.White * _highlightOpacity);
+
+        float opacity = MathHelper.Clamp(_highlightOpacity * _highlightVisibility, 0f, 1f);
+        spriteBatch.Draw(_highlightMap, Vector2.Zero, Color.White * opacity);
         spriteBatch.End();
     }
 }
