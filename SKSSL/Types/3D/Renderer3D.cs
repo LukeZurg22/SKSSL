@@ -1,10 +1,8 @@
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Sin3D._Camera3D;
-using Sin3D._Model3D;
 
-namespace Sin3D._Renderer3D;
+namespace SKSSL.Types._3D;
 
 /// <summary>
 /// A 3D renderer class used for drawing Model3D objects and handling ambient lighting, directional lighting and fog.

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 
-namespace Sin3D._OBB3D;
+namespace SKSSL.Types._3D;
 
 /// <summary>
 /// A 3D oriented bounding box class for collision detection.

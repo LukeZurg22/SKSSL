@@ -1,9 +1,10 @@
 using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+
 // ReSharper disable UnusedMember.Global
 
-namespace Sin3D._Camera3D;
+namespace SKSSL.Types._3D;
 
 /// <summary>
 /// A 3D camera class that handles view and projection matrices.

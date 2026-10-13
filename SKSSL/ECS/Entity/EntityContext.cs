@@ -13,7 +13,7 @@ namespace SKSSL.ECS;
 public readonly struct EntityContext
 {
     /// <inheritdoc cref="SKSSL.ECS.EntityManager"/>
-    public EntityManager EntityManager => World.EntityManager;
+    public readonly EntityManager EntityManager = null!;
 
     /// <inheritdoc cref="Scenes.World"/>
     public readonly World World = null!;
@@ -24,6 +24,7 @@ public readonly struct EntityContext
     /// <exception cref="NullReferenceException">Thrown when ECS acquired is null.</exception>
     public EntityContext()
     {
+        // Get entity context from the scene manager itself. This call has special handling for worlds.
         EntityContext ecs = SSLGame.Instance.SceneManager.ECS();
         World = ecs.World;
     }
@@ -32,6 +33,14 @@ public readonly struct EntityContext
     public EntityContext(World world)
     {
         World = world;
+        EntityManager = World.EntityManager;
+    }
+    
+    /// Create context surrounding an entity.
+    public EntityContext(Entity entity)
+    {
+        World = entity.ParentWorld;
+        EntityManager = entity.SourceManager;
     }
 
     /*

@@ -1,5 +1,5 @@
-using System.Text.Json.Serialization;
 using MemoryPack;
+using Newtonsoft.Json;
 using YamlDotNet.Serialization;
 
 // ReSharper disable NotAccessedField.Global

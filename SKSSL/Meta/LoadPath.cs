@@ -1,16 +1,17 @@
 namespace SKSSL;
 
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
-// ReSharper disable UnusedMember.Global
 // ReSharper disable once ClassNeverInstantiated.Global
 public class LoadPath
 {
-    public string Path { get; set; }
     public int Order { get; set; }
+    public string Path { get; set; }
+    public bool Enabled { get; set; } = true;
 
-    public LoadPath(string path, int order)
-    {
-        Path = path;
-        Order = order;
-    }
+    //@formatter:off
+    public LoadPath() { }
+
+    public LoadPath(string path, int order, bool enabled = true) { Path = path; Order = order; Enabled = enabled; }
+    //@formatter:on
 }

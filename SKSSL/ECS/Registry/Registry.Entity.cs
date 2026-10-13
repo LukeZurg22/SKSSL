@@ -50,6 +50,7 @@ public sealed class EntityRegistry : Registry<Entity>
 
     private Entity? GetResolvedPrototype(string handle)
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         // Must be in raw prototypes first.
         if (!RegistryEntries.TryGetValue(handle, out Entity? raw))
             return null;
@@ -58,20 +59,15 @@ public sealed class EntityRegistry : Registry<Entity>
         if (ResolvedGameEntityDefinitions.TryGetValue(handle, out Entity? resolved))
             return resolved;
 
-        resolved = new Entity
-        {
-            Source = raw.Source,
-            Type = raw.Type,
-            Handle = raw.Handle,
-        };
-
-        resolved.ApplyInheritanceOf(raw);
+        resolved = raw.Clone(); // Use inner cloning method to handle other parts.
+        resolved.ApplyInheritanceOf(raw); // Apply inheritances if any.
 
         var visited = new HashSet<string>(); // Cycle detection
         ResolveInheritanceRecursive(raw, resolved, visited);
 
         ResolvedGameEntityDefinitions[handle] = resolved;
         return resolved;
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     private void ResolveInheritanceRecursive(Entity current, Entity result, HashSet<string> visited)

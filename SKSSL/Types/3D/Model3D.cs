@@ -1,11 +1,10 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Sin3D._OBB3D;
 
 // ReSharper disable ClassNeverInstantiated.Global
 
-namespace Sin3D._Model3D;
+namespace SKSSL.Types._3D;
 
 /// <summary>
 /// A 3D model class for handling position, rotation, scale and collision detection.
