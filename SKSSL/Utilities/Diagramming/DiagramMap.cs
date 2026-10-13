@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SKSSL.Utilities.Voronoi;
-using static SKSSL.Mathematics.IntegerExtensions;
 using Point = Microsoft.Xna.Framework.Point;
 using Vector2 = System.Numerics.Vector2;
 
@@ -218,9 +217,9 @@ public partial class DiagramMap
     /// <param name="point">Usually Mouse Position.</param>
     /// <param name="id"></param>
     /// <returns></returns>
-    public bool TryGetCellAt(Point point, out uint id)
+    public bool TryGetCellAt(Point point, out int id)
     {
-        id = InvalidatedUint;
+        id = -1;
 
         // Convert screen coordinates into diagram-local coordinates.
         Matrix inverse = Matrix.Invert(_diagramTransform);
@@ -235,11 +234,8 @@ public partial class DiagramMap
 
         int pixelIndex = y * _sourceMap.Width + x;
         int cellId = _pixelToCellId[pixelIndex];
-
-        if (cellId < 0)
-            return false;
-
-        id = (uint)cellId;
+        if (cellId < 0) return false;
+        id = cellId;
         return true;
     }
 }

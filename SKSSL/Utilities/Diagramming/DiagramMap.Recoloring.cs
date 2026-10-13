@@ -16,7 +16,7 @@ public partial class DiagramMap
     /// Assigns a pixel to a cell, updating both cells' pixel lists
     /// and the display buffer. A null ID removes cell ownership.
     /// </summary>
-    public void SetPixelCell(int x, int y, uint? cellId)
+    public void SetPixelCell(int x, int y, int? cellId)
     {
         if ((uint)x >= (uint)_sourceMap.Width || (uint)y >= (uint)_sourceMap.Height)
             throw new ArgumentOutOfRangeException(nameof(x), "Pixel coordinates are outside the texture.");

@@ -14,7 +14,7 @@ public partial class DiagramMap
     private readonly bool[] _hasCellOverride;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetCellOverride(uint id, Color color)
+    public void SetCellOverride(int id, Color color)
     {
         ValidateCellId(id);
         if (_hasCellOverride[id] && _cellOverrideColors[id] == color)
@@ -26,7 +26,7 @@ public partial class DiagramMap
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void ClearCellOverride(uint id)
+    public void ClearCellOverride(int id)
     {
         ValidateCellId(id);
         if (!_hasCellOverride[id])
@@ -37,10 +37,13 @@ public partial class DiagramMap
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ValidateCellId(uint id)
-        => ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(id, (uint)_cellRawColors.Length);
+    private void ValidateCellId(int id)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(id);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(id, _cellRawColors.Length);
+    }
 
-    private void UpdateEffectiveColor(uint cellId)
+    private void UpdateEffectiveColor(int cellId)
     {
         Color color = GetEffectiveColor(cellId);
         if (_palettePixels[cellId] == color)
@@ -51,23 +54,22 @@ public partial class DiagramMap
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private Color GetEffectiveColor(uint cellId)
+    private Color GetEffectiveColor(int cellId)
         => _hasCellOverride[cellId] ? _cellOverrideColors[cellId] : _cellRawColors[cellId];
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void ClearCellOverrides(ICollection<uint>? selectedIds = null)
+    public void ClearCellOverrides(HashSet<int> selectedIds = null)
     {
         switch (selectedIds)
         {
             case null:
                 // The uint cast for an int indexer is a bit dangerous. But...
                 // ...realistically-speaking, nobody is ever going to make 21 million cells on one diagram. Hopefully.
-                Parallel.For(0, _hasCellOverride.Length, i => { ClearCellOverride((uint)i); });
+                Parallel.For(0, _hasCellOverride.Length, ClearCellOverride);
                 return;
             default:
             {
-                foreach (uint id in selectedIds)
-                    ClearCellOverride(id);
+                foreach (int id in selectedIds) ClearCellOverride(id);
                 return;
             }
         }
@@ -75,10 +77,18 @@ public partial class DiagramMap
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     // ReSharper disable once UnusedMember.Global
-    public void SetCellOverrides(ICollection<uint> selectedIds, Color color)
+    public void SetAllCellOverrides(ICollection<uint> selectedIds, Color color)
     {
-        foreach (uint id in selectedIds) SetCellOverride(id, color);
+        foreach (int id in selectedIds) SetCellOverride(id, color);
     }
+
+    /// <summary>
+    /// Set all cells to a unified override color in parallel.
+    /// </summary>
+    /// <param name="color"></param>
+    // ReSharper disable once UnusedMember.Global
+    public void SetAllCellsToOverride(Color color)
+        => Parallel.ForEach(SelectAllCells(), cell => SetCellOverride(cell, color));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawDiagram(SpriteBatch spriteBatch)
